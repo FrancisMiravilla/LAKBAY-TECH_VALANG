@@ -1,0 +1,1341 @@
+.home,
+.home * {
+  box-sizing: border-box;
+}
+.home {
+  background: #ffffff;
+  border-radius: 48px;
+  height: 844px;
+  position: relative;
+  overflow: hidden;
+}
+.container {
+  background: #12051f;
+  border-radius: 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 390px;
+  height: 844px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  box-shadow: 0px 0px 0px 2px rgba(200, 23, 90, 0.4),
+    0px 40px 120px 0px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+}
+.container2 {
+  background: #c8175a;
+  padding: 0px 28px 0px 28px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  align-self: stretch;
+  flex-shrink: 0;
+  height: 44px;
+  position: relative;
+}
+.text {
+  flex-shrink: 0;
+  width: 24.59px;
+  height: 18px;
+  position: relative;
+}
+.nine41 {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Nunito-Bold", sans-serif;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 700;
+  position: absolute;
+  left: 0px;
+  top: -0.2px;
+}
+.container3 {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  position: relative;
+}
+.icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 12px;
+  position: relative;
+  overflow: visible;
+}
+.icon2 {
+  flex-shrink: 0;
+  width: 16px;
+  height: 12px;
+  position: relative;
+  overflow: visible;
+}
+.icon3 {
+  flex-shrink: 0;
+  width: 22px;
+  height: 12px;
+  position: relative;
+  overflow: visible;
+}
+.container4 {
+  background: linear-gradient(
+    135deg,
+    rgba(200, 23, 90, 1) 0%,
+    rgba(232, 25, 107, 1) 50%,
+    rgba(176, 18, 72, 1) 100%
+  );
+  padding: 18px 24px 22px 24px;
+  display: flex;
+  flex-direction: row;
+  gap: 14px;
+  align-items: center;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  height: 95.75px;
+  position: relative;
+  box-shadow: 0px 4px 24px 0px rgba(200, 23, 90, 0.5);
+  overflow: hidden;
+}
+.icon4 {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  position: relative;
+  overflow: visible;
+}
+.container5 {
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: 179.13px;
+  position: relative;
+}
+.container6 {
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+}
+.lakbay {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Exo2-ExtraBold", sans-serif;
+  font-size: 38px;
+  line-height: 38px;
+  letter-spacing: 6px;
+  font-weight: 800;
+  position: relative;
+}
+.containerMargin {
+  padding: 2px 0px 0px 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: 179.13px;
+  height: 18px;
+  position: relative;
+}
+.zamboangaCity {
+  color: rgba(255, 255, 255, 0.85);
+  text-align: left;
+  font-family: "Nunito-SemiBold", sans-serif;
+  font-size: 10.5px;
+  line-height: 15.75px;
+  letter-spacing: 2.5px;
+  font-weight: 600;
+  position: relative;
+}
+.container7 {
+  opacity: 0.1;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  position: absolute;
+  left: 225.36px;
+  top: 9.11px;
+  transform-origin: 0 0;
+  transform: rotate(30deg) scale(1, 1);
+}
+.icon5 {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  position: relative;
+  overflow: visible;
+}
+.container8 {
+  background: linear-gradient(
+    180deg,
+    rgba(30, 10, 53, 1) 0%,
+    rgba(22, 8, 48, 1) 100%
+  );
+  border-style: solid;
+  border-color: rgba(200, 23, 90, 0.2);
+  border-width: 0px 0px 0.8px 0px;
+  padding: 16px 22px 14px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+}
+.discoverTheCityOfColors {
+  color: #f5a623;
+  text-align: left;
+  font-family: "Nunito-Bold", sans-serif;
+  font-size: 13px;
+  line-height: 19.5px;
+  letter-spacing: 1px;
+  font-weight: 700;
+  text-transform: uppercase;
+  position: relative;
+}
+.paragraph {
+  padding: 6px 0px 0px 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: 346px;
+  position: relative;
+}
+.exploreTheVibrantHeritageCultureAndHidden {
+  color: rgba(255, 255, 255, 0.82);
+  text-align: left;
+  font-family: "Nunito-Regular", sans-serif;
+  font-size: 12.5px;
+  line-height: 21.25px;
+  font-weight: 400;
+  position: relative;
+  width: 346px;
+}
+.containerMargin2 {
+  padding: 10px 0px 0px 0px;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: 346px;
+  height: 33.35px;
+  position: relative;
+}
+.container9 {
+  background: rgba(200, 23, 90, 0.13);
+  border-radius: 20px;
+  border-style: solid;
+  border-color: rgba(200, 23, 90, 0.33);
+  border-width: 0.8px;
+  padding: 0.8px;
+  align-self: stretch;
+  flex-shrink: 0;
+  width: 67.1px;
+  position: relative;
+}
+.heritage {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Nunito-SemiBold", sans-serif;
+  font-size: 10.5px;
+  line-height: 15.75px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  position: absolute;
+  left: 10.8px;
+  top: 2.8px;
+}
+.container10 {
+  background: rgba(46, 139, 34, 0.13);
+  border-radius: 20px;
+  border-style: solid;
+  border-color: rgba(46, 139, 34, 0.33);
+  border-width: 0.8px;
+  padding: 0.8px;
+  align-self: stretch;
+  flex-shrink: 0;
+  width: 60.42px;
+  position: relative;
+}
+.culture {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Nunito-SemiBold", sans-serif;
+  font-size: 10.5px;
+  line-height: 15.75px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  position: absolute;
+  left: 10.8px;
+  top: 2.8px;
+}
+.container11 {
+  background: rgba(232, 160, 32, 0.13);
+  border-radius: 20px;
+  border-style: solid;
+  border-color: rgba(232, 160, 32, 0.33);
+  border-width: 0.8px;
+  padding: 0.8px;
+  align-self: stretch;
+  flex-shrink: 0;
+  width: 76.31px;
+  position: relative;
+}
+.adventure {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Nunito-SemiBold", sans-serif;
+  font-size: 10.5px;
+  line-height: 15.75px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  position: absolute;
+  left: 10.8px;
+  top: 2.8px;
+}
+.container12 {
+  background: linear-gradient(
+    180deg,
+    rgba(22, 8, 48, 1) 0%,
+    rgba(18, 5, 31, 1) 100%
+  );
+  padding: 16px 16px 0px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  height: 347.3px;
+  position: relative;
+  overflow: hidden;
+}
+.container13 {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+}
+.container14 {
+  flex-shrink: 0;
+  width: 158px;
+  height: 22.5px;
+  position: relative;
+}
+.exploreZamboanga {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Exo2-Bold", sans-serif;
+  font-size: 15px;
+  line-height: 22.5px;
+  letter-spacing: 1px;
+  font-weight: 700;
+  position: absolute;
+  left: 0px;
+  top: -0.4px;
+}
+.container15 {
+  flex-shrink: 0;
+  width: 62.78px;
+  height: 18px;
+  position: relative;
+}
+.viewAll {
+  color: #f5a623;
+  text-align: left;
+  font-family: "Nunito-SemiBold", sans-serif;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+  position: absolute;
+  left: 0px;
+  top: -0.2px;
+}
+.container16 {
+  background: #1a2744;
+  border-radius: 20px;
+  border-style: solid;
+  border-color: #c8175a;
+  border-width: 2.4px;
+  padding: 2.4px;
+  align-self: stretch;
+  flex-shrink: 0;
+  height: 185px;
+  position: relative;
+  box-shadow: 0px 8px 32px 0px rgba(200, 23, 90, 0.25),
+    0px 0px 0px 1px rgba(200, 23, 90, 0.2);
+  overflow: hidden;
+}
+.icon6 {
+  width: 353.2px;
+  height: 180.2px;
+  position: absolute;
+  left: 2.4px;
+  top: 2.4px;
+  overflow: hidden;
+}
+.vector {
+  width: 100%;
+  height: 101.29%;
+  position: absolute;
+  right: 0%;
+  left: 0%;
+  bottom: -0.64%;
+  top: -0.64%;
+  overflow: visible;
+}
+.vector2 {
+  width: 100%;
+  height: 101.29%;
+  position: absolute;
+  right: 0%;
+  left: 0%;
+  bottom: -0.64%;
+  top: -0.64%;
+  overflow: visible;
+}
+.vector3 {
+  width: 100%;
+  height: 5.47%;
+  position: absolute;
+  right: 0%;
+  left: 0%;
+  bottom: 78.74%;
+  top: 15.78%;
+  overflow: visible;
+}
+.vector4 {
+  width: 100%;
+  height: 5.47%;
+  position: absolute;
+  right: 0%;
+  left: 0%;
+  bottom: 62.32%;
+  top: 32.21%;
+  overflow: visible;
+}
+.vector5 {
+  width: 100%;
+  height: 5.47%;
+  position: absolute;
+  right: 0%;
+  left: 0%;
+  bottom: 45.89%;
+  top: 48.63%;
+  overflow: visible;
+}
+.vector6 {
+  width: 100%;
+  height: 5.47%;
+  position: absolute;
+  right: 0%;
+  left: 0%;
+  bottom: 29.47%;
+  top: 65.06%;
+  overflow: visible;
+}
+.vector7 {
+  width: 100%;
+  height: 5.47%;
+  position: absolute;
+  right: 0%;
+  left: 0%;
+  bottom: 13.04%;
+  top: 81.48%;
+  overflow: visible;
+}
+.vector8 {
+  opacity: 0.95;
+  width: 67.04%;
+  height: 101.29%;
+  position: absolute;
+  right: 32.96%;
+  left: 0%;
+  bottom: -0.64%;
+  top: -0.64%;
+  overflow: visible;
+}
+.vector9 {
+  opacity: 0.7;
+  width: 48.88%;
+  height: 43.8%;
+  position: absolute;
+  right: 45.53%;
+  left: 5.59%;
+  bottom: 51.37%;
+  top: 4.83%;
+  overflow: visible;
+}
+.vector10 {
+  opacity: 0.8;
+  width: 16.76%;
+  height: 24.64%;
+  position: absolute;
+  right: 67.88%;
+  left: 15.36%;
+  bottom: 45.89%;
+  top: 29.47%;
+  overflow: visible;
+}
+.vector11 {
+  opacity: 0.9;
+  width: 2.23%;
+  height: 6.57%;
+  position: absolute;
+  right: 81.01%;
+  left: 16.76%;
+  bottom: 62.32%;
+  top: 31.11%;
+  overflow: visible;
+}
+.vector12 {
+  opacity: 0.9;
+  width: 1.68%;
+  height: 5.47%;
+  position: absolute;
+  right: 78.21%;
+  left: 20.11%;
+  bottom: 62.32%;
+  top: 32.21%;
+  overflow: visible;
+}
+.vector13 {
+  opacity: 0.9;
+  width: 2.79%;
+  height: 7.66%;
+  position: absolute;
+  right: 74.3%;
+  left: 22.91%;
+  bottom: 62.32%;
+  top: 30.02%;
+  overflow: visible;
+}
+.vector14 {
+  opacity: 0.9;
+  width: 1.96%;
+  height: 5.47%;
+  position: absolute;
+  right: 71.23%;
+  left: 26.82%;
+  bottom: 63.41%;
+  top: 31.11%;
+  overflow: visible;
+}
+.vector15 {
+  width: 55.87%;
+  height: 0%;
+  position: absolute;
+  right: 44.13%;
+  left: 0%;
+  bottom: 56.84%;
+  top: 43.16%;
+  overflow: visible;
+}
+.vector16 {
+  width: 0%;
+  height: 101.29%;
+  position: absolute;
+  right: 76.26%;
+  left: 23.74%;
+  bottom: -0.64%;
+  top: -0.64%;
+  overflow: visible;
+}
+.vector17 {
+  width: 30.73%;
+  height: 38.32%;
+  position: absolute;
+  right: 55.31%;
+  left: 13.97%;
+  bottom: 45.89%;
+  top: 15.78%;
+  overflow: visible;
+}
+.vector18 {
+  width: 39.11%;
+  height: 19.16%;
+  position: absolute;
+  right: 52.51%;
+  left: 8.38%;
+  bottom: 51.37%;
+  top: 29.47%;
+  overflow: visible;
+}
+.vector19 {
+  opacity: 0.9;
+  width: 32.96%;
+  height: 101.29%;
+  position: absolute;
+  right: 0%;
+  left: 67.04%;
+  bottom: -0.64%;
+  top: -0.64%;
+  overflow: visible;
+}
+.vector20 {
+  opacity: 0.6;
+  width: 28.86%;
+  height: 13.69%;
+  position: absolute;
+  right: 29.24%;
+  left: 41.9%;
+  bottom: -0.64%;
+  top: 86.96%;
+  overflow: visible;
+}
+.vector21 {
+  opacity: 0.7;
+  width: 12.29%;
+  height: 15.33%;
+  position: absolute;
+  right: 12.85%;
+  left: 74.86%;
+  bottom: 27.28%;
+  top: 57.39%;
+  overflow: visible;
+}
+.vector22 {
+  opacity: 0.6;
+  width: 7.82%;
+  height: 9.85%;
+  position: absolute;
+  right: 6.7%;
+  left: 85.47%;
+  bottom: 62.87%;
+  top: 27.28%;
+  overflow: visible;
+}
+.vector23 {
+  opacity: 0.55;
+  width: 8.94%;
+  height: 10.95%;
+  position: absolute;
+  right: 8.94%;
+  left: 82.12%;
+  bottom: 4.83%;
+  top: 84.22%;
+  overflow: visible;
+}
+.vector24 {
+  opacity: 0.8;
+  width: 10.06%;
+  height: 12.04%;
+  position: absolute;
+  right: 16.76%;
+  left: 73.18%;
+  bottom: 45.35%;
+  top: 42.61%;
+  overflow: visible;
+}
+.vector25 {
+  opacity: 0.6;
+  width: 6.7%;
+  height: 7.66%;
+  position: absolute;
+  right: 18.44%;
+  left: 74.86%;
+  bottom: 47.54%;
+  top: 44.8%;
+  overflow: visible;
+}
+.santaCruz {
+  color: rgba(255, 255, 255, 0.7);
+  text-align: left;
+  font-family: "Inter-Regular", sans-serif;
+  font-size: 6.906145095825195px;
+  font-weight: 400;
+  position: absolute;
+  right: 16.34%;
+  left: 73.18%;
+  width: 10.48%;
+  bottom: 40.91%;
+  top: 54.65%;
+  height: 4.44%;
+}
+.vector26 {
+  width: 16.76%;
+  height: 21.9%;
+  position: absolute;
+  right: 67.88%;
+  left: 15.36%;
+  bottom: 46.99%;
+  top: 31.11%;
+  overflow: visible;
+}
+.group {
+  width: 5.87%;
+  height: 22.99%;
+  position: absolute;
+  right: 73.32%;
+  left: 20.81%;
+  bottom: 54.65%;
+  top: 22.35%;
+  overflow: visible;
+}
+.zamboangaCity2 {
+  color: rgba(255, 255, 255, 0.9);
+  text-align: left;
+  font-family: "Inter-Bold", sans-serif;
+  font-size: 7.89273738861084px;
+  font-weight: 700;
+  position: absolute;
+  right: 63.72%;
+  left: 18.16%;
+  width: 18.12%;
+  bottom: 72.1%;
+  top: 22.35%;
+  height: 5.55%;
+}
+.cityCenter {
+  color: rgba(255, 220, 100, 0.8);
+  text-align: left;
+  font-family: "Inter-Regular", sans-serif;
+  font-size: 5.919552803039551px;
+  font-weight: 400;
+  position: absolute;
+  right: 71.95%;
+  left: 18.99%;
+  width: 9.06%;
+  bottom: 67.19%;
+  top: 28.92%;
+  height: 3.88%;
+}
+.group2 {
+  position: absolute;
+  inset: 0;
+}
+.vector27 {
+  width: 7.82%;
+  height: 15.33%;
+  position: absolute;
+  right: 3.91%;
+  left: 88.27%;
+  bottom: 79.29%;
+  top: 5.38%;
+  overflow: visible;
+}
+.n {
+  color: #ffffff;
+  text-align: center;
+  font-family: "Inter-Bold", sans-serif;
+  font-size: 7.89273738861084px;
+  font-weight: 700;
+  position: absolute;
+  right: 7.24%;
+  left: 91.06%;
+  width: 1.7%;
+  bottom: 89.62%;
+  top: 4.83%;
+  height: 5.55%;
+}
+.vector28 {
+  width: 0%;
+  height: 13.14%;
+  position: absolute;
+  right: 7.82%;
+  left: 92.18%;
+  bottom: 80.39%;
+  top: 6.47%;
+  overflow: visible;
+}
+.vector29 {
+  width: 6.7%;
+  height: 0%;
+  position: absolute;
+  right: 4.47%;
+  left: 88.83%;
+  bottom: 86.96%;
+  top: 13.04%;
+  overflow: visible;
+}
+.vector30 {
+  opacity: 0.8;
+  width: 1.68%;
+  height: 4.38%;
+  position: absolute;
+  right: 6.98%;
+  left: 91.34%;
+  bottom: 89.15%;
+  top: 6.47%;
+  overflow: visible;
+}
+.vector31 {
+  opacity: 0.6;
+  width: 1.68%;
+  height: 4.38%;
+  position: absolute;
+  right: 6.98%;
+  left: 91.34%;
+  bottom: 80.39%;
+  top: 15.23%;
+  overflow: visible;
+}
+.vector32 {
+  width: 11.17%;
+  height: 1.09%;
+  position: absolute;
+  right: 83.24%;
+  left: 5.59%;
+  bottom: 6.47%;
+  top: 92.43%;
+  overflow: visible;
+}
+.vector33 {
+  width: 0.28%;
+  height: 4.38%;
+  position: absolute;
+  right: 94.13%;
+  left: 5.59%;
+  bottom: 4.83%;
+  top: 90.79%;
+  overflow: visible;
+}
+.vector34 {
+  width: 0.28%;
+  height: 4.38%;
+  position: absolute;
+  right: 82.96%;
+  left: 16.76%;
+  bottom: 4.83%;
+  top: 90.79%;
+  overflow: visible;
+}
+.one0Km {
+  color: rgba(255, 255, 255, 0.6);
+  text-align: left;
+  font-family: "Inter-Regular", sans-serif;
+  font-size: 5.919552803039551px;
+  font-weight: 400;
+  position: absolute;
+  right: 86.25%;
+  left: 8.94%;
+  width: 4.81%;
+  bottom: 9.71%;
+  top: 86.41%;
+  height: 3.88%;
+}
+.container17 {
+  background: rgba(200, 23, 90, 0.85);
+  border-radius: 12px;
+  padding: 4px 10px 4px 10px;
+  display: flex;
+  flex-direction: row;
+  gap: 5px;
+  align-items: center;
+  justify-content: flex-start;
+  position: absolute;
+  left: 239.14px;
+  top: 149.6px;
+}
+.icon7 {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  position: relative;
+  overflow: visible;
+}
+.text2 {
+  flex-shrink: 0;
+  width: 67.46px;
+  height: 15px;
+  position: relative;
+}
+.tapToExplore {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Nunito-Bold", sans-serif;
+  font-size: 10px;
+  line-height: 15px;
+  font-weight: 700;
+  position: absolute;
+  left: 0px;
+  top: -1px;
+}
+.container18 {
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 10px;
+  width: 105.89px;
+  height: 32px;
+  position: absolute;
+  left: 14.4px;
+  top: 12.4px;
+}
+.interactiveMap {
+  color: rgba(255, 255, 255, 0.9);
+  text-align: left;
+  font-family: "Nunito-SemiBold", sans-serif;
+  font-size: 10px;
+  line-height: 15px;
+  font-weight: 600;
+  position: absolute;
+  left: 10px;
+  top: 9px;
+}
+.culturalHotspots {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Exo2-Bold", sans-serif;
+  font-size: 14px;
+  line-height: 21px;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  position: relative;
+}
+.containerMargin3 {
+  padding: 10px 0px 0px 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+}
+.container19 {
+  padding: 0px 0px 4px 0px;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  height: 52.3px;
+  position: relative;
+  overflow: hidden;
+}
+.container20 {
+  background: rgba(200, 23, 90, 0.12);
+  border-radius: 20px;
+  border-style: solid;
+  border-color: rgba(200, 23, 90, 0.3);
+  border-width: 0.8px;
+  padding: 6px 14px 6px 14px;
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+}
+.text3 {
+  flex-shrink: 0;
+  width: 17.85px;
+  height: 19.5px;
+  position: relative;
+}
+.div {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Inter-Regular", sans-serif;
+  font-size: 13px;
+  line-height: 19.5px;
+  font-weight: 400;
+  position: absolute;
+  left: 0px;
+  top: -0.2px;
+}
+.text4 {
+  flex-shrink: 0;
+  width: 48.64px;
+  height: 17.25px;
+  position: relative;
+}
+.fortPilar {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Nunito-SemiBold", sans-serif;
+  font-size: 11.5px;
+  line-height: 17.25px;
+  font-weight: 600;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+.text5 {
+  flex-shrink: 0;
+  width: 92.13px;
+  height: 17.25px;
+  position: relative;
+}
+.santaCruzIsland {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Nunito-SemiBold", sans-serif;
+  font-size: 11.5px;
+  line-height: 17.25px;
+  font-weight: 600;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+.text6 {
+  flex-shrink: 0;
+  width: 71.43px;
+  height: 17.25px;
+  position: relative;
+}
+.yakanVillage {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Nunito-SemiBold", sans-serif;
+  font-size: 11.5px;
+  line-height: 17.25px;
+  font-weight: 600;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+.text7 {
+  flex-shrink: 0;
+  width: 55.34px;
+  height: 17.25px;
+  position: relative;
+}
+.rioHondo {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Nunito-SemiBold", sans-serif;
+  font-size: 11.5px;
+  line-height: 17.25px;
+  font-weight: 600;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+.container21 {
+  background: linear-gradient(
+    0deg,
+    rgba(13, 4, 32, 1) 0%,
+    rgba(18, 5, 31, 1) 100%
+  );
+  border-style: solid;
+  border-color: rgba(200, 23, 90, 0.2);
+  border-width: 0.8px 0px 0px 0px;
+  padding: 14px 16px 28px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+}
+.container22 {
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: center;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+}
+.quickAccess {
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+  font-family: "Nunito-Regular", sans-serif;
+  font-size: 11px;
+  line-height: 16.5px;
+  letter-spacing: 1.5px;
+  font-weight: 400;
+  text-transform: uppercase;
+  position: relative;
+}
+.containerMargin4 {
+  padding: 12px 0px 0px 0px;
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  height: 122px;
+  position: relative;
+}
+.button {
+  background: linear-gradient(
+    145deg,
+    rgba(200, 23, 90, 1) 0%,
+    rgba(139, 0, 50, 1) 100%
+  );
+  border-radius: 20px;
+  flex-shrink: 0;
+  width: 111.33px;
+  height: 110px;
+  position: relative;
+  box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.3),
+    0px 6px 20px 0px rgba(200, 23, 90, 0.38);
+  overflow: hidden;
+}
+.icon8 {
+  opacity: 0.18;
+  width: 111.32px;
+  height: 110px;
+  position: absolute;
+  left: -0.16px;
+  top: 0px;
+  overflow: visible;
+}
+.container23 {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  border-radius: 20px 20px 0px 0px;
+  width: 111px;
+  height: 55px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+.container24 {
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  position: absolute;
+  left: 41.5px;
+  top: 16.85px;
+}
+.icon9 {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  position: relative;
+  overflow: visible;
+}
+.container25 {
+  width: 27px;
+  height: 26px;
+  position: absolute;
+  left: 42px;
+  top: 50.6px;
+}
+.ar {
+  color: #ffffff;
+  text-align: center;
+  font-family: "Exo2-ExtraBold", sans-serif;
+  font-size: 17px;
+  line-height: 25.5px;
+  letter-spacing: 2px;
+  font-weight: 800;
+  position: absolute;
+  left: 1.18px;
+  top: -0.35px;
+}
+.augmentedReality {
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  font-family: "Nunito-SemiBold", sans-serif;
+  font-size: 9px;
+  line-height: 10.8px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  position: absolute;
+  left: 11.6px;
+  top: 82.55px;
+}
+.button2 {
+  background: linear-gradient(
+    145deg,
+    rgba(46, 139, 34, 1) 0%,
+    rgba(26, 92, 20, 1) 100%
+  );
+  border-radius: 20px;
+  flex-shrink: 0;
+  width: 111.33px;
+  height: 110px;
+  position: relative;
+  box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.3),
+    0px 6px 20px 0px rgba(46, 139, 34, 0.38);
+  overflow: hidden;
+}
+.icon10 {
+  opacity: 0.18;
+  width: 111.34px;
+  height: 110px;
+  position: absolute;
+  left: -0.17px;
+  top: 0px;
+  overflow: visible;
+}
+.container26 {
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  position: absolute;
+  left: 41.49px;
+  top: 16.85px;
+}
+.icon11 {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  position: relative;
+  overflow: visible;
+}
+.qr {
+  color: #ffffff;
+  text-align: center;
+  font-family: "Exo2-ExtraBold", sans-serif;
+  font-size: 17px;
+  line-height: 25.5px;
+  letter-spacing: 2px;
+  font-weight: 800;
+  position: absolute;
+  left: 0.93px;
+  top: -0.35px;
+}
+.scanDiscover {
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  font-family: "Nunito-SemiBold", sans-serif;
+  font-size: 9px;
+  line-height: 10.8px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  position: absolute;
+  left: 18.68px;
+  top: 82.55px;
+}
+.button3 {
+  background: linear-gradient(
+    145deg,
+    rgba(232, 160, 32, 1) 0%,
+    rgba(176, 96, 16, 1) 100%
+  );
+  border-radius: 20px;
+  flex-shrink: 0;
+  width: 111.33px;
+  height: 110px;
+  position: relative;
+  box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.3),
+    0px 6px 20px 0px rgba(232, 160, 32, 0.38);
+  overflow: hidden;
+}
+.icon12 {
+  opacity: 0.18;
+  width: 111.34px;
+  height: 110px;
+  position: absolute;
+  left: -0.17px;
+  top: 0px;
+  overflow: visible;
+}
+.icon13 {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  position: relative;
+  overflow: visible;
+}
+.container27 {
+  width: 63px;
+  height: 26px;
+  position: absolute;
+  left: 24px;
+  top: 50.6px;
+}
+.catch {
+  color: #ffffff;
+  text-align: center;
+  font-family: "Exo2-ExtraBold", sans-serif;
+  font-size: 17px;
+  line-height: 25.5px;
+  letter-spacing: 2px;
+  font-weight: 800;
+  position: absolute;
+  left: 1.02px;
+  top: -0.35px;
+}
+.collectWin {
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  font-family: "Nunito-SemiBold", sans-serif;
+  font-size: 9px;
+  line-height: 10.8px;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  position: absolute;
+  left: 23.53px;
+  top: 82.55px;
+}
+.container28 {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  display: flex;
+  flex-direction: row;
+  gap: 0px;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  position: absolute;
+  left: 296px;
+  top: 68px;
+}
+.icon14 {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  position: relative;
+  overflow: visible;
+}
+.container29 {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  display: flex;
+  flex-direction: row;
+  gap: 0px;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  position: absolute;
+  left: 339px;
+  top: 68px;
+}
+.mdiLightAccountInstance {
+  flex-shrink: 0 !important;
+}

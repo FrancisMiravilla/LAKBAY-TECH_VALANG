@@ -1,0 +1,1399 @@
+.catch,
+.catch * {
+  box-sizing: border-box;
+}
+.catch {
+  background: #ffffff;
+  border-radius: 48px;
+  height: 844px;
+  position: relative;
+  overflow: hidden;
+}
+.container {
+  background: #1a1f3a;
+  border-radius: 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 390px;
+  height: 844px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  box-shadow: inset 0px 0px 0px 1px rgba(255, 255, 255, 0.04),
+    0px 50px 130px 0px rgba(0, 0, 0, 0.95), 0px 0px 0px 12px rgba(42, 42, 62, 1),
+    0px 0px 0px 10px rgba(12, 14, 31, 1);
+  overflow: hidden;
+}
+.statusBar {
+  background: #c40063;
+  padding: 4px 32px 0px 32px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  align-self: stretch;
+  flex-shrink: 0;
+  height: 44px;
+  position: relative;
+}
+.text {
+  flex-shrink: 0;
+  width: 23.44px;
+  height: 16px;
+  position: relative;
+}
+.nine41 {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Poppins-Bold", sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 700;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+.container2 {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  position: relative;
+}
+.container3 {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+  align-items: flex-end;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  height: 12px;
+  position: relative;
+}
+.container4 {
+  background: #ffffff;
+  border-radius: 1px;
+  flex-shrink: 0;
+  width: 3px;
+  height: 5px;
+  position: relative;
+}
+.container5 {
+  background: #ffffff;
+  border-radius: 1px;
+  flex-shrink: 0;
+  width: 3px;
+  height: 7px;
+  position: relative;
+}
+.container6 {
+  background: #ffffff;
+  border-radius: 1px;
+  flex-shrink: 0;
+  width: 3px;
+  height: 9px;
+  position: relative;
+}
+.container7 {
+  background: #ffffff;
+  border-radius: 1px;
+  flex-shrink: 0;
+  width: 3px;
+  height: 12px;
+  position: relative;
+}
+.icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 12px;
+  position: relative;
+  overflow: visible;
+}
+.container8 {
+  display: flex;
+  flex-direction: row;
+  gap: 1px;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  position: relative;
+}
+.container9 {
+  border-radius: 3px;
+  border-style: solid;
+  border-color: #ffffff;
+  border-width: 1px;
+  padding: 0px 2px 0px 2px;
+  display: flex;
+  flex-direction: row;
+  gap: 0px;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: 22px;
+  height: 12px;
+  position: relative;
+}
+.container10 {
+  background: #ffffff;
+  border-radius: 1px;
+  flex-shrink: 0;
+  width: 15px;
+  height: 7px;
+  position: relative;
+}
+.container11 {
+  background: #ffffff;
+  border-radius: 0px 1px 1px 0px;
+  flex-shrink: 0;
+  width: 2px;
+  height: 5px;
+  position: relative;
+}
+.container12 {
+  background: #d4006a;
+  padding: 10px 16px 14px 16px;
+  display: flex;
+  flex-direction: row;
+  gap: 0px;
+  align-items: center;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+}
+.button {
+  background: rgba(255, 255, 255, 0.13);
+  border-radius: 33554400px;
+  display: flex;
+  flex-direction: row;
+  gap: 0px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  position: relative;
+}
+.icon2 {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  position: relative;
+  overflow: visible;
+}
+.container13 {
+  display: flex;
+  flex-direction: row;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 326px;
+  position: relative;
+}
+.textMargin {
+  padding: 0px 32px 0px 0px;
+  display: flex;
+  flex-direction: row;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+}
+.text2 {
+  align-self: stretch;
+  flex-shrink: 0;
+  width: 59.41px;
+  position: relative;
+}
+.catch2 {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Poppins-Bold", sans-serif;
+  font-size: 19px;
+  line-height: 28.5px;
+  font-weight: 700;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+.container14 {
+  padding: 16px 16px 8px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  height: 650.5px;
+  position: relative;
+  overflow: hidden;
+}
+.container15 {
+  background: #212548;
+  border-radius: 16px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.06);
+  border-width: 1px;
+  padding: 14px 16px 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+  box-shadow: 0px 2px 12px 0px rgba(0, 0, 0, 0.3);
+}
+.container16 {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+}
+.text3 {
+  flex-shrink: 0;
+  width: 133.56px;
+  height: 20.25px;
+  position: relative;
+}
+.collectionProgress {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Poppins-SemiBold", sans-serif;
+  font-size: 13.5px;
+  line-height: 20.25px;
+  font-weight: 600;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+.text4 {
+  flex-shrink: 0;
+  width: 27.03px;
+  height: 21px;
+  position: relative;
+}
+.one4 {
+  color: #f5a623;
+  text-align: left;
+  font-family: "Poppins-Bold", sans-serif;
+  font-size: 14px;
+  line-height: 21px;
+  font-weight: 700;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+.containerMargin {
+  padding: 10px 0px 0px 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+}
+.container17 {
+  background: #141830;
+  border-radius: 33554400px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: 324px;
+  height: 6px;
+  position: relative;
+  overflow: hidden;
+}
+.container18 {
+  background: linear-gradient(
+    90deg,
+    rgba(245, 166, 35, 1) 0%,
+    rgba(230, 81, 0, 1) 100%
+  );
+  border-radius: 33554400px;
+  flex-shrink: 0;
+  width: 81px;
+  height: 6px;
+  position: relative;
+  box-shadow: 0px 0px 8px 0px rgba(245, 166, 35, 0.6);
+}
+.containerMargin2 {
+  padding: 12px 0px 0px 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+}
+.container19 {
+  background: rgba(255, 255, 255, 0);
+  border-radius: 16px;
+  border-style: solid;
+  border-color: #d4006a;
+  border-width: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  height: 226px;
+  position: relative;
+  box-shadow: 0px 4px 16px 0px rgba(0, 0, 0, 0.4),
+    0px 0px 20px 0px rgba(212, 0, 106, 0.2);
+  overflow: hidden;
+}
+.zamboangaMap {
+  align-self: stretch;
+  flex-shrink: 0;
+  height: 222px;
+  position: relative;
+  overflow: hidden;
+}
+.vector {
+  width: 99.34%;
+  height: 100%;
+  position: absolute;
+  right: 0.33%;
+  left: 0.33%;
+  bottom: 0%;
+  top: 0%;
+  overflow: visible;
+}
+.vector2 {
+  width: 99.34%;
+  height: 1.77%;
+  position: absolute;
+  right: 0.33%;
+  left: 0.33%;
+  bottom: 81.42%;
+  top: 16.81%;
+  overflow: visible;
+}
+.vector3 {
+  width: 99.34%;
+  height: 1.77%;
+  position: absolute;
+  right: 0.33%;
+  left: 0.33%;
+  bottom: 63.72%;
+  top: 34.51%;
+  overflow: visible;
+}
+.vector4 {
+  width: 99.34%;
+  height: 1.77%;
+  position: absolute;
+  right: 0.33%;
+  left: 0.33%;
+  bottom: 41.59%;
+  top: 56.64%;
+  overflow: visible;
+}
+.vector5 {
+  width: 99.34%;
+  height: 1.77%;
+  position: absolute;
+  right: 0.33%;
+  left: 0.33%;
+  bottom: 21.68%;
+  top: 76.55%;
+  overflow: visible;
+}
+.vector6 {
+  width: 99.34%;
+  height: 1.77%;
+  position: absolute;
+  right: 0.33%;
+  left: 0.33%;
+  bottom: 7.08%;
+  top: 91.15%;
+  overflow: visible;
+}
+.vector7 {
+  width: 99.34%;
+  height: 78.98%;
+  position: absolute;
+  right: 0.33%;
+  left: 0.33%;
+  bottom: 0%;
+  top: 21.02%;
+  overflow: visible;
+}
+.vector8 {
+  opacity: 0.6;
+  width: 99.34%;
+  height: 42.48%;
+  position: absolute;
+  right: 0.33%;
+  left: 0.33%;
+  bottom: 0%;
+  top: 57.52%;
+  overflow: visible;
+}
+.vector9 {
+  width: 12.57%;
+  height: 22.6%;
+  position: absolute;
+  right: 87.1%;
+  left: 0.33%;
+  bottom: 0%;
+  top: 77.4%;
+  overflow: visible;
+}
+.vector10 {
+  width: 7.77%;
+  height: 7.08%;
+  position: absolute;
+  right: 89.68%;
+  left: 2.55%;
+  bottom: 58.85%;
+  top: 34.07%;
+  overflow: visible;
+}
+.vector11 {
+  width: 4.44%;
+  height: 4.42%;
+  position: absolute;
+  right: 93.01%;
+  left: 2.55%;
+  bottom: 67.7%;
+  top: 27.88%;
+  overflow: visible;
+}
+.vector12 {
+  width: 9.99%;
+  height: 8.85%;
+  position: absolute;
+  right: 3.1%;
+  left: 86.91%;
+  bottom: 7.08%;
+  top: 84.07%;
+  overflow: visible;
+}
+.vector13 {
+  width: 4.99%;
+  height: 5.31%;
+  position: absolute;
+  right: 2.27%;
+  left: 92.73%;
+  bottom: 14.16%;
+  top: 80.53%;
+  overflow: visible;
+}
+.vector14 {
+  width: 99.34%;
+  height: 44.47%;
+  position: absolute;
+  right: 0.33%;
+  left: 0.33%;
+  bottom: 34.51%;
+  top: 21.02%;
+  overflow: visible;
+}
+.vector15 {
+  width: 99.34%;
+  height: 0%;
+  position: absolute;
+  right: 0.33%;
+  left: 0.33%;
+  bottom: 74.78%;
+  top: 25.22%;
+  overflow: visible;
+}
+.vector16 {
+  width: 99.34%;
+  height: 0%;
+  position: absolute;
+  right: 0.33%;
+  left: 0.33%;
+  bottom: 50%;
+  top: 50%;
+  overflow: visible;
+}
+.vector17 {
+  width: 99.34%;
+  height: 0%;
+  position: absolute;
+  right: 0.33%;
+  left: 0.33%;
+  bottom: 25.22%;
+  top: 74.78%;
+  overflow: visible;
+}
+.vector18 {
+  width: 0%;
+  height: 100%;
+  position: absolute;
+  right: 83.02%;
+  left: 16.98%;
+  bottom: 0%;
+  top: 0%;
+  overflow: visible;
+}
+.vector19 {
+  width: 0%;
+  height: 100%;
+  position: absolute;
+  right: 66.37%;
+  left: 33.63%;
+  bottom: 0%;
+  top: 0%;
+  overflow: visible;
+}
+.vector20 {
+  width: 0%;
+  height: 100%;
+  position: absolute;
+  right: 50.28%;
+  left: 49.72%;
+  bottom: 0%;
+  top: 0%;
+  overflow: visible;
+}
+.vector21 {
+  width: 0%;
+  height: 100%;
+  position: absolute;
+  right: 33.63%;
+  left: 66.37%;
+  bottom: 0%;
+  top: 0%;
+  overflow: visible;
+}
+.vector22 {
+  width: 0%;
+  height: 100%;
+  position: absolute;
+  right: 16.98%;
+  left: 83.02%;
+  bottom: 0%;
+  top: 0%;
+  overflow: visible;
+}
+.zamboangaCity {
+  color: rgba(255, 255, 255, 0.22);
+  text-align: center;
+  font-family: "Poppins-Bold", sans-serif;
+  font-size: 8.349557876586914px;
+  font-weight: 700;
+  position: absolute;
+  right: 59.74%;
+  left: 18.51%;
+  width: 21.75%;
+  bottom: 11.18%;
+  top: 82.96%;
+  height: 5.86%;
+}
+.group {
+  position: absolute;
+  inset: 0;
+}
+.vector23 {
+  width: 8.88%;
+  height: 0%;
+  position: absolute;
+  right: 86.63%;
+  left: 4.49%;
+  bottom: 6.19%;
+  top: 93.81%;
+  overflow: visible;
+}
+.vector24 {
+  width: 0%;
+  height: 2.65%;
+  position: absolute;
+  right: 95.51%;
+  left: 4.49%;
+  bottom: 4.87%;
+  top: 92.48%;
+  overflow: visible;
+}
+.vector25 {
+  width: 0%;
+  height: 2.65%;
+  position: absolute;
+  right: 86.63%;
+  left: 13.37%;
+  bottom: 4.87%;
+  top: 92.48%;
+  overflow: visible;
+}
+.fiveKm {
+  color: rgba(255, 255, 255, 0.35);
+  text-align: center;
+  font-family: "Inter-Regular", sans-serif;
+  font-size: 6.384955883026123px;
+  font-weight: 400;
+  position: absolute;
+  right: 88.91%;
+  left: 6.85%;
+  width: 4.24%;
+  bottom: 8.12%;
+  top: 88.27%;
+  height: 3.6%;
+}
+.vector26 {
+  width: 6.66%;
+  height: 10.62%;
+  position: absolute;
+  right: 3.66%;
+  left: 89.68%;
+  bottom: 85.84%;
+  top: 3.54%;
+  overflow: visible;
+}
+.n {
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+  font-family: "Inter-Bold", sans-serif;
+  font-size: 6.876106262207031px;
+  font-weight: 700;
+  position: absolute;
+  right: 6.41%;
+  left: 91.9%;
+  width: 1.69%;
+  bottom: 96.84%;
+  top: -0.44%;
+  height: 3.6%;
+}
+.vector27 {
+  width: 1.22%;
+  height: 4.65%;
+  position: absolute;
+  right: 6.38%;
+  left: 92.4%;
+  bottom: 90.49%;
+  top: 4.87%;
+  overflow: visible;
+}
+.vector28 {
+  width: 1.22%;
+  height: 4.65%;
+  position: absolute;
+  right: 6.38%;
+  left: 92.4%;
+  bottom: 87.17%;
+  top: 8.19%;
+  overflow: visible;
+}
+.vector29 {
+  width: 4.99%;
+  height: 0%;
+  position: absolute;
+  right: 4.49%;
+  left: 90.51%;
+  bottom: 91.15%;
+  top: 8.85%;
+  overflow: visible;
+}
+.vector30 {
+  opacity: 0.07;
+  width: 9.99%;
+  height: 15.93%;
+  position: absolute;
+  right: 74.14%;
+  left: 15.87%;
+  bottom: 24.78%;
+  top: 59.29%;
+  overflow: visible;
+}
+.vector31 {
+  opacity: 0.25;
+  width: 9.99%;
+  height: 15.93%;
+  position: absolute;
+  right: 74.14%;
+  left: 15.87%;
+  bottom: 24.78%;
+  top: 59.29%;
+  overflow: visible;
+}
+.vector32 {
+  opacity: 0.12;
+  width: 11.1%;
+  height: 17.7%;
+  position: absolute;
+  right: 73.59%;
+  left: 15.31%;
+  bottom: 23.89%;
+  top: 58.41%;
+  overflow: visible;
+}
+.vector33 {
+  width: 8.32%;
+  height: 13.27%;
+  position: absolute;
+  right: 74.97%;
+  left: 16.7%;
+  bottom: 25.66%;
+  top: 61.06%;
+  overflow: visible;
+}
+.vector34 {
+  width: 8.32%;
+  height: 13.27%;
+  position: absolute;
+  right: 74.97%;
+  left: 16.7%;
+  bottom: 26.11%;
+  top: 60.62%;
+  overflow: visible;
+}
+.group2 {
+  width: 4.77%;
+  height: 6.19%;
+  position: absolute;
+  right: 76.75%;
+  left: 18.48%;
+  bottom: 29.2%;
+  top: 64.6%;
+  overflow: visible;
+}
+.curacha {
+  color: #ffffff;
+  text-align: center;
+  font-family: "Nunito-Bold", sans-serif;
+  font-size: 8.349557876586914px;
+  font-weight: 700;
+  position: absolute;
+  right: 74.68%;
+  left: 16.29%;
+  width: 9.04%;
+  bottom: 18.72%;
+  top: 76.33%;
+  height: 4.95%;
+}
+.vector35 {
+  width: 8.32%;
+  height: 13.27%;
+  position: absolute;
+  right: 45.01%;
+  left: 46.67%;
+  bottom: 58.41%;
+  top: 28.32%;
+  overflow: visible;
+}
+.vector36 {
+  width: 8.32%;
+  height: 13.27%;
+  position: absolute;
+  right: 45.01%;
+  left: 46.67%;
+  bottom: 58.85%;
+  top: 27.88%;
+  overflow: visible;
+}
+.group3 {
+  opacity: 0.45;
+  width: 5.27%;
+  height: 6.19%;
+  position: absolute;
+  right: 47.23%;
+  left: 47.5%;
+  bottom: 62.39%;
+  top: 31.42%;
+  overflow: visible;
+}
+.vinta {
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+  font-family: "Nunito-Bold", sans-serif;
+  font-size: 8.349557876586914px;
+  font-weight: 700;
+  position: absolute;
+  right: 46.29%;
+  left: 47.5%;
+  width: 6.21%;
+  bottom: 51.46%;
+  top: 43.58%;
+  height: 4.95%;
+}
+.vector37 {
+  width: 8.32%;
+  height: 13.27%;
+  position: absolute;
+  right: 16.15%;
+  left: 75.53%;
+  bottom: 59.29%;
+  top: 27.43%;
+  overflow: visible;
+}
+.vector38 {
+  width: 8.32%;
+  height: 13.27%;
+  position: absolute;
+  right: 16.15%;
+  left: 75.53%;
+  bottom: 59.73%;
+  top: 26.99%;
+  overflow: visible;
+}
+.group4 {
+  opacity: 0.45;
+  width: 4.58%;
+  height: 5.31%;
+  position: absolute;
+  right: 18.92%;
+  left: 76.5%;
+  bottom: 62.39%;
+  top: 32.3%;
+  overflow: visible;
+}
+.lantaka {
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+  font-family: "Nunito-Bold", sans-serif;
+  font-size: 8.349557876586914px;
+  font-weight: 700;
+  position: absolute;
+  right: 15.99%;
+  left: 75.25%;
+  width: 8.76%;
+  bottom: 52.35%;
+  top: 42.7%;
+  height: 4.95%;
+}
+.vector39 {
+  width: 8.32%;
+  height: 13.27%;
+  position: absolute;
+  right: 13.37%;
+  left: 78.3%;
+  bottom: 21.24%;
+  top: 65.49%;
+  overflow: visible;
+}
+.vector40 {
+  width: 8.32%;
+  height: 13.27%;
+  position: absolute;
+  right: 13.37%;
+  left: 78.3%;
+  bottom: 21.68%;
+  top: 65.04%;
+  overflow: visible;
+}
+.group5 {
+  opacity: 0.45;
+  width: 4.99%;
+  height: 7.96%;
+  position: absolute;
+  right: 15.04%;
+  left: 79.97%;
+  bottom: 24.34%;
+  top: 67.7%;
+  overflow: visible;
+}
+.yakan {
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+  font-family: "Nunito-Bold", sans-serif;
+  font-size: 8.349557876586914px;
+  font-weight: 700;
+  position: absolute;
+  right: 14.37%;
+  left: 79.14%;
+  width: 6.5%;
+  bottom: 14.29%;
+  top: 80.75%;
+  height: 4.95%;
+}
+.container20 {
+  padding: 16px 0px 12px 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: 358px;
+  height: 280px;
+  position: relative;
+}
+.heading2 {
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+}
+.yourCollection {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Poppins-Bold", sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 700;
+  position: relative;
+}
+.container21 {
+  align-self: stretch;
+  flex-shrink: 0;
+  height: 216px;
+  position: relative;
+}
+.collectionCard {
+  background: #212548;
+  border-radius: 16px;
+  border-style: solid;
+  border-color: rgba(76, 175, 80, 0.55);
+  border-width: 1px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 175px;
+  height: 104px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  box-shadow: 0px 0px 0px 3.85px rgba(0, 0, 0, 0);
+}
+.container22 {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+}
+.container23 {
+  background: rgba(233, 30, 140, 0.1);
+  border-radius: 33554400px;
+  border-style: solid;
+  border-color: rgba(233, 30, 140, 0.33);
+  border-width: 1px;
+  display: flex;
+  flex-direction: row;
+  gap: 0px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  position: relative;
+}
+.curachaIcon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  position: relative;
+  overflow: visible;
+}
+.text5 {
+  background: rgba(76, 175, 80, 0.12);
+  border-radius: 999px;
+  border-style: solid;
+  border-color: rgba(76, 175, 80, 0.3);
+  border-width: 1px;
+  padding: 1px;
+  flex-shrink: 0;
+  width: 54.75px;
+  height: 21px;
+  position: relative;
+}
+.caught {
+  color: #4caf50;
+  text-align: left;
+  font-family: "Poppins-Bold", sans-serif;
+  font-size: 10px;
+  line-height: 15px;
+  font-weight: 700;
+  position: absolute;
+  left: 8px;
+  top: 3px;
+}
+.paragraph {
+  padding: 8px 0px 0px 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: 149px;
+  height: 25px;
+  position: relative;
+}
+.curacha2 {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Poppins-Bold", sans-serif;
+  font-size: 13px;
+  line-height: 16.25px;
+  font-weight: 700;
+  position: relative;
+}
+.paragraph2 {
+  padding: 2px 0px 0px 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: 149px;
+  height: 18px;
+  position: relative;
+}
+.fortPilarMuseum {
+  color: #7a80a0;
+  text-align: left;
+  font-family: "Nunito-Regular", sans-serif;
+  font-size: 10.5px;
+  line-height: 15.75px;
+  font-weight: 400;
+  position: relative;
+}
+.collectionCard2 {
+  background: #212548;
+  border-radius: 16px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.06);
+  border-width: 1px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 175px;
+  height: 104px;
+  position: absolute;
+  left: 183px;
+  top: 0px;
+}
+.container24 {
+  background: rgba(42, 47, 82, 0.7);
+  border-radius: 33554400px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.1);
+  border-width: 1px;
+  display: flex;
+  flex-direction: row;
+  gap: 0px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  position: relative;
+}
+.vintaIcon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  position: relative;
+  overflow: visible;
+}
+.text6 {
+  background: rgba(42, 47, 82, 0.8);
+  border-radius: 999px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.08);
+  border-width: 1px;
+  padding: 1px;
+  flex-shrink: 0;
+  width: 73.25px;
+  height: 21px;
+  position: relative;
+}
+.notCaught {
+  color: #6b7294;
+  text-align: left;
+  font-family: "Poppins-Bold", sans-serif;
+  font-size: 10px;
+  line-height: 15px;
+  font-weight: 700;
+  position: absolute;
+  left: 8px;
+  top: 3px;
+}
+.vinta2 {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Poppins-Bold", sans-serif;
+  font-size: 13px;
+  line-height: 16.25px;
+  font-weight: 700;
+  position: relative;
+}
+.paseoDelMar {
+  color: #7a80a0;
+  text-align: left;
+  font-family: "Nunito-Regular", sans-serif;
+  font-size: 10.5px;
+  line-height: 15.75px;
+  font-weight: 400;
+  position: relative;
+}
+.collectionCard3 {
+  background: #212548;
+  border-radius: 16px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.06);
+  border-width: 1px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 175px;
+  height: 104px;
+  position: absolute;
+  left: 0px;
+  top: 112px;
+}
+.lantakaIcon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  position: relative;
+  overflow: visible;
+}
+.lantaka2 {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Poppins-Bold", sans-serif;
+  font-size: 13px;
+  line-height: 16.25px;
+  font-weight: 700;
+  position: relative;
+}
+.fortPilarGrounds {
+  color: #7a80a0;
+  text-align: left;
+  font-family: "Nunito-Regular", sans-serif;
+  font-size: 10.5px;
+  line-height: 15.75px;
+  font-weight: 400;
+  position: relative;
+}
+.collectionCard4 {
+  background: #212548;
+  border-radius: 16px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.06);
+  border-width: 1px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 175px;
+  height: 104px;
+  position: absolute;
+  left: 183px;
+  top: 112px;
+}
+.yakanIcon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  position: relative;
+  overflow: visible;
+}
+.yakanWeaver {
+  color: #ffffff;
+  text-align: left;
+  font-family: "Poppins-Bold", sans-serif;
+  font-size: 13px;
+  line-height: 16.25px;
+  font-weight: 700;
+  position: relative;
+}
+.yakanWeavingVillage {
+  color: #7a80a0;
+  text-align: left;
+  font-family: "Nunito-Regular", sans-serif;
+  font-size: 10.5px;
+  line-height: 15.75px;
+  font-weight: 400;
+  position: relative;
+}
+.bottomNav {
+  background: #11152c;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.06);
+  border-width: 1px 0px 0px 0px;
+  padding: 12px 16px 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+}
+.container25 {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+}
+.button2 {
+  background: linear-gradient(
+    160deg,
+    rgba(233, 30, 140, 1) 0%,
+    rgba(194, 0, 107, 1) 100%
+  );
+  border-radius: 16px;
+  padding: 14px 0px 14px 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: 112.66px;
+  position: relative;
+  box-shadow: 0px 4px 14px 0px rgba(212, 0, 106, 0.5);
+}
+.icon3 {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  position: relative;
+  overflow: visible;
+}
+.text7 {
+  flex-shrink: 0;
+  width: 17.48px;
+  height: 16.5px;
+  position: relative;
+}
+.ar {
+  color: #ffffff;
+  text-align: center;
+  font-family: "Poppins-Bold", sans-serif;
+  font-size: 11px;
+  line-height: 16.5px;
+  letter-spacing: 1.1px;
+  font-weight: 700;
+  position: absolute;
+  left: 1px;
+  top: 0px;
+}
+.button3 {
+  background: linear-gradient(
+    160deg,
+    rgba(102, 187, 106, 1) 0%,
+    rgba(56, 142, 60, 1) 100%
+  );
+  border-radius: 16px;
+  padding: 14px 0px 14px 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: 112.67px;
+  position: relative;
+  box-shadow: 0px 4px 14px 0px rgba(76, 175, 80, 0.35);
+}
+.icon4 {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  position: relative;
+  overflow: visible;
+}
+.text8 {
+  flex-shrink: 0;
+  width: 18.05px;
+  height: 16.5px;
+  position: relative;
+}
+.qr {
+  color: #ffffff;
+  text-align: center;
+  font-family: "Poppins-Bold", sans-serif;
+  font-size: 11px;
+  line-height: 16.5px;
+  letter-spacing: 1.1px;
+  font-weight: 700;
+  position: absolute;
+  left: 1px;
+  top: 0px;
+}
+.button4 {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 193, 7, 1) 0%,
+    rgba(230, 81, 0, 1) 100%
+  );
+  border-radius: 16px;
+  padding: 14px 0px 14px 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: 112.67px;
+  position: relative;
+  box-shadow: 0px 4px 14px 0px rgba(245, 166, 35, 0.35);
+}
+.icon5 {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  position: relative;
+  overflow: visible;
+}
+.text9 {
+  flex-shrink: 0;
+  width: 44.92px;
+  height: 16.5px;
+  position: relative;
+}
+.catch3 {
+  color: #ffffff;
+  text-align: center;
+  font-family: "Poppins-Bold", sans-serif;
+  font-size: 11px;
+  line-height: 16.5px;
+  letter-spacing: 1.1px;
+  font-weight: 700;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
