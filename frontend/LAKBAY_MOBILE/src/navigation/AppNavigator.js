@@ -11,6 +11,8 @@ import CatchScreen from '../screens/CatchScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import DetailsScreen from '../screens/DetailsScreen';
 import ARScreen from '../screens/ARScreen';
+import ARScannedScreen from '../screens/ARScannedScreen';
+import QRScannedScreen from '../screens/QRScannedScreen';
 import NotificationScreen from '../screens/NotificationScreen';
 import BadgesScreen from '../screens/BadgesScreen';
 
@@ -68,6 +70,8 @@ export default function AppNavigator() {
       <Stack.Screen name="MainTabs"      component={MainTabs} />
       <Stack.Screen name="Details"       component={DetailsScreen} />
       <Stack.Screen name="AR"            component={ARScreen} />
+      <Stack.Screen name="ARScanned"      component={ARScannedScreen} />
+      <Stack.Screen name="QRScanned"      component={QRScannedScreen} />
       <Stack.Screen name="Notifications" component={NotificationScreen} />
       {/* Legacy route aliases so existing navigation.navigate calls still work */}
       <Stack.Screen name="Home"    component={MainTabs} />
