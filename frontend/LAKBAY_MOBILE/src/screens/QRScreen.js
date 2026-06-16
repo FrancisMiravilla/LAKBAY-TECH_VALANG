@@ -34,9 +34,24 @@ export default function QRScreen({ navigation }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleSimulateQRScan = () => {
-    alert('🔍 QR Code Scanned! Unlocked hotspot: "The Spanish Heritage of Fort Pilar". You earned 50 XP!');
+  const navigateToQRScanned = (spotName) => {
+    navigation.navigate('QRScanned', {
+      spot: {
+        name: spotName ?? 'Fort Pilar Shrine',
+        image: null,
+        historical: {
+          label: 'HISTORICAL INFORMATION',
+          body: 'Built on June 23, 1635 by Spanish Jesuit missionary engineer Melchor de Vera, Fort Pilar served as a military defense fortress protecting Zamboanga from pirate, Dutch, and Moro attacks. It was declared a National Cultural Treasure in 1973 and is now managed by the National Museum of the Philippines.',
+        },
+        cultural: {
+          label: 'CULTURAL SIGNIFICANCE',
+          body: "Fort Pilar is a symbol of the resilience and faith of the Zamboangue\u00f1os. It houses the shrine of Our Lady of the Pillar, the city's patroness, and is respected by both Christians and Muslims \u2014 making it a powerful symbol of Zamboanga's multicultural identity.",
+        },
+      },
+    });
   };
+
+  const handleSimulateQRScan = () => navigateToQRScanned('Fort Pilar Shrine');
 
   const translateY = scanAnim.interpolate({
     inputRange: [0, 1],
@@ -82,9 +97,7 @@ export default function QRScreen({ navigation }) {
                   barcodeTypes: ["qr"],
                 }}
                 onBarcodeScanned={({ data }) => {
-                  if (data) {
-                    alert(`🔍 QR Code Scanned! data: "${data}". Unlocked hotspot!`);
-                  }
+                  if (data) navigateToQRScanned(data);
                 }}
               />
             ) : (
