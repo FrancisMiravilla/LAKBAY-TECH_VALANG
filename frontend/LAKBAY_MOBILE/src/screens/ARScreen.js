@@ -35,7 +35,22 @@ export default function ARScreen({ navigation }) {
   }, []);
 
   const handleSimulateScan = () => {
-    alert('✨ Exhibit Detected! Unlocked: "The Historic Fort Pilar Vinta Fleet". Added to your collection badges!');
+    navigation.navigate('ARScanned', {
+      exhibit: {
+        name: 'Yakan Traditional Loom',
+        location: 'Fort Pilar Museum · 0.3m',
+        historical: {
+          label: 'HISTORICAL INFORMATION',
+          body: 'The Yakan people of Basilan have woven intricate geometric textiles since the 14th century, each pattern carrying deep ancestral symbolism.',
+          highlight: '14th century',
+        },
+        cultural: {
+          label: 'CULTURAL SIGNIFICANCE',
+          body: 'Yakan weaving signifies identity and social standing. The pis siyabit headcloth is worn in ceremonies and treasured as a heirloom.',
+          highlight: 'pis siyabit',
+        },
+      },
+    });
   };
 
   const translateY = scanAnim.interpolate({
@@ -133,7 +148,15 @@ export default function ARScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Guidelines Section */}
+        {/* How to scan instruction card */}
+        <View style={styles.instructionCard}>
+          <Text style={styles.instructionHeader}>How to scan:</Text>
+          <Text style={styles.instructionBody}>
+            Point your camera directly at a museum exhibit or artifact. Hold still and let the AR system detect and recognize it automatically.
+          </Text>
+        </View>
+
+        {/* Guidelines Row */}
         <View style={styles.guidelinesSection}>
           <View style={styles.guidelineRow}>
             <View style={styles.bulletPoint} />
@@ -143,9 +166,21 @@ export default function ARScreen({ navigation }) {
             <View style={styles.bulletPoint} />
             <Text style={styles.guidelineText}>Hold steady for 2 seconds</Text>
           </View>
-          <View style={styles.guidelineRow}>
-            <View style={styles.bulletPoint} />
-            <Text style={styles.guidelineText}>Read each information given carefully</Text>
+        </View>
+
+        {/* Tips Section */}
+        <View style={styles.tipsContainer}>
+          <View style={styles.tipItem}>
+            <Text style={styles.tipEmoji}>🏛️</Text>
+            <Text style={styles.tipText}>Look for exhibits with the AR marker tag displayed nearby</Text>
+          </View>
+          <View style={styles.tipItem}>
+            <Text style={styles.tipEmoji}>💡</Text>
+            <Text style={styles.tipText}>Each artifact reveals a unique piece of Zamboanga's heritage</Text>
+          </View>
+          <View style={styles.tipItem}>
+            <Text style={styles.tipEmoji}>🎖️</Text>
+            <Text style={styles.tipText}>Scan all exhibits in a museum to earn a Collector badge</Text>
           </View>
         </View>
 
@@ -384,30 +419,78 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     fontWeight: '700',
   },
+  instructionCard: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    marginBottom: 16,
+  },
+  instructionHeader: {
+    color: COLORS.gold,
+    fontSize: 13,
+    fontFamily: FONTS.bold,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  instructionBody: {
+    color: COLORS.textSub,
+    fontSize: 12,
+    fontFamily: FONTS.regular,
+    lineHeight: 18,
+  },
   guidelinesSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     backgroundColor: COLORS.bgCard,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     padding: 16,
-    gap: 12,
+    marginBottom: 20,
   },
   guidelineRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   bulletPoint: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: COLORS.gold,
-    marginRight: 12,
+    marginRight: 8,
   },
   guidelineText: {
     color: COLORS.textSub,
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: FONTS.regular,
     fontWeight: '500',
+  },
+  tipsContainer: {
+    gap: 12,
+    marginBottom: 20,
+  },
+  tipItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  tipEmoji: {
+    fontSize: 20,
+    marginRight: 16,
+  },
+  tipText: {
+    flex: 1,
+    color: '#FFF',
+    fontSize: 11,
+    fontFamily: FONTS.semiBold,
+    fontWeight: '600',
+    lineHeight: 16,
   },
   cameraFallback: {
     ...StyleSheet.absoluteFillObject,
