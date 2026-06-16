@@ -27,7 +27,10 @@ import {
   Sun,
   Moon,
   Maximize,
-  Minimize
+  Minimize,
+  Eye,
+  Camera,
+  Crosshair
 } from 'lucide-react'
 import './App.css'
 import mapboxgl from 'mapbox-gl'
@@ -86,6 +89,9 @@ const MockQR = ({ value }) => {
   );
 };
 
+// ── Feature-type constants ─────────────────────────────────────────────────
+// featureTypes: array of 'qr' | 'ar' | 'catch'
+
 // Initial Cultural Spots Mock Data
 const INITIAL_SPOTS = [
   { id: 1, name: 'Great Santa Cruz Island', location: 'Zamboanga Channel, Zamboanga City', qrStatus: 'Active', triviaCount: 8, visits: 24500, category: 'beach', rating: 4.8, description: 'Famous for its unique pink coralline sand and crystal clear waters. A protected marine sanctuary perfect for snorkeling and lagoon tours.' },
@@ -96,6 +102,32 @@ const INITIAL_SPOTS = [
   { id: 6, name: 'Pasonanca Tree House', location: 'Pasonanca Park, Zamboanga City', qrStatus: 'Inactive', triviaCount: 4, visits: 9800, category: 'historical', rating: 4.4, description: 'Built in 1960, this historic treehouse in Pasonanca Park allows visitors to climb up and experience staying in a nature-surrounded cottage.' },
   { id: 7, name: 'Taluksangay Mosque', location: 'Barangay Taluksangay, Zamboanga City', qrStatus: 'Active', triviaCount: 9, visits: 8200, category: 'cultural', rating: 4.8, description: 'Built in 1885, it is the oldest mosque in the Zamboanga Peninsula, featuring iconic red domes and serving as the historical center of Islam in the area.' }
 ];
+
+// ── Map Pins – each pin can have one or more featureTypes ─────────────────
+const INITIAL_MAP_PINS = [
+  // QR Spots (tourist spots with QR codes)
+  { id: 1,  name: 'Great Santa Cruz Island',   coordinates: [122.0682, 6.8711], featureTypes: ['qr'],        description: 'Famous pink-sand island, protected marine sanctuary.' },
+  { id: 2,  name: 'Fort Pilar Shrine & Museum', coordinates: [122.0818, 6.9015], featureTypes: ['qr'],        description: '17th-century Spanish fortress and religious landmark.' },
+  { id: 3,  name: 'Yakan Weaving Village',      coordinates: [122.0494, 6.9272], featureTypes: ['qr'],        description: 'Indigenous Yakan weavers with traditional backstrap looms.' },
+  { id: 4,  name: 'Merloquet Falls',            coordinates: [122.2133, 7.2144], featureTypes: ['qr'],        description: 'Two-tiered cascading waterfall in the highlands.' },
+  { id: 5,  name: 'Paseo del Mar',              coordinates: [122.0835, 6.9025], featureTypes: ['qr'],        description: 'Waterfront park with cultural shows and sea views.' },
+  { id: 6,  name: 'Pasonanca Tree House',       coordinates: [122.0716, 6.9463], featureTypes: ['qr'],        description: 'Historic 1960 treehouse inside Pasonanca Park.' },
+  { id: 7,  name: 'Taluksangay Mosque',         coordinates: [122.1311, 6.9452], featureTypes: ['qr'],        description: 'Oldest mosque in the Zamboanga Peninsula (1885).' },
+  // AR Spots (museum / exhibit locations)
+  { id: 8,  name: 'Zamboanga City Museum',      coordinates: [122.0821, 6.9032], featureTypes: ['ar'],        description: 'Main AR exhibit hub. Scan artifacts to unlock cultural stories.' },
+  // Catch Spots (creature / symbol encounter zones)
+  { id: 9,  name: 'Curacha Catch Zone',         coordinates: [122.0790, 6.9100], featureTypes: ['catch'],     description: 'Encounter the Curacha – Zamboanga\'s legendary spanner crab spirit.' },
+  { id: 10, name: 'Vinta Catch Zone',           coordinates: [122.0720, 6.8950], featureTypes: ['catch'],     description: 'Spot the iconic Vinta sailboat creature along the strait.' },
+  { id: 11, name: 'Lantaka Catch Zone',         coordinates: [122.0830, 6.9010], featureTypes: ['catch'],     description: 'Find the Lantaka cannon spirit guarding Fort Pilar.' },
+  { id: 12, name: 'Yakan Weave Spirit Zone',    coordinates: [122.0510, 6.9260], featureTypes: ['catch'],     description: 'Capture the mystical spirit woven into Yakan textiles.' },
+];
+
+// Helper: primary feature type determines marker color
+const PIN_TYPE_CONFIG = {
+  qr:    { color: '#E91E8C', glow: 'rgba(233,30,140,0.55)', label: 'QR Scan' },
+  ar:    { color: '#10B981', glow: 'rgba(16,185,129,0.55)',  label: 'AR Exhibit' },
+  catch: { color: '#FBBF24', glow: 'rgba(251,191,36,0.55)', label: 'Catch Zone' },
+};
 
 // Initial QR Codes Mock Data
 const INITIAL_QRCODES = [
@@ -179,6 +211,20 @@ function App() {
   const [qrcodes, setQrcodes] = useState(INITIAL_QRCODES);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
 
+  // Map Pins State
+  const [mapPins, setMapPins] = useState(INITIAL_MAP_PINS);
+  const [selectedMapPinId, setSelectedMapPinId] = useState(8); // default: Museum AR
+  const [isAddMapPinModalOpen, setIsAddMapPinModalOpen] = useState(false);
+  const [newMapPin, setNewMapPin] = useState({
+    name: '',
+    description: '',
+    lat: '',
+    lng: '',
+    featureTypes: ['qr'],
+  });
+
+  const selectedMapPin = useMemo(() => mapPins.find(p => p.id === selectedMapPinId), [mapPins, selectedMapPinId]);
+
   // Selected Spot for Interactive Map
   const selectedSpot = useMemo(() => {
     return spots.find(s => s.id === selectedPinId);
@@ -201,91 +247,151 @@ function App() {
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
       style: theme === 'dark' ? 'mapbox://styles/mapbox/navigation-night-v1' : 'mapbox://styles/mapbox/navigation-day-v1',
-      center: [122.0790, 6.9214], // Coordinates for Zamboanga City [longitude, latitude]
+      center: [122.0790, 6.9214],
       zoom: 11.5,
-      pitch: 30, // tilt
+      pitch: 30,
     });
 
     mapRef.current = map;
-
-    // Add navigation and fullscreen controls
     map.addControl(new mapboxgl.NavigationControl(), 'top-right');
     map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
 
-    const pins = [
-      { id: 1, name: 'Great Santa Cruz Island', coordinates: [122.0682, 6.8711] },
-      { id: 2, name: 'Fort Pilar Shrine & Museum', coordinates: [122.0818, 6.9015] },
-      { id: 3, name: 'Yakan Weaving Village', coordinates: [122.0494, 6.9272] },
-      { id: 4, name: 'Merloquet Falls', coordinates: [122.2133, 7.2144] },
-      { id: 5, name: 'Paseo del Mar', coordinates: [122.0835, 6.9025] },
-      { id: 6, name: 'Pasonanca Tree House', coordinates: [122.0716, 6.9463] },
-      { id: 7, name: 'Taluksangay Mosque', coordinates: [122.1311, 6.9452] }
-    ];
+    // Build markers from mapPins
+    mapPins.forEach(pin => {
+      const primaryType = pin.featureTypes[0];
+      const cfg = PIN_TYPE_CONFIG[primaryType] || PIN_TYPE_CONFIG.qr;
+      const isSelected = selectedMapPinId === pin.id;
 
-    const markers = [];
-
-    pins.forEach(pin => {
-      // Create DOM element for marker
       const el = document.createElement('div');
       el.className = 'custom-map-marker';
-      el.style.width = '14px';
-      el.style.height = '14px';
-      el.style.borderRadius = '50%';
-      el.style.backgroundColor = '#E91E8C'; // Accent pink
-      el.style.border = '2px solid white';
-      el.style.cursor = 'pointer';
-      el.style.boxShadow = '0 0 10px rgba(233, 30, 140, 0.6)';
+      el.title = pin.name;
 
-      if (selectedPinId === pin.id) {
-        el.style.transform = 'scale(1.2)';
-        el.style.backgroundColor = '#FBBF24'; // Highlight selected with gold
-        el.style.boxShadow = '0 0 15px #FBBF24, 0 0 0 4px rgba(251, 191, 36, 0.2)';
+      // Outer wrapper
+      el.style.cssText = `
+        width: ${isSelected ? '22px' : '18px'};
+        height: ${isSelected ? '22px' : '18px'};
+        border-radius: 50%;
+        background-color: ${isSelected ? '#fff' : cfg.color};
+        border: 2.5px solid ${isSelected ? cfg.color : 'rgba(255,255,255,0.85)'};
+        cursor: pointer;
+        box-shadow: 0 0 ${isSelected ? 18 : 10}px ${cfg.glow}, 0 0 0 ${isSelected ? '5px' : '0px'} ${cfg.glow};
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.15s ease;
+        position: relative;
+      `;
+
+      // Inner icon dot (SVG path strings for QR / AR / Catch)
+      const iconEl = document.createElement('div');
+      iconEl.style.cssText = `
+        width: 9px; height: 9px; border-radius: 50%;
+        background: ${isSelected ? cfg.color : 'rgba(255,255,255,0.9)'};
+      `;
+      if (primaryType === 'ar') {
+        // Eye shape via border trick
+        iconEl.style.borderRadius = '0 50% 0 50%';
+        iconEl.style.transform = 'rotate(45deg)';
+      } else if (primaryType === 'catch') {
+        // Star-ish: use a smaller circle
+        iconEl.style.width = '7px';
+        iconEl.style.height = '7px';
+        iconEl.style.boxShadow = `0 0 4px ${isSelected ? cfg.color : '#fff'}`;
       }
+      el.appendChild(iconEl);
 
-      // Handle marker click
-      el.addEventListener('click', () => {
-        setSelectedPinId(pin.id);
-      });
+      // Type label badge (tiny text below marker)
+      const badgeEl = document.createElement('div');
+      badgeEl.innerText = primaryType.toUpperCase();
+      badgeEl.style.cssText = `
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        margin-top: 3px;
+        background: ${cfg.color};
+        color: #fff;
+        font-size: 7px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        padding: 1px 4px;
+        border-radius: 3px;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: ${isSelected ? 1 : 0.85};
+      `;
+      el.appendChild(badgeEl);
 
-      const marker = new mapboxgl.Marker(el)
+      el.addEventListener('click', () => setSelectedMapPinId(pin.id));
+
+      const popupHtml = `
+        <div style="font-family:sans-serif;padding:2px 0">
+          <strong style="font-size:13px">${pin.name}</strong><br/>
+          <span style="font-size:11px;color:#888">${pin.featureTypes.map(t => t.toUpperCase()).join(' · ')}</span><br/>
+          <span style="font-size:11px">${pin.description || ''}</span>
+        </div>`;
+
+      new mapboxgl.Marker(el)
         .setLngLat(pin.coordinates)
-        .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(`<strong>${pin.name}</strong>`))
+        .setPopup(new mapboxgl.Popup({ offset: 28 }).setHTML(popupHtml))
         .addTo(map);
-
-      markers.push(marker);
     });
 
-    // Clean up
-    return () => {
-      map.remove();
-    };
+    return () => { map.remove(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, theme]);
+  }, [activeTab, theme, mapPins, selectedMapPinId]);
 
-  // Handle flyTo when selectedPinId changes
+  // Handle flyTo when selectedMapPinId changes
   useEffect(() => {
     if (!mapRef.current) return;
-
-    const pinsCoords = {
-      1: [122.0682, 6.8711],
-      2: [122.0818, 6.9015],
-      3: [122.0494, 6.9272],
-      4: [122.2133, 7.2144],
-      5: [122.0835, 6.9025],
-      6: [122.0716, 6.9463],
-      7: [122.1311, 6.9452]
-    };
-
-    const coords = pinsCoords[selectedPinId];
-    if (coords) {
+    const pin = mapPins.find(p => p.id === selectedMapPinId);
+    if (pin?.coordinates) {
       mapRef.current.flyTo({
-        center: coords,
-        zoom: 13.5,
+        center: pin.coordinates,
+        zoom: 14,
         essential: true,
-        pitch: 45
+        pitch: 45,
       });
     }
-  }, [selectedPinId]);
+  }, [selectedMapPinId, mapPins]);
+
+  // handleAddMapPin
+  const handleAddMapPin = (e) => {
+    e.preventDefault();
+    const lat = parseFloat(newMapPin.lat);
+    const lng = parseFloat(newMapPin.lng);
+    if (!newMapPin.name || isNaN(lat) || isNaN(lng)) return;
+    if (newMapPin.featureTypes.length === 0) return;
+
+    const pin = {
+      id: Date.now(),
+      name: newMapPin.name,
+      description: newMapPin.description,
+      coordinates: [lng, lat],
+      featureTypes: newMapPin.featureTypes,
+    };
+    setMapPins(prev => [...prev, pin]);
+    setSelectedMapPinId(pin.id);
+    setIsAddMapPinModalOpen(false);
+    setNewMapPin({ name: '', description: '', lat: '', lng: '', featureTypes: ['qr'] });
+    setNotifications(prev => [
+      { id: Date.now(), text: `Map pin "${pin.name}" (${pin.featureTypes.join('/')}) added to the map.`, time: 'Just now' },
+      ...prev,
+    ]);
+  };
+
+  const toggleNewPinType = (type) => {
+    setNewMapPin(prev => {
+      const has = prev.featureTypes.includes(type);
+      if (has && prev.featureTypes.length === 1) return prev; // keep at least one
+      return {
+        ...prev,
+        featureTypes: has
+          ? prev.featureTypes.filter(t => t !== type)
+          : [...prev.featureTypes, type],
+      };
+    });
+  };
 
   // Handle Mapbox resize when fullscreen changes
   useEffect(() => {
@@ -1240,187 +1346,157 @@ function App() {
           {/* TAB CONTENT: 10. INTERACTIVE MAP */}
           {activeTab === 'map' && (
             <section className="dashboard-grid" style={{ gridTemplateColumns: isMapFullscreen ? '1fr' : '2fr 1.1fr', gap: '28px' }}>
-              {/* Map Canvas Card */}
+
+              {/* ── Map Canvas Card ── */}
               <div className={`content-card ${isMapFullscreen ? 'fullscreen-map-card' : ''}`} style={{ minHeight: isMapFullscreen ? '100vh' : '500px' }}>
-                <div className="content-card-header" style={{ borderBottom: isMapFullscreen ? '1px solid var(--card-border)' : 'none', paddingBottom: isMapFullscreen ? '16px' : '0' }}>
+                <div className="content-card-header" style={{ borderBottom: '1px solid var(--card-border)', paddingBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
                   <h3 className="card-title">
                     <Map className="card-title-icon" size={18} />
-                    Zamboanga City Geospatial View {isMapFullscreen && "(Fullscreen Mode)"}
+                    Zamboanga City — Feature Map {isMapFullscreen && '(Fullscreen)'}
                   </h3>
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', backgroundColor: 'var(--card-border)', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                      Basilan Strait Channel
-                    </span>
-                    <button 
-                      className="header-btn" 
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {/* Legend */}
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      {Object.entries(PIN_TYPE_CONFIG).map(([type, cfg]) => (
+                        <span key={type} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                          <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: cfg.color, boxShadow: `0 0 6px ${cfg.glow}` }} />
+                          {cfg.label}
+                        </span>
+                      ))}
+                    </div>
+                    <button
+                      className="btn btn-primary"
+                      style={{ padding: '6px 12px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      onClick={() => setIsAddMapPinModalOpen(true)}
+                    >
+                      <Plus size={13} /> Add Spot to Map
+                    </button>
+                    <button
+                      className="header-btn"
                       onClick={() => setIsMapFullscreen(!isMapFullscreen)}
-                      title={isMapFullscreen ? "Exit Fullscreen" : "View Fullscreen"}
-                      style={{ padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid var(--card-border)', color: 'white' }}
+                      title={isMapFullscreen ? 'Exit Fullscreen' : 'View Fullscreen'}
+                      style={{ padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid var(--card-border)', color: 'white' }}
                     >
                       {isMapFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
                     </button>
                   </div>
                 </div>
 
-                {/* Real Mapbox Container with Warning Overlay fallback */}
-                <div style={{ position: 'relative', width: '100%', height: isMapFullscreen ? 'calc(100vh - 70px)' : '400px', borderRadius: isMapFullscreen ? '0' : '12px', overflow: 'hidden', border: isMapFullscreen ? 'none' : '1px solid var(--card-border)' }}>
-                  <div 
-                    ref={mapContainerRef} 
-                    style={{
-                      width: '100%',
-                      height: '100%'
-                    }} 
-                  />
+                {/* Mapbox canvas */}
+                <div style={{ position: 'relative', width: '100%', height: isMapFullscreen ? 'calc(100vh - 90px)' : '420px', borderRadius: isMapFullscreen ? '0' : '12px', overflow: 'hidden', border: isMapFullscreen ? 'none' : '1px solid var(--card-border)', marginTop: '16px' }}>
+                  <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
 
-                  {/* Floating Details Pane when Fullscreen */}
-                  {isMapFullscreen && selectedSpot && (
+                  {/* Floating pin detail when fullscreen */}
+                  {isMapFullscreen && selectedMapPin && (
                     <div className="floating-map-details-card">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                        <span className={`badge ${selectedSpot.category || 'cultural'}`}>
-                          {selectedSpot.category || 'cultural'}
-                        </span>
-                        <span style={{ fontSize: '12px', color: 'var(--accent-gold)', fontWeight: 700 }}>
-                          ★ {selectedSpot.rating || 4.5}
-                        </span>
+                      <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                        {selectedMapPin.featureTypes.map(t => (
+                          <span key={t} style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', backgroundColor: PIN_TYPE_CONFIG[t]?.color, color: '#fff' }}>
+                            {PIN_TYPE_CONFIG[t]?.label}
+                          </span>
+                        ))}
                       </div>
-                      <h4 style={{ margin: '0 0 4px 0', fontSize: '16px', color: 'var(--text-title)', fontWeight: 700 }}>{selectedSpot.name}</h4>
-                      <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <MapPin size={12} color="var(--accent-pink)" />
-                        {selectedSpot.location}
+                      <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: 'var(--text-title)', fontWeight: 700 }}>{selectedMapPin.name}</h4>
+                      <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: 'var(--text-primary)', lineHeight: '1.5' }}>{selectedMapPin.description}</p>
+                      <p style={{ margin: '0 0 12px 0', fontSize: '11px', color: 'var(--text-muted)' }}>
+                        📍 {selectedMapPin.coordinates[1].toFixed(4)}° N, {selectedMapPin.coordinates[0].toFixed(4)}° E
                       </p>
-                      <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: 'var(--text-primary)', lineHeight: '1.5', maxHeight: '100px', overflowY: 'auto' }}>
-                        {selectedSpot.description}
-                      </p>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button 
-                          className="btn btn-primary"
-                          style={{ padding: '6px 12px', fontSize: '11px', flex: 1 }}
-                          onClick={() => {
-                            alert(`Geofencing simulated at ${selectedSpot.name}. Sending push notifications to nearby tourists...`);
-                          }}
-                        >
-                          Trigger Geofence
-                        </button>
-                        <button 
-                          className="btn btn-secondary"
-                          style={{ padding: '6px 12px', fontSize: '11px', flex: 1 }}
-                          onClick={() => {
-                            setSearchQuery(selectedSpot.name);
-                            setIsMapFullscreen(false);
-                            setActiveTab('spots');
-                          }}
-                        >
-                          Database View
-                        </button>
-                      </div>
+                      <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '11px', width: '100%' }}
+                        onClick={() => alert(`Geofencing triggered at ${selectedMapPin.name}.`)}>
+                        Trigger Geofence
+                      </button>
                     </div>
                   )}
 
                   {isTokenPlaceholder && (
-                    <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: '100%',
-                      backgroundColor: 'rgba(24, 29, 56, 0.95)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '24px',
-                      textAlign: 'center',
-                      zIndex: 10
-                    }}>
+                    <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(24,29,56,0.95)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', textAlign: 'center', zIndex: 10 }}>
                       <Globe size={40} color="var(--accent-pink)" style={{ marginBottom: '16px', animation: 'float 3s ease-in-out infinite' }} />
                       <h4 style={{ color: 'white', marginBottom: '8px', fontFamily: 'var(--font-heading)', fontSize: '16px', fontWeight: 700 }}>Mapbox Access Token Required</h4>
                       <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '340px', lineHeight: 1.5 }}>
-                        Please replace the placeholder token in your <code>frontend/LAKBAY_WEB/.env</code> file with a valid token from Mapbox and **restart your Vite server** (Ctrl+C and run <code>npm.cmd run dev</code> again).
+                        Replace the placeholder in <code>frontend/LAKBAY_WEB/.env</code> with a valid Mapbox token, then restart the Vite server.
                       </p>
                     </div>
                   )}
                 </div>
 
                 {!isMapFullscreen && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    <span>Interactive Map: Click pins to view details.</span>
-                    <span>Grid bounds: 6.9214° N, 122.0790° E</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)', marginTop: '10px' }}>
+                    <span>Click any pin to view details · {mapPins.length} spots registered</span>
+                    <span>6.9214° N, 122.0790° E</span>
                   </div>
                 )}
               </div>
 
-              {/* Landmark Details Pane - only shown in non-fullscreen split view */}
+              {/* ── Right Panel — Pin Detail + List ── */}
               {!isMapFullscreen && (
-                <div className="content-card">
-                  {selectedSpot ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <span className={`badge ${selectedSpot.category || 'cultural'}`} style={{ alignSelf: 'flex-start' }}>
-                            {selectedSpot.category || 'historical'}
-                          </span>
-                          <span style={{ fontSize: '12px', color: 'var(--accent-gold)', fontWeight: 700 }}>
-                            ★ {selectedSpot.rating || 4.5}
-                          </span>
-                        </div>
+                <div className="content-card" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
 
-                        <div>
-                          <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', fontWeight: 700, color: 'var(--text-title)' }}>
-                            {selectedSpot.name}
-                          </h4>
-                          <span style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                            <MapPin size={12} color="var(--accent-pink)" />
-                            {selectedSpot.location}
+                  {/* Selected Pin Detail */}
+                  {selectedMapPin ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '16px', borderBottom: '1px solid var(--card-border)' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {selectedMapPin.featureTypes.map(t => (
+                          <span key={t} style={{ fontSize: '10px', fontWeight: 800, padding: '3px 9px', borderRadius: '5px', backgroundColor: PIN_TYPE_CONFIG[t]?.color + '22', color: PIN_TYPE_CONFIG[t]?.color, border: `1px solid ${PIN_TYPE_CONFIG[t]?.color}55` }}>
+                            {t === 'qr' && <QrCode size={10} style={{ display: 'inline', marginRight: '3px', verticalAlign: 'middle' }} />}
+                            {t === 'ar' && <Eye size={10} style={{ display: 'inline', marginRight: '3px', verticalAlign: 'middle' }} />}
+                            {t === 'catch' && <Crosshair size={10} style={{ display: 'inline', marginRight: '3px', verticalAlign: 'middle' }} />}
+                            {PIN_TYPE_CONFIG[t]?.label}
                           </span>
-                        </div>
-
-                        <div style={{ borderTop: '1px solid var(--card-border)', borderBottom: '1px solid var(--card-border)', padding: '14px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                          <div>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Live Visitors</span>
-                            <p style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-title)', marginTop: '2px' }}>
-                              {Math.floor(selectedSpot.visits / 1200) || 12} checked-in
-                            </p>
-                          </div>
-                          <div>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>QR Status</span>
-                            <p style={{ fontSize: '16px', fontWeight: 700, color: selectedSpot.qrStatus === 'Active' ? 'var(--success)' : 'var(--danger)', marginTop: '2px' }}>
-                              {selectedSpot.qrStatus || 'Active'}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div style={{ fontSize: '13px', lineHeight: 1.6, color: 'var(--text-primary)' }}>
-                          {selectedSpot.description || 'A key landmark highlighting the cultural heritage and history of Zamboanga City, part of the LAKBAY preservation registry.'}
-                        </div>
+                        ))}
                       </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
-                        <button 
-                          className="btn btn-primary"
-                          onClick={() => {
-                            alert(`Geofencing simulated at ${selectedSpot.name}. Sending push notifications to nearby tourists...`);
-                          }}
-                        >
-                          Trigger Geofence Simulation
-                        </button>
-
-                        <button 
-                          className="btn btn-secondary"
-                          onClick={() => {
-                            setSearchQuery(selectedSpot.name);
-                            setActiveTab('spots');
-                          }}
-                        >
-                          Inspect in Spot Database
-                        </button>
-                      </div>
+                      <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '18px', fontWeight: 700, color: 'var(--text-title)', margin: 0 }}>{selectedMapPin.name}</h4>
+                      <p style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.6, margin: 0 }}>{selectedMapPin.description}</p>
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>
+                        📍 {selectedMapPin.coordinates[1].toFixed(4)}° N, {selectedMapPin.coordinates[0].toFixed(4)}° E
+                      </p>
+                      <button
+                        className="btn btn-primary"
+                        style={{ padding: '8px 14px', fontSize: '12px' }}
+                        onClick={() => alert(`Geofencing triggered at ${selectedMapPin.name}.`)}
+                      >
+                        Trigger Geofence Simulation
+                      </button>
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '16px', color: 'var(--text-muted)', textAlign: 'center', minHeight: '300px' }}>
-                      <MapPin size={48} color="var(--card-border)" />
-                      <p style={{ fontSize: '14px' }}>Select a landmark pin on the map to view live coordinates, geofences, and visitor activities.</p>
+                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0', borderBottom: '1px solid var(--card-border)' }}>
+                      <MapPin size={32} color="var(--card-border)" style={{ marginBottom: '8px' }} />
+                      <p style={{ fontSize: '13px' }}>Select a pin on the map</p>
                     </div>
                   )}
+
+                  {/* Pin List */}
+                  <div style={{ marginTop: '16px', flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>All Map Pins</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{mapPins.length} spots</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '280px', overflowY: 'auto' }}>
+                      {mapPins.map(pin => {
+                        const primaryType = pin.featureTypes[0];
+                        const cfg = PIN_TYPE_CONFIG[primaryType] || PIN_TYPE_CONFIG.qr;
+                        const isActive = pin.id === selectedMapPinId;
+                        return (
+                          <button
+                            key={pin.id}
+                            onClick={() => setSelectedMapPinId(pin.id)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '10px',
+                              padding: '9px 12px', borderRadius: '10px', border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%',
+                              backgroundColor: isActive ? cfg.color + '18' : 'transparent',
+                              outline: isActive ? `1.5px solid ${cfg.color}55` : '1px solid transparent',
+                              transition: 'background 0.15s',
+                            }}
+                          >
+                            <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: cfg.color, flexShrink: 0, boxShadow: `0 0 6px ${cfg.glow}` }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ margin: 0, fontSize: '12px', fontWeight: isActive ? 700 : 500, color: isActive ? cfg.color : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pin.name}</p>
+                              <p style={{ margin: 0, fontSize: '10px', color: 'var(--text-muted)' }}>{pin.featureTypes.map(t => PIN_TYPE_CONFIG[t]?.label).join(' · ')}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
             </section>
@@ -1549,6 +1625,77 @@ function App() {
                 <button type="submit" className="btn btn-primary">
                   Save Spot
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── ADD MAP PIN MODAL ── */}
+      {isAddMapPinModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3 className="modal-title">Add Spot to Map</h3>
+              <button className="close-btn" onClick={() => setIsAddMapPinModalOpen(false)}><X size={20} /></button>
+            </div>
+            <form onSubmit={handleAddMapPin}>
+              <div className="modal-body">
+
+                <div className="form-group">
+                  <label className="form-label">Spot / Location Name</label>
+                  <input type="text" className="form-input" placeholder="e.g. Zamboanga City Museum" required
+                    value={newMapPin.name} onChange={e => setNewMapPin({ ...newMapPin, name: e.target.value })} />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Description</label>
+                  <textarea className="form-textarea" placeholder="Brief description of this spot..."
+                    value={newMapPin.description} onChange={e => setNewMapPin({ ...newMapPin, description: e.target.value })} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Latitude</label>
+                    <input type="number" step="any" className="form-input" placeholder="e.g. 6.9032" required
+                      value={newMapPin.lat} onChange={e => setNewMapPin({ ...newMapPin, lat: e.target.value })} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Longitude</label>
+                    <input type="number" step="any" className="form-input" placeholder="e.g. 122.0821" required
+                      value={newMapPin.lng} onChange={e => setNewMapPin({ ...newMapPin, lng: e.target.value })} />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Feature Type(s) <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(select at least one)</span></label>
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                    {Object.entries(PIN_TYPE_CONFIG).map(([type, cfg]) => {
+                      const checked = newMapPin.featureTypes.includes(type);
+                      return (
+                        <button type="button" key={type}
+                          onClick={() => toggleNewPinType(type)}
+                          style={{
+                            flex: 1, padding: '10px 8px', borderRadius: '10px', border: `2px solid ${checked ? cfg.color : 'var(--card-border)'}`,
+                            backgroundColor: checked ? cfg.color + '22' : 'transparent',
+                            cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          {type === 'qr' && <QrCode size={20} color={checked ? cfg.color : 'var(--text-muted)'} />}
+                          {type === 'ar' && <Eye size={20} color={checked ? cfg.color : 'var(--text-muted)'} />}
+                          {type === 'catch' && <Crosshair size={20} color={checked ? cfg.color : 'var(--text-muted)'} />}
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: checked ? cfg.color : 'var(--text-muted)' }}>{cfg.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setIsAddMapPinModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Add to Map</button>
               </div>
             </form>
           </div>
