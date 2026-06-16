@@ -233,6 +233,7 @@ function App() {
   // Mapbox Refs & Configs
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
+  const markerElemsRef = useRef({}); // { pinId: { el, iconEl, badgeEl, cfg } }
 
   // Check if Mapbox token is still a placeholder
   const isTokenPlaceholder = useMemo(() => {
@@ -240,9 +241,11 @@ function App() {
     return !token || token.includes('placeholder_token_replace_me') || token === '';
   }, []);
 
-  // Initialize Mapbox map
+  // Initialize Mapbox map — only rebuilds on tab/theme/pins change, NOT on pin selection
   useEffect(() => {
     if (activeTab !== 'map' || !mapContainerRef.current) return;
+
+    markerElemsRef.current = {}; // reset refs on rebuild
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
@@ -256,17 +259,15 @@ function App() {
     map.addControl(new mapboxgl.NavigationControl(), 'top-right');
     map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
 
-    // Build markers from mapPins
     mapPins.forEach(pin => {
       const primaryType = pin.featureTypes[0];
       const cfg = PIN_TYPE_CONFIG[primaryType] || PIN_TYPE_CONFIG.qr;
       const isSelected = selectedMapPinId === pin.id;
 
+      // Outer marker element
       const el = document.createElement('div');
       el.className = 'custom-map-marker';
       el.title = pin.name;
-
-      // Outer wrapper
       el.style.cssText = `
         width: ${isSelected ? '22px' : '18px'};
         height: ${isSelected ? '22px' : '18px'};
@@ -275,71 +276,70 @@ function App() {
         border: 2.5px solid ${isSelected ? cfg.color : 'rgba(255,255,255,0.85)'};
         cursor: pointer;
         box-shadow: 0 0 ${isSelected ? 18 : 10}px ${cfg.glow}, 0 0 0 ${isSelected ? '5px' : '0px'} ${cfg.glow};
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: transform 0.15s ease;
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.2s ease;
         position: relative;
       `;
 
-      // Inner icon dot (SVG path strings for QR / AR / Catch)
+      // Inner icon
       const iconEl = document.createElement('div');
-      iconEl.style.cssText = `
-        width: 9px; height: 9px; border-radius: 50%;
-        background: ${isSelected ? cfg.color : 'rgba(255,255,255,0.9)'};
-      `;
-      if (primaryType === 'ar') {
-        // Eye shape via border trick
-        iconEl.style.borderRadius = '0 50% 0 50%';
-        iconEl.style.transform = 'rotate(45deg)';
-      } else if (primaryType === 'catch') {
-        // Star-ish: use a smaller circle
-        iconEl.style.width = '7px';
-        iconEl.style.height = '7px';
-        iconEl.style.boxShadow = `0 0 4px ${isSelected ? cfg.color : '#fff'}`;
-      }
+      iconEl.className = 'pin-icon';
+      iconEl.style.cssText = `width: 9px; height: 9px; border-radius: 50%; background: ${isSelected ? cfg.color : 'rgba(255,255,255,0.9)'};`;
+      if (primaryType === 'ar') { iconEl.style.borderRadius = '0 50% 0 50%'; iconEl.style.transform = 'rotate(45deg)'; }
+      else if (primaryType === 'catch') { iconEl.style.width = '7px'; iconEl.style.height = '7px'; iconEl.style.boxShadow = `0 0 4px ${isSelected ? cfg.color : '#fff'}`; }
       el.appendChild(iconEl);
 
-      // Type label badge (tiny text below marker)
+      // Type badge below marker
       const badgeEl = document.createElement('div');
+      badgeEl.className = 'pin-badge';
       badgeEl.innerText = primaryType.toUpperCase();
       badgeEl.style.cssText = `
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        margin-top: 3px;
-        background: ${cfg.color};
-        color: #fff;
-        font-size: 7px;
-        font-weight: 800;
-        letter-spacing: 0.5px;
-        padding: 1px 4px;
-        border-radius: 3px;
-        white-space: nowrap;
-        pointer-events: none;
-        opacity: ${isSelected ? 1 : 0.85};
+        position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 3px;
+        background: ${cfg.color}; color: #fff; font-size: 7px; font-weight: 800;
+        letter-spacing: 0.5px; padding: 1px 4px; border-radius: 3px;
+        white-space: nowrap; pointer-events: none; opacity: ${isSelected ? 1 : 0.85};
       `;
       el.appendChild(badgeEl);
 
+      // Store refs for highlight updates
+      markerElemsRef.current[pin.id] = { el, iconEl, badgeEl, cfg, primaryType };
+
       el.addEventListener('click', () => setSelectedMapPinId(pin.id));
 
+      // Rich popup
+      const typeLabels = pin.featureTypes.map(t => `<span style="background:${PIN_TYPE_CONFIG[t]?.color};color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;margin-right:4px">${PIN_TYPE_CONFIG[t]?.label}</span>`).join('');
       const popupHtml = `
-        <div style="font-family:sans-serif;padding:2px 0">
-          <strong style="font-size:13px">${pin.name}</strong><br/>
-          <span style="font-size:11px;color:#888">${pin.featureTypes.map(t => t.toUpperCase()).join(' · ')}</span><br/>
-          <span style="font-size:11px">${pin.description || ''}</span>
+        <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:4px 0;min-width:180px">
+          <div style="margin-bottom:6px">${typeLabels}</div>
+          <strong style="font-size:13px;color:#1a1a2e;display:block;margin-bottom:4px">${pin.name}</strong>
+          <p style="font-size:11px;color:#555;margin:0 0 6px 0;line-height:1.5">${pin.description || 'No description available.'}</p>
+          <p style="font-size:10px;color:#999;margin:0">📍 ${pin.coordinates[1].toFixed(4)}° N, ${pin.coordinates[0].toFixed(4)}° E</p>
         </div>`;
 
       new mapboxgl.Marker(el)
         .setLngLat(pin.coordinates)
-        .setPopup(new mapboxgl.Popup({ offset: 28 }).setHTML(popupHtml))
+        .setPopup(new mapboxgl.Popup({ offset: 28, maxWidth: '240px' }).setHTML(popupHtml))
         .addTo(map);
     });
 
     return () => { map.remove(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, theme, mapPins, selectedMapPinId]);
+  }, [activeTab, theme, mapPins]);
+
+  // Update marker highlight styles WITHOUT rebuilding the map
+  useEffect(() => {
+    Object.entries(markerElemsRef.current).forEach(([idStr, { el, iconEl, badgeEl, cfg, primaryType }]) => {
+      const isSelected = parseInt(idStr) === selectedMapPinId;
+      el.style.width = isSelected ? '22px' : '18px';
+      el.style.height = isSelected ? '22px' : '18px';
+      el.style.backgroundColor = isSelected ? '#fff' : cfg.color;
+      el.style.border = `2.5px solid ${isSelected ? cfg.color : 'rgba(255,255,255,0.85)'}`;
+      el.style.boxShadow = `0 0 ${isSelected ? 18 : 10}px ${cfg.glow}, 0 0 0 ${isSelected ? '5px' : '0px'} ${cfg.glow}`;
+      iconEl.style.background = isSelected ? cfg.color : 'rgba(255,255,255,0.9)';
+      if (primaryType === 'catch') iconEl.style.boxShadow = `0 0 4px ${isSelected ? cfg.color : '#fff'}`;
+      badgeEl.style.opacity = isSelected ? '1' : '0.85';
+    });
+  }, [selectedMapPinId]);
 
   // Handle flyTo when selectedMapPinId changes
   useEffect(() => {
@@ -1433,34 +1433,94 @@ function App() {
 
                   {/* Selected Pin Detail */}
                   {selectedMapPin ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '16px', borderBottom: '1px solid var(--card-border)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingBottom: '16px', borderBottom: '1px solid var(--card-border)' }}>
+
+                      {/* Feature type badges */}
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {selectedMapPin.featureTypes.map(t => (
-                          <span key={t} style={{ fontSize: '10px', fontWeight: 800, padding: '3px 9px', borderRadius: '5px', backgroundColor: PIN_TYPE_CONFIG[t]?.color + '22', color: PIN_TYPE_CONFIG[t]?.color, border: `1px solid ${PIN_TYPE_CONFIG[t]?.color}55` }}>
-                            {t === 'qr' && <QrCode size={10} style={{ display: 'inline', marginRight: '3px', verticalAlign: 'middle' }} />}
-                            {t === 'ar' && <Eye size={10} style={{ display: 'inline', marginRight: '3px', verticalAlign: 'middle' }} />}
-                            {t === 'catch' && <Crosshair size={10} style={{ display: 'inline', marginRight: '3px', verticalAlign: 'middle' }} />}
+                          <span key={t} style={{ fontSize: '10px', fontWeight: 800, padding: '4px 10px', borderRadius: '6px', backgroundColor: PIN_TYPE_CONFIG[t]?.color + '22', color: PIN_TYPE_CONFIG[t]?.color, border: `1px solid ${PIN_TYPE_CONFIG[t]?.color}55`, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {t === 'qr' && <QrCode size={11} />}
+                            {t === 'ar' && <Eye size={11} />}
+                            {t === 'catch' && <Crosshair size={11} />}
                             {PIN_TYPE_CONFIG[t]?.label}
                           </span>
                         ))}
                       </div>
-                      <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '18px', fontWeight: 700, color: 'var(--text-title)', margin: 0 }}>{selectedMapPin.name}</h4>
-                      <p style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.6, margin: 0 }}>{selectedMapPin.description}</p>
-                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>
-                        📍 {selectedMapPin.coordinates[1].toFixed(4)}° N, {selectedMapPin.coordinates[0].toFixed(4)}° E
+
+                      {/* Name */}
+                      <div>
+                        <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', fontWeight: 700, color: 'var(--text-title)', margin: '0 0 4px 0', lineHeight: 1.2 }}>{selectedMapPin.name}</h4>
+                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <MapPin size={11} color="var(--accent-pink)" />
+                          {selectedMapPin.coordinates[1].toFixed(5)}° N, {selectedMapPin.coordinates[0].toFixed(5)}° E
+                        </p>
+                      </div>
+
+                      {/* Description */}
+                      <p style={{ fontSize: '12.5px', color: 'var(--text-primary)', lineHeight: 1.65, margin: 0 }}>
+                        {selectedMapPin.description || 'No description available for this spot.'}
                       </p>
-                      <button
-                        className="btn btn-primary"
-                        style={{ padding: '8px 14px', fontSize: '12px' }}
-                        onClick={() => alert(`Geofencing triggered at ${selectedMapPin.name}.`)}
-                      >
-                        Trigger Geofence Simulation
-                      </button>
+
+                      {/* Feature-specific info rows */}
+                      <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--card-border)' }}>
+                        {selectedMapPin.featureTypes.includes('qr') && (
+                          <div style={{ padding: '10px 12px', borderBottom: selectedMapPin.featureTypes.length > 1 ? '1px solid var(--card-border)' : 'none', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                            <QrCode size={16} color={PIN_TYPE_CONFIG.qr.color} style={{ flexShrink: 0, marginTop: '1px' }} />
+                            <div>
+                              <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: PIN_TYPE_CONFIG.qr.color }}>QR Scan Spot</p>
+                              <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>Tourists scan the QR code at this location to unlock cultural stories and earn XP.</p>
+                            </div>
+                          </div>
+                        )}
+                        {selectedMapPin.featureTypes.includes('ar') && (
+                          <div style={{ padding: '10px 12px', borderBottom: selectedMapPin.featureTypes.filter(t => t !== 'ar').length > 0 ? '1px solid var(--card-border)' : 'none', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                            <Eye size={16} color={PIN_TYPE_CONFIG.ar.color} style={{ flexShrink: 0, marginTop: '1px' }} />
+                            <div>
+                              <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: PIN_TYPE_CONFIG.ar.color }}>AR Exhibit Zone</p>
+                              <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>Point the camera at artifacts here to trigger AR overlays with historical and cultural information.</p>
+                            </div>
+                          </div>
+                        )}
+                        {selectedMapPin.featureTypes.includes('catch') && (
+                          <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                            <Crosshair size={16} color={PIN_TYPE_CONFIG.catch.color} style={{ flexShrink: 0, marginTop: '1px' }} />
+                            <div>
+                              <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: PIN_TYPE_CONFIG.catch.color }}>Creature Catch Zone</p>
+                              <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>A mythical creature or cultural symbol can be encountered and captured in this area.</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          className="btn btn-primary"
+                          style={{ flex: 1, padding: '8px 10px', fontSize: '12px' }}
+                          onClick={() => alert(`Geofencing triggered at ${selectedMapPin.name}. Notifying nearby app users...`)}
+                        >
+                          Trigger Geofence
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: '8px 10px', fontSize: '12px' }}
+                          title="Remove pin"
+                          onClick={() => {
+                            if (confirm(`Remove pin "${selectedMapPin.name}" from the map?`)) {
+                              setMapPins(prev => prev.filter(p => p.id !== selectedMapPin.id));
+                              setSelectedMapPinId(mapPins.find(p => p.id !== selectedMapPin.id)?.id ?? null);
+                            }
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0', borderBottom: '1px solid var(--card-border)' }}>
-                      <MapPin size={32} color="var(--card-border)" style={{ marginBottom: '8px' }} />
-                      <p style={{ fontSize: '13px' }}>Select a pin on the map</p>
+                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '28px 0', borderBottom: '1px solid var(--card-border)' }}>
+                      <MapPin size={36} color="var(--card-border)" style={{ marginBottom: '10px' }} />
+                      <p style={{ fontSize: '13px', margin: '0 0 4px 0', fontWeight: 600 }}>No spot selected</p>
+                      <p style={{ fontSize: '11px', margin: 0 }}>Click any pin on the map to view its details</p>
                     </div>
                   )}
 
