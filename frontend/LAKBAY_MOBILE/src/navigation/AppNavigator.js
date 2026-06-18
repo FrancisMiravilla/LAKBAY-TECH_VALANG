@@ -17,6 +17,7 @@ import NotificationScreen from '../screens/NotificationScreen';
 import BadgesScreen from '../screens/BadgesScreen';
 import LoginScreen from '../screens/LoginScreen';
 import CreateAccountScreen from '../screens/CreateAccountScreen';
+import CharacterSelectScreen from '../screens/CharacterSelectScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -70,8 +71,9 @@ export default function AppNavigator() {
       }}
     >
       {/* ── Auth Screens ── */}
-      <Stack.Screen name="Login"         component={LoginScreen} />
-      <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
+      <Stack.Screen name="Login"           component={LoginScreen} />
+      <Stack.Screen name="CreateAccount"   component={CreateAccountScreen} />
+      <Stack.Screen name="CharacterSelect" component={CharacterSelectScreen} />
       {/* ── Main App ── */}
       <Stack.Screen name="MainTabs"      component={MainTabs} />
       <Stack.Screen name="Details"       component={DetailsScreen} />

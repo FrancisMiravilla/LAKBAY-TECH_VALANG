@@ -89,10 +89,11 @@ export const SHADOW = {
 };
 
 export const FONTS = {
+  pixel:   'PressStart2P_400Regular', // ← big headers / logo / hero titles
   light:   'Rajdhani_300Light',
   regular: 'Rajdhani_400Regular',
   medium:  'Rajdhani_500Medium',
   semiBold:'Rajdhani_600SemiBold',
   bold:    'Rajdhani_700Bold',
-  black:   'Rajdhani_700Bold',   // Rajdhani's heaviest weight
+  black:   'Rajdhani_700Bold',
 };

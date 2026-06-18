@@ -221,10 +221,10 @@ const styles = StyleSheet.create({
   },
   headerLogo: {
     color: '#FFF',
-    fontSize: 18,
-    fontFamily: FONTS.black,
-    fontWeight: '900',
-    letterSpacing: 4,
+    fontSize: 9,
+    fontFamily: FONTS.pixel,
+    letterSpacing: 1,
+    lineHeight: 16,
   },
   headerSubLogo: {
     color: 'rgba(255,255,255,0.7)',

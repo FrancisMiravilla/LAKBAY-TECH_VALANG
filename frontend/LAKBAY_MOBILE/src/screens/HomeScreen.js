@@ -373,11 +373,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   logoTitle: {
-    fontFamily: FONTS.black,
-    fontSize: 20,
+    fontFamily: FONTS.pixel,
+    fontSize: 10,
     color: COLORS.text,
-    letterSpacing: 4,
-    lineHeight: 22,
+    letterSpacing: 2,
+    lineHeight: 18,
   },
   logoSub: {
     fontFamily: FONTS.medium,
@@ -450,11 +450,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   heroTitle: {
-    fontFamily: FONTS.black,
-    fontSize: 30,
+    fontFamily: FONTS.pixel,
+    fontSize: 18,
     color: COLORS.text,
     letterSpacing: 1,
-    lineHeight: 34,
+    lineHeight: 32,
     marginBottom: 12,
   },
   heroDesc: {
@@ -667,10 +667,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   welcomeCity: {
-    fontFamily: FONTS.black,
-    fontSize: 22,
+    fontFamily: FONTS.pixel,
+    fontSize: 11,
     color: COLORS.text,
-    letterSpacing: 2,
+    letterSpacing: 1,
+    lineHeight: 22,
     marginBottom: 10,
   },
   welcomeTagline: {

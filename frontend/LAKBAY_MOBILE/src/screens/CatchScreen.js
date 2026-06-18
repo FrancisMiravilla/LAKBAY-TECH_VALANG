@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#C8175A', // Gradient mock
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center' },
-  logoTitle: { fontFamily: FONTS.black, fontSize: 18, color: '#FFF', letterSpacing: 2 },
+  logoTitle: { fontFamily: FONTS.pixel, fontSize: 9, color: '#FFF', letterSpacing: 1, lineHeight: 16 },
   logoSub: { fontFamily: FONTS.medium, fontSize: 8, color: 'rgba(255,255,255,0.7)', letterSpacing: 1 },
   headerBtn: {
     width: 32, height: 32, borderRadius: 16,

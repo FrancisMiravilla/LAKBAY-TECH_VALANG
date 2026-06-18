@@ -242,8 +242,12 @@ const styles = StyleSheet.create({
   },
   bannerEmoji:   { fontSize: 44 },
   bannerTitle: {
-    fontFamily: FONTS.black, fontSize: 24, color: COLORS.text,
-    textAlign: 'center', marginBottom: 10,
+    fontFamily: FONTS.pixel,
+    fontSize: 13,
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: 10,
+    lineHeight: 24,
   },
   categoryPill: {
     borderRadius: RADIUS.pill, borderWidth: 1,
@@ -273,7 +277,11 @@ const styles = StyleSheet.create({
   },
 
   titleText: {
-    fontFamily: FONTS.black, fontSize: 26, color: COLORS.text, marginBottom: 20,
+    fontFamily: FONTS.pixel,
+    fontSize: 13,
+    color: COLORS.text,
+    marginBottom: 20,
+    lineHeight: 24,
   },
   sectionTitle: {
     fontFamily: FONTS.bold, fontSize: 14, color: COLORS.text,
