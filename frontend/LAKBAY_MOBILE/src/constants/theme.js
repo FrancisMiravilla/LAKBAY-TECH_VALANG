@@ -89,9 +89,10 @@ export const SHADOW = {
 };
 
 export const FONTS = {
-  regular: 'Outfit_400Regular',
-  medium:  'Outfit_500Medium',
-  semiBold:'Outfit_600SemiBold',
-  bold:    'Outfit_700Bold',
-  black:   'Outfit_800ExtraBold',
+  light:   'Rajdhani_300Light',
+  regular: 'Rajdhani_400Regular',
+  medium:  'Rajdhani_500Medium',
+  semiBold:'Rajdhani_600SemiBold',
+  bold:    'Rajdhani_700Bold',
+  black:   'Rajdhani_700Bold',   // Rajdhani's heaviest weight
 };
