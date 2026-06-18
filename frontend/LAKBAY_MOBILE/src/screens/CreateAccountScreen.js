@@ -37,9 +37,12 @@ export default function CreateAccountScreen({ navigation }) {
     setLoading(true);
     try {
       // Use 192.168.1.11 (computer's local IP) to allow physical devices/Expo to connect
-      const response = await fetch('http://192.168.1.11:8000/api/auth/register/', {
+      const response = await fetch('https://whole-crabs-wink.loca.lt/api/auth/register/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true'
+        },
         body: JSON.stringify({
           full_name: fullName,
           email: email.toLowerCase(),

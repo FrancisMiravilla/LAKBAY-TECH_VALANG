@@ -23,9 +23,12 @@ export default function LoginScreen({ navigation }) {
     
     try {
       // Use 192.168.1.11 to match our backend
-      const response = await fetch('http://192.168.1.11:8000/api/auth/login/', {
+      const response = await fetch('https://whole-crabs-wink.loca.lt/api/auth/login/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true'
+        },
         body: JSON.stringify({
           email: email.toLowerCase(),
           password: password

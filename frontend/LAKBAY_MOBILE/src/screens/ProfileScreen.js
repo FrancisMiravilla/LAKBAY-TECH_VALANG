@@ -33,8 +33,12 @@ export default function ProfileScreen({ navigation }) {
       }
 
       // Make sure to use your correct IP address here
-      const response = await fetch('http://192.168.1.11:8000/api/auth/profile/', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const response = await fetch('https://whole-crabs-wink.loca.lt/api/auth/profile/', {
+        method: 'GET',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Bypass-Tunnel-Reminder': 'true'
+        }
       });
       if (response.ok) {
         const data = await response.json();

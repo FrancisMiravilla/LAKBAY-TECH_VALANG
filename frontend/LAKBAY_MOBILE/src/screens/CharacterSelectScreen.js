@@ -85,11 +85,12 @@ export default function CharacterSelectScreen({ route, navigation }) {
         return;
       }
 
-      const response = await fetch('http://192.168.1.11:8000/api/auth/character-setup/', {
+      const response = await fetch('https://whole-crabs-wink.loca.lt/api/auth/character-setup/', {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Bypass-Tunnel-Reminder': 'true'
         },
         body: JSON.stringify({
           in_game_name: explorerName,
