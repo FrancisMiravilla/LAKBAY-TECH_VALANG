@@ -18,6 +18,7 @@ import BadgesScreen from '../screens/BadgesScreen';
 import LoginScreen from '../screens/LoginScreen';
 import CreateAccountScreen from '../screens/CreateAccountScreen';
 import CharacterSelectScreen from '../screens/CharacterSelectScreen';
+import CatchDetailsScreen from '../screens/CatchDetailsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -84,8 +85,9 @@ export default function AppNavigator() {
       {/* Legacy route aliases */}
       <Stack.Screen name="Home"    component={MainTabs} />
       <Stack.Screen name="QR"      component={QRScreen} />
-      <Stack.Screen name="Catch"   component={CatchScreen} />
-      <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="Catch"         component={CatchScreen} />
+      <Stack.Screen name="CatchDetails"  component={CatchDetailsScreen} />
+      <Stack.Screen name="Profile"       component={ProfileScreen} />
       <Stack.Screen name="Badges"  component={BadgesScreen} />
     </Stack.Navigator>
   );

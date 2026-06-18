@@ -83,13 +83,17 @@ export default function CatchScreen({ navigation }) {
             </View>
 
             {/* Mock Nodes */}
-            <View style={[styles.mapNode, { bottom: '25%', left: '15%' }]}>
+            <TouchableOpacity 
+              style={[styles.mapNode, { bottom: '25%', left: '15%' }]}
+              onPress={() => navigation.navigate('CatchDetails')}
+              activeOpacity={0.8}
+            >
               <View style={[styles.nodePin, { backgroundColor: '#E91E8C', shadowColor: '#E91E8C', shadowOpacity: 0.8, shadowRadius: 10 }]}>
                 <Text style={styles.nodeEmoji}>🦀</Text>
               </View>
               <Text style={styles.nodeLabel}>Curacha</Text>
               <Text style={styles.nodeSubLabel}>ZAMBOANGA CITY</Text>
-            </View>
+            </TouchableOpacity>
 
             <View style={[styles.mapNode, { top: '30%', left: '45%' }]}>
               <View style={[styles.nodePin, { backgroundColor: '#4A5568' }]}>
