@@ -4,6 +4,7 @@ import {
   TouchableOpacity, ScrollView, StatusBar, Alert, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 
 export default function LoginScreen({ navigation }) {
@@ -13,17 +14,43 @@ export default function LoginScreen({ navigation }) {
   const [streakClaimed, setStreakClaimed] = useState(false);
   const [loading, setLoading]       = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Missing fields', 'Please enter your email and password.');
       return;
     }
     setLoading(true);
-    // Simulate auth — replace with real call later
-    setTimeout(() => {
+    
+    try {
+      // Use 192.168.1.11 to match our backend
+      const response = await fetch('http://192.168.1.11:8000/api/auth/login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.toLowerCase(),
+          password: password
+        })
+      });
+
+      const data = await response.json();
       setLoading(false);
-      navigation.replace('MainTabs');
-    }, 1200);
+
+      if (response.ok) {
+        // Save tokens securely
+        await SecureStore.setItemAsync('accessToken', data.access);
+        await SecureStore.setItemAsync('refreshToken', data.refresh);
+        
+        // Navigate to the main app
+        navigation.replace('MainTabs');
+      } else {
+        // Handle invalid credentials
+        Alert.alert('Login Failed', 'Incorrect email or password. Please try again.');
+      }
+    } catch (error) {
+      setLoading(false);
+      Alert.alert('App Error', String(error.message || error));
+      console.error(error);
+    }
   };
 
   const handleGoogle = () => {
@@ -206,8 +233,8 @@ const styles = StyleSheet.create({
   },
   logoIcon:  { fontSize: 28 },
   logoTitle: {
-    fontFamily: FONTS.black, fontSize: 28, color: '#fff',
-    letterSpacing: 6,
+    fontFamily: FONTS.pixel, fontSize: 14, color: '#fff',
+    letterSpacing: 3, marginBottom: 2,
   },
   logoSub: {
     fontFamily: FONTS.medium, fontSize: 10, color: 'rgba(255,255,255,0.75)',
@@ -227,9 +254,12 @@ const styles = StyleSheet.create({
   },
 
   heading: {
-    fontFamily: FONTS.black, fontSize: 30,
-    color: COLORS.text, marginBottom: 6,
+    fontFamily: FONTS.pixel,
+    fontSize: 16,
+    color: COLORS.text,
+    marginBottom: 6,
     textAlign: 'center',
+    lineHeight: 28,
   },
   subHeading: {
     fontFamily: FONTS.regular, fontSize: 13,

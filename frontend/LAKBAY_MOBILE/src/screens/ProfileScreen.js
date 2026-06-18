@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
+import { useFocusEffect } from '@react-navigation/native';
 
 const SETTINGS_OPTIONS = [
   { id: 'edit',   icon: '✏️', label: 'Edit Profile' },
@@ -13,6 +15,45 @@ const SETTINGS_OPTIONS = [
 ];
 
 export default function ProfileScreen({ navigation }) {
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfile();
+    }, [])
+  );
+
+  const fetchProfile = async () => {
+    try {
+      const token = await SecureStore.getItemAsync('accessToken');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      // Make sure to use your correct IP address here
+      const response = await fetch('http://192.168.1.11:8000/api/auth/profile/', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProfile(data);
+      }
+    } catch (e) {
+      console.log('Error fetching profile', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    // Basic local logout
+    await SecureStore.deleteItemAsync('accessToken');
+    await SecureStore.deleteItemAsync('refreshToken');
+    navigation.replace('Login'); // Or whatever the initial screen is
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
@@ -38,16 +79,27 @@ export default function ProfileScreen({ navigation }) {
               </View>
             </View>
           </View>
-          <Text style={styles.userName}>Juan Miguel Santos</Text>
-          <View style={styles.rolePill}>
-            <Text style={styles.roleText}>✦ Zamboanga Explorer ✦</Text>
-          </View>
+          {loading ? (
+            <ActivityIndicator color={COLORS.accent} style={{ marginTop: 10 }} />
+          ) : (
+            <>
+              <Text style={styles.userName}>{profile?.full_name || 'Loading...'}</Text>
+              <View style={styles.rolePill}>
+                <Text style={styles.roleText}>✦ {profile?.in_game_name || 'Zamboanga Explorer'} ✦</Text>
+              </View>
+            </>
+          )}
         </View>
 
         {/* ── Settings List ── */}
         <View style={styles.settingsSection}>
           {SETTINGS_OPTIONS.map(opt => (
-            <TouchableOpacity key={opt.id} style={styles.settingItem} activeOpacity={0.7}>
+            <TouchableOpacity 
+              key={opt.id} 
+              style={styles.settingItem} 
+              activeOpacity={0.7}
+              onPress={opt.id === 'logout' ? handleLogout : undefined}
+            >
               <View style={styles.settingIconWrap}>
                 <Text style={styles.settingIcon}>{opt.icon}</Text>
               </View>

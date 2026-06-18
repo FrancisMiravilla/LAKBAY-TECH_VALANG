@@ -4,6 +4,7 @@ import {
   TouchableOpacity, ScrollView, StatusBar, Alert, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 
 export default function CreateAccountScreen({ navigation }) {
@@ -19,7 +20,7 @@ export default function CreateAccountScreen({ navigation }) {
   const passwordHint = password.length > 0 && (password.length < 8 || !/\d/.test(password) || !/[^a-zA-Z0-9]/.test(password));
   const passwordMatch = confirmPass.length > 0 && password !== confirmPass;
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!fullName || !email || !password || !confirmPass) {
       Alert.alert('Missing fields', 'Please fill in all fields.');
       return;
@@ -32,16 +33,41 @@ export default function CreateAccountScreen({ navigation }) {
       Alert.alert('Terms required', 'Please agree to the Terms of Service and Privacy Policy.');
       return;
     }
+
     setLoading(true);
-    // Simulate account creation — replace with real call later
-    setTimeout(() => {
+    try {
+      // Use 192.168.1.11 (computer's local IP) to allow physical devices/Expo to connect
+      const response = await fetch('http://192.168.1.11:8000/api/auth/register/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: fullName,
+          email: email.toLowerCase(),
+          password: password,
+          confirm_password: confirmPass
+        })
+      });
+      
+      const data = await response.json();
       setLoading(false);
-      Alert.alert(
-        '🎉 Account Created!',
-        `Welcome to LAKBAY, ${fullName}! Start exploring Zamboanga City.`,
-        [{ text: 'Let\'s Go!', onPress: () => navigation.replace('MainTabs') }]
-      );
-    }, 1400);
+      
+      if (response.ok) {
+        // Successfully registered! Save JWT tokens securely
+        await SecureStore.setItemAsync('accessToken', data.access);
+        await SecureStore.setItemAsync('refreshToken', data.refresh);
+        
+        // Pass the generated JWT token to the character select screen
+        navigation.replace('CharacterSelect', { token: data.access });
+      } else {
+        // Backend returned a validation error (e.g. Email already exists)
+        const errorMsg = data.email ? data.email[0] : 'Registration failed. Please check your inputs.';
+        Alert.alert('Error', errorMsg);
+      }
+    } catch (error) {
+      setLoading(false);
+      Alert.alert('App Error', String(error.message || error));
+      console.error(error);
+    }
   };
 
   return (
@@ -236,8 +262,8 @@ const styles = StyleSheet.create({
   },
   logoIcon:  { fontSize: 28 },
   logoTitle: {
-    fontFamily: FONTS.black, fontSize: 28, color: '#fff',
-    letterSpacing: 6,
+    fontFamily: FONTS.pixel, fontSize: 14, color: '#fff',
+    letterSpacing: 3, marginBottom: 2,
   },
   logoSub: {
     fontFamily: FONTS.medium, fontSize: 10, color: 'rgba(255,255,255,0.75)',
@@ -257,9 +283,12 @@ const styles = StyleSheet.create({
   },
 
   heading: {
-    fontFamily: FONTS.black, fontSize: 28,
-    color: COLORS.text, marginBottom: 6,
+    fontFamily: FONTS.pixel,
+    fontSize: 14,
+    color: COLORS.text,
+    marginBottom: 6,
     textAlign: 'center',
+    lineHeight: 26,
   },
   subHeading: {
     fontFamily: FONTS.regular, fontSize: 13,
