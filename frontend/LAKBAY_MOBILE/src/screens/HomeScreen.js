@@ -17,34 +17,57 @@ try {
 }
 
 
-const HOTSPOTS = [
+const PROMO_STATS = [
+  { value: '350+', label: 'Years of History' },
+  { value: '3',    label: 'Cultures United' },
+  { value: '12+',  label: 'Heritage Sites' },
+];
+
+const DESTINATIONS = [
   {
     emoji: '⛪',
     label: 'Fort Pilar',
-    sub: 'Historical',
+    tag: 'Historical Landmark',
     color: COLORS.accent,
+    tagColor: COLORS.accent,
+    desc: 'A 17th-century Spanish fortress and beloved shrine of Our Lady of the Pillar — the soul of Zamboanga City.',
     nav: { title: 'Fort Pilar', location: 'Zamboanga City', rating: '4.8', price: 'Free', category: 'Historical' },
   },
   {
     emoji: '🏝️',
-    label: 'Santa Cruz',
-    sub: 'Beach',
+    label: 'Santa Cruz Island',
+    tag: 'Pink Sand Beach',
     color: '#38BDF8',
-    nav: { title: 'Santa Cruz Island', location: 'Zamboanga City', rating: '4.9', price: '500', category: 'Beaches' },
+    tagColor: '#38BDF8',
+    desc: 'One of the Philippines\' rarest beaches — its blush-pink coral sand and turquoise waters are truly one of a kind.',
+    nav: { title: 'Santa Cruz Island', location: 'Zamboanga City', rating: '4.9', price: '₱500', category: 'Beaches' },
   },
   {
     emoji: '🎨',
-    label: 'Yakan Village',
-    sub: 'Culture',
+    label: 'Yakan Weaving Village',
+    tag: 'Living Culture',
     color: COLORS.teal,
+    tagColor: COLORS.teal,
+    desc: 'Watch Yakan artisans weave intricate geometric textiles by hand — a living tradition passed down across generations.',
     nav: { title: 'Yakan Weaving Village', location: 'Zamboanga City', rating: '4.7', price: 'Free', category: 'Culture' },
   },
   {
     emoji: '🕌',
     label: 'Rio Hondo',
-    sub: 'Culture',
+    tag: 'Heritage Village',
     color: COLORS.gold,
+    tagColor: COLORS.gold,
+    desc: 'A floating village on stilts above the sea — home to the Sama-Bajau people whose seafaring culture spans centuries.',
     nav: { title: 'Rio Hondo', location: 'Zamboanga City', rating: '4.5', price: 'Free', category: 'Culture' },
+  },
+  {
+    emoji: '💐',
+    label: 'Paseo del Mar',
+    tag: 'Cultural Promenade',
+    color: '#A78BFA',
+    tagColor: '#A78BFA',
+    desc: 'A vibrant waterfront boulevard where local life, Chavacano flair, street food, and stunning sea sunsets meet.',
+    nav: { title: 'Paseo del Mar', location: 'Zamboanga City', rating: '4.6', price: 'Free', category: 'Culture' },
   },
 ];
 
@@ -186,33 +209,73 @@ export default function HomeScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* Cultural Hotspots */}
-          <View style={styles.hotspotsSection}>
-            <Text style={styles.subSectionTitle}>Cultural Hotspots</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.hotspotsRow}
-            >
-              {HOTSPOTS.map((h) => (
-                <TouchableOpacity
-                  key={h.label}
-                  style={styles.hotspotCard}
-                  activeOpacity={0.85}
-                  onPress={() =>
-                    navigation.navigate('Details', { destination: h.nav })
-                  }
-                >
-                  {/* Top color accent strip */}
-                  <View
-                    style={[styles.hotspotAccent, { backgroundColor: h.color }]}
-                  />
-                  <Text style={styles.hotspotEmoji}>{h.emoji}</Text>
-                  <Text style={styles.hotspotName}>{h.label}</Text>
-                  <Text style={styles.hotspotSub}>{h.sub}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+          {/* ── Welcome Zamboanga Promo ──────────────────────────── */}
+          <View style={styles.promoSection}>
+
+            {/* Welcome Banner */}
+            <View style={styles.welcomeBanner}>
+              {/* Decorative orbs */}
+              <View style={styles.welcomeOrb1} />
+              <View style={styles.welcomeOrb2} />
+
+              <View style={styles.welcomeContent}>
+                <Text style={styles.welcomeEyebrow}>✦  BIENVENIDOS A  ✦</Text>
+                <Text style={styles.welcomeCity}>ZAMBOANGA CITY</Text>
+                <Text style={styles.welcomeTagline}>
+                  "Asia's Latin City" — where Spanish roots, Islamic heritage, and indigenous Chavacano culture weave into one unforgettable experience.
+                </Text>
+
+                {/* Stat chips */}
+                <View style={styles.statRow}>
+                  {PROMO_STATS.map((s) => (
+                    <View key={s.label} style={styles.statChip}>
+                      <Text style={styles.statValue}>{s.value}</Text>
+                      <Text style={styles.statLabel}>{s.label}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            {/* Section header */}
+            <View style={styles.promoTitleRow}>
+              <View style={styles.accentBar} />
+              <Text style={styles.promoTitle}>Places to Experience</Text>
+            </View>
+
+            {/* Destination promo cards */}
+            {DESTINATIONS.map((d) => (
+              <TouchableOpacity
+                key={d.label}
+                style={styles.destinationCard}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('Details', { destination: d.nav })}
+              >
+                {/* Left color stripe */}
+                <View style={[styles.destStripe, { backgroundColor: d.color }]} />
+
+                <View style={styles.destBody}>
+                  {/* Top row: emoji + tag badge */}
+                  <View style={styles.destTopRow}>
+                    <Text style={styles.destEmoji}>{d.emoji}</Text>
+                    <View style={[styles.destTagBadge, { backgroundColor: d.tagColor + '22', borderColor: d.tagColor + '55' }]}>
+                      <Text style={[styles.destTagText, { color: d.tagColor }]}>{d.tag}</Text>
+                    </View>
+                  </View>
+
+                  {/* Name */}
+                  <Text style={styles.destName}>{d.label}</Text>
+
+                  {/* Description */}
+                  <Text style={styles.destDesc} numberOfLines={2}>{d.desc}</Text>
+
+                  {/* Footer CTA */}
+                  <View style={styles.destFooter}>
+                    <Text style={[styles.destCta, { color: d.color }]}>Explore →</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
@@ -561,49 +624,159 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  // ── Cultural Hotspots ─────────────────────────────────────────────
-  hotspotsSection: {
+  // ── Welcome Zamboanga Promo ───────────────────────────────────────
+  promoSection: {
     marginTop: 4,
   },
-  hotspotsRow: {
-    gap: 12,
-    paddingRight: 16,
+  welcomeBanner: {
+    backgroundColor: COLORS.bgSurface,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.accentBorder,
+    overflow: 'hidden',
+    marginBottom: 20,
+    ...SHADOW.accent,
   },
-  hotspotCard: {
+  welcomeOrb1: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: COLORS.accentSoft,
+  },
+  welcomeOrb2: {
+    position: 'absolute',
+    bottom: -40,
+    left: -40,
     width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(251,191,36,0.10)',
+  },
+  welcomeContent: {
+    padding: 20,
+  },
+  welcomeEyebrow: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 9,
+    color: COLORS.gold,
+    letterSpacing: 3,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  welcomeCity: {
+    fontFamily: FONTS.black,
+    fontSize: 22,
+    color: COLORS.text,
+    letterSpacing: 2,
+    marginBottom: 10,
+  },
+  welcomeTagline: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: COLORS.textSub,
+    lineHeight: 19,
+    marginBottom: 18,
+  },
+  statRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  statChip: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontFamily: FONTS.black,
+    fontSize: 18,
+    color: COLORS.accent,
+    lineHeight: 22,
+  },
+  statLabel: {
+    fontFamily: FONTS.regular,
+    fontSize: 9,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: 2,
+    letterSpacing: 0.3,
+  },
+  promoTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  promoTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    color: COLORS.text,
+  },
+  destinationCard: {
+    flexDirection: 'row',
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,
     overflow: 'hidden',
-    padding: 14,
-    alignItems: 'center',
+    marginBottom: 12,
     ...SHADOW.card,
   },
-  hotspotAccent: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
+  destStripe: {
+    width: 4,
   },
-  hotspotEmoji: {
-    fontSize: 32,
-    marginTop: 10,
+  destBody: {
+    flex: 1,
+    padding: 14,
+  },
+  destTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 8,
   },
-  hotspotName: {
+  destEmoji: {
+    fontSize: 26,
+  },
+  destTagBadge: {
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+  },
+  destTagText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 10,
+    letterSpacing: 0.3,
+  },
+  destName: {
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    color: COLORS.text,
+    marginBottom: 6,
+  },
+  destDesc: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: COLORS.textSub,
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  destFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  destCta: {
     fontFamily: FONTS.bold,
     fontSize: 12,
-    color: COLORS.text,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  hotspotSub: {
-    fontFamily: FONTS.regular,
-    fontSize: 10,
-    color: COLORS.textMuted,
-    textAlign: 'center',
+    letterSpacing: 0.5,
   },
 
   // ── Quick Access ──────────────────────────────────────────────────
