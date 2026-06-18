@@ -15,6 +15,8 @@ import ARScannedScreen from '../screens/ARScannedScreen';
 import QRScannedScreen from '../screens/QRScannedScreen';
 import NotificationScreen from '../screens/NotificationScreen';
 import BadgesScreen from '../screens/BadgesScreen';
+import LoginScreen from '../screens/LoginScreen';
+import CreateAccountScreen from '../screens/CreateAccountScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -67,13 +69,17 @@ export default function AppNavigator() {
         contentStyle: { backgroundColor: COLORS.bg },
       }}
     >
+      {/* ── Auth Screens ── */}
+      <Stack.Screen name="Login"         component={LoginScreen} />
+      <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
+      {/* ── Main App ── */}
       <Stack.Screen name="MainTabs"      component={MainTabs} />
       <Stack.Screen name="Details"       component={DetailsScreen} />
       <Stack.Screen name="AR"            component={ARScreen} />
-      <Stack.Screen name="ARScanned"      component={ARScannedScreen} />
-      <Stack.Screen name="QRScanned"      component={QRScannedScreen} />
+      <Stack.Screen name="ARScanned"     component={ARScannedScreen} />
+      <Stack.Screen name="QRScanned"     component={QRScannedScreen} />
       <Stack.Screen name="Notifications" component={NotificationScreen} />
-      {/* Legacy route aliases so existing navigation.navigate calls still work */}
+      {/* Legacy route aliases */}
       <Stack.Screen name="Home"    component={MainTabs} />
       <Stack.Screen name="QR"      component={QRScreen} />
       <Stack.Screen name="Catch"   component={CatchScreen} />
