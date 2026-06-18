@@ -1,0 +1,11 @@
+Django>=4.2,<5.0
+djangorestframework
+djangorestframework-simplejwt
+django-allauth
+dj-rest-auth
+google-auth
+django-cors-headers
+pillow
+psycopg2-binary
+python-decouple
+requests
