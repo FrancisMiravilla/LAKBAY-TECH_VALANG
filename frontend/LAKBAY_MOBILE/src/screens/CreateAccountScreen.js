@@ -36,36 +36,14 @@ export default function CreateAccountScreen({ navigation }) {
 
     setLoading(true);
     try {
-      // Use 192.168.1.11 (computer's local IP) to allow physical devices/Expo to connect
-      const response = await fetch('https://whole-crabs-wink.loca.lt/api/auth/register/', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Bypass-Tunnel-Reminder': 'true'
-        },
-        body: JSON.stringify({
-          full_name: fullName,
-          email: email.toLowerCase(),
-          password: password,
-          confirm_password: confirmPass
-        })
-      });
-      
-      const data = await response.json();
-      setLoading(false);
-      
-      if (response.ok) {
-        // Successfully registered! Save JWT tokens securely
-        await SecureStore.setItemAsync('accessToken', data.access);
-        await SecureStore.setItemAsync('refreshToken', data.refresh);
-        
-        // Pass the generated JWT token to the character select screen
-        navigation.replace('CharacterSelect', { token: data.access });
-      } else {
-        // Backend returned a validation error (e.g. Email already exists)
-        const errorMsg = data.email ? data.email[0] : 'Registration failed. Please check your inputs.';
-        Alert.alert('Error', errorMsg);
-      }
+      // Offline bypass for testing purposes
+      setTimeout(async () => {
+        setLoading(false);
+        // Simulate successful registration
+        await SecureStore.setItemAsync('accessToken', 'fake-token-123');
+        await SecureStore.setItemAsync('refreshToken', 'fake-refresh-123');
+        navigation.replace('CharacterSelect', { token: 'fake-token-123' });
+      }, 1000);
     } catch (error) {
       setLoading(false);
       Alert.alert('App Error', String(error.message || error));

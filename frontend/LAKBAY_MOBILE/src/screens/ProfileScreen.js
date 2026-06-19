@@ -26,27 +26,17 @@ export default function ProfileScreen({ navigation }) {
 
   const fetchProfile = async () => {
     try {
-      const token = await SecureStore.getItemAsync('accessToken');
-      if (!token) {
+      // Offline bypass
+      setTimeout(() => {
+        setProfile({
+          full_name: "Explorer",
+          in_game_name: "Lakbay Tester",
+          email: "tester@lakbay.app"
+        });
         setLoading(false);
-        return;
-      }
-
-      // Make sure to use your correct IP address here
-      const response = await fetch('https://whole-crabs-wink.loca.lt/api/auth/profile/', {
-        method: 'GET',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Bypass-Tunnel-Reminder': 'true'
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setProfile(data);
-      }
+      }, 500);
     } catch (e) {
       console.log('Error fetching profile', e);
-    } finally {
       setLoading(false);
     }
   };

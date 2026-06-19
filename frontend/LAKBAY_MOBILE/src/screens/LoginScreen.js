@@ -22,33 +22,14 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
     
     try {
-      // Use 192.168.1.11 to match our backend
-      const response = await fetch('https://whole-crabs-wink.loca.lt/api/auth/login/', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Bypass-Tunnel-Reminder': 'true'
-        },
-        body: JSON.stringify({
-          email: email.toLowerCase(),
-          password: password
-        })
-      });
-
-      const data = await response.json();
-      setLoading(false);
-
-      if (response.ok) {
-        // Save tokens securely
-        await SecureStore.setItemAsync('accessToken', data.access);
-        await SecureStore.setItemAsync('refreshToken', data.refresh);
-        
-        // Navigate to the main app
+      // Offline bypass for testing purposes
+      setTimeout(async () => {
+        setLoading(false);
+        // Simulate successful login
+        await SecureStore.setItemAsync('accessToken', 'fake-token-123');
+        await SecureStore.setItemAsync('refreshToken', 'fake-refresh-123');
         navigation.replace('MainTabs');
-      } else {
-        // Handle invalid credentials
-        Alert.alert('Login Failed', 'Incorrect email or password. Please try again.');
-      }
+      }, 1000);
     } catch (error) {
       setLoading(false);
       Alert.alert('App Error', String(error.message || error));

@@ -19,6 +19,7 @@ import LoginScreen from '../screens/LoginScreen';
 import CreateAccountScreen from '../screens/CreateAccountScreen';
 import CharacterSelectScreen from '../screens/CharacterSelectScreen';
 import CatchDetailsScreen from '../screens/CatchDetailsScreen';
+import QuizScreen from '../screens/QuizScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -87,6 +88,7 @@ export default function AppNavigator() {
       <Stack.Screen name="QR"      component={QRScreen} />
       <Stack.Screen name="Catch"         component={CatchScreen} />
       <Stack.Screen name="CatchDetails"  component={CatchDetailsScreen} />
+      <Stack.Screen name="QuizScreen"    component={QuizScreen} />
       <Stack.Screen name="Profile"       component={ProfileScreen} />
       <Stack.Screen name="Badges"  component={BadgesScreen} />
     </Stack.Navigator>

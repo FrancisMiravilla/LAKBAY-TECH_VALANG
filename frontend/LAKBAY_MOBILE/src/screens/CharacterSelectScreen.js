@@ -76,42 +76,13 @@ export default function CharacterSelectScreen({ route, navigation }) {
     setLoading(true);
     
     try {
-      // If we don't have a token, skip the API call (useful for UI testing)
-      if (!token) {
-        setTimeout(() => {
-          setLoading(false);
-          navigation.replace('MainTabs');
-        }, 1000);
-        return;
-      }
-
-      const response = await fetch('https://whole-crabs-wink.loca.lt/api/auth/character-setup/', {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'Bypass-Tunnel-Reminder': 'true'
-        },
-        body: JSON.stringify({
-          in_game_name: explorerName,
-          chosen_character: selected.name
-        })
-      });
-      
-      const data = await response.json();
-      setLoading(false);
-      
-      if (response.ok) {
-        // Success! Character selected and saved to backend profile
+      // Offline bypass
+      setTimeout(() => {
+        setLoading(false);
         navigation.replace('MainTabs');
-      } else {
-        // Backend returned an error (e.g., in-game name already taken)
-        const errorMsg = data.in_game_name ? data.in_game_name[0] : 'Failed to save character setup.';
-        Alert.alert('Error', errorMsg);
-      }
+      }, 1000);
     } catch (error) {
       setLoading(false);
-      Alert.alert('App Error', String(error.message || error));
       console.error(error);
     }
   };

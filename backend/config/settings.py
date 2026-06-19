@@ -39,8 +39,9 @@ INSTALLED_APPS = [
     'dj_rest_auth',
     'dj_rest_auth.registration',
     
-    # Local apps
+    # Custom apps
     'accounts',
+    'quiz',
 ]
 
 REST_AUTH = {
@@ -62,6 +63,19 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'bypass-tunnel-reminder',
+]
 
 ROOT_URLCONF = 'config.urls'
 
