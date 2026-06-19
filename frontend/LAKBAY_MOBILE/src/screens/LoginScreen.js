@@ -22,7 +22,7 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
     
     try {
-      // Offline bypass for testing purposes
+      // Offline bypass for presentation
       setTimeout(async () => {
         setLoading(false);
         // Simulate successful login

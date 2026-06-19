@@ -26,12 +26,18 @@ export default function ProfileScreen({ navigation }) {
 
   const fetchProfile = async () => {
     try {
-      // Offline bypass
+      // Load offline values
+      const offlineFullName = await SecureStore.getItemAsync('offline_fullName');
+      const offlineEmail = await SecureStore.getItemAsync('offline_email');
+      const offlineExplorer = await SecureStore.getItemAsync('offline_explorerName');
+      const offlineChar = await SecureStore.getItemAsync('offline_character');
+
       setTimeout(() => {
         setProfile({
-          full_name: "Explorer",
-          in_game_name: "Lakbay Tester",
-          email: "tester@lakbay.app"
+          full_name: offlineFullName || "Explorer",
+          in_game_name: offlineExplorer || "Lakbay Tester",
+          email: offlineEmail || "tester@lakbay.app",
+          character: offlineChar || "Kuya Mando"
         });
         setLoading(false);
       }, 500);
@@ -46,6 +52,16 @@ export default function ProfileScreen({ navigation }) {
     await SecureStore.deleteItemAsync('accessToken');
     await SecureStore.deleteItemAsync('refreshToken');
     navigation.replace('Login'); // Or whatever the initial screen is
+  };
+
+  const getEmoji = (characterName) => {
+    switch(characterName) {
+      case 'Kuya Mando': return '🧔‍♂️';
+      case 'Ate Lila': return '🧕';
+      case 'Bossing Dante': return '👴';
+      case 'Ate Sonya': return '👩‍🦱';
+      default: return '🧔‍♂️';
+    }
   };
 
   return (
@@ -69,7 +85,7 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.avatarRingOuter}>
             <View style={styles.avatarRingInner}>
               <View style={styles.avatarBg}>
-                <Text style={styles.avatarEmoji}>🧔</Text>
+                <Text style={styles.avatarEmoji}>{getEmoji(profile?.character)}</Text>
               </View>
             </View>
           </View>
@@ -81,6 +97,9 @@ export default function ProfileScreen({ navigation }) {
               <View style={styles.rolePill}>
                 <Text style={styles.roleText}>✦ {profile?.in_game_name || 'Zamboanga Explorer'} ✦</Text>
               </View>
+              <Text style={{ fontFamily: FONTS.semiBold, color: '#A0AEC0', marginTop: 10, fontSize: 14 }}>
+                Companion: {profile?.character || 'Kuya Mando'}
+              </Text>
             </>
           )}
         </View>

@@ -174,7 +174,7 @@ export default function QRScannedScreen({ navigation, route }) {
           <TouchableOpacity
             style={styles.continueBtn}
             activeOpacity={0.85}
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.navigate('QuizScreen', { topic: 'QR' })}
           >
             <Text style={styles.continueBtnText}>Continue</Text>
           </TouchableOpacity>

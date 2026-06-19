@@ -36,12 +36,14 @@ export default function CreateAccountScreen({ navigation }) {
 
     setLoading(true);
     try {
-      // Offline bypass for testing purposes
+      // Offline bypass for presentation
       setTimeout(async () => {
         setLoading(false);
         // Simulate successful registration
         await SecureStore.setItemAsync('accessToken', 'fake-token-123');
         await SecureStore.setItemAsync('refreshToken', 'fake-refresh-123');
+        await SecureStore.setItemAsync('offline_fullName', fullName);
+        await SecureStore.setItemAsync('offline_email', email);
         navigation.replace('CharacterSelect', { token: 'fake-token-123' });
       }, 1000);
     } catch (error) {

@@ -77,8 +77,10 @@ export default function CharacterSelectScreen({ route, navigation }) {
     
     try {
       // Offline bypass
-      setTimeout(() => {
+      setTimeout(async () => {
         setLoading(false);
+        await SecureStore.setItemAsync('offline_explorerName', explorerName);
+        await SecureStore.setItemAsync('offline_character', selected.name);
         navigation.replace('MainTabs');
       }, 1000);
     } catch (error) {

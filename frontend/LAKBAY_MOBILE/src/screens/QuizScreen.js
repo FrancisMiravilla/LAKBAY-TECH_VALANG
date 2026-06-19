@@ -25,6 +25,7 @@ export default function QuizScreen({ navigation, route }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
   const [isCorrect, setIsCorrect] = useState(null);
+  const [showReward, setShowReward] = useState(false);
 
   useEffect(() => {
     generateQuiz();
@@ -62,56 +63,56 @@ export default function QuizScreen({ navigation, route }) {
       ],
       'AR': [
         {
-          question: "What does AR stand for?",
-          options: ["Augmented Reality", "Artificial Reality", "Automated Reality", "Actual Reality"],
-          correct_answer: "Augmented Reality"
+          question: "Since what century have the Yakan people woven their textiles?",
+          options: ["10th century", "14th century", "18th century", "20th century"],
+          correct_answer: "14th century"
         },
         {
-          question: "How does AR differ from VR?",
-          options: ["AR overlays digital elements onto the real world", "AR replaces the real world entirely", "AR is only for games", "AR requires a heavy headset"],
-          correct_answer: "AR overlays digital elements onto the real world"
+          question: "Which people in Basilan are known for this traditional loom?",
+          options: ["Tausug", "Sama-Bajau", "Yakan", "Maranao"],
+          correct_answer: "Yakan"
         },
         {
-          question: "Which device is most commonly used for everyday AR?",
-          options: ["Smartphones", "Televisions", "Desktop Computers", "Smartwatches"],
-          correct_answer: "Smartphones"
+          question: "What does Yakan weaving primarily signify?",
+          options: ["Identity and social standing", "Military rank", "Age", "Marital status"],
+          correct_answer: "Identity and social standing"
         },
         {
-          question: "In Lakbay, what is the primary use of the AR feature?",
-          options: ["Viewing 3D models of local culture/creatures", "Reading long articles", "Making phone calls", "Listening to music"],
-          correct_answer: "Viewing 3D models of local culture/creatures"
+          question: "What is the traditional Yakan headcloth called?",
+          options: ["Malong", "Pis siyabit", "Barong", "Tubao"],
+          correct_answer: "Pis siyabit"
         },
         {
-          question: "What technology allows AR to detect flat surfaces?",
-          options: ["Plane detection", "Face tracking", "GPS tracking", "Bluetooth scanning"],
-          correct_answer: "Plane detection"
+          question: "What type of patterns are typical in Yakan textiles?",
+          options: ["Floral", "Animal", "Geometric", "Abstract"],
+          correct_answer: "Geometric"
         }
       ],
       'QR': [
         {
-          question: "What does QR stand for?",
-          options: ["Quick Response", "Quantum Relay", "Quality Read", "Query Result"],
-          correct_answer: "Quick Response"
+          question: "Who built Fort Pilar in 1635?",
+          options: ["Ferdinand Magellan", "Jose Rizal", "Melchor de Vera", "Miguel Lopez de Legazpi"],
+          correct_answer: "Melchor de Vera"
         },
         {
-          question: "What shape are the standard modules inside a QR code?",
-          options: ["Squares", "Circles", "Triangles", "Hexagons"],
-          correct_answer: "Squares"
+          question: "What year was Fort Pilar built?",
+          options: ["1521", "1635", "1898", "1945"],
+          correct_answer: "1635"
         },
         {
-          question: "Which feature makes QR codes readable even if slightly damaged?",
-          options: ["Error correction", "Color coding", "High resolution", "Laser printing"],
-          correct_answer: "Error correction"
+          question: "Who is the patroness housed in the shrine?",
+          options: ["Our Lady of the Pillar", "Our Lady of Manaoag", "Our Lady of Peace", "Our Lady of Sorrows"],
+          correct_answer: "Our Lady of the Pillar"
         },
         {
-          question: "How do you scan a QR code?",
-          options: ["Using a smartphone camera", "Using a microphone", "Using a fingerprint scanner", "Using a keyboard"],
-          correct_answer: "Using a smartphone camera"
+          question: "Fort Pilar was declared what in 1973?",
+          options: ["World Heritage Site", "National Cultural Treasure", "National Park", "Historical Landmark"],
+          correct_answer: "National Cultural Treasure"
         },
         {
-          question: "What is typically stored inside a QR code?",
-          options: ["URLs or Text data", "High definition video", "3D Models", "Audio files"],
-          correct_answer: "URLs or Text data"
+          question: "Which institution currently manages the Fort Pilar museum?",
+          options: ["Department of Tourism", "National Historical Commission", "National Museum of the Philippines", "Zamboanga City Hall"],
+          correct_answer: "National Museum of the Philippines"
         }
       ]
     };
@@ -141,10 +142,8 @@ export default function QuizScreen({ navigation, route }) {
           setSelectedOption(null);
           setIsCorrect(null);
         } else {
-          // Quiz finished!
-          Alert.alert('Congratulations! 🎉', `You successfully caught the ${topic}!`, [
-            { text: 'Awesome!', onPress: () => navigation.navigate('Catch') }
-          ]);
+          // Quiz finished! Gamified reward
+          setShowReward(true);
         }
       } else {
         // Try again on this question
@@ -158,7 +157,49 @@ export default function QuizScreen({ navigation, route }) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#E91E8C" />
-        <Text style={styles.loadingText}>AI is generating your {topic} quiz...</Text>
+        <Text style={styles.loadingText}>Loading {topic} quiz...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (showReward) {
+    return (
+      <SafeAreaView style={styles.rewardContainer}>
+        <StatusBar barStyle="light-content" backgroundColor="#0F0920" />
+        <View style={styles.rewardContent}>
+          <View style={styles.rewardIconGlow}>
+            <Ionicons name="trophy" size={80} color="#FBBF24" />
+          </View>
+          <Text style={styles.rewardTitle}>Congratulations! 🎉</Text>
+          <Text style={styles.rewardSubTitle}>You successfully mastered {topic}</Text>
+          
+          <View style={styles.xpBadge}>
+            <Ionicons name="star" size={24} color="#FBBF24" />
+            <Text style={styles.xpText}>+50 XP</Text>
+            <Ionicons name="star" size={24} color="#FBBF24" />
+          </View>
+          
+          <Text style={styles.rewardMessage}>
+            Great job, Explorer! Keep discovering new artifacts to level up your character.
+          </Text>
+        </View>
+
+        <View style={styles.rewardFooter}>
+          <TouchableOpacity 
+            style={styles.claimBtn}
+            activeOpacity={0.8}
+            onPress={() => {
+              if (topic === 'AR' || topic === 'QR') {
+                // Return to explore/home tab if AR/QR
+                navigation.navigate('MainTabs');
+              } else {
+                navigation.navigate('Catch');
+              }
+            }}
+          >
+            <Text style={styles.claimBtnText}>CLAIM REWARD</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -357,5 +398,93 @@ const styles = StyleSheet.create({
   feedbackText: {
     fontFamily: FONTS.bold,
     fontSize: 18,
+  },
+  rewardContainer: {
+    flex: 1,
+    backgroundColor: '#0F0920',
+    justifyContent: 'space-between',
+  },
+  rewardContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 30,
+  },
+  rewardIconGlow: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(251,191,36,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 30,
+    borderWidth: 2,
+    borderColor: 'rgba(251,191,36,0.4)',
+    shadowColor: '#FBBF24',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  rewardTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 28,
+    color: '#FFF',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  rewardSubTitle: {
+    fontFamily: FONTS.medium,
+    fontSize: 16,
+    color: '#A0AEC0',
+    marginBottom: 30,
+    textAlign: 'center',
+  },
+  xpBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(251,191,36,0.2)',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 30,
+    marginBottom: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.5)',
+  },
+  xpText: {
+    fontFamily: FONTS.bold,
+    fontSize: 24,
+    color: '#FBBF24',
+    marginHorizontal: 15,
+  },
+  rewardMessage: {
+    fontFamily: FONTS.medium,
+    fontSize: 14,
+    color: '#E2E8F0',
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: 10,
+  },
+  rewardFooter: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
+  claimBtn: {
+    backgroundColor: '#E91E8C',
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#E91E8C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  claimBtnText: {
+    fontFamily: FONTS.bold,
+    fontSize: 16,
+    color: '#FFF',
+    letterSpacing: 2,
   }
 });

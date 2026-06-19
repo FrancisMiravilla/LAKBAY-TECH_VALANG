@@ -199,7 +199,7 @@ export default function ARScannedScreen({ navigation, route }) {
         <TouchableOpacity
           style={styles.continueBtn}
           activeOpacity={0.85}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('QuizScreen', { topic: 'AR' })}
         >
           <Text style={styles.continueBtnText}>Continue</Text>
         </TouchableOpacity>
