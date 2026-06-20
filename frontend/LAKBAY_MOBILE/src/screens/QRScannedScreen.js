@@ -19,15 +19,20 @@ const { width: SCREEN_W } = Dimensions.get('window');
 // ── Simulated spot data (replace with real API / navigation params) ──────────
 const SPOT = {
   name: 'Fort Pilar Shrine',
+  hook: 'Defenders of the city!',
   image: null, // pass an image URI via route.params or use a local require()
   historical: {
-    label: 'HISTORICAL INFORMATION',
+    label: 'HISTORICAL BACKGROUND',
     body: 'Built on June 23, 1635 by Spanish Jesuit missionary engineer Melchor de Vera, Fort Pilar served as a military defense fortress protecting Zamboanga from pirate, Dutch, and Moro attacks. It was declared a National Cultural Treasure in 1973 and is now managed by the National Museum of the Philippines.',
   },
   cultural: {
     label: 'CULTURAL SIGNIFICANCE',
     body: 'Fort Pilar is a symbol of the resilience and faith of the Zamboangueños. It houses the shrine of Our Lady of the Pillar, the city\'s patroness, and is respected by both Christians and Muslims — making it a powerful symbol of Zamboanga\'s multicultural identity.',
   },
+  funFact: {
+    label: 'FUN FACT',
+    body: 'It was originally called Real Fuerza de San José.'
+  }
 };
 
 export default function QRScannedScreen({ navigation, route }) {
@@ -42,6 +47,8 @@ export default function QRScannedScreen({ navigation, route }) {
   const card1Opacity = useRef(new Animated.Value(0)).current;
   const card2Slide = useRef(new Animated.Value(60)).current;
   const card2Opacity = useRef(new Animated.Value(0)).current;
+  const card3Slide = useRef(new Animated.Value(80)).current;
+  const card3Opacity = useRef(new Animated.Value(0)).current;
   const btnSlide = useRef(new Animated.Value(30)).current;
   const btnOpacity = useRef(new Animated.Value(0)).current;
 
@@ -80,6 +87,14 @@ export default function QRScannedScreen({ navigation, route }) {
 
       await delay(100);
 
+      // Card 3
+      Animated.parallel([
+        Animated.timing(card3Slide, { toValue: 0, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(card3Opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+      ]).start();
+
+      await delay(100);
+
       // Button
       Animated.parallel([
         Animated.timing(btnSlide, { toValue: 0, duration: 350, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
@@ -112,12 +127,15 @@ export default function QRScannedScreen({ navigation, route }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* ── Location chip ── */}
+        {/* ── Location chip & Hook ── */}
         <View style={styles.locationChipRow}>
           <View style={styles.locationChip}>
             <View style={styles.locationDot} />
             <Text style={styles.locationText}>{spot.name}</Text>
           </View>
+          {spot.hook ? (
+            <Text style={styles.hookText}>"{spot.hook}"</Text>
+          ) : null}
         </View>
 
         {/* ── Hero image ── */}
@@ -167,6 +185,21 @@ export default function QRScannedScreen({ navigation, route }) {
             <Text style={[styles.infoCardLabel, { color: '#A78BFA' }]}>{spot.cultural.label}</Text>
           </View>
           <Text style={styles.infoCardBody}>{spot.cultural.body}</Text>
+        </Animated.View>
+
+        {/* ── Fun Fact Card ── */}
+        <Animated.View
+          style={[
+            styles.infoCard,
+            styles.infoCardTeal,
+            { transform: [{ translateY: card3Slide }], opacity: card3Opacity },
+          ]}
+        >
+          <View style={styles.infoCardHeader}>
+            <View style={[styles.infoAccentBar, { backgroundColor: '#14B8A6' }]} />
+            <Text style={[styles.infoCardLabel, { color: '#14B8A6' }]}>{spot.funFact.label}</Text>
+          </View>
+          <Text style={styles.infoCardBody}>{spot.funFact.body}</Text>
         </Animated.View>
 
         {/* ── Continue Button ── */}
@@ -261,6 +294,14 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
     fontWeight: '600',
   },
+  hookText: {
+    color: COLORS.accentPink || '#E91E8C',
+    fontSize: 13,
+    fontFamily: FONTS.medium,
+    fontStyle: 'italic',
+    marginTop: 8,
+    marginLeft: 4,
+  },
 
   // ── Hero image ──
   imageWrapper: {
@@ -320,6 +361,10 @@ const styles = StyleSheet.create({
   infoCardPurple: {
     backgroundColor: 'rgba(167,139,250,0.07)',
     borderColor: 'rgba(167,139,250,0.22)',
+  },
+  infoCardTeal: {
+    backgroundColor: 'rgba(20,184,166,0.07)',
+    borderColor: 'rgba(20,184,166,0.22)',
   },
   infoCardHeader: {
     flexDirection: 'row',
