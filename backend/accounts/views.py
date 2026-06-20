@@ -7,28 +7,14 @@ from django.conf import settings
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from .serializers import (
-    RegisterSerializer, UserSerializer, 
-    CharacterSetupSerializer, ProfileUpdateSerializer
+     UserSerializer, 
+    CharacterSetupSerializer,
 )
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 
 User = get_user_model()
 
-class RegisterView(generics.CreateAPIView):
-    queryset = User.objects.all()
-    permission_classes = (permissions.AllowAny,)
-    serializer_class = RegisterSerializer
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        refresh = RefreshToken.for_user(user)
-        user_data = UserSerializer(user).data
-        return Response({
-            'user': user_data,
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
-        }, status=status.HTTP_201_CREATED)
 
 class GoogleLoginView(APIView):
     permission_classes = (permissions.AllowAny,)
@@ -100,26 +86,10 @@ class CharacterSetupView(generics.UpdateAPIView):
         # Return full user data after setup
         return Response(UserSerializer(instance).data, status=status.HTTP_200_OK)
 
-class ProfileView(generics.RetrieveAPIView):
-    serializer_class = UserSerializer
-    permission_classes = (permissions.IsAuthenticated,)
-
-    def get_object(self):
-        return self.request.user
-
-class ProfileUpdateView(generics.UpdateAPIView):
-    serializer_class = ProfileUpdateSerializer
-    permission_classes = (permissions.IsAuthenticated,)
-
-    def get_object(self):
-        return self.request.user
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-
-        # Return the full user data after update
-        return Response(UserSerializer(instance).data)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def test_auth(request):
+    return Response({
+        "user": request.user.email,
+        "message": "Authentication successful!"
+    })

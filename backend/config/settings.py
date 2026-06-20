@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'dj_rest_auth',
     'dj_rest_auth.registration',
+    'djoser',
     
     # Custom apps
     'accounts',
@@ -110,6 +111,15 @@ DATABASES = {
 
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.CustomUser'
+
+DJOSER = {
+    'LOGIN_FIELD': 'email',
+    'USER_CREATE_SERIALIZER': 'accounts.serializers.CustomUserCreateSerializer',
+    'SERIALIZERS': {
+        'user_create': 'accounts.serializers.CustomUserCreateSerializer',
+        'current_user': 'accounts.serializers.UserSerializer',
+    },
+}
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
