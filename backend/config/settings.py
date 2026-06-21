@@ -27,11 +27,12 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     
     # Third-party apps
+    'corsheaders',
     'rest_framework',
+    'rest_framework.authtoken',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
-    'rest_framework.authtoken',
-    'corsheaders',
+     
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
@@ -117,6 +118,7 @@ DJOSER = {
     'USER_CREATE_SERIALIZER': 'accounts.serializers.CustomUserCreateSerializer',
     'SERIALIZERS': {
         'user_create': 'accounts.serializers.CustomUserCreateSerializer',
+        'user': 'accounts.serializers.UserSerializer',
         'current_user': 'accounts.serializers.UserSerializer',
     },
 }

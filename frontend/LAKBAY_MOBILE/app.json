@@ -28,7 +28,8 @@
         {
           "cameraPermission": "Allow LAKBAY to access your camera to scan QR codes and view AR exhibits."
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }

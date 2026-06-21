@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { authService } from '../api/authService';
 
 export default function CreateAccountScreen({ navigation }) {
   const [fullName, setFullName]       = useState('');
@@ -20,38 +21,41 @@ export default function CreateAccountScreen({ navigation }) {
   const passwordHint = password.length > 0 && (password.length < 8 || !/\d/.test(password) || !/[^a-zA-Z0-9]/.test(password));
   const passwordMatch = confirmPass.length > 0 && password !== confirmPass;
 
-  const handleCreate = async () => {
-    if (!fullName || !email || !password || !confirmPass) {
-      Alert.alert('Missing fields', 'Please fill in all fields.');
-      return;
-    }
-    if (password !== confirmPass) {
-      Alert.alert('Password mismatch', 'Your passwords do not match.');
-      return;
-    }
-    if (!agreed) {
-      Alert.alert('Terms required', 'Please agree to the Terms of Service and Privacy Policy.');
-      return;
-    }
+const handleCreate = async () => {
+  if (!fullName || !email || !password || !confirmPass) {
+    Alert.alert('Missing fields', 'Please fill in all fields.');
+    return;
+  }
+  if (password !== confirmPass) {
+    Alert.alert('Password mismatch', 'Your passwords do not match.');
+    return;
+  }
+  if (!agreed) {
+    Alert.alert('Terms required', 'Please agree to the Terms of Service and Privacy Policy.');
+    return;
+  }
 
-    setLoading(true);
-    try {
-      // Offline bypass for presentation
-      setTimeout(async () => {
-        setLoading(false);
-        // Simulate successful registration
-        await SecureStore.setItemAsync('accessToken', 'fake-token-123');
-        await SecureStore.setItemAsync('refreshToken', 'fake-refresh-123');
-        await SecureStore.setItemAsync('offline_fullName', fullName);
-        await SecureStore.setItemAsync('offline_email', email);
-        navigation.replace('CharacterSelect', { token: 'fake-token-123' });
-      }, 1000);
-    } catch (error) {
-      setLoading(false);
-      Alert.alert('App Error', String(error.message || error));
-      console.error(error);
+  setLoading(true);
+  try {
+    const tempInGameName = `Explorer_${Date.now()}`;
+    await authService.register(email, password, fullName, tempInGameName, 'DefaultCharacter');
+    await SecureStore.setItemAsync('offline_fullName', fullName);
+    setLoading(false);
+    navigation.replace('CharacterSelect');
+  } catch (error) {
+    setLoading(false);
+    const errorData = error.response?.data || error; 
+    let errorMessage = 'An error occurred. Please try again.';
+    if (errorData) {
+      if (errorData.email) errorMessage = `Email: ${errorData.email[0]}`;
+      else if (errorData.password) errorMessage = `Password: ${errorData.password[0]}`;
+      else if (errorData.detail) errorMessage = errorData.detail;
     }
-  };
+    console.log('Register error:', errorData);
+    Alert.alert('Registration Error', errorMessage);
+  }
+
+};
 
   return (
     <SafeAreaView style={styles.container}>

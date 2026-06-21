@@ -72,25 +72,26 @@ export default function AppNavigator() {
         contentStyle: { backgroundColor: COLORS.bg },
       }}
     >
-      {/* ── Auth Screens ── */}
+{/* ── Auth ── */}
       <Stack.Screen name="Login"           component={LoginScreen} />
       <Stack.Screen name="CreateAccount"   component={CreateAccountScreen} />
       <Stack.Screen name="CharacterSelect" component={CharacterSelectScreen} />
+      
       {/* ── Main App ── */}
       <Stack.Screen name="MainTabs"      component={MainTabs} />
+      
+      {/* ── Standalone Screens (No Tabs) ── */}
       <Stack.Screen name="Details"       component={DetailsScreen} />
       <Stack.Screen name="AR"            component={ARScreen} />
       <Stack.Screen name="ARScanned"     component={ARScannedScreen} />
       <Stack.Screen name="QRScanned"     component={QRScannedScreen} />
       <Stack.Screen name="Notifications" component={NotificationScreen} />
-      {/* Legacy route aliases */}
-      <Stack.Screen name="Home"    component={MainTabs} />
-      <Stack.Screen name="QR"      component={QRScreen} />
+      <Stack.Screen name="QR"            component={QRScreen} />
       <Stack.Screen name="Catch"         component={CatchScreen} />
       <Stack.Screen name="CatchDetails"  component={CatchDetailsScreen} />
       <Stack.Screen name="QuizScreen"    component={QuizScreen} />
-      <Stack.Screen name="Profile"       component={ProfileScreen} />
-      <Stack.Screen name="Badges"  component={BadgesScreen} />
+      
+      {/* REMOVED: Profile and Badges aliases because they are in MainTabs */}
     </Stack.Navigator>
   );
 }

@@ -7,6 +7,7 @@ import { View, ActivityIndicator } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { COLORS } from './src/constants/theme';
 
+
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function App() {

@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { authService } from '../api/authService';
 
 const CHARACTERS = [
   {
@@ -68,25 +69,24 @@ export default function CharacterSelectScreen({ route, navigation }) {
 
   const selected = CHARACTERS.find(c => c.id === selectedId);
 
-  const handleStart = async () => {
-    if (!explorerName.trim()) {
-      Alert.alert('Explorer Name Required', 'Please enter your explorer name to continue.');
-      return;
-    }
-    setLoading(true);
-    
-    try {
-      // Offline bypass
-      setTimeout(async () => {
-        setLoading(false);
-        await SecureStore.setItemAsync('offline_explorerName', explorerName);
-        await SecureStore.setItemAsync('offline_character', selected.name);
-        navigation.replace('MainTabs');
-      }, 1000);
-    } catch (error) {
-      setLoading(false);
-      console.error(error);
-    }
+const handleConfirm = async () => {
+  if (!explorerName.trim()) {
+    Alert.alert('Explorer Name Required', 'Please enter your explorer name to continue.');
+    return;
+  }
+  setLoading(true);
+  try {
+    await authService.characterSetup(selected.id, explorerName.trim());
+    setLoading(false);
+    navigation.replace('MainTabs');
+  } catch (error) {
+    setLoading(false);
+    const errorData = error.response?.data || error;
+    let errorMessage = 'Something went wrong.';
+    if (errorData.in_game_name) errorMessage = errorData.in_game_name[0];
+    Alert.alert('Setup Error', errorMessage);
+  }
+
   };
 
   return (
@@ -196,7 +196,7 @@ export default function CharacterSelectScreen({ route, navigation }) {
         <TouchableOpacity
           style={[styles.startBtn, !explorerName.trim() && styles.startBtnDisabled]}
           activeOpacity={0.88}
-          onPress={handleStart}
+          onPress={handleConfirm}
           disabled={loading}
         >
           {loading ? (

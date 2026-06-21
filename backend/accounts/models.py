@@ -15,7 +15,7 @@ class CustomUser(AbstractUser):
     chosen_character = models.CharField(max_length=100, null=True, blank=True)
     profile_photo = models.ImageField(upload_to='profile_photos/', null=True, blank=True)
     auth_provider = models.CharField(max_length=50, choices=AUTH_PROVIDERS, default='email')
-    
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['full_name']
 

@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { authService } from '../api/authService';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail]           = useState('');
@@ -14,28 +15,21 @@ export default function LoginScreen({ navigation }) {
   const [streakClaimed, setStreakClaimed] = useState(false);
   const [loading, setLoading]       = useState(false);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Missing fields', 'Please enter your email and password.');
-      return;
-    }
-    setLoading(true);
+const handleLogin = async () => {
+  setLoading(true);
+  try {
+    const result = await authService.login(email, password);
     
-    try {
-      // Offline bypass for presentation
-      setTimeout(async () => {
-        setLoading(false);
-        // Simulate successful login
-        await SecureStore.setItemAsync('accessToken', 'fake-token-123');
-        await SecureStore.setItemAsync('refreshToken', 'fake-refresh-123');
-        navigation.replace('MainTabs');
-      }, 1000);
-    } catch (error) {
-      setLoading(false);
-      Alert.alert('App Error', String(error.message || error));
-      console.error(error);
+    // ONLY navigate if the login was actually successful
+    if (result && result.access) {
+      navigation.replace('MainTabs'); 
     }
-  };
+  } catch (error) {
+    setLoading(false);
+    // Do NOT navigate here. Show an alert instead.
+    Alert.alert('Login Failed', 'Check your email and password.');
+  }
+};
 
   const handleGoogle = () => {
     Alert.alert('Google Sign-In', 'Google authentication will be integrated with the backend.');
@@ -46,6 +40,26 @@ export default function LoginScreen({ navigation }) {
     setStreakClaimed(true);
     Alert.alert('🔥 Streak Claimed!', 'You earned +50 XP for your 12-day login streak!');
   };
+
+const testConnection = async () => {
+  Alert.alert('Testing...', 'Pinging the Django server now!');
+    setLoading(true);
+  try {
+    const result = await authService.login('your_real@email.com', 'your_real_password');
+    setLoading(false);
+
+    Alert.alert('✅ Login Success!', JSON.stringify(result, null, 2));
+
+    const profile = await authService.getProfile();
+    console.log('Profile:', profile);
+
+  } catch (err) {
+    setLoading(false);
+
+    Alert.alert('❌ Connection Error!', JSON.stringify(err, null, 2));
+    console.error('Test Connection Error:', err);
+  }
+};
 
   return (
     <SafeAreaView style={styles.container}>
@@ -156,6 +170,13 @@ export default function LoginScreen({ navigation }) {
               ? <ActivityIndicator color="#fff" />
               : <Text style={styles.signInText}>Sign In</Text>
             }
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.signInBtn, { backgroundColor: '#333', marginTop: 10 }]}
+            onPress={testConnection}
+          >
+            <Text style={styles.signInText}>Test Connection</Text>
           </TouchableOpacity>
 
           {/* Divider */}
