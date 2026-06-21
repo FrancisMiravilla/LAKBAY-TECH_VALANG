@@ -1827,22 +1827,22 @@ function App() {
                     <div className="chart-bar-item">
                       <div className="chart-tooltip">133 catches</div>
                       <div className="chart-bar" style={{height: '95%'}}></div>
-                      <span className="chart-bar-label">Fabric</span>
+                      <span className="chart-bar-label">Curacha</span>
                     </div>
                     <div className="chart-bar-item">
                       <div className="chart-tooltip">124 catches</div>
                       <div className="chart-bar" style={{height: '85%'}}></div>
-                      <span className="chart-bar-label">Scroll</span>
+                      <span className="chart-bar-label">Yakan Weaving</span>
                     </div>
                     <div className="chart-bar-item">
                       <div className="chart-tooltip">85 catches</div>
                       <div className="chart-bar" style={{height: '60%'}}></div>
-                      <span className="chart-bar-label">Vinta</span>
+                      <span className="chart-bar-label">Lantaka</span>
                     </div>
                     <div className="chart-bar-item">
                       <div className="chart-tooltip">40 catches</div>
                       <div className="chart-bar" style={{height: '25%'}}></div>
-                      <span className="chart-bar-label">Mask</span>
+                      <span className="chart-bar-label">Vinta</span>
                     </div>
                   </div>
                   <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#A0AEC0'}}>
