@@ -38,11 +38,12 @@ import {
 import './App.css'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
+import { useNavigate } from 'react-router-dom';
+import { authService } from './api/authService';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
 const generateNotificationId = () => Date.now();
-
 
 // Mock QR Code Component
 const MockQR = ({ value }) => {
@@ -440,19 +441,44 @@ function App() {
   const [activities] = useState(INITIAL_ACTIVITIES);
   
   // Authentication State
+  const [currentUser, setCurrentUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loginCredentials, setLoginCredentials] = useState({ username: '', password: '' });
+  const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState('');
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (loginCredentials.username === 'admin' && loginCredentials.password === 'admin123') {
+
+    try {
+      const loginResult = await authService.login(
+        loginCredentials.email,
+        loginCredentials.password
+      );
+      
+      console.log('=== LOGIN SUCCESS ===');
+      console.log('Login result:', loginResult); // check tokens are here
+
+      const user = await authService.getProfile();
+      setCurrentUser(user);
       setIsAuthenticated(true);
-      setLoginError('');
-    } else {
-      setLoginError('Invalid username or password.');
+
+      console.log('=== PROFILE FETCH SUCCESS ===');
+      console.log('Profile result:', user);
+      console.log('is_staff value:', user.is_staff);
+      console.log('is_staff type:', typeof user.is_staff);
+
+    if (user.is_staff) {
+      console.log('Navigating to dashboard...');
+      navigate('/dashboard');
+    }else{
+      console.log('User is not staff, navigating to login...');
     }
-  };
+
+  } catch (error) {
+    console.error('=== LOGIN FLOW FAILED ===');
+    console.error(error);
+  }
+};
 
   // Search/Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -696,13 +722,13 @@ function App() {
             {loginError && <div className="login-error">{loginError}</div>}
             
             <div className="form-group">
-              <label className="form-label">Username</label>
+              <label className="form-label">Email</label>
               <input 
-                type="text" 
+                type="email" 
                 className="form-input" 
-                placeholder="Enter your username"
-                value={loginCredentials.username}
-                onChange={(e) => setLoginCredentials({...loginCredentials, username: e.target.value})}
+                placeholder="Enter your email"
+                value={loginCredentials.email}
+                onChange={(e) => setLoginCredentials({...loginCredentials, email: e.target.value})}
                 required 
               />
             </div>
@@ -813,13 +839,25 @@ function App() {
           </div>
         </nav>
 
-        <div className="sidebar-footer">
-          <div className="user-avatar">ZC</div>
-          <div className="user-info">
-            <span className="user-name">Zambo Admin</span>
-            <span className="user-role">Super Administrator</span>
-          </div>
+      <div className="sidebar-footer">
+        <div className="user-avatar">
+          {/* Try multiple possible sources for the name, default to 'G' */}
+          {(currentUser?.name || currentUser?.username || currentUser?.email || 'G')
+            .charAt(0)
+            .toUpperCase()}
         </div>
+        
+        <div className="user-info">
+          <span className="user-name">
+            {/* Fallback to different properties if 'name' is missing */}
+            {currentUser?.name || currentUser?.username || currentUser?.email || 'Guest User'}
+          </span>
+          
+          <span className="user-role">
+            {currentUser?.is_staff ? 'Super Administrator' : 'User'}
+          </span>
+        </div>
+      </div>
       </aside>
 
       {/* MAIN CONTENT AREA */}
