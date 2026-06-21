@@ -4,17 +4,20 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Animat
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import CustomModal from '../components/CustomModal';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
-let Mapbox = null;
-try {
-  const MapboxModule = require('@rnmapbox/maps');
-  Mapbox = MapboxModule.default || MapboxModule;
-  if (Mapbox && process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN) {
-    Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN);
-  }
-} catch {
-  console.log('Mapbox is not supported on this platform/environment');
-}
+const mapStyle = [
+  { elementType: 'geometry', stylers: [{ color: '#181D38' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#181D38' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#A0AEC0' }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#E91E8C' }] },
+  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#A0AEC0' }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#1e284a' }] },
+  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#38BDF8' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2D376D' }] },
+  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#181D38' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0E1225' }] }
+];
 
 
 const PROMO_STATS = [
@@ -152,57 +155,47 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.sectionTitleRow}>
             <View style={styles.accentBar} />
             <Text style={styles.sectionTitle}>Explore Zamboanga</Text>
-            <TouchableOpacity onPress={() => alert('View All Map Details')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Map')}>
               <Text style={styles.viewAll}>View All →</Text>
             </TouchableOpacity>
           </View>
 
           {/* Map Card */}
           <View style={styles.mapCard}>
-            {Mapbox ? (
-              <Mapbox.MapView
-                testID="mapbox-map"
-                style={styles.map}
-                styleURL={Mapbox.StyleURL.Dark}
-                logoEnabled={false}
-                attributionEnabled={false}
-              >
-                <Mapbox.Camera zoomLevel={11} centerCoordinate={[122.0700, 6.8850]} />
-                <Mapbox.MarkerView coordinate={[122.0625, 6.8653]} testID="marker-santa-cruz">
-                  <View style={styles.mapNodeContainer}>
-                    <View style={styles.nodePulse} />
-                    <Text style={styles.mapNodeText}>🏝️ Santa Cruz</Text>
-                  </View>
-                </Mapbox.MarkerView>
-                <Mapbox.MarkerView coordinate={[122.0761, 6.9039]} testID="marker-city-center">
-                  <View style={styles.mapNodeContainer}>
-                    <View style={styles.nodePulseActive} />
-                    <Text style={styles.mapNodeText}>🏢 City Center</Text>
-                  </View>
-                </Mapbox.MarkerView>
-              </Mapbox.MapView>
-            ) : (
-              <View style={styles.mapGridMock} testID="mockup-map">
-                <View style={[styles.mapNode, { top: '25%', left: '65%' }]}>
+            <MapView
+              provider={PROVIDER_GOOGLE}
+              style={styles.map}
+              initialRegion={{
+                latitude: 6.8850,
+                longitude: 122.0700,
+                latitudeDelta: 0.1,
+                longitudeDelta: 0.1,
+              }}
+              customMapStyle={mapStyle}
+            >
+              <Marker coordinate={{ latitude: 6.8653, longitude: 122.0625 }} testID="marker-santa-cruz">
+                <View style={styles.mapNodeContainer}>
                   <View style={styles.nodePulse} />
                   <Text style={styles.mapNodeText}>🏝️ Santa Cruz</Text>
                 </View>
-                <View style={[styles.mapNode, { top: '55%', left: '30%' }]}>
+              </Marker>
+              <Marker coordinate={{ latitude: 6.9039, longitude: 122.0761 }} testID="marker-city-center">
+                <View style={styles.mapNodeContainer}>
                   <View style={styles.nodePulseActive} />
                   <Text style={styles.mapNodeText}>🏢 City Center</Text>
                 </View>
+              </Marker>
+            </MapView>
                 <View style={styles.mapCompass}>
                   <Text style={styles.mapCompassLabel}>N</Text>
                   <Text style={styles.mapCompassArrow}>↑</Text>
                 </View>
                 <Text style={styles.mapScaleLabel}>📏 10 km</Text>
-              </View>
-            )}
 
             {/* Tap overlay */}
             <TouchableOpacity
               style={styles.mapTapOverlay}
-              onPress={() => alert('Launching Interactive AR Map...')}
+              onPress={() => navigation.navigate('Map')}
             >
               <Text style={styles.mapTapIcon}>🗺️</Text>
               <Text style={styles.mapTapText}>Tap to Explore Interactive Map</Text>
