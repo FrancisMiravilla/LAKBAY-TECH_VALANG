@@ -29,8 +29,11 @@ import {
   Maximize,
   Minimize,
   Eye,
+  Target,
   Camera,
-  Crosshair
+  Crosshair,
+  Compass,
+  Shield
 } from 'lucide-react'
 import './App.css'
 import mapboxgl from 'mapbox-gl'
@@ -92,15 +95,15 @@ const MockQR = ({ value }) => {
 // ── Feature-type constants ─────────────────────────────────────────────────
 // featureTypes: array of 'qr' | 'ar' | 'catch'
 
-// Initial Cultural Spots Mock Data
+// Initial Feature Places Mock Data
 const INITIAL_SPOTS = [
-  { id: 1, name: 'Great Santa Cruz Island', location: 'Zamboanga Channel, Zamboanga City', qrStatus: 'Active', triviaCount: 8, visits: 24500, category: 'beach', rating: 4.8, description: 'Famous for its unique pink coralline sand and crystal clear waters. A protected marine sanctuary perfect for snorkeling and lagoon tours.' },
-  { id: 2, name: 'Fort Pilar Shrine & Museum', location: 'Valderosa St, Zamboanga City', qrStatus: 'Active', triviaCount: 12, visits: 48200, category: 'historical', rating: 4.7, description: 'A 17th-century Spanish military defense fortress and a major religious landmark housing the shrine of Our Lady of the Pillar.' },
-  { id: 3, name: 'Yakan Weaving Village', location: 'Upper Calarian, Zamboanga City', qrStatus: 'Active', triviaCount: 6, visits: 15400, category: 'cultural', rating: 4.9, description: 'Home to the indigenous Yakan weavers. Watch them create beautiful, intricate geometric cloths by hand using traditional backstrap looms.' },
-  { id: 4, name: 'Merloquet Falls', location: 'Barangay Sibulao, Zamboanga City', qrStatus: 'Active', triviaCount: 5, visits: 12100, category: 'nature', rating: 4.6, description: 'A stunning two-tiered waterfall with a scenic staircase-like rock wall over which the water cascades into a refreshing shallow pool.' },
-  { id: 5, name: 'Paseo del Mar', location: 'Valderosa St, Zamboanga City', qrStatus: 'Active', triviaCount: 7, visits: 55000, category: 'cultural', rating: 4.5, description: 'A popular waterfront park offering beautiful sea views, local dining options, street food, and vibrant cultural shows at night.' },
-  { id: 6, name: 'Pasonanca Tree House', location: 'Pasonanca Park, Zamboanga City', qrStatus: 'Inactive', triviaCount: 4, visits: 9800, category: 'historical', rating: 4.4, description: 'Built in 1960, this historic treehouse in Pasonanca Park allows visitors to climb up and experience staying in a nature-surrounded cottage.' },
-  { id: 7, name: 'Taluksangay Mosque', location: 'Barangay Taluksangay, Zamboanga City', qrStatus: 'Active', triviaCount: 9, visits: 8200, category: 'cultural', rating: 4.8, description: 'Built in 1885, it is the oldest mosque in the Zamboanga Peninsula, featuring iconic red domes and serving as the historical center of Islam in the area.' }
+  { id: 1, name: 'Great Santa Cruz Island', location: 'Zamboanga Channel, Zamboanga City', status: 'QR', visits: 24500, category: 'beach', rating: 4.8, aboutPlace: 'Famous for its unique pink coralline sand and crystal clear waters. A protected marine sanctuary perfect for snorkeling and lagoon tours.', experience: 'Snorkeling, swimming, and nature photography', trivia: 'Did you know the pink sand comes from pulverized red organ-pipe coral?', bestTime: 'March to May', forWho: 'Families, Solo, Groups', language: 'Chavacano, English, Tagalog' },
+  { id: 2, name: 'Fort Pilar Shrine & Museum', location: 'Valderosa St, Zamboanga City', status: 'QR', visits: 48200, category: 'historical', rating: 4.7, aboutPlace: 'A 17th-century Spanish military defense fortress and a major religious landmark housing the shrine of Our Lady of the Pillar.', experience: 'Historical tours, cultural exhibits', trivia: 'Did you know it was built in 1635?', bestTime: 'Anytime', forWho: 'Families, Groups', language: 'Chavacano, English' },
+  { id: 3, name: 'Yakan Weaving Village', location: 'Upper Calarian, Zamboanga City', status: 'QR', visits: 15400, category: 'cultural', rating: 4.9, aboutPlace: 'Home to the indigenous Yakan weavers. Watch them create beautiful, intricate geometric cloths by hand using traditional backstrap looms.', experience: 'Handloom weaving, cultural immersion', trivia: 'Did you know each pattern tells a unique story?', bestTime: 'Morning', forWho: 'Groups', language: 'Yakan, Tagalog' },
+  { id: 4, name: 'Merloquet Falls', location: 'Barangay Sibulao, Zamboanga City', status: 'QR', visits: 12100, category: 'nature', rating: 4.6, aboutPlace: 'A stunning two-tiered waterfall with a scenic staircase-like rock wall over which the water cascades into a refreshing shallow pool.', experience: 'Nature hike, swimming under the falls', trivia: 'Did you know the water flow creates a natural hydro-massage?', bestTime: 'Rainy Season', forWho: 'Groups, Solo', language: 'Tagalog, Cebuano' },
+  { id: 5, name: 'Paseo del Mar', location: 'Valderosa St, Zamboanga City', status: 'QR', visits: 55000, category: 'cultural', rating: 4.5, aboutPlace: 'A popular waterfront park offering beautiful sea views, local dining options, street food, and vibrant cultural shows at night.', experience: 'Dining, sunset viewing, cultural shows', trivia: 'Did you know it is the best place to catch the Vinta sunset?', bestTime: 'Late Afternoon to Evening', forWho: 'Families, Groups', language: 'Chavacano, Tagalog' },
+  { id: 6, name: 'Pasonanca Tree House', location: 'Pasonanca Park, Zamboanga City', status: 'AR', visits: 9800, category: 'historical', rating: 4.4, aboutPlace: 'Built in 1960, this historic treehouse in Pasonanca Park allows visitors to climb up and experience staying in a nature-surrounded cottage.', experience: 'Park exploration, nature stay', trivia: 'Did you know the tree house can be booked for overnight stays?', bestTime: 'Morning to Afternoon', forWho: 'Families, Solo', language: 'Chavacano, English' },
+  { id: 7, name: 'Taluksangay Mosque', location: 'Barangay Taluksangay, Zamboanga City', status: 'QR', visits: 8200, category: 'cultural', rating: 4.8, aboutPlace: 'Built in 1885, it is the oldest mosque in the Zamboanga Peninsula, featuring iconic red domes and serving as the historical center of Islam in the area.', experience: 'Cultural appreciation, architecture', trivia: 'Did you know it was the first mosque to have a resident Imam in the peninsula?', bestTime: 'Daytime', forWho: 'Groups', language: 'Sama, Tagalog' }
 ];
 
 // ── Map Pins – each pin can have one or more featureTypes ─────────────────
@@ -131,13 +134,13 @@ const PIN_TYPE_CONFIG = {
 
 // Initial QR Codes Mock Data
 const INITIAL_QRCODES = [
-  { id: 1, spotName: 'Great Santa Cruz Island', scanCount: 1450, status: 'Active' },
-  { id: 2, spotName: 'Fort Pilar Shrine & Museum', scanCount: 3120, status: 'Active' },
-  { id: 3, spotName: 'Yakan Weaving Village', scanCount: 890, status: 'Active' },
-  { id: 4, spotName: 'Merloquet Falls', scanCount: 640, status: 'Active' },
-  { id: 5, spotName: 'Paseo del Mar', scanCount: 4200, status: 'Active' },
-  { id: 6, spotName: 'Pasonanca Tree House', scanCount: 530, status: 'Disabled' },
-  { id: 7, spotName: 'Taluksangay Mosque', scanCount: 410, status: 'Active' }
+  { id: 1, exhibitName: 'Great Santa Cruz Island', scanCount: 1450, status: 'Active', hook: 'A pink sand paradise!', historicalBackground: 'Used as an outpost during the colonial period.', culturalSignificance: 'A preserved natural treasure for the locals.', funFact: 'The pink sand comes from crushed red organ pipe corals.' },
+  { id: 2, exhibitName: 'Fort Pilar Shrine & Museum', scanCount: 3120, status: 'Active', hook: 'Defenders of the city!', historicalBackground: 'Built in 1635 by the Spanish forces.', culturalSignificance: 'A major religious and historical landmark.', funFact: 'It was originally called Real Fuerza de San José.' },
+  { id: 3, exhibitName: 'Yakan Weaving Village', scanCount: 890, status: 'Active', hook: 'Mastery in every thread.', historicalBackground: 'Home to the indigenous Yakan tribe.', culturalSignificance: 'Preserves the intricate backstrap loom weaving tradition.', funFact: 'No two Yakan patterns are exactly the same.' },
+  { id: 4, exhibitName: 'Merloquet Falls', scanCount: 640, status: 'Active', hook: 'Nature’s water stairs.', historicalBackground: 'Discovered as a hidden gem in the highlands.', culturalSignificance: 'A testament to Zamboanga’s rich natural wonders.', funFact: 'The water flow creates a natural hydro-massage.' },
+  { id: 5, exhibitName: 'Paseo del Mar', scanCount: 4200, status: 'Active', hook: 'Sunset by the strait.', historicalBackground: 'Developed as a premier waterfront park.', culturalSignificance: 'The cultural heartbeat of local night life.', funFact: 'Best place to catch the colorful Vinta sails.' },
+  { id: 6, exhibitName: 'Pasonanca Tree House', scanCount: 530, status: 'Disabled', hook: 'A home up high.', historicalBackground: 'Built in 1960 in the heart of Pasonanca Park.', culturalSignificance: 'Symbol of Zamboanga’s eco-tourism.', funFact: 'It can be booked for overnight stays!' },
+  { id: 7, exhibitName: 'Taluksangay Mosque', scanCount: 410, status: 'Active', hook: 'A beacon of faith.', historicalBackground: 'Built in 1885, oldest mosque in the peninsula.', culturalSignificance: 'Historical center of Islam in Zamboanga.', funFact: 'First mosque to have a resident Imam here.' }
 ];
 
 // Initial Users Data
@@ -176,10 +179,10 @@ const INITIAL_EXHIBITS = [
 
 // Initial Badges Mock Data
 const INITIAL_BADGES = [
-  { id: 1, name: 'City Explorer', desc: 'Scan at least 3 QR codes in Zamboanga landmarks', iconName: 'map' },
-  { id: 2, name: 'Vinta Sailor', desc: 'Scan Paseo del Mar QR code and capture Vinta in AR', iconName: 'compass' },
-  { id: 3, name: 'Chavacano Native', desc: 'Solve 3 trivia questions correctly', iconName: 'award' },
-  { id: 4, name: 'Fort Guardian', desc: 'Visit the Fort Pilar Shrine & Museum', iconName: 'shield' }
+  { id: 1, name: 'City Explorer', desc: 'Scan at least 3 QR codes in Zamboanga landmarks', reqQR: 3, reqAR: 0, reqCatch: 0, iconName: 'map' },
+  { id: 2, name: 'Vinta Sailor', desc: 'Scan Paseo del Mar QR code and capture Vinta in AR', reqQR: 1, reqAR: 1, reqCatch: 0, iconName: 'compass' },
+  { id: 3, name: 'Chavacano Native', desc: 'Solve 3 trivia questions correctly', reqQR: 0, reqAR: 0, reqCatch: 3, iconName: 'award' },
+  { id: 4, name: 'Fort Guardian', desc: 'Visit the Fort Pilar Shrine & Museum', reqQR: 1, reqAR: 1, reqCatch: 0, iconName: 'shield' }
 ];
 
 // Initial Activity Feed
@@ -406,7 +409,34 @@ function App() {
   const [trivia, setTrivia] = useState(INITIAL_TRIVIA);
   const [creatures] = useState(INITIAL_CREATURES);
   const [exhibits] = useState(INITIAL_EXHIBITS);
-  const [badges] = useState(INITIAL_BADGES);
+  const [badges, setBadges] = useState(INITIAL_BADGES);
+  const [isAddBadgeModalOpen, setIsAddBadgeModalOpen] = useState(false);
+  const [newBadge, setNewBadge] = useState({
+    name: '',
+    desc: '',
+    reqQR: 0,
+    reqAR: 0,
+    reqCatch: 0,
+    iconName: 'award'
+  });
+
+  const handleAddBadge = (e) => {
+    e.preventDefault();
+    setBadges([
+      ...badges,
+      {
+        id: Date.now(),
+        name: newBadge.name,
+        desc: newBadge.desc || `Earned by completing: ${newBadge.reqQR} QR, ${newBadge.reqAR} AR, ${newBadge.reqCatch} Catches`,
+        reqQR: Number(newBadge.reqQR),
+        reqAR: Number(newBadge.reqAR),
+        reqCatch: Number(newBadge.reqCatch),
+        iconName: newBadge.iconName
+      }
+    ]);
+    setIsAddBadgeModalOpen(false);
+    setNewBadge({ name: '', desc: '', reqQR: 0, reqAR: 0, reqCatch: 0, iconName: 'award' });
+  };
   const [activities] = useState(INITIAL_ACTIVITIES);
 
   // Search/Filters
@@ -425,16 +455,33 @@ function App() {
   const [newSpot, setNewSpot] = useState({
     name: '',
     location: '',
-    qrStatus: 'Active',
+    status: 'QR',
     category: 'cultural',
     rating: '5.0',
-    description: '',
-    triviaCount: 0,
+    aboutPlace: '',
+    experience: '',
+    trivia: '',
+    bestTime: '',
+    forWho: '',
+    language: '',
     visits: 0
   });
 
   const [isEditSpotModalOpen, setIsEditSpotModalOpen] = useState(false);
   const [editingSpot, setEditingSpot] = useState(null);
+
+  const [isAddQrModalOpen, setIsAddQrModalOpen] = useState(false);
+  const [newQr, setNewQr] = useState({
+    exhibitName: '',
+    hook: '',
+    historicalBackground: '',
+    culturalSignificance: '',
+    funFact: '',
+    status: 'Active'
+  });
+
+  const [isEditQrModalOpen, setIsEditQrModalOpen] = useState(false);
+  const [editingQr, setEditingQr] = useState(null);
 
   // Stats Calculations
   const stats = useMemo(() => {
@@ -477,11 +524,15 @@ function App() {
       id: Date.now(),
       name: newSpot.name,
       location: newSpot.location,
-      qrStatus: newSpot.qrStatus,
+      status: newSpot.status,
       category: newSpot.category || 'cultural',
       rating: parseFloat(newSpot.rating) || 5.0,
-      description: newSpot.description || '',
-      triviaCount: parseInt(newSpot.triviaCount) || 0,
+      aboutPlace: newSpot.aboutPlace || '',
+      experience: newSpot.experience || '',
+      trivia: newSpot.trivia || '',
+      bestTime: newSpot.bestTime || '',
+      forWho: newSpot.forWho || '',
+      language: newSpot.language || '',
       visits: parseInt(newSpot.visits) || 0
     };
 
@@ -490,9 +541,13 @@ function App() {
     // Also auto-generate a QR Code Card for the new spot
     const newQR = {
       id: Date.now(),
-      spotName: spotToAdd.name,
+      exhibitName: spotToAdd.name,
       scanCount: 0,
-      status: spotToAdd.qrStatus === 'Active' ? 'Active' : 'Disabled'
+      status: spotToAdd.status === 'QR' ? 'Active' : 'Disabled',
+      hook: '',
+      historicalBackground: '',
+      culturalSignificance: '',
+      funFact: ''
     };
     setQrcodes([...qrcodes, newQR]);
 
@@ -501,11 +556,15 @@ function App() {
     setNewSpot({
       name: '',
       location: '',
-      qrStatus: 'Active',
+      status: 'QR',
       category: 'cultural',
       rating: '5.0',
-      description: '',
-      triviaCount: 0,
+      aboutPlace: '',
+      experience: '',
+      trivia: '',
+      bestTime: '',
+      forWho: '',
+      language: '',
       visits: 0
     });
 
@@ -526,11 +585,11 @@ function App() {
       return spot;
     }));
 
-    // Update spotName in QR Codes if changed
+    // Update exhibitName in QR Codes if changed
     setQrcodes(qrcodes.map(q => {
       const originalSpot = spots.find(s => s.id === editingSpot.id);
-      if (q.spotName === originalSpot?.name) {
-        return { ...q, spotName: editingSpot.name, status: editingSpot.qrStatus === 'Active' ? 'Active' : 'Disabled' };
+      if (q.exhibitName === originalSpot?.name) {
+        return { ...q, exhibitName: editingSpot.name, status: editingSpot.status === 'QR' ? 'Active' : 'Disabled' };
       }
       return q;
     }));
@@ -539,12 +598,38 @@ function App() {
     setEditingSpot(null);
   };
 
+  const handleAddQr = (e) => {
+    e.preventDefault();
+    if (!newQr.exhibitName) return;
+    const qrToAdd = {
+      id: Date.now(),
+      exhibitName: newQr.exhibitName,
+      scanCount: 0,
+      status: newQr.status,
+      hook: newQr.hook,
+      historicalBackground: newQr.historicalBackground,
+      culturalSignificance: newQr.culturalSignificance,
+      funFact: newQr.funFact
+    };
+    setQrcodes([...qrcodes, qrToAdd]);
+    setIsAddQrModalOpen(false);
+    setNewQr({ exhibitName: '', hook: '', historicalBackground: '', culturalSignificance: '', funFact: '', status: 'Active' });
+  };
+
+  const handleEditQrSubmit = (e) => {
+    e.preventDefault();
+    if (!editingQr.exhibitName) return;
+    setQrcodes(qrcodes.map(q => q.id === editingQr.id ? editingQr : q));
+    setIsEditQrModalOpen(false);
+    setEditingQr(null);
+  };
+
   const handleDeleteSpot = (id) => {
     const spotToDelete = spots.find(s => s.id === id);
     if (confirm(`Are you sure you want to delete "${spotToDelete?.name}"?`)) {
       setSpots(spots.filter(spot => spot.id !== id));
       // Also delete its QR code card
-      setQrcodes(qrcodes.filter(q => q.spotName !== spotToDelete?.name));
+      setQrcodes(qrcodes.filter(q => q.exhibitName !== spotToDelete?.name));
       
       setNotifications([
         { id: generateNotificationId(), text: `Spot "${spotToDelete?.name}" removed from registry.`, time: 'Just now' },
@@ -557,13 +642,6 @@ function App() {
     setQrcodes(qrcodes.map(q => {
       if (q.id === id) {
         const nextStatus = q.status === 'Active' ? 'Disabled' : 'Active';
-        // Also sync back to spots
-        setSpots(spots.map(s => {
-          if (s.name === q.spotName) {
-            return { ...s, qrStatus: nextStatus === 'Active' ? 'Active' : 'Inactive' };
-          }
-          return s;
-        }));
         return { ...q, status: nextStatus };
       }
       return q;
@@ -612,7 +690,7 @@ function App() {
             onClick={() => setActiveTab('spots')}
           >
             <MapPin className="menu-icon" />
-            Cultural Spots
+            Feature Places
           </div>
           <div 
             className={`menu-item ${activeTab === 'qrcodes' ? 'active' : ''}`}
@@ -628,29 +706,22 @@ function App() {
             <Map className="menu-icon" />
             Interactive Map
           </div>
+          <div 
+            className={`menu-item ${activeTab === 'ar' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ar')}
+          >
+            <Eye className="menu-icon" />
+            AR
+          </div>
+          <div 
+            className={`menu-item ${activeTab === 'catch' ? 'active' : ''}`}
+            onClick={() => setActiveTab('catch')}
+          >
+            <Target className="menu-icon" />
+            CATCH
+          </div>
 
-          <span className="menu-section-title">Gamification & Heritage</span>
-          <div 
-            className={`menu-item ${activeTab === 'trivia' ? 'active' : ''}`}
-            onClick={() => setActiveTab('trivia')}
-          >
-            <HelpCircle className="menu-icon" />
-            Trivia
-          </div>
-          <div 
-            className={`menu-item ${activeTab === 'creatures' ? 'active' : ''}`}
-            onClick={() => setActiveTab('creatures')}
-          >
-            <Sparkles className="menu-icon" />
-            Creatures and Symbols
-          </div>
-          <div 
-            className={`menu-item ${activeTab === 'museum' ? 'active' : ''}`}
-            onClick={() => setActiveTab('museum')}
-          >
-            <Landmark className="menu-icon" />
-            Museum Exhibits
-          </div>
+
 
           <span className="menu-section-title">Operations</span>
           <div 
@@ -692,12 +763,12 @@ function App() {
           <div className="header-title-container">
             <h1 className="header-title">
               {activeTab === 'overview' && 'LAKBAY Dashboard'}
-              {activeTab === 'spots' && 'Cultural Spots'}
+              {activeTab === 'spots' && 'Feature Places'}
               {activeTab === 'qrcodes' && 'QR Codes'}
               {activeTab === 'map' && 'Interactive Map'}
-              {activeTab === 'trivia' && 'Cultural Trivia'}
-              {activeTab === 'creatures' && 'Creatures and Symbols'}
-              {activeTab === 'museum' && 'Museum Exhibits'}
+              {activeTab === 'ar' && 'AR Progress'}
+              {activeTab === 'catch' && 'CATCH Progress'}
+
               {activeTab === 'users' && 'User Directory'}
               {activeTab === 'badges' && 'Gamification Badges'}
               {activeTab === 'reports' && 'Analytics & Reports'}
@@ -707,9 +778,9 @@ function App() {
               {activeTab === 'spots' && 'Manage geographic positions and historical details of Zamboanga'}
               {activeTab === 'qrcodes' && 'Manage and download system spot QR codes'}
               {activeTab === 'map' && 'Geospatial visualization and geofencing of tourist spots'}
-              {activeTab === 'trivia' && 'Preserve and update local Chabacano trivia questions'}
-              {activeTab === 'creatures' && 'Manage AR interactive cultural icons & spirits'}
-              {activeTab === 'museum' && 'Track Fort Pilar exhibits and gallery status'}
+              {activeTab === 'ar' && 'Track AR museum exhibit interactions and visits'}
+              {activeTab === 'catch' && 'Monitor the capture rate of cultural icons'}
+
               {activeTab === 'users' && 'Manage user achievements, checks, and registration status'}
               {activeTab === 'badges' && 'Configure and inspect user achievement badges'}
               {activeTab === 'reports' && 'Export records and review monthly performance summaries'}
@@ -737,7 +808,7 @@ function App() {
                 <Search size={16} className="text-secondary" />
                 <input 
                   type="text" 
-                  placeholder="Search cultural spots..." 
+                  placeholder="Search feature places..." 
                   className="search-input"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -836,7 +907,7 @@ function App() {
                   </div>
                 </div>
 
-                <div className="stat-card">
+                <div className="stat-card" style={{cursor: 'pointer'}} onClick={() => setActiveTab('qrcodes')}>
                   <div className="stat-info">
                     <span className="stat-label">Total QR Scans</span>
                     <span className="stat-value gold">{stats.totalQRScans.toLocaleString()}</span>
@@ -850,7 +921,7 @@ function App() {
                   </div>
                 </div>
 
-                <div className="stat-card">
+                <div className="stat-card" style={{cursor: 'pointer'}} onClick={() => setActiveTab('catch')}>
                   <div className="stat-info">
                     <span className="stat-label">Total Catches</span>
                     <span className="stat-value gold">{stats.totalCatches}</span>
@@ -864,7 +935,7 @@ function App() {
                   </div>
                 </div>
 
-                <div className="stat-card">
+                <div className="stat-card" style={{cursor: 'pointer'}} onClick={() => setActiveTab('ar')}>
                   <div className="stat-info">
                     <span className="stat-label">Total AR Visits</span>
                     <span className="stat-value gold">{stats.totalARVisits.toLocaleString()}</span>
@@ -881,12 +952,12 @@ function App() {
 
               {/* Chart & Recent Activity Grid */}
               <section className="dashboard-grid">
-                {/* Bar Chart: Most Visited Cultural Spots */}
+                {/* Bar Chart: Most Visited Feature Places */}
                 <div className="content-card">
                   <div className="content-card-header">
                     <h3 className="card-title">
                       <TrendingUp className="card-title-icon" size={18} />
-                      Most Visited Cultural Spots
+                      Most Visited Feature Places
                     </h3>
                   </div>
 
@@ -948,7 +1019,7 @@ function App() {
             </>
           )}
 
-          {/* TAB CONTENT: 2. CULTURAL SPOTS */}
+          {/* TAB CONTENT: 2. FEATURE PLACES */}
           {activeTab === 'spots' && (
             <section className="content-card" style={{gap: '24px'}}>
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '16px'}}>
@@ -972,16 +1043,15 @@ function App() {
                     <tr>
                       <th>Spot Name</th>
                       <th>Location</th>
-                      <th>QR Status</th>
-                      <th>Trivia Count</th>
+                      <th>Status</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredSpots.length === 0 ? (
                       <tr>
-                        <td colSpan="5" style={{textAlign: 'center', padding: '32px 0', color: '#A0AEC0'}}>
-                          No cultural spots match the filters or search query.
+                        <td colSpan="4" style={{textAlign: 'center', padding: '32px 0', color: '#A0AEC0'}}>
+                          No feature places match the filters or search query.
                         </td>
                       </tr>
                     ) : (
@@ -990,11 +1060,10 @@ function App() {
                           <td style={{fontWeight: 700, color: 'white'}}>{spot.name}</td>
                           <td>{spot.location}</td>
                           <td>
-                            <span className={`badge ${spot.qrStatus === 'Active' ? 'active-status' : 'inactive-status'}`}>
-                              {spot.qrStatus}
+                            <span className="badge active-status">
+                              {spot.status}
                             </span>
                           </td>
-                          <td style={{fontFamily: 'monospace', fontWeight: 600, textAlign: 'center'}}>{spot.triviaCount} questions</td>
                           <td>
                             <div className="action-buttons">
                               <button 
@@ -1035,7 +1104,7 @@ function App() {
                 </h3>
                 <button 
                   className="btn btn-primary"
-                  onClick={() => setIsAddSpotModalOpen(true)}
+                  onClick={() => setIsAddQrModalOpen(true)}
                 >
                   <Plus size={16} />
                   Add QR Code
@@ -1045,27 +1114,43 @@ function App() {
               {/* QR Cards Grid */}
               <div className="qr-grid">
                 {qrcodes.map(qr => {
-                  const spotDetails = spots.find(s => s.name === qr.spotName);
+                  const spotDetails = spots.find(s => s.name === qr.exhibitName);
                   return (
                     <div key={qr.id} className="qr-card">
-                      {spotDetails && (
-                        <div className="qr-card-meta">
-                          <span className={`badge ${spotDetails.category || 'cultural'}`}>
-                            {spotDetails.category || 'cultural'}
-                          </span>
-                          <span className="qr-card-rating">
-                            <Star size={12} fill="currentColor" style={{ color: 'var(--accent-gold)', marginRight: '2px' }} />
-                            {spotDetails.rating || '5.0'}
-                          </span>
+                      <div className="qr-card-meta">
+                        <div style={{display: 'flex', gap: '8px'}}>
+                          {spotDetails && (
+                            <span className={`badge ${spotDetails.category || 'cultural'}`}>
+                              {spotDetails.category || 'cultural'}
+                            </span>
+                          )}
                         </div>
-                      )}
+                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                          {spotDetails && (
+                            <span className="qr-card-rating">
+                              <Star size={12} fill="currentColor" style={{ color: 'var(--accent-gold)', marginRight: '2px' }} />
+                              {spotDetails.rating || '5.0'}
+                            </span>
+                          )}
+                          <button 
+                            className="icon-action-btn"
+                            title="Edit QR Code"
+                            onClick={() => {
+                              setEditingQr(qr);
+                              setIsEditQrModalOpen(true);
+                            }}
+                          >
+                            <Edit size={14} />
+                          </button>
+                        </div>
+                      </div>
 
                       <div className="qr-image-container">
-                        <MockQR value={qr.spotName} />
+                        <MockQR value={qr.exhibitName} />
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%', alignItems: 'center' }}>
-                        <h4 className="qr-spot-name">{qr.spotName}</h4>
+                        <h4 className="qr-spot-name">{qr.exhibitName}</h4>
                         {spotDetails && (
                           <span className="qr-spot-location">
                             <MapPin size={11} color="var(--accent-pink)" />
@@ -1078,9 +1163,9 @@ function App() {
                           <span>{qr.scanCount.toLocaleString()} Scans</span>
                         </div>
 
-                        {spotDetails?.description && (
-                          <p className="qr-spot-desc" title={spotDetails.description}>
-                            {spotDetails.description}
+                        {spotDetails?.aboutPlace && (
+                          <p className="qr-spot-desc" title={spotDetails.aboutPlace}>
+                            {spotDetails.aboutPlace}
                           </p>
                         )}
                       </div>
@@ -1089,7 +1174,7 @@ function App() {
                         <button 
                           className="btn btn-secondary"
                           style={{flex: 1, padding: '8px 12px', fontSize: '11px'}}
-                          onClick={() => downloadQR(qr.spotName)}
+                          onClick={() => downloadQR(qr.exhibitName)}
                         >
                           <Download size={12} style={{marginRight: '4px'}} />
                           Download
@@ -1111,127 +1196,7 @@ function App() {
             </section>
           )}
 
-          {/* TAB CONTENT: 4. TRIVIA */}
-          {activeTab === 'trivia' && (
-            <section className="content-card" style={{gap: '24px'}}>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                <h3 className="card-title">
-                  <HelpCircle className="card-title-icon" size={18} />
-                  Zamboanga Historical & Cultural Trivia
-                </h3>
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => {
-                    const q = prompt("Enter new Trivia Question:");
-                    if (!q) return;
-                    const a = prompt("Enter Answer:");
-                    const spot = prompt("Enter Related Spot Name:");
-                    if (q && a) {
-                      setTrivia([...trivia, { id: Date.now(), spotName: spot || 'General Zamboanga', question: q, answer: a }]);
-                      // Also increment trivia count for the spot
-                      setSpots(spots.map(s => {
-                        if (s.name.toLowerCase() === (spot || '').toLowerCase()) {
-                          return { ...s, triviaCount: s.triviaCount + 1 };
-                        }
-                        return s;
-                      }));
-                    }
-                  }}
-                >
-                  <Plus size={16} />
-                  Add Trivia
-                </button>
-              </div>
 
-              {/* Trivia list */}
-              <div className="reviews-list">
-                {trivia.map(tr => (
-                  <div key={tr.id} className="review-item" style={{gap: '8px'}}>
-                    <div style={{display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '8px'}}>
-                      <span style={{fontWeight: 700, color: '#E91E8C', fontSize: '12px'}}>{tr.spotName}</span>
-                      <button 
-                        className="icon-action-btn delete" 
-                        style={{width: '24px', height: '24px'}}
-                        onClick={() => setTrivia(trivia.filter(t => t.id !== tr.id))}
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                    <div style={{fontSize: '14px', fontWeight: 600, color: 'white', marginTop: '4px'}}>
-                      Q: {tr.question}
-                    </div>
-                    <div style={{fontSize: '13px', color: '#A0AEC0', paddingLeft: '8px', borderLeft: '2px solid var(--accent-gold)'}}>
-                      A: {tr.answer}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* TAB CONTENT: 5. CREATURES & SYMBOLS */}
-          {activeTab === 'creatures' && (
-            <section className="content-card" style={{gap: '24px'}}>
-              <h3 className="card-title">
-                <Sparkles className="card-title-icon" size={18} />
-                Preserved Creatures & Cultural Symbols (AR Catches)
-              </h3>
-
-              <div className="creature-grid">
-                {creatures.map(cr => (
-                  <div key={cr.id} className="creature-card">
-                    <span className={`creature-rarity ${cr.rarity}`}>{cr.rarity}</span>
-                    <div className="creature-icon-container">
-                      <Anchor size={22} />
-                    </div>
-                    <div>
-                      <h4 className="creature-name">{cr.name}</h4>
-                      <span className="creature-type">{cr.type}</span>
-                    </div>
-                    <div className="creature-catches">
-                      <CheckCircle size={14} color="#FBBF24" />
-                      <span>{cr.catchesCount} Times Caught</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* TAB CONTENT: 6. MUSEUM EXHIBITS */}
-          {activeTab === 'museum' && (
-            <section className="content-card" style={{gap: '24px'}}>
-              <h3 className="card-title">
-                <Landmark className="card-title-icon" size={18} />
-                Fort Pilar National Museum Exhibits
-              </h3>
-
-              <div className="table-wrapper">
-                <table className="custom-table">
-                  <thead>
-                    <tr>
-                      <th>Exhibit Title</th>
-                      <th>Gallery Room</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {exhibits.map(ex => (
-                      <tr key={ex.id}>
-                        <td style={{fontWeight: 700, color: 'white'}}>{ex.name}</td>
-                        <td>{ex.gallery}</td>
-                        <td>
-                          <span className={`badge ${ex.status === 'On Display' ? 'active-status' : 'inactive-status'}`}>
-                            {ex.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
 
           {/* TAB CONTENT: 7. USERS */}
           {activeTab === 'users' && (
@@ -1298,20 +1263,37 @@ function App() {
           {/* TAB CONTENT: 8. BADGES */}
           {activeTab === 'badges' && (
             <section className="content-card" style={{gap: '24px'}}>
-              <h3 className="card-title">
-                <Award className="card-title-icon" size={18} />
-                User Achievement Badges Configuration
-              </h3>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px'}}>
+                <h3 className="card-title">
+                  <Award className="card-title-icon" size={18} />
+                  User Achievement Badges Configuration
+                </h3>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => setIsAddBadgeModalOpen(true)}
+                >
+                  <Plus size={16} />
+                  Add New Badge
+                </button>
+              </div>
 
               <div className="badges-grid">
                 {badges.map(bd => (
                   <div key={bd.id} className="badge-card">
                     <div className="badge-icon-wrapper">
-                      <Award size={28} />
+                      {bd.iconName === 'map' ? <Map size={28} /> :
+                       bd.iconName === 'compass' ? <Compass size={28} /> :
+                       bd.iconName === 'shield' ? <Shield size={28} /> :
+                       <Award size={28} />}
                     </div>
                     <div className="badge-info">
                       <h4 className="badge-title">{bd.name}</h4>
                       <span className="badge-desc">{bd.desc}</span>
+                      <div style={{marginTop: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap'}}>
+                        {bd.reqQR > 0 && <span className="badge" style={{backgroundColor: 'var(--accent-gold)', color: 'black', fontSize: '10px'}}>QR: {bd.reqQR}</span>}
+                        {bd.reqAR > 0 && <span className="badge" style={{backgroundColor: 'var(--accent-pink)', color: 'white', fontSize: '10px'}}>AR: {bd.reqAR}</span>}
+                        {bd.reqCatch > 0 && <span className="badge" style={{backgroundColor: '#14B8A6', color: 'white', fontSize: '10px'}}>Catch: {bd.reqCatch}</span>}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1562,6 +1544,288 @@ function App() {
             </section>
           )}
 
+          {/* TAB CONTENT: AR PROGRESS */}
+          {activeTab === 'ar' && (
+            <div className="tab-content fade-in">
+              <div className="section-header">
+                <h2>AR Museum Visits</h2>
+                <div className="header-actions">
+                  <button className="btn btn-secondary">
+                    <Download size={16} style={{marginRight: '8px'}} />
+                    Export AR Report
+                  </button>
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <section className="stats-grid">
+                <div className="stat-card">
+                  <div className="stat-info">
+                    <span className="stat-label">Total AR Visits</span>
+                    <span className="stat-value gold">{stats.totalARVisits.toLocaleString()}</span>
+                    <span className="stat-trend trend-up">
+                      <ArrowUpRight size={14} />
+                      +21.5% experiences
+                    </span>
+                  </div>
+                  <div className="stat-icon-wrapper yellow">
+                    <Eye size={24} />
+                  </div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-info">
+                    <span className="stat-label">Avg. Engagement Time</span>
+                    <span className="stat-value gold">12m 30s</span>
+                    <span className="stat-trend trend-up">
+                      <ArrowUpRight size={14} />
+                      +2m vs last month
+                    </span>
+                  </div>
+                  <div className="stat-icon-wrapper purple">
+                    <TrendingUp size={24} />
+                  </div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-info">
+                    <span className="stat-label">Completion Rate</span>
+                    <span className="stat-value gold">62%</span>
+                    <span className="stat-trend trend-up">
+                      <ArrowUpRight size={14} />
+                      Finished exhibits
+                    </span>
+                  </div>
+                  <div className="stat-icon-wrapper blue">
+                    <CheckCircle size={24} />
+                  </div>
+                </div>
+              </section>
+
+              {/* Dashboard Grid for AR */}
+              <section className="dashboard-grid" style={{marginTop: '20px'}}>
+                {/* Bar Chart */}
+                <div className="content-card">
+                  <div className="content-card-header">
+                    <h3 className="card-title">
+                      <TrendingUp className="card-title-icon" size={18} />
+                      Top AR Experiences
+                    </h3>
+                  </div>
+                  <div className="chart-wrapper">
+                    <div className="chart-grid-line" style={{bottom: '0%'}}></div>
+                    <div className="chart-grid-line" style={{bottom: '25%'}}></div>
+                    <div className="chart-grid-line" style={{bottom: '50%'}}></div>
+                    <div className="chart-grid-line" style={{bottom: '75%'}}></div>
+                    
+                    {/* Hardcoded AR Bars */}
+                    <div className="chart-bar-item">
+                      <div className="chart-tooltip">4,215 visits</div>
+                      <div className="chart-bar" style={{height: '95%'}}></div>
+                      <span className="chart-bar-label">Fort Pilar</span>
+                    </div>
+                    <div className="chart-bar-item">
+                      <div className="chart-tooltip">2,840 visits</div>
+                      <div className="chart-bar" style={{height: '65%'}}></div>
+                      <span className="chart-bar-label">Yakan</span>
+                    </div>
+                    <div className="chart-bar-item">
+                      <div className="chart-tooltip">1,887 visits</div>
+                      <div className="chart-bar" style={{height: '45%'}}></div>
+                      <span className="chart-bar-label">Vinta</span>
+                    </div>
+                    <div className="chart-bar-item">
+                      <div className="chart-tooltip">1,200 visits</div>
+                      <div className="chart-bar" style={{height: '30%'}}></div>
+                      <span className="chart-bar-label">Weaving</span>
+                    </div>
+                  </div>
+                  <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#A0AEC0'}}>
+                    <span>Visits based on camera interactions</span>
+                    <span>Pink accents represent popular AR views</span>
+                  </div>
+                </div>
+
+                {/* Table Card */}
+                <div className="content-card">
+                  <div className="content-card-header">
+                    <h3 className="card-title">
+                      <Eye className="card-title-icon" size={18} />
+                      Exhibit Details
+                    </h3>
+                  </div>
+                  <div className="table-wrapper" style={{marginTop: '16px', border: 'none', background: 'transparent'}}>
+                    <table className="custom-table">
+                      <thead>
+                        <tr>
+                          <th>Exhibit</th>
+                          <th>Visits</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Fort Pilar Main Shrine</td>
+                          <td>4,215</td>
+                          <td><span className="badge active">Highly Active</span></td>
+                        </tr>
+                        <tr>
+                          <td>Yakan Weaving Gallery</td>
+                          <td>2,840</td>
+                          <td><span className="badge active">Moderate</span></td>
+                        </tr>
+                        <tr>
+                          <td>Vinta History Room</td>
+                          <td>1,887</td>
+                          <td><span className="badge active">Growing</span></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* TAB CONTENT: CATCH PROGRESS */}
+          {activeTab === 'catch' && (
+            <div className="tab-content fade-in">
+              <div className="section-header">
+                <h2>Cultural Icons Caught</h2>
+                <div className="header-actions">
+                  <button className="btn btn-secondary">
+                    <Download size={16} style={{marginRight: '8px'}} />
+                    Export Catch Data
+                  </button>
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <section className="stats-grid">
+                <div className="stat-card">
+                  <div className="stat-info">
+                    <span className="stat-label">Total Catches</span>
+                    <span className="stat-value gold">{stats.totalCatches}</span>
+                    <span className="stat-trend trend-up">
+                      <ArrowUpRight size={14} />
+                      +12 items unlocked
+                    </span>
+                  </div>
+                  <div className="stat-icon-wrapper yellow">
+                    <Target size={24} />
+                  </div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-info">
+                    <span className="stat-label">Epic Icons Found</span>
+                    <span className="stat-value gold">85</span>
+                    <span className="stat-trend trend-up">
+                      <ArrowUpRight size={14} />
+                      Rare items found
+                    </span>
+                  </div>
+                  <div className="stat-icon-wrapper purple">
+                    <Star size={24} />
+                  </div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-info">
+                    <span className="stat-label">Unlock Rate</span>
+                    <span className="stat-value gold">42%</span>
+                    <span className="stat-trend trend-up">
+                      <ArrowUpRight size={14} />
+                      Of total catalog
+                    </span>
+                  </div>
+                  <div className="stat-icon-wrapper blue">
+                    <TrendingUp size={24} />
+                  </div>
+                </div>
+              </section>
+
+              {/* Dashboard Grid for Catch */}
+              <section className="dashboard-grid" style={{marginTop: '20px'}}>
+                {/* Bar Chart */}
+                <div className="content-card">
+                  <div className="content-card-header">
+                    <h3 className="card-title">
+                      <TrendingUp className="card-title-icon" size={18} />
+                      Most Caught Icons
+                    </h3>
+                  </div>
+                  <div className="chart-wrapper">
+                    <div className="chart-grid-line" style={{bottom: '0%'}}></div>
+                    <div className="chart-grid-line" style={{bottom: '25%'}}></div>
+                    <div className="chart-grid-line" style={{bottom: '50%'}}></div>
+                    <div className="chart-grid-line" style={{bottom: '75%'}}></div>
+                    
+                    {/* Hardcoded Catch Bars */}
+                    <div className="chart-bar-item">
+                      <div className="chart-tooltip">133 catches</div>
+                      <div className="chart-bar" style={{height: '95%'}}></div>
+                      <span className="chart-bar-label">Fabric</span>
+                    </div>
+                    <div className="chart-bar-item">
+                      <div className="chart-tooltip">124 catches</div>
+                      <div className="chart-bar" style={{height: '85%'}}></div>
+                      <span className="chart-bar-label">Scroll</span>
+                    </div>
+                    <div className="chart-bar-item">
+                      <div className="chart-tooltip">85 catches</div>
+                      <div className="chart-bar" style={{height: '60%'}}></div>
+                      <span className="chart-bar-label">Vinta</span>
+                    </div>
+                    <div className="chart-bar-item">
+                      <div className="chart-tooltip">40 catches</div>
+                      <div className="chart-bar" style={{height: '25%'}}></div>
+                      <span className="chart-bar-label">Mask</span>
+                    </div>
+                  </div>
+                  <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#A0AEC0'}}>
+                    <span>Total successful catches</span>
+                    <span>Pink accents represent popular icons</span>
+                  </div>
+                </div>
+
+                {/* Table Card */}
+                <div className="content-card">
+                  <div className="content-card-header">
+                    <h3 className="card-title">
+                      <Target className="card-title-icon" size={18} />
+                      Icon Details
+                    </h3>
+                  </div>
+                  <div className="table-wrapper" style={{marginTop: '16px', border: 'none', background: 'transparent'}}>
+                    <table className="custom-table">
+                      <thead>
+                        <tr>
+                          <th>Icon</th>
+                          <th>Rarity</th>
+                          <th>Catches</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>Golden Vinta</td>
+                          <td><span className="badge" style={{backgroundColor: 'var(--accent-gold)', color: '#000'}}>Epic</span></td>
+                          <td>85</td>
+                        </tr>
+                        <tr>
+                          <td>Chabacano Scroll</td>
+                          <td><span className="badge" style={{backgroundColor: '#A78BFA', color: '#FFF'}}>Rare</span></td>
+                          <td>124</td>
+                        </tr>
+                        <tr>
+                          <td>Yakan Fabric</td>
+                          <td><span className="badge" style={{backgroundColor: '#14B8A6', color: '#FFF'}}>Common</span></td>
+                          <td>133</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
+
         </div>
       </main>
 
@@ -1570,7 +1834,7 @@ function App() {
         <div className="modal-overlay">
           <div className="modal-card">
             <div className="modal-header">
-              <h3 className="modal-title">Add New Cultural Spot</h3>
+              <h3 className="modal-title">Add New Feature Place</h3>
               <button className="close-btn" onClick={() => setIsAddSpotModalOpen(false)}>
                 <X size={20} />
               </button>
@@ -1632,37 +1896,83 @@ function App() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Description</label>
+                  <label className="form-label">About this place</label>
                   <textarea 
                     className="form-textarea" 
-                    placeholder="Describe the cultural spot and its significance..."
-                    value={newSpot.description}
-                    onChange={(e) => setNewSpot({...newSpot, description: e.target.value})}
+                    placeholder="Describe the feature place and its significance..."
+                    value={newSpot.aboutPlace}
+                    onChange={(e) => setNewSpot({...newSpot, aboutPlace: e.target.value})}
                     required
                   />
                 </div>
 
-                <div style={{display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1fr', gap: '16px'}}>
+                <div className="form-group">
+                  <label className="form-label">What to experience</label>
+                  <textarea 
+                    className="form-textarea" 
+                    placeholder="e.g. Snorkeling, nature hike, cultural immersion..."
+                    value={newSpot.experience}
+                    onChange={(e) => setNewSpot({...newSpot, experience: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Did you know (Trivia)</label>
+                  <textarea 
+                    className="form-textarea" 
+                    placeholder="e.g. Did you know the pink sand comes from pulverized red organ-pipe coral?"
+                    value={newSpot.trivia}
+                    onChange={(e) => setNewSpot({...newSpot, trivia: e.target.value})}
+                  />
+                </div>
+
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px'}}>
                   <div className="form-group">
-                    <label className="form-label">QR Status</label>
-                    <select 
-                      className="form-select"
-                      value={newSpot.qrStatus}
-                      onChange={(e) => setNewSpot({...newSpot, qrStatus: e.target.value})}
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
+                    <label className="form-label">Best time to visit</label>
+                    <input 
+                      type="text"
+                      className="form-input" 
+                      placeholder="e.g. March to May"
+                      value={newSpot.bestTime}
+                      onChange={(e) => setNewSpot({...newSpot, bestTime: e.target.value})}
+                    />
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Trivia Count</label>
+                    <label className="form-label">For</label>
                     <input 
-                      type="number" 
-                      className="form-input"
-                      value={newSpot.triviaCount}
-                      onChange={(e) => setNewSpot({...newSpot, triviaCount: e.target.value})}
+                      type="text"
+                      className="form-input" 
+                      placeholder="e.g. Families, Solo, Groups"
+                      value={newSpot.forWho}
+                      onChange={(e) => setNewSpot({...newSpot, forWho: e.target.value})}
                     />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Language</label>
+                    <input 
+                      type="text"
+                      className="form-input" 
+                      placeholder="e.g. Chavacano, English"
+                      value={newSpot.language}
+                      onChange={(e) => setNewSpot({...newSpot, language: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px'}}>
+                  <div className="form-group">
+                    <label className="form-label">Status</label>
+                    <select 
+                      className="form-select"
+                      value={newSpot.status}
+                      onChange={(e) => setNewSpot({...newSpot, status: e.target.value})}
+                    >
+                      <option value="QR">QR</option>
+                      <option value="AR">AR</option>
+                      <option value="Catch">Catch</option>
+                    </select>
                   </div>
 
                   <div className="form-group">
@@ -1767,7 +2077,7 @@ function App() {
         <div className="modal-overlay">
           <div className="modal-card">
             <div className="modal-header">
-              <h3 className="modal-title">Edit Cultural Spot</h3>
+              <h3 className="modal-title">Edit Feature Place</h3>
               <button className="close-btn" onClick={() => {
                 setIsEditSpotModalOpen(false);
                 setEditingSpot(null);
@@ -1830,37 +2140,83 @@ function App() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Description</label>
+                  <label className="form-label">About this place</label>
                   <textarea 
                     className="form-textarea" 
-                    placeholder="Describe the cultural spot and its significance..."
-                    value={editingSpot.description || ''}
-                    onChange={(e) => setEditingSpot({...editingSpot, description: e.target.value})}
+                    placeholder="Describe the feature place and its significance..."
+                    value={editingSpot.aboutPlace || ''}
+                    onChange={(e) => setEditingSpot({...editingSpot, aboutPlace: e.target.value})}
                     required
                   />
                 </div>
 
-                <div style={{display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1fr', gap: '16px'}}>
+                <div className="form-group">
+                  <label className="form-label">What to experience</label>
+                  <textarea 
+                    className="form-textarea" 
+                    placeholder="e.g. Snorkeling, nature hike, cultural immersion..."
+                    value={editingSpot.experience || ''}
+                    onChange={(e) => setEditingSpot({...editingSpot, experience: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Did you know (Trivia)</label>
+                  <textarea 
+                    className="form-textarea" 
+                    placeholder="e.g. Did you know the pink sand comes from pulverized red organ-pipe coral?"
+                    value={editingSpot.trivia || ''}
+                    onChange={(e) => setEditingSpot({...editingSpot, trivia: e.target.value})}
+                  />
+                </div>
+
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px'}}>
                   <div className="form-group">
-                    <label className="form-label">QR Status</label>
-                    <select 
-                      className="form-select"
-                      value={editingSpot.qrStatus}
-                      onChange={(e) => setEditingSpot({...editingSpot, qrStatus: e.target.value})}
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
+                    <label className="form-label">Best time to visit</label>
+                    <input 
+                      type="text"
+                      className="form-input" 
+                      placeholder="e.g. March to May"
+                      value={editingSpot.bestTime || ''}
+                      onChange={(e) => setEditingSpot({...editingSpot, bestTime: e.target.value})}
+                    />
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Trivia Count</label>
+                    <label className="form-label">For</label>
                     <input 
-                      type="number" 
-                      className="form-input"
-                      value={editingSpot.triviaCount}
-                      onChange={(e) => setEditingSpot({...editingSpot, triviaCount: parseInt(e.target.value) || 0})}
+                      type="text"
+                      className="form-input" 
+                      placeholder="e.g. Families, Solo, Groups"
+                      value={editingSpot.forWho || ''}
+                      onChange={(e) => setEditingSpot({...editingSpot, forWho: e.target.value})}
                     />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Language</label>
+                    <input 
+                      type="text"
+                      className="form-input" 
+                      placeholder="e.g. Chavacano, English"
+                      value={editingSpot.language || ''}
+                      onChange={(e) => setEditingSpot({...editingSpot, language: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px'}}>
+                  <div className="form-group">
+                    <label className="form-label">Status</label>
+                    <select 
+                      className="form-select"
+                      value={editingSpot.status || 'QR'}
+                      onChange={(e) => setEditingSpot({...editingSpot, status: e.target.value})}
+                    >
+                      <option value="QR">QR</option>
+                      <option value="AR">AR</option>
+                      <option value="Catch">Catch</option>
+                    </select>
                   </div>
 
                   <div className="form-group">
@@ -1894,6 +2250,301 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* --- ADD QR MODAL --- */}
+      {isAddQrModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3 className="modal-title"><Plus size={18} style={{marginRight: '8px'}} /> Add New QR Code</h3>
+              <button className="icon-action-btn" onClick={() => setIsAddQrModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleAddQr}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Exhibit Name/Title</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="e.g. Fort Pilar"
+                    value={newQr.exhibitName}
+                    onChange={(e) => setNewQr({...newQr, exhibitName: e.target.value})}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">One Liner Hook</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="e.g. Defenders of the city!"
+                    value={newQr.hook}
+                    onChange={(e) => setNewQr({...newQr, hook: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Historical Background</label>
+                  <textarea 
+                    className="form-textarea" 
+                    placeholder="Historical facts..."
+                    value={newQr.historicalBackground}
+                    onChange={(e) => setNewQr({...newQr, historicalBackground: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Cultural Significance</label>
+                  <textarea 
+                    className="form-textarea" 
+                    placeholder="Why it matters culturally..."
+                    value={newQr.culturalSignificance}
+                    onChange={(e) => setNewQr({...newQr, culturalSignificance: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Fun Fact</label>
+                  <textarea 
+                    className="form-textarea" 
+                    placeholder="Did you know..."
+                    value={newQr.funFact}
+                    onChange={(e) => setNewQr({...newQr, funFact: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Status</label>
+                  <select 
+                    className="form-select"
+                    value={newQr.status}
+                    onChange={(e) => setNewQr({...newQr, status: e.target.value})}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Disabled">Disabled</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => setIsAddQrModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Save QR
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- EDIT QR MODAL --- */}
+      {isEditQrModalOpen && editingQr && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3 className="modal-title"><Edit size={18} style={{marginRight: '8px'}} /> Edit QR Code</h3>
+              <button className="icon-action-btn" onClick={() => {
+                setIsEditQrModalOpen(false);
+                setEditingQr(null);
+              }}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleEditQrSubmit}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Exhibit Name/Title</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={editingQr.exhibitName}
+                    onChange={(e) => setEditingQr({...editingQr, exhibitName: e.target.value})}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">One Liner Hook</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={editingQr.hook || ''}
+                    onChange={(e) => setEditingQr({...editingQr, hook: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Historical Background</label>
+                  <textarea 
+                    className="form-textarea" 
+                    value={editingQr.historicalBackground || ''}
+                    onChange={(e) => setEditingQr({...editingQr, historicalBackground: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Cultural Significance</label>
+                  <textarea 
+                    className="form-textarea" 
+                    value={editingQr.culturalSignificance || ''}
+                    onChange={(e) => setEditingQr({...editingQr, culturalSignificance: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Fun Fact</label>
+                  <textarea 
+                    className="form-textarea" 
+                    value={editingQr.funFact || ''}
+                    onChange={(e) => setEditingQr({...editingQr, funFact: e.target.value})}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Status</label>
+                  <select 
+                    className="form-select"
+                    value={editingQr.status}
+                    onChange={(e) => setEditingQr({...editingQr, status: e.target.value})}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Disabled">Disabled</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => {
+                    setIsEditQrModalOpen(false);
+                    setEditingQr(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADD BADGE MODAL */}
+      {isAddBadgeModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3 className="modal-title">Create New Badge</h3>
+              <button className="close-btn" onClick={() => setIsAddBadgeModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddBadge}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Badge Name</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="e.g. Master Explorer"
+                    value={newBadge.name}
+                    onChange={(e) => setNewBadge({...newBadge, name: e.target.value})}
+                    required 
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Badge Description (Optional)</label>
+                  <textarea 
+                    className="form-input" 
+                    placeholder="Describe how to earn this badge... (Auto-generated if left blank)"
+                    value={newBadge.desc}
+                    onChange={(e) => setNewBadge({...newBadge, desc: e.target.value})}
+                    rows={3}
+                  />
+                </div>
+
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px'}}>
+                  <div className="form-group">
+                    <label className="form-label">Req. QR Scans</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      min="0"
+                      value={newBadge.reqQR}
+                      onChange={(e) => setNewBadge({...newBadge, reqQR: e.target.value})}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Req. AR Visits</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      min="0"
+                      value={newBadge.reqAR}
+                      onChange={(e) => setNewBadge({...newBadge, reqAR: e.target.value})}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Req. Catches</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      min="0"
+                      value={newBadge.reqCatch}
+                      onChange={(e) => setNewBadge({...newBadge, reqCatch: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Badge Icon Type</label>
+                  <select 
+                    className="form-input" 
+                    value={newBadge.iconName}
+                    onChange={(e) => setNewBadge({...newBadge, iconName: e.target.value})}
+                  >
+                    <option value="award">Award (Default)</option>
+                    <option value="map">Map</option>
+                    <option value="compass">Compass</option>
+                    <option value="shield">Shield</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => setIsAddBadgeModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Create Badge
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
