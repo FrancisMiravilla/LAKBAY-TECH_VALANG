@@ -438,6 +438,21 @@ function App() {
     setNewBadge({ name: '', desc: '', reqQR: 0, reqAR: 0, reqCatch: 0, iconName: 'award' });
   };
   const [activities] = useState(INITIAL_ACTIVITIES);
+  
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginCredentials, setLoginCredentials] = useState({ username: '', password: '' });
+  const [loginError, setLoginError] = useState('');
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (loginCredentials.username === 'admin' && loginCredentials.password === 'admin123') {
+      setIsAuthenticated(true);
+      setLoginError('');
+    } else {
+      setLoginError('Invalid username or password.');
+    }
+  };
 
   // Search/Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -661,6 +676,57 @@ function App() {
       return u;
     }));
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="login-container">
+        <div className="login-card">
+          <div className="login-header">
+            <div className="sidebar-logo-container" style={{ margin: '0 auto 16px', width: '48px', height: '48px' }}>
+              <Anchor className="sidebar-logo-icon" size={24} />
+            </div>
+            <h1 className="brand-text" style={{ fontSize: '28px', justifyContent: 'center' }}>
+              LAKBAY
+              <span className="brand-subtitle">ADMIN PANEL</span>
+            </h1>
+            <p className="login-subtitle">Sign in to manage the Zamboanga Cultural System</p>
+          </div>
+          
+          <form onSubmit={handleLogin} className="login-form">
+            {loginError && <div className="login-error">{loginError}</div>}
+            
+            <div className="form-group">
+              <label className="form-label">Username</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                placeholder="Enter your username"
+                value={loginCredentials.username}
+                onChange={(e) => setLoginCredentials({...loginCredentials, username: e.target.value})}
+                required 
+              />
+            </div>
+            
+            <div className="form-group">
+              <label className="form-label">Password</label>
+              <input 
+                type="password" 
+                className="form-input" 
+                placeholder="Enter your password"
+                value={loginCredentials.password}
+                onChange={(e) => setLoginCredentials({...loginCredentials, password: e.target.value})}
+                required 
+              />
+            </div>
+            
+            <button type="submit" className="btn btn-primary login-btn">
+              Authenticate
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">
