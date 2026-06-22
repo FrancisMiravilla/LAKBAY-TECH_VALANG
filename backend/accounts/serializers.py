@@ -8,13 +8,13 @@ User = get_user_model()
 class CustomUserCreateSerializer(DjoserUserCreateSerializer):
     class Meta(DjoserUserCreateSerializer.Meta):
         model = User
-        fields = ('id', 'email', 'password', 'full_name', 'in_game_name', 'chosen_character')
+        fields = ('id', 'email', 'password', 'full_name', 'in_game_name', 'chosen_character', 'is_staff','is_superuser',)
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'email', 'full_name', 'in_game_name', 'chosen_character', 'profile_photo', 'auth_provider', 'date_joined', 'is_active')
-        read_only_fields = ('id', 'email', 'auth_provider', 'date_joined', 'is_active')
+        fields = ('id', 'email', 'full_name', 'in_game_name', 'chosen_character', 'profile_photo', 'auth_provider', 'date_joined', 'is_active', 'is_staff',)
+        read_only_fields = ('id', 'email', 'auth_provider', 'date_joined', 'is_active', 'is_staff',)
 
 
 class CharacterSetupSerializer(DjoserUserSerializer):

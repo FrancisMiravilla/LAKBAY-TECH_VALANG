@@ -5,6 +5,7 @@ import { COLORS, FONTS, RADIUS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect } from '@react-navigation/native';
+import { authService } from '../api/authService';
 
 const SETTINGS_OPTIONS = [
   { id: 'edit',   icon: '✏️', label: 'Edit Profile' },
@@ -25,34 +26,31 @@ export default function ProfileScreen({ navigation }) {
   );
 
   const fetchProfile = async () => {
+    setLoading(true);
     try {
-      // Load offline values
-      const offlineFullName = await SecureStore.getItemAsync('offline_fullName');
-      const offlineEmail = await SecureStore.getItemAsync('offline_email');
-      const offlineExplorer = await SecureStore.getItemAsync('offline_explorerName');
-      const offlineChar = await SecureStore.getItemAsync('offline_character');
-
-      setTimeout(() => {
-        setProfile({
-          full_name: offlineFullName || "Explorer",
-          in_game_name: offlineExplorer || "Lakbay Tester",
-          email: offlineEmail || "tester@lakbay.app",
-          character: offlineChar || "Kuya Mando"
-        });
-        setLoading(false);
-      }, 500);
+      const data = await authService.getProfile();
+      setProfile({
+        full_name: data.full_name,
+        in_game_name: data.in_game_name,
+        email: data.email,
+        character: data.chosen_character,
+      });
     } catch (e) {
       console.log('Error fetching profile', e);
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = async () => {
-    // Basic local logout
-    await SecureStore.deleteItemAsync('accessToken');
-    await SecureStore.deleteItemAsync('refreshToken');
-    navigation.replace('Login'); // Or whatever the initial screen is
-  };
+const handleLogout = async () => {
+  await SecureStore.deleteItemAsync('accessToken');
+  await SecureStore.deleteItemAsync('refreshToken');
+  await SecureStore.deleteItemAsync('offline_fullName');
+  await SecureStore.deleteItemAsync('offline_email');
+  await SecureStore.deleteItemAsync('offline_explorerName');
+  await SecureStore.deleteItemAsync('offline_character');
+  navigation.replace('Login');
+};
 
   const getEmoji = (characterName) => {
     switch(characterName) {

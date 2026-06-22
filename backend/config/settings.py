@@ -77,6 +77,7 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
     'bypass-tunnel-reminder',
+    'ngrok-skip-browser-warning',
 ]
 
 ROOT_URLCONF = 'config.urls'
