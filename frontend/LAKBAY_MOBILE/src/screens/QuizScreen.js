@@ -1,152 +1,66 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, StatusBar, Alert } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { getSpotTrivia, awardSpotBadge } from '../api/qrService';
 
 export default function QuizScreen({ navigation, route }) {
-  // Information passed from the previous screen (e.g., CatchDetailsScreen)
-  // If no data is passed, we provide some fallback info for testing
-  const topic = route.params?.topic || 'Curacha';
-  const information = route.params?.information || `
-    The Curacha (Ranina ranina), also known as the spanner crab, is a large sea crab unique to the 
-    warm coastal waters surrounding Zamboanga City. Distinguished by its bright orange shell and flat, 
-    paddle-like claws, it is prized across the Philippines for its exceptionally rich, buttery meat. 
-    It is most famously served drenched in Alavar sauce — a secret blend of coconut milk, spices, 
-    and aromatic herbs perfected over generations at the legendary Alavar Restaurant, founded in 1948.
-    
-    The Curacha is more than a seafood delicacy — it is a proud symbol of Zamboangueño identity and 
-    coastal culinary heritage. Served at family fiestas, local celebrations, and tourist dining tables alike, it 
-    brings people together to experience the true flavor of the City of Flowers.
-  `;
+  const spotId = route.params?.spotId;
+  const spotName = route.params?.spotName || 'this spot';
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
   const [isCorrect, setIsCorrect] = useState(null);
   const [showReward, setShowReward] = useState(false);
+  const [reward, setReward] = useState({ xp_earned: 0, total_xp: 0, awarded: false });
 
   useEffect(() => {
-    generateQuiz();
-  }, []);
-
-  const generateQuiz = async () => {
-    // Completely offline fallback database of quizzes
-    const QUIZ_DB = {
-      'Curacha': [
-        {
-          question: "What is the scientific name of the Curacha?",
-          options: ["Ranina ranina", "Scylla serrata", "Portunus pelagicus", "Chionoecetes opilio"],
-          correct_answer: "Ranina ranina"
-        },
-        {
-          question: "What makes the Curacha's claws unique?",
-          options: ["They are paddle-like", "They have venom", "They are razor sharp", "They glow in the dark"],
-          correct_answer: "They are paddle-like"
-        },
-        {
-          question: "Which city is the Curacha most famous in?",
-          options: ["Zamboanga City", "Cebu City", "Manila", "Davao City"],
-          correct_answer: "Zamboanga City"
-        },
-        {
-          question: "What is the famous sauce the Curacha is often drenched in?",
-          options: ["Alavar sauce", "Soy sauce", "Sweet chili sauce", "Garlic butter sauce"],
-          correct_answer: "Alavar sauce"
-        },
-        {
-          question: "When was the legendary Alavar Restaurant founded?",
-          options: ["1948", "1950", "1962", "1930"],
-          correct_answer: "1948"
-        }
-      ],
-      'AR': [
-        {
-          question: "Since what century have the Yakan people woven their textiles?",
-          options: ["10th century", "14th century", "18th century", "20th century"],
-          correct_answer: "14th century"
-        },
-        {
-          question: "Which people in Basilan are known for this traditional loom?",
-          options: ["Tausug", "Sama-Bajau", "Yakan", "Maranao"],
-          correct_answer: "Yakan"
-        },
-        {
-          question: "What does Yakan weaving primarily signify?",
-          options: ["Identity and social standing", "Military rank", "Age", "Marital status"],
-          correct_answer: "Identity and social standing"
-        },
-        {
-          question: "What is the traditional Yakan headcloth called?",
-          options: ["Malong", "Pis siyabit", "Barong", "Tubao"],
-          correct_answer: "Pis siyabit"
-        },
-        {
-          question: "What type of patterns are typical in Yakan textiles?",
-          options: ["Floral", "Animal", "Geometric", "Abstract"],
-          correct_answer: "Geometric"
-        }
-      ],
-      'QR': [
-        {
-          question: "Who built Fort Pilar in 1635?",
-          options: ["Ferdinand Magellan", "Jose Rizal", "Melchor de Vera", "Miguel Lopez de Legazpi"],
-          correct_answer: "Melchor de Vera"
-        },
-        {
-          question: "What year was Fort Pilar built?",
-          options: ["1521", "1635", "1898", "1945"],
-          correct_answer: "1635"
-        },
-        {
-          question: "Who is the patroness housed in the shrine?",
-          options: ["Our Lady of the Pillar", "Our Lady of Manaoag", "Our Lady of Peace", "Our Lady of Sorrows"],
-          correct_answer: "Our Lady of the Pillar"
-        },
-        {
-          question: "Fort Pilar was declared what in 1973?",
-          options: ["World Heritage Site", "National Cultural Treasure", "National Park", "Historical Landmark"],
-          correct_answer: "National Cultural Treasure"
-        },
-        {
-          question: "Which institution currently manages the Fort Pilar museum?",
-          options: ["Department of Tourism", "National Historical Commission", "National Museum of the Philippines", "Zamboanga City Hall"],
-          correct_answer: "National Museum of the Philippines"
-        }
-      ]
-    };
-
-    // Simulate a slight loading delay to feel like it's processing
-    setTimeout(() => {
-      // Default to Curacha if topic not found
-      const quiz = QUIZ_DB[topic] || QUIZ_DB['Curacha'];
-      setQuestions(quiz);
+    if (!spotId) {
+      setError('No spot selected.');
       setLoading(false);
-    }, 1000);
-  };
+      return;
+    }
+
+    getSpotTrivia(spotId)
+      .then((data) => {
+        if (!data.questions || data.questions.length === 0) {
+          setError('No trivia questions available for this spot yet.');
+        } else {
+          setQuestions(data.questions);
+        }
+      })
+      .catch(() => setError('Could not load quiz. Check your connection and try again.'))
+      .finally(() => setLoading(false));
+  }, [spotId]);
 
   const handleSelectOption = (option) => {
-    if (selectedOption !== null) return; // Prevent clicking multiple times
-    
+    if (selectedOption !== null) return;
+
     setSelectedOption(option);
-    
     const correct = option === questions[currentIndex].correct_answer;
     setIsCorrect(correct);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       if (correct) {
         if (currentIndex < questions.length - 1) {
-          // Go to next question
           setCurrentIndex(currentIndex + 1);
           setSelectedOption(null);
           setIsCorrect(null);
         } else {
-          // Quiz finished! Gamified reward
+          // All questions answered — award badge
+          try {
+            const result = await awardSpotBadge(spotId);
+            setReward(result);
+          } catch {
+            setReward({ xp_earned: 0, total_xp: 0, awarded: false });
+          }
           setShowReward(true);
         }
       } else {
-        // Try again on this question
         setSelectedOption(null);
         setIsCorrect(null);
       }
@@ -155,9 +69,21 @@ export default function QuizScreen({ navigation, route }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#E91E8C" />
-        <Text style={styles.loadingText}>Loading {topic} quiz...</Text>
+      <SafeAreaView style={styles.centeredContainer}>
+        <ActivityIndicator size="large" color={COLORS.accent} />
+        <Text style={styles.loadingText}>Loading quiz for {spotName}...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.centeredContainer}>
+        <Ionicons name="alert-circle-outline" size={48} color="rgba(255,255,255,0.4)" />
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.backBtnSmall} onPress={() => navigation.goBack()}>
+          <Text style={styles.backBtnSmallText}>Go Back</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
@@ -170,32 +96,33 @@ export default function QuizScreen({ navigation, route }) {
           <View style={styles.rewardIconGlow}>
             <Ionicons name="trophy" size={80} color="#FBBF24" />
           </View>
-          <Text style={styles.rewardTitle}>Congratulations! 🎉</Text>
-          <Text style={styles.rewardSubTitle}>You successfully mastered {topic}</Text>
-          
-          <View style={styles.xpBadge}>
-            <Ionicons name="star" size={24} color="#FBBF24" />
-            <Text style={styles.xpText}>+50 XP</Text>
-            <Ionicons name="star" size={24} color="#FBBF24" />
-          </View>
-          
+          <Text style={styles.rewardTitle}>Congratulations!</Text>
+          <Text style={styles.rewardSubTitle}>You mastered {spotName}</Text>
+
+          {reward.awarded ? (
+            <View style={styles.xpBadge}>
+              <Ionicons name="star" size={24} color="#FBBF24" />
+              <Text style={styles.xpText}>+{reward.xp_earned} XP</Text>
+              <Ionicons name="star" size={24} color="#FBBF24" />
+            </View>
+          ) : (
+            <View style={styles.alreadyBadge}>
+              <Text style={styles.alreadyBadgeText}>Badge already earned — no duplicate XP</Text>
+            </View>
+          )}
+
           <Text style={styles.rewardMessage}>
-            Great job, Explorer! Keep discovering new artifacts to level up your character.
+            {reward.awarded
+              ? `Great job, Explorer! Total XP: ${reward.total_xp}`
+              : 'Keep discovering new spots to earn more XP!'}
           </Text>
         </View>
 
         <View style={styles.rewardFooter}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.claimBtn}
             activeOpacity={0.8}
-            onPress={() => {
-              if (topic === 'AR' || topic === 'QR') {
-                // Return to explore/home tab if AR/QR
-                navigation.navigate('MainTabs');
-              } else {
-                navigation.navigate('Catch');
-              }
-            }}
+            onPress={() => navigation.navigate('MainTabs')}
           >
             <Text style={styles.claimBtnText}>CLAIM REWARD</Text>
           </TouchableOpacity>
@@ -204,17 +131,12 @@ export default function QuizScreen({ navigation, route }) {
     );
   }
 
-  if (questions.length === 0) {
-    return null; // or some error state
-  }
-
   const currentQ = questions[currentIndex];
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0920" />
-      
-      {/* Header */}
+
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
           <Ionicons name="close" size={24} color="#FFF" />
@@ -223,22 +145,19 @@ export default function QuizScreen({ navigation, route }) {
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Progress Bar */}
       <View style={styles.progressContainer}>
         <Text style={styles.progressText}>Question {currentIndex + 1} of {questions.length}</Text>
         <View style={styles.progressBarBg}>
-          <View style={[styles.progressBarFill, { width: `${((currentIndex) / questions.length) * 100}%` }]} />
+          <View style={[styles.progressBarFill, { width: `${(currentIndex / questions.length) * 100}%` }]} />
         </View>
       </View>
 
-      {/* Question Card */}
       <View style={styles.questionCard}>
         <Text style={styles.questionText}>{currentQ.question}</Text>
       </View>
 
-      {/* Options */}
       <View style={styles.optionsContainer}>
-        {currentQ.options.map((option, index) => {
+        {currentQ.choices.map((option, index) => {
           let btnStyle = styles.optionBtn;
           let textStyle = styles.optionText;
           let icon = null;
@@ -254,15 +173,14 @@ export default function QuizScreen({ navigation, route }) {
               icon = <Ionicons name="close-circle" size={20} color="#FFF" />;
             }
           } else if (selectedOption !== null && option === currentQ.correct_answer && !isCorrect) {
-            // Show correct answer if they got it wrong
             btnStyle = [styles.optionBtn, styles.optionCorrect];
             textStyle = [styles.optionText, { color: '#FFF' }];
             icon = <Ionicons name="checkmark-circle" size={20} color="#FFF" />;
           }
 
           return (
-            <TouchableOpacity 
-              key={index} 
+            <TouchableOpacity
+              key={index}
               style={btnStyle}
               activeOpacity={0.7}
               onPress={() => handleSelectOption(option)}
@@ -274,7 +192,6 @@ export default function QuizScreen({ navigation, route }) {
         })}
       </View>
 
-      {/* Feedback Message */}
       {selectedOption !== null && (
         <View style={styles.feedbackContainer}>
           <Text style={[styles.feedbackText, { color: isCorrect ? '#10B981' : '#EF4444' }]}>
@@ -282,7 +199,6 @@ export default function QuizScreen({ navigation, route }) {
           </Text>
         </View>
       )}
-
     </SafeAreaView>
   );
 }
@@ -292,17 +208,39 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0F0920',
   },
-  loadingContainer: {
+  centeredContainer: {
     flex: 1,
     backgroundColor: '#0F0920',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 30,
+    gap: 16,
   },
   loadingText: {
-    marginTop: 20,
+    marginTop: 8,
     fontFamily: FONTS.semiBold,
     color: '#FFF',
-    fontSize: 16,
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontFamily: FONTS.semiBold,
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  backBtnSmall: {
+    marginTop: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 20,
+  },
+  backBtnSmallText: {
+    color: '#FFF',
+    fontFamily: FONTS.semiBold,
+    fontSize: 14,
   },
   header: {
     flexDirection: 'row',
@@ -342,7 +280,7 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#E91E8C',
+    backgroundColor: COLORS.accent,
     borderRadius: 4,
   },
   questionCard: {
@@ -351,7 +289,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C1434',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E91E8C',
+    borderColor: COLORS.accent,
     marginBottom: 30,
     ...SHADOW.accent,
   },
@@ -457,6 +395,20 @@ const styles = StyleSheet.create({
     color: '#FBBF24',
     marginHorizontal: 15,
   },
+  alreadyBadge: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginBottom: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  alreadyBadgeText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontFamily: FONTS.medium,
+    fontSize: 13,
+  },
   rewardMessage: {
     fontFamily: FONTS.medium,
     fontSize: 14,
@@ -470,12 +422,12 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   claimBtn: {
-    backgroundColor: '#E91E8C',
+    backgroundColor: COLORS.accent,
     height: 60,
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#E91E8C',
+    shadowColor: COLORS.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 12,
@@ -486,5 +438,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFF',
     letterSpacing: 2,
-  }
+  },
 });

@@ -7,6 +7,8 @@ class CulturalSpot(models.Model):
     historical_background = models.TextField()
     cultural_significance = models.TextField()
     fun_fact = models.TextField(blank=True)
+    hook = models.CharField(max_length=300, blank=True)
+    image = models.ImageField(upload_to='spot_images/', null=True, blank=True)
     location_name = models.CharField(max_length=200)
     latitude = models.FloatField()
     longitude = models.FloatField()

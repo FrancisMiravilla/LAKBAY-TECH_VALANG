@@ -40,57 +40,31 @@ import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { useNavigate } from 'react-router-dom';
 import { authService } from './api/authService';
-
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+import qrService from './api/qrService';
+import QRCodeLib from 'qrcode';
 
 const generateNotificationId = () => Date.now();
 
-// Mock QR Code Component
-const MockQR = ({ value }) => {
-  return (
-    <svg viewBox="0 0 100 100" width="100%" height="100%" style={{ shapeRendering: 'crispEdges' }}>
-      <rect width="100" height="100" fill="white" />
-      {/* 3 Main Corner Squares (QR Finders) */}
-      <rect x="5" y="5" width="22" height="22" fill="black" />
-      <rect x="8" y="8" width="16" height="16" fill="white" />
-      <rect x="11" y="11" width="10" height="10" fill="black" />
-      
-      <rect x="73" y="5" width="22" height="22" fill="black" />
-      <rect x="76" y="8" width="16" height="16" fill="white" />
-      <rect x="79" y="11" width="10" height="10" fill="black" />
-      
-      <rect x="5" y="73" width="22" height="22" fill="black" />
-      <rect x="8" y="76" width="16" height="16" fill="white" />
-      <rect x="11" y="79" width="10" height="10" fill="black" />
-      
-      {/* Small alignment block */}
-      <rect x="75" y="75" width="10" height="10" fill="black" />
-      <rect x="78" y="78" width="4" height="4" fill="white" />
-      
-      {/* Random data pattern */}
-      {Array.from({ length: 12 }).map((_, r) => {
-        return Array.from({ length: 12 }).map((_, c) => {
-          const x = 32 + c * 4.2;
-          const y = 32 + r * 4.2;
-          
-          // Seeded pseudo-randomness based on coordinate and value
-          const code = (r * 7 + c * 13 + (value ? value.charCodeAt(0) : 0)) % 7;
-          const isFilled = code === 1 || code === 3 || code === 5;
-          
-          if (isFilled && x < 95 && y < 95) {
-            return <rect key={`${r}-${c}`} x={x} y={y} width="4.2" height="4.2" fill="black" />;
-          }
-          return null;
-        });
-      })}
-      
-      {/* Edge timings and random bars */}
-      <rect x="32" y="10" width="15" height="4.2" fill="black" />
-      <rect x="42" y="20" width="8" height="4.2" fill="black" />
-      <rect x="10" y="32" width="4.2" height="15" fill="black" />
-      <rect x="20" y="42" width="4.2" height="8" fill="black" />
-    </svg>
+// Real QR Code Component — encodes the actual qr_code_string
+const QRCodeCanvas = ({ value }) => {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    if (!canvasRef.current || !value) return;
+    QRCodeLib.toCanvas(canvasRef.current, value, {
+      width: 200,
+      margin: 2,
+      color: { dark: '#000000', light: '#ffffff' },
+    });
+  }, [value]);
+
+  if (!value) return (
+    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A0AEC0', fontSize: '11px' }}>
+      No QR string
+    </div>
   );
+
+  return <canvas ref={canvasRef} style={{ width: '100%', height: '100%', borderRadius: '4px' }} />;
 };
 
 // ── Feature-type constants ─────────────────────────────────────────────────
@@ -196,6 +170,42 @@ const INITIAL_ACTIVITIES = [
   { id: 6, type: 'catch', text: 'Santiago Perez caught "Pink Sand Jellyfish" in AR', time: '2h ago' }
 ];
 
+const normalizeSpot = (s) => ({
+  id: s.id,
+  name: s.name,
+  location: s.location_name,
+  latitude: s.latitude,
+  longitude: s.longitude,
+  aboutPlace: s.description,
+  historical_background: s.historical_background,
+  cultural_significance: s.cultural_significance,
+  fun_fact: s.fun_fact,
+  trivia: s.fun_fact,
+  status: 'QR',
+  category: 'cultural',
+  rating: 5.0,
+  visits: 0,
+  experience: '',
+  bestTime: '',
+  forWho: '',
+  language: '',
+});
+
+const normalizeMarker = (m) => ({
+  id: m.id,
+  exhibitName: m.spot?.name || '',
+  spot_id: m.spot?.id,
+  scanCount: m.scan_count,
+  status: m.is_active ? 'Active' : 'Disabled',
+  qr_code_string: m.qr_code_string,
+  unlock_type: m.unlock_type,
+  bonus_creature: m.bonus_creature || '',
+  historicalBackground: m.spot?.historical_background || '',
+  culturalSignificance: m.spot?.cultural_significance || '',
+  funFact: m.spot?.fun_fact || '',
+  hook: '',
+});
+
 function App() {
   const [activeTab, setActiveTab] = useState('overview');
   const [theme, setTheme] = useState('dark');
@@ -210,14 +220,14 @@ function App() {
   }, [theme]);
   
   // Data States
-  const [spots, setSpots] = useState(INITIAL_SPOTS);
+  const [spots, setSpots] = useState([]);
   const [selectedPinId, setSelectedPinId] = useState(1);
-  const [qrcodes, setQrcodes] = useState(INITIAL_QRCODES);
+  const [qrcodes, setQrcodes] = useState([]);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
 
   // Map Pins State
   const [mapPins, setMapPins] = useState(INITIAL_MAP_PINS);
-  const [selectedMapPinId, setSelectedMapPinId] = useState(8); // default: Museum AR
+  const [selectedMapPinId, setSelectedMapPinId] = useState(null); // default: Museum AR
   const [isAddMapPinModalOpen, setIsAddMapPinModalOpen] = useState(false);
   const [newMapPin, setNewMapPin] = useState({
     name: '',
@@ -248,8 +258,9 @@ function App() {
   // Initialize Mapbox map — only rebuilds on tab/theme/pins change, NOT on pin selection
   useEffect(() => {
     if (activeTab !== 'map' || !mapContainerRef.current) return;
+    if (isTokenPlaceholder) return;
 
-    markerElemsRef.current = {}; // reset refs on rebuild
+    mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
     const map = new mapboxgl.Map({
       container: mapContainerRef.current,
@@ -480,6 +491,12 @@ function App() {
   }
 };
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    qrService.getSpots().then(({ data }) => setSpots(data.map(normalizeSpot))).catch(console.error);
+    qrService.getMarkers().then(({ data }) => setQrcodes(data.map(normalizeMarker))).catch(console.error);
+  }, [isAuthenticated]);
+
   // Search/Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -495,17 +512,13 @@ function App() {
   const [isAddSpotModalOpen, setIsAddSpotModalOpen] = useState(false);
   const [newSpot, setNewSpot] = useState({
     name: '',
-    location: '',
-    status: 'QR',
-    category: 'cultural',
-    rating: '5.0',
-    aboutPlace: '',
-    experience: '',
-    trivia: '',
-    bestTime: '',
-    forWho: '',
-    language: '',
-    visits: 0
+    location_name: '',
+    latitude: '',
+    longitude: '',
+    description: '',
+    historical_background: '',
+    cultural_significance: '',
+    fun_fact: '',
   });
 
   const [isEditSpotModalOpen, setIsEditSpotModalOpen] = useState(false);
@@ -513,12 +526,11 @@ function App() {
 
   const [isAddQrModalOpen, setIsAddQrModalOpen] = useState(false);
   const [newQr, setNewQr] = useState({
-    exhibitName: '',
-    hook: '',
-    historicalBackground: '',
-    culturalSignificance: '',
-    funFact: '',
-    status: 'Active'
+    spot_id: '',
+    qr_code_string: '',
+    unlock_type: 'cultural_story',
+    bonus_creature: '',
+    is_active: true,
   });
 
   const [isEditQrModalOpen, setIsEditQrModalOpen] = useState(false);
@@ -557,140 +569,128 @@ function App() {
   }, [users, userSearchQuery]);
 
   // Handlers
-  const handleAddSpot = (e) => {
+  const handleAddSpot = async (e) => {
     e.preventDefault();
-    if (!newSpot.name || !newSpot.location) return;
-
-    const spotToAdd = {
-      id: Date.now(),
-      name: newSpot.name,
-      location: newSpot.location,
-      status: newSpot.status,
-      category: newSpot.category || 'cultural',
-      rating: parseFloat(newSpot.rating) || 5.0,
-      aboutPlace: newSpot.aboutPlace || '',
-      experience: newSpot.experience || '',
-      trivia: newSpot.trivia || '',
-      bestTime: newSpot.bestTime || '',
-      forWho: newSpot.forWho || '',
-      language: newSpot.language || '',
-      visits: parseInt(newSpot.visits) || 0
-    };
-
-    setSpots([...spots, spotToAdd]);
-    
-    // Also auto-generate a QR Code Card for the new spot
-    const newQR = {
-      id: Date.now(),
-      exhibitName: spotToAdd.name,
-      scanCount: 0,
-      status: spotToAdd.status === 'QR' ? 'Active' : 'Disabled',
-      hook: '',
-      historicalBackground: '',
-      culturalSignificance: '',
-      funFact: ''
-    };
-    setQrcodes([...qrcodes, newQR]);
-
-    setIsAddSpotModalOpen(false);
-    // Reset Spot
-    setNewSpot({
-      name: '',
-      location: '',
-      status: 'QR',
-      category: 'cultural',
-      rating: '5.0',
-      aboutPlace: '',
-      experience: '',
-      trivia: '',
-      bestTime: '',
-      forWho: '',
-      language: '',
-      visits: 0
-    });
-
-    setNotifications([
-      { id: Date.now(), text: `Spot "${spotToAdd.name}" and QR Code initialized.`, time: 'Just now' },
-      ...notifications
-    ]);
-  };
-
-  const handleEditSpotSubmit = (e) => {
-    e.preventDefault();
-    if (!editingSpot.name || !editingSpot.location) return;
-
-    setSpots(spots.map(spot => {
-      if (spot.id === editingSpot.id) {
-        return editingSpot;
-      }
-      return spot;
-    }));
-
-    // Update exhibitName in QR Codes if changed
-    setQrcodes(qrcodes.map(q => {
-      const originalSpot = spots.find(s => s.id === editingSpot.id);
-      if (q.exhibitName === originalSpot?.name) {
-        return { ...q, exhibitName: editingSpot.name, status: editingSpot.status === 'QR' ? 'Active' : 'Disabled' };
-      }
-      return q;
-    }));
-
-    setIsEditSpotModalOpen(false);
-    setEditingSpot(null);
-  };
-
-  const handleAddQr = (e) => {
-    e.preventDefault();
-    if (!newQr.exhibitName) return;
-    const qrToAdd = {
-      id: Date.now(),
-      exhibitName: newQr.exhibitName,
-      scanCount: 0,
-      status: newQr.status,
-      hook: newQr.hook,
-      historicalBackground: newQr.historicalBackground,
-      culturalSignificance: newQr.culturalSignificance,
-      funFact: newQr.funFact
-    };
-    setQrcodes([...qrcodes, qrToAdd]);
-    setIsAddQrModalOpen(false);
-    setNewQr({ exhibitName: '', hook: '', historicalBackground: '', culturalSignificance: '', funFact: '', status: 'Active' });
-  };
-
-  const handleEditQrSubmit = (e) => {
-    e.preventDefault();
-    if (!editingQr.exhibitName) return;
-    setQrcodes(qrcodes.map(q => q.id === editingQr.id ? editingQr : q));
-    setIsEditQrModalOpen(false);
-    setEditingQr(null);
-  };
-
-  const handleDeleteSpot = (id) => {
-    const spotToDelete = spots.find(s => s.id === id);
-    if (confirm(`Are you sure you want to delete "${spotToDelete?.name}"?`)) {
-      setSpots(spots.filter(spot => spot.id !== id));
-      // Also delete its QR code card
-      setQrcodes(qrcodes.filter(q => q.exhibitName !== spotToDelete?.name));
-      
-      setNotifications([
-        { id: generateNotificationId(), text: `Spot "${spotToDelete?.name}" removed from registry.`, time: 'Just now' },
-        ...notifications
-      ]);
+    if (!newSpot.name || !newSpot.location_name) return;
+    try {
+      const { data } = await qrService.createSpot({
+        name: newSpot.name,
+        location_name: newSpot.location_name,
+        latitude: parseFloat(newSpot.latitude) || 0,
+        longitude: parseFloat(newSpot.longitude) || 0,
+        description: newSpot.description,
+        historical_background: newSpot.historical_background,
+        cultural_significance: newSpot.cultural_significance,
+        fun_fact: newSpot.fun_fact,
+      });
+      setSpots(prev => [...prev, normalizeSpot(data)]);
+      setIsAddSpotModalOpen(false);
+      setNewSpot({ name: '', location_name: '', latitude: '', longitude: '', description: '', historical_background: '', cultural_significance: '', fun_fact: '' });
+      setNotifications(prev => [{ id: Date.now(), text: `Spot "${data.name}" created.`, time: 'Just now' }, ...prev]);
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  const toggleQrStatus = (id) => {
-    setQrcodes(qrcodes.map(q => {
-      if (q.id === id) {
-        const nextStatus = q.status === 'Active' ? 'Disabled' : 'Active';
-        return { ...q, status: nextStatus };
-      }
-      return q;
-    }));
+  const handleEditSpotSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingSpot.name || !editingSpot.location) return;
+    try {
+      const { data } = await qrService.updateSpot(editingSpot.id, {
+        name: editingSpot.name,
+        location_name: editingSpot.location,
+        latitude: editingSpot.latitude || 0,
+        longitude: editingSpot.longitude || 0,
+        description: editingSpot.aboutPlace || '',
+        historical_background: editingSpot.historical_background || '',
+        cultural_significance: editingSpot.cultural_significance || '',
+        fun_fact: editingSpot.fun_fact || '',
+      });
+      setSpots(prev => prev.map(s => s.id === data.id ? normalizeSpot(data) : s));
+      setQrcodes(prev => prev.map(q => q.spot_id === data.id ? { ...q, exhibitName: data.name } : q));
+      setIsEditSpotModalOpen(false);
+      setEditingSpot(null);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const downloadQR = (spotName) => {
-    alert(`Mock Download Triggered: LAKBAY_${spotName.replace(/\s+/g, '_')}_QR.png has been generated and saved.`);
+  const handleAddQr = async (e) => {
+    e.preventDefault();
+    if (!newQr.spot_id || !newQr.qr_code_string) return;
+    try {
+      const { data } = await qrService.createMarker({
+        spot_id: parseInt(newQr.spot_id),
+        qr_code_string: newQr.qr_code_string,
+        unlock_type: newQr.unlock_type,
+        bonus_creature: newQr.bonus_creature,
+        is_active: newQr.is_active,
+      });
+      setQrcodes(prev => [...prev, normalizeMarker(data)]);
+      setIsAddQrModalOpen(false);
+      setNewQr({ spot_id: '', qr_code_string: '', unlock_type: 'cultural_story', bonus_creature: '', is_active: true });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleEditQrSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingQr.spot_id || !editingQr.qr_code_string) return;
+    try {
+      const { data } = await qrService.updateMarker(editingQr.id, {
+        spot_id: editingQr.spot_id,
+        qr_code_string: editingQr.qr_code_string,
+        unlock_type: editingQr.unlock_type,
+        bonus_creature: editingQr.bonus_creature,
+        is_active: editingQr.status === 'Active',
+      });
+      setQrcodes(prev => prev.map(q => q.id === data.id ? normalizeMarker(data) : q));
+      setIsEditQrModalOpen(false);
+      setEditingQr(null);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteSpot = async (id) => {
+    const spotToDelete = spots.find(s => s.id === id);
+    if (!confirm(`Are you sure you want to delete "${spotToDelete?.name}"?`)) return;
+    try {
+      await qrService.deleteSpot(id);
+      setSpots(prev => prev.filter(s => s.id !== id));
+      setQrcodes(prev => prev.filter(q => q.spot_id !== id));
+      setNotifications(prev => [
+        { id: generateNotificationId(), text: `Spot "${spotToDelete?.name}" removed.`, time: 'Just now' },
+        ...prev,
+      ]);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const toggleQrStatus = async (id) => {
+    const marker = qrcodes.find(q => q.id === id);
+    const nextActive = marker.status !== 'Active';
+    try {
+      await qrService.toggleMarker(id, nextActive);
+      setQrcodes(prev => prev.map(q => q.id === id ? { ...q, status: nextActive ? 'Active' : 'Disabled' } : q));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const downloadQR = async (qrCodeString, spotName) => {
+    if (!qrCodeString) return;
+    try {
+      const dataUrl = await QRCodeLib.toDataURL(qrCodeString, { width: 512, margin: 3 });
+      const link = document.createElement('a');
+      link.download = `LAKBAY_${spotName.replace(/\s+/g, '_')}_QR.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const toggleUserStatus = (id) => {
@@ -1250,7 +1250,7 @@ function App() {
                       </div>
 
                       <div className="qr-image-container">
-                        <MockQR value={qr.exhibitName} />
+                        <QRCodeCanvas value={qr.qr_code_string} />
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%', alignItems: 'center' }}>
@@ -1278,7 +1278,7 @@ function App() {
                         <button 
                           className="btn btn-secondary"
                           style={{flex: 1, padding: '8px 12px', fontSize: '11px'}}
-                          onClick={() => downloadQR(qr.exhibitName)}
+                          onClick={() => downloadQR(qr.qr_code_string, qr.exhibitName)}
                         >
                           <Download size={12} style={{marginRight: '4px'}} />
                           Download
@@ -1948,157 +1948,57 @@ function App() {
               <div className="modal-body">
                 <div className="form-group">
                   <label className="form-label">Spot Name</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="e.g. Paseo del Mar"
-                    value={newSpot.name}
-                    onChange={(e) => setNewSpot({...newSpot, name: e.target.value})}
-                    required 
-                  />
+                  <input type="text" className="form-input" placeholder="e.g. Paseo del Mar"
+                    value={newSpot.name} onChange={(e) => setNewSpot({...newSpot, name: e.target.value})} required />
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Location</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="e.g. Valderosa St, Zamboanga City"
-                    value={newSpot.location}
-                    onChange={(e) => setNewSpot({...newSpot, location: e.target.value})}
-                    required 
-                  />
+                  <input type="text" className="form-input" placeholder="e.g. Valderosa St, Zamboanga City"
+                    value={newSpot.location_name} onChange={(e) => setNewSpot({...newSpot, location_name: e.target.value})} required />
                 </div>
 
                 <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px'}}>
                   <div className="form-group">
-                    <label className="form-label">Category</label>
-                    <select 
-                      className="form-select"
-                      value={newSpot.category}
-                      onChange={(e) => setNewSpot({...newSpot, category: e.target.value})}
-                    >
-                      <option value="cultural">Cultural</option>
-                      <option value="historical">Historical</option>
-                      <option value="nature">Nature</option>
-                      <option value="beach">Beach</option>
-                    </select>
+                    <label className="form-label">Latitude</label>
+                    <input type="number" step="any" className="form-input" placeholder="e.g. 6.9015"
+                      value={newSpot.latitude} onChange={(e) => setNewSpot({...newSpot, latitude: e.target.value})} required />
                   </div>
-
                   <div className="form-group">
-                    <label className="form-label">Rating (1.0 - 5.0)</label>
-                    <input 
-                      type="number" 
-                      step="0.1"
-                      min="1.0"
-                      max="5.0"
-                      className="form-input"
-                      value={newSpot.rating}
-                      onChange={(e) => setNewSpot({...newSpot, rating: e.target.value})}
-                    />
+                    <label className="form-label">Longitude</label>
+                    <input type="number" step="any" className="form-input" placeholder="e.g. 122.0818"
+                      value={newSpot.longitude} onChange={(e) => setNewSpot({...newSpot, longitude: e.target.value})} required />
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">About this place</label>
-                  <textarea 
-                    className="form-textarea" 
-                    placeholder="Describe the feature place and its significance..."
-                    value={newSpot.aboutPlace}
-                    onChange={(e) => setNewSpot({...newSpot, aboutPlace: e.target.value})}
-                    required
-                  />
+                  <label className="form-label">Description</label>
+                  <textarea className="form-textarea" placeholder="Describe the feature place and its significance..."
+                    value={newSpot.description} onChange={(e) => setNewSpot({...newSpot, description: e.target.value})} required />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">What to experience</label>
-                  <textarea 
-                    className="form-textarea" 
-                    placeholder="e.g. Snorkeling, nature hike, cultural immersion..."
-                    value={newSpot.experience}
-                    onChange={(e) => setNewSpot({...newSpot, experience: e.target.value})}
-                  />
+                  <label className="form-label">Historical Background</label>
+                  <textarea className="form-textarea" placeholder="Historical facts and background..."
+                    value={newSpot.historical_background} onChange={(e) => setNewSpot({...newSpot, historical_background: e.target.value})} />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Did you know (Trivia)</label>
-                  <textarea 
-                    className="form-textarea" 
-                    placeholder="e.g. Did you know the pink sand comes from pulverized red organ-pipe coral?"
-                    value={newSpot.trivia}
-                    onChange={(e) => setNewSpot({...newSpot, trivia: e.target.value})}
-                  />
+                  <label className="form-label">Cultural Significance</label>
+                  <textarea className="form-textarea" placeholder="Why it matters culturally..."
+                    value={newSpot.cultural_significance} onChange={(e) => setNewSpot({...newSpot, cultural_significance: e.target.value})} />
                 </div>
 
-                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px'}}>
-                  <div className="form-group">
-                    <label className="form-label">Best time to visit</label>
-                    <input 
-                      type="text"
-                      className="form-input" 
-                      placeholder="e.g. March to May"
-                      value={newSpot.bestTime}
-                      onChange={(e) => setNewSpot({...newSpot, bestTime: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">For</label>
-                    <input 
-                      type="text"
-                      className="form-input" 
-                      placeholder="e.g. Families, Solo, Groups"
-                      value={newSpot.forWho}
-                      onChange={(e) => setNewSpot({...newSpot, forWho: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Language</label>
-                    <input 
-                      type="text"
-                      className="form-input" 
-                      placeholder="e.g. Chavacano, English"
-                      value={newSpot.language}
-                      onChange={(e) => setNewSpot({...newSpot, language: e.target.value})}
-                    />
-                  </div>
-                </div>
-
-                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px'}}>
-                  <div className="form-group">
-                    <label className="form-label">Status</label>
-                    <select 
-                      className="form-select"
-                      value={newSpot.status}
-                      onChange={(e) => setNewSpot({...newSpot, status: e.target.value})}
-                    >
-                      <option value="QR">QR</option>
-                      <option value="AR">AR</option>
-                      <option value="Catch">Catch</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Est. App Visits</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
-                      placeholder="e.g. 5000"
-                      value={newSpot.visits}
-                      onChange={(e) => setNewSpot({...newSpot, visits: e.target.value})}
-                    />
-                  </div>
+                <div className="form-group">
+                  <label className="form-label">Fun Fact</label>
+                  <textarea className="form-textarea" placeholder="Did you know..."
+                    value={newSpot.fun_fact} onChange={(e) => setNewSpot({...newSpot, fun_fact: e.target.value})} />
                 </div>
               </div>
 
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setIsAddSpotModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Save Spot
-                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsAddSpotModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Spot</button>
               </div>
             </form>
           </div>
@@ -2194,161 +2094,60 @@ function App() {
               <div className="modal-body">
                 <div className="form-group">
                   <label className="form-label">Spot Name</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    value={editingSpot.name}
-                    onChange={(e) => setEditingSpot({...editingSpot, name: e.target.value})}
-                    required 
-                  />
+                  <input type="text" className="form-input" value={editingSpot.name}
+                    onChange={(e) => setEditingSpot({...editingSpot, name: e.target.value})} required />
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Location</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    value={editingSpot.location}
-                    onChange={(e) => setEditingSpot({...editingSpot, location: e.target.value})}
-                    required 
-                  />
+                  <input type="text" className="form-input" value={editingSpot.location || ''}
+                    onChange={(e) => setEditingSpot({...editingSpot, location: e.target.value})} required />
                 </div>
 
                 <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px'}}>
                   <div className="form-group">
-                    <label className="form-label">Category</label>
-                    <select 
-                      className="form-select"
-                      value={editingSpot.category || 'cultural'}
-                      onChange={(e) => setEditingSpot({...editingSpot, category: e.target.value})}
-                    >
-                      <option value="cultural">Cultural</option>
-                      <option value="historical">Historical</option>
-                      <option value="nature">Nature</option>
-                      <option value="beach">Beach</option>
-                    </select>
+                    <label className="form-label">Latitude</label>
+                    <input type="number" step="any" className="form-input" value={editingSpot.latitude || ''}
+                      onChange={(e) => setEditingSpot({...editingSpot, latitude: e.target.value})} />
                   </div>
-
                   <div className="form-group">
-                    <label className="form-label">Rating (1.0 - 5.0)</label>
-                    <input 
-                      type="number" 
-                      step="0.1"
-                      min="1.0"
-                      max="5.0"
-                      className="form-input"
-                      value={editingSpot.rating || 5.0}
-                      onChange={(e) => setEditingSpot({...editingSpot, rating: parseFloat(e.target.value) || 5.0})}
-                    />
+                    <label className="form-label">Longitude</label>
+                    <input type="number" step="any" className="form-input" value={editingSpot.longitude || ''}
+                      onChange={(e) => setEditingSpot({...editingSpot, longitude: e.target.value})} />
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">About this place</label>
-                  <textarea 
-                    className="form-textarea" 
-                    placeholder="Describe the feature place and its significance..."
-                    value={editingSpot.aboutPlace || ''}
-                    onChange={(e) => setEditingSpot({...editingSpot, aboutPlace: e.target.value})}
-                    required
-                  />
+                  <label className="form-label">Description</label>
+                  <textarea className="form-textarea" value={editingSpot.aboutPlace || ''}
+                    onChange={(e) => setEditingSpot({...editingSpot, aboutPlace: e.target.value})} required />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">What to experience</label>
-                  <textarea 
-                    className="form-textarea" 
-                    placeholder="e.g. Snorkeling, nature hike, cultural immersion..."
-                    value={editingSpot.experience || ''}
-                    onChange={(e) => setEditingSpot({...editingSpot, experience: e.target.value})}
-                  />
+                  <label className="form-label">Historical Background</label>
+                  <textarea className="form-textarea" value={editingSpot.historical_background || ''}
+                    onChange={(e) => setEditingSpot({...editingSpot, historical_background: e.target.value})} />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Did you know (Trivia)</label>
-                  <textarea 
-                    className="form-textarea" 
-                    placeholder="e.g. Did you know the pink sand comes from pulverized red organ-pipe coral?"
-                    value={editingSpot.trivia || ''}
-                    onChange={(e) => setEditingSpot({...editingSpot, trivia: e.target.value})}
-                  />
+                  <label className="form-label">Cultural Significance</label>
+                  <textarea className="form-textarea" value={editingSpot.cultural_significance || ''}
+                    onChange={(e) => setEditingSpot({...editingSpot, cultural_significance: e.target.value})} />
                 </div>
 
-                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px'}}>
-                  <div className="form-group">
-                    <label className="form-label">Best time to visit</label>
-                    <input 
-                      type="text"
-                      className="form-input" 
-                      placeholder="e.g. March to May"
-                      value={editingSpot.bestTime || ''}
-                      onChange={(e) => setEditingSpot({...editingSpot, bestTime: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">For</label>
-                    <input 
-                      type="text"
-                      className="form-input" 
-                      placeholder="e.g. Families, Solo, Groups"
-                      value={editingSpot.forWho || ''}
-                      onChange={(e) => setEditingSpot({...editingSpot, forWho: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Language</label>
-                    <input 
-                      type="text"
-                      className="form-input" 
-                      placeholder="e.g. Chavacano, English"
-                      value={editingSpot.language || ''}
-                      onChange={(e) => setEditingSpot({...editingSpot, language: e.target.value})}
-                    />
-                  </div>
-                </div>
-
-                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px'}}>
-                  <div className="form-group">
-                    <label className="form-label">Status</label>
-                    <select 
-                      className="form-select"
-                      value={editingSpot.status || 'QR'}
-                      onChange={(e) => setEditingSpot({...editingSpot, status: e.target.value})}
-                    >
-                      <option value="QR">QR</option>
-                      <option value="AR">AR</option>
-                      <option value="Catch">Catch</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Est. App Visits</label>
-                    <input 
-                      type="number" 
-                      className="form-input" 
-                      value={editingSpot.visits || 0}
-                      onChange={(e) => setEditingSpot({...editingSpot, visits: parseInt(e.target.value) || 0})}
-                    />
-                  </div>
+                <div className="form-group">
+                  <label className="form-label">Fun Fact</label>
+                  <textarea className="form-textarea" value={editingSpot.fun_fact || ''}
+                    onChange={(e) => setEditingSpot({...editingSpot, fun_fact: e.target.value})} />
                 </div>
               </div>
 
               <div className="modal-footer">
-                <button 
-                  type="button" 
-                  className="btn btn-secondary" 
-                  onClick={() => {
-                    setIsEditSpotModalOpen(false);
-                    setEditingSpot(null);
-                  }}
-                >
+                <button type="button" className="btn btn-secondary"
+                  onClick={() => { setIsEditSpotModalOpen(false); setEditingSpot(null); }}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Save Changes
-                </button>
+                <button type="submit" className="btn btn-primary">Save Changes</button>
               </div>
             </form>
           </div>
@@ -2360,91 +2159,58 @@ function App() {
         <div className="modal-overlay">
           <div className="modal-card">
             <div className="modal-header">
-              <h3 className="modal-title"><Plus size={18} style={{marginRight: '8px'}} /> Add New QR Code</h3>
+              <h3 className="modal-title"><Plus size={18} style={{marginRight: '8px'}} /> Add New QR Marker</h3>
               <button className="icon-action-btn" onClick={() => setIsAddQrModalOpen(false)}>
                 <X size={20} />
               </button>
             </div>
-            
+
             <form onSubmit={handleAddQr}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label className="form-label">Exhibit Name/Title</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="e.g. Fort Pilar"
-                    value={newQr.exhibitName}
-                    onChange={(e) => setNewQr({...newQr, exhibitName: e.target.value})}
-                    required
-                  />
+                  <label className="form-label">Cultural Spot</label>
+                  <select className="form-select" value={newQr.spot_id}
+                    onChange={(e) => setNewQr({...newQr, spot_id: e.target.value})} required>
+                    <option value="">— Select a spot —</option>
+                    {spots.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">One Liner Hook</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="e.g. Defenders of the city!"
-                    value={newQr.hook}
-                    onChange={(e) => setNewQr({...newQr, hook: e.target.value})}
-                  />
+                  <label className="form-label">QR Code String</label>
+                  <input type="text" className="form-input" placeholder="e.g. LAKBAY-FORTPILAR-001"
+                    value={newQr.qr_code_string} onChange={(e) => setNewQr({...newQr, qr_code_string: e.target.value})} required />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Historical Background</label>
-                  <textarea 
-                    className="form-textarea" 
-                    placeholder="Historical facts..."
-                    value={newQr.historicalBackground}
-                    onChange={(e) => setNewQr({...newQr, historicalBackground: e.target.value})}
-                  />
+                  <label className="form-label">Unlock Type</label>
+                  <select className="form-select" value={newQr.unlock_type}
+                    onChange={(e) => setNewQr({...newQr, unlock_type: e.target.value})}>
+                    <option value="cultural_story">Cultural Story</option>
+                    <option value="ar_creature">AR Creature</option>
+                    <option value="hidden_game">Hidden Game Content</option>
+                  </select>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Cultural Significance</label>
-                  <textarea 
-                    className="form-textarea" 
-                    placeholder="Why it matters culturally..."
-                    value={newQr.culturalSignificance}
-                    onChange={(e) => setNewQr({...newQr, culturalSignificance: e.target.value})}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Fun Fact</label>
-                  <textarea 
-                    className="form-textarea" 
-                    placeholder="Did you know..."
-                    value={newQr.funFact}
-                    onChange={(e) => setNewQr({...newQr, funFact: e.target.value})}
-                  />
+                  <label className="form-label">Bonus Creature (optional)</label>
+                  <input type="text" className="form-input" placeholder="e.g. Curacha Spirit"
+                    value={newQr.bonus_creature} onChange={(e) => setNewQr({...newQr, bonus_creature: e.target.value})} />
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Status</label>
-                  <select 
-                    className="form-select"
-                    value={newQr.status}
-                    onChange={(e) => setNewQr({...newQr, status: e.target.value})}
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Disabled">Disabled</option>
+                  <select className="form-select" value={newQr.is_active ? 'true' : 'false'}
+                    onChange={(e) => setNewQr({...newQr, is_active: e.target.value === 'true'})}>
+                    <option value="true">Active</option>
+                    <option value="false">Disabled</option>
                   </select>
                 </div>
               </div>
 
               <div className="modal-footer">
-                <button 
-                  type="button" 
-                  className="btn btn-secondary" 
-                  onClick={() => setIsAddQrModalOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Save QR
-                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsAddQrModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Save QR</button>
               </div>
             </form>
           </div>
@@ -2456,92 +2222,59 @@ function App() {
         <div className="modal-overlay">
           <div className="modal-card">
             <div className="modal-header">
-              <h3 className="modal-title"><Edit size={18} style={{marginRight: '8px'}} /> Edit QR Code</h3>
-              <button className="icon-action-btn" onClick={() => {
-                setIsEditQrModalOpen(false);
-                setEditingQr(null);
-              }}>
+              <h3 className="modal-title"><Edit size={18} style={{marginRight: '8px'}} /> Edit QR Marker</h3>
+              <button className="icon-action-btn" onClick={() => { setIsEditQrModalOpen(false); setEditingQr(null); }}>
                 <X size={20} />
               </button>
             </div>
-            
+
             <form onSubmit={handleEditQrSubmit}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label className="form-label">Exhibit Name/Title</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    value={editingQr.exhibitName}
-                    onChange={(e) => setEditingQr({...editingQr, exhibitName: e.target.value})}
-                    required
-                  />
+                  <label className="form-label">Cultural Spot</label>
+                  <select className="form-select" value={editingQr.spot_id || ''}
+                    onChange={(e) => setEditingQr({...editingQr, spot_id: parseInt(e.target.value)})} required>
+                    <option value="">— Select a spot —</option>
+                    {spots.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">One Liner Hook</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    value={editingQr.hook || ''}
-                    onChange={(e) => setEditingQr({...editingQr, hook: e.target.value})}
-                  />
+                  <label className="form-label">QR Code String</label>
+                  <input type="text" className="form-input" value={editingQr.qr_code_string || ''}
+                    onChange={(e) => setEditingQr({...editingQr, qr_code_string: e.target.value})} required />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Historical Background</label>
-                  <textarea 
-                    className="form-textarea" 
-                    value={editingQr.historicalBackground || ''}
-                    onChange={(e) => setEditingQr({...editingQr, historicalBackground: e.target.value})}
-                  />
+                  <label className="form-label">Unlock Type</label>
+                  <select className="form-select" value={editingQr.unlock_type || 'cultural_story'}
+                    onChange={(e) => setEditingQr({...editingQr, unlock_type: e.target.value})}>
+                    <option value="cultural_story">Cultural Story</option>
+                    <option value="ar_creature">AR Creature</option>
+                    <option value="hidden_game">Hidden Game Content</option>
+                  </select>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Cultural Significance</label>
-                  <textarea 
-                    className="form-textarea" 
-                    value={editingQr.culturalSignificance || ''}
-                    onChange={(e) => setEditingQr({...editingQr, culturalSignificance: e.target.value})}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Fun Fact</label>
-                  <textarea 
-                    className="form-textarea" 
-                    value={editingQr.funFact || ''}
-                    onChange={(e) => setEditingQr({...editingQr, funFact: e.target.value})}
-                  />
+                  <label className="form-label">Bonus Creature (optional)</label>
+                  <input type="text" className="form-input" value={editingQr.bonus_creature || ''}
+                    onChange={(e) => setEditingQr({...editingQr, bonus_creature: e.target.value})} />
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Status</label>
-                  <select 
-                    className="form-select"
-                    value={editingQr.status}
-                    onChange={(e) => setEditingQr({...editingQr, status: e.target.value})}
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Disabled">Disabled</option>
+                  <select className="form-select" value={editingQr.status === 'Active' ? 'true' : 'false'}
+                    onChange={(e) => setEditingQr({...editingQr, status: e.target.value === 'true' ? 'Active' : 'Disabled'})}>
+                    <option value="true">Active</option>
+                    <option value="false">Disabled</option>
                   </select>
                 </div>
               </div>
 
               <div className="modal-footer">
-                <button 
-                  type="button" 
-                  className="btn btn-secondary" 
-                  onClick={() => {
-                    setIsEditQrModalOpen(false);
-                    setEditingQr(null);
-                  }}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Save Changes
-                </button>
+                <button type="button" className="btn btn-secondary"
+                  onClick={() => { setIsEditQrModalOpen(false); setEditingQr(null); }}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Changes</button>
               </div>
             </form>
           </div>

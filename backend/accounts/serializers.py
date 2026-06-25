@@ -13,8 +13,27 @@ class CustomUserCreateSerializer(DjoserUserCreateSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'email', 'full_name', 'in_game_name', 'chosen_character', 'profile_photo', 'auth_provider', 'date_joined', 'is_active', 'is_staff',)
-        read_only_fields = ('id', 'email', 'auth_provider', 'date_joined', 'is_active', 'is_staff',)
+        fields = ('id', 'email', 'full_name', 'in_game_name', 'chosen_character', 'profile_photo', 'auth_provider', 'date_joined', 'is_active', 'is_staff', 'xp',)
+        read_only_fields = ('id', 'email', 'auth_provider', 'date_joined', 'is_active', 'is_staff', 'xp',)
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    name = serializers.SerializerMethodField()
+    spots_visited = serializers.IntegerField(read_only=True)
+    badges_earned = serializers.IntegerField(read_only=True)
+    status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ('id', 'name', 'email', 'in_game_name', 'chosen_character',
+                  'auth_provider', 'date_joined', 'is_active', 'is_staff',
+                  'spots_visited', 'badges_earned', 'status')
+
+    def get_name(self, obj):
+        return obj.full_name or obj.email
+
+    def get_status(self, obj):
+        return 'Active' if obj.is_active else 'Suspended'
 
 
 class CharacterSetupSerializer(DjoserUserSerializer):

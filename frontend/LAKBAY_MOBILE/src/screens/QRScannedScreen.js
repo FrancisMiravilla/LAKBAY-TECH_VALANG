@@ -16,27 +16,15 @@ import { COLORS, FONTS, RADIUS, SPACING } from '../constants/theme';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-// ── Simulated spot data (replace with real API / navigation params) ──────────
-const SPOT = {
-  name: 'Fort Pilar Shrine',
-  hook: 'Defenders of the city!',
-  image: null, // pass an image URI via route.params or use a local require()
-  historical: {
-    label: 'HISTORICAL BACKGROUND',
-    body: 'Built on June 23, 1635 by Spanish Jesuit missionary engineer Melchor de Vera, Fort Pilar served as a military defense fortress protecting Zamboanga from pirate, Dutch, and Moro attacks. It was declared a National Cultural Treasure in 1973 and is now managed by the National Museum of the Philippines.',
-  },
-  cultural: {
-    label: 'CULTURAL SIGNIFICANCE',
-    body: 'Fort Pilar is a symbol of the resilience and faith of the Zamboangueños. It houses the shrine of Our Lady of the Pillar, the city\'s patroness, and is respected by both Christians and Muslims — making it a powerful symbol of Zamboanga\'s multicultural identity.',
-  },
-  funFact: {
-    label: 'FUN FACT',
-    body: 'It was originally called Real Fuerza de San José.'
-  }
-};
-
 export default function QRScannedScreen({ navigation, route }) {
-  const spot = route?.params?.spot ?? SPOT;
+  const spot = route?.params?.spot;
+  const already_scanned = route?.params?.already_scanned ?? false;
+
+  // Safety: if navigated without data, go back
+  if (!spot) {
+    navigation.goBack();
+    return null;
+  }
 
   // Card entrance animations
   const headerSlide = useRef(new Animated.Value(-30)).current;
@@ -127,6 +115,13 @@ export default function QRScannedScreen({ navigation, route }) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        {/* ── Already scanned banner ── */}
+        {already_scanned && (
+          <View style={styles.alreadyScannedBanner}>
+            <Text style={styles.alreadyScannedText}>✓ You've already scanned this spot</Text>
+          </View>
+        )}
+
         {/* ── Location chip & Hook ── */}
         <View style={styles.locationChipRow}>
           <View style={styles.locationChip}>
@@ -207,7 +202,7 @@ export default function QRScannedScreen({ navigation, route }) {
           <TouchableOpacity
             style={styles.continueBtn}
             activeOpacity={0.85}
-            onPress={() => navigation.navigate('QuizScreen', { topic: 'QR' })}
+            onPress={() => navigation.navigate('QuizScreen', { spotId: spot.id, spotName: spot.name })}
           >
             <Text style={styles.continueBtnText}>Continue</Text>
           </TouchableOpacity>
@@ -264,6 +259,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 36,
+  },
+
+  // ── Already scanned banner ──
+  alreadyScannedBanner: {
+    backgroundColor: 'rgba(16,185,129,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.35)',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  alreadyScannedText: {
+    color: '#10B981',
+    fontSize: 12,
+    fontFamily: FONTS.semiBold,
+    fontWeight: '600',
   },
 
   // ── Location chip ──
