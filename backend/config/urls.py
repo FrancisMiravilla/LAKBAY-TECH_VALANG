@@ -7,6 +7,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('accounts.urls')),
     path('api/quiz/', include('quiz.urls')),
+    path('api/qr/', include('qr_scan.urls')),
 ]
 
 if settings.DEBUG:

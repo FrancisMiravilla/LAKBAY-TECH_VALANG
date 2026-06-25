@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     # Custom apps
     'accounts',
     'quiz',
+    'qr_scan',
 ]
 
 REST_AUTH = {
