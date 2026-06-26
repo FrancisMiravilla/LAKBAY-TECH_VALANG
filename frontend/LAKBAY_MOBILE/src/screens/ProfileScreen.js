@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator, Alert } from 'react-native';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
@@ -42,14 +42,28 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-const handleLogout = async () => {
-  await SecureStore.deleteItemAsync('accessToken');
-  await SecureStore.deleteItemAsync('refreshToken');
-  await SecureStore.deleteItemAsync('offline_fullName');
-  await SecureStore.deleteItemAsync('offline_email');
-  await SecureStore.deleteItemAsync('offline_explorerName');
-  await SecureStore.deleteItemAsync('offline_character');
-  navigation.replace('Login');
+const handleLogout = () => {
+  Alert.alert(
+    'Sign Out',
+    'Are you sure you want to sign out?',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          await SecureStore.deleteItemAsync('accessToken');
+          await SecureStore.deleteItemAsync('refreshToken');
+          await SecureStore.deleteItemAsync('offline_fullName');
+          await SecureStore.deleteItemAsync('offline_email');
+          await SecureStore.deleteItemAsync('offline_explorerName');
+          await SecureStore.deleteItemAsync('offline_character');
+          navigation.replace('Login');
+        },
+      },
+    ],
+    { cancelable: true }
+  );
 };
 
   const getEmoji = (characterName) => {
