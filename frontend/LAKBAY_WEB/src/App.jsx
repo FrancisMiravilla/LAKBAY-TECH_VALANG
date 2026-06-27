@@ -19,7 +19,6 @@ import {
   ArrowUpRight,
   Map,
   X,
-  Globe,
   Download,
   Power,
   CheckCircle,
@@ -35,11 +34,10 @@ import {
   Compass,
   Shield
 } from 'lucide-react'
-import './App.css'
-import mapboxgl from 'mapbox-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
 
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+import './App.css'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
 const generateNotificationId = () => Date.now();
 
@@ -218,6 +216,8 @@ function App() {
   const [mapPins, setMapPins] = useState(INITIAL_MAP_PINS);
   const [selectedMapPinId, setSelectedMapPinId] = useState(8); // default: Museum AR
   const [isAddMapPinModalOpen, setIsAddMapPinModalOpen] = useState(false);
+  const [modalSearchQuery, setModalSearchQuery] = useState('');
+  const [modalSearching, setModalSearching] = useState(false);
   const [newMapPin, setNewMapPin] = useState({
     name: '',
     description: '',
@@ -233,34 +233,40 @@ function App() {
     return spots.find(s => s.id === selectedPinId);
   }, [spots, selectedPinId]);
 
-  // Mapbox Refs & Configs
+  // Map Refs
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markerElemsRef = useRef({}); // { pinId: { el, iconEl, badgeEl, cfg } }
 
-  // Check if Mapbox token is still a placeholder
-  const isTokenPlaceholder = useMemo(() => {
-    const token = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
-    return !token || token.includes('placeholder_token_replace_me') || token === '';
-  }, []);
+  // Modal mini-map refs
+  const modalMapContainerRef = useRef(null);
+  const modalMapRef = useRef(null);
+  const modalMarkerRef = useRef(null);
+  const modalCircleRef = useRef(null);
 
-  // Initialize Mapbox map — only rebuilds on tab/theme/pins change, NOT on pin selection
+  // Initialize Leaflet map — only rebuilds on tab/theme/pins change, NOT on pin selection
   useEffect(() => {
     if (activeTab !== 'map' || !mapContainerRef.current) return;
 
     markerElemsRef.current = {}; // reset refs on rebuild
 
-    const map = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: theme === 'dark' ? 'mapbox://styles/mapbox/navigation-night-v1' : 'mapbox://styles/mapbox/navigation-day-v1',
-      center: [122.0790, 6.9214],
-      zoom: 11.5,
-      pitch: 30,
+    const tileUrl = theme === 'dark'
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+    const map = L.map(mapContainerRef.current, {
+      center: [6.9214, 122.0790],
+      zoom: 12,
+      zoomControl: true,
     });
 
+    L.tileLayer(tileUrl, {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19,
+    }).addTo(map);
+
     mapRef.current = map;
-    map.addControl(new mapboxgl.NavigationControl(), 'top-right');
-    map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
 
     mapPins.forEach(pin => {
       const primaryType = pin.featureTypes[0];
@@ -319,9 +325,16 @@ function App() {
           <p style="font-size:10px;color:#999;margin:0">📍 ${pin.coordinates[1].toFixed(4)}° N, ${pin.coordinates[0].toFixed(4)}° E</p>
         </div>`;
 
-      new mapboxgl.Marker(el)
-        .setLngLat(pin.coordinates)
-        .setPopup(new mapboxgl.Popup({ offset: 28, maxWidth: '240px' }).setHTML(popupHtml))
+      const divIcon = L.divIcon({
+        html: el,
+        className: '',
+        iconSize: [22, 30],
+        iconAnchor: [11, 11],
+        popupAnchor: [0, -14],
+      });
+
+      L.marker([pin.coordinates[1], pin.coordinates[0]], { icon: divIcon })
+        .bindPopup(popupHtml, { maxWidth: 240 })
         .addTo(map);
     });
 
@@ -349,12 +362,7 @@ function App() {
     if (!mapRef.current) return;
     const pin = mapPins.find(p => p.id === selectedMapPinId);
     if (pin?.coordinates) {
-      mapRef.current.flyTo({
-        center: pin.coordinates,
-        zoom: 14,
-        essential: true,
-        pitch: 45,
-      });
+      mapRef.current.flyTo([pin.coordinates[1], pin.coordinates[0]], 14);
     }
   }, [selectedMapPinId, mapPins]);
 
@@ -396,14 +404,111 @@ function App() {
     });
   };
 
-  // Handle Mapbox resize when fullscreen changes
+  // Handle map resize when fullscreen changes
   useEffect(() => {
     if (mapRef.current) {
       setTimeout(() => {
-        mapRef.current.resize();
+        mapRef.current.invalidateSize();
       }, 150);
     }
   }, [isMapFullscreen]);
+
+  // Initialize modal mini-map when Add Spot modal opens
+  useEffect(() => {
+    if (!isAddMapPinModalOpen) return;
+    const timer = setTimeout(() => {
+      if (!modalMapContainerRef.current) return;
+
+      const tileUrl = theme === 'dark'
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+      const map = L.map(modalMapContainerRef.current, {
+        center: [6.9214, 122.0790],
+        zoom: 12,
+        zoomControl: true,
+      });
+
+      L.tileLayer(tileUrl, {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19,
+      }).addTo(map);
+
+      map.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        setNewMapPin(prev => ({ ...prev, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
+      });
+
+      modalMapRef.current = map;
+    }, 80);
+
+    return () => {
+      clearTimeout(timer);
+      if (modalMapRef.current) {
+        modalMapRef.current.remove();
+        modalMapRef.current = null;
+        modalMarkerRef.current = null;
+        modalCircleRef.current = null;
+      }
+      setModalSearchQuery('');
+      setModalSearching(false);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAddMapPinModalOpen, theme]);
+
+  const handleModalSearch = async () => {
+    if (!modalSearchQuery.trim() || !modalMapRef.current) return;
+    setModalSearching(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(modalSearchQuery)}&format=json&limit=1`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const data = await res.json();
+      if (data.length > 0) {
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+        setNewMapPin(prev => ({ ...prev, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
+        modalMapRef.current.flyTo([lat, lng], 15);
+      }
+    } catch (_) {
+      // silently ignore network errors
+    } finally {
+      setModalSearching(false);
+    }
+  };
+
+  // Sync marker + circle on modal map when lat/lng changes
+  useEffect(() => {
+    const map = modalMapRef.current;
+    if (!map) return;
+    const lat = parseFloat(newMapPin.lat);
+    const lng = parseFloat(newMapPin.lng);
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    if (modalMarkerRef.current) map.removeLayer(modalMarkerRef.current);
+    if (modalCircleRef.current) map.removeLayer(modalCircleRef.current);
+
+    const pinIcon = L.divIcon({
+      html: `<div style="width:14px;height:14px;border-radius:50%;background:#E91E8C;border:2.5px solid #fff;box-shadow:0 0 0 3px rgba(233,30,140,0.35);"></div>`,
+      className: '',
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    });
+
+    modalMarkerRef.current = L.marker([lat, lng], { icon: pinIcon }).addTo(map);
+    modalCircleRef.current = L.circle([lat, lng], {
+      radius: 60,
+      color: '#E91E8C',
+      fillColor: '#E91E8C',
+      fillOpacity: 0.18,
+      weight: 1.5,
+    }).addTo(map);
+
+    if (map.getZoom() < 13) map.setView([lat, lng], 14);
+    else map.panTo([lat, lng]);
+  }, [newMapPin.lat, newMapPin.lng]);
 
   const [users, setUsers] = useState(INITIAL_USERS);
   const [trivia, setTrivia] = useState(INITIAL_TRIVIA);
@@ -1430,7 +1535,7 @@ function App() {
                   </div>
                 </div>
 
-                {/* Mapbox canvas */}
+                {/* Map canvas */}
                 <div style={{ position: 'relative', width: '100%', height: isMapFullscreen ? 'calc(100vh - 90px)' : '420px', borderRadius: isMapFullscreen ? '0' : '12px', overflow: 'hidden', border: isMapFullscreen ? 'none' : '1px solid var(--card-border)', marginTop: '16px' }}>
                   <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
 
@@ -1456,15 +1561,6 @@ function App() {
                     </div>
                   )}
 
-                  {isTokenPlaceholder && (
-                    <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(24,29,56,0.95)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', textAlign: 'center', zIndex: 10 }}>
-                      <Globe size={40} color="var(--accent-pink)" style={{ marginBottom: '16px', animation: 'float 3s ease-in-out infinite' }} />
-                      <h4 style={{ color: 'white', marginBottom: '8px', fontFamily: 'var(--font-heading)', fontSize: '16px', fontWeight: 700 }}>Mapbox Access Token Required</h4>
-                      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '340px', lineHeight: 1.5 }}>
-                        Replace the placeholder in <code>frontend/LAKBAY_WEB/.env</code> with a valid Mapbox token, then restart the Vite server.
-                      </p>
-                    </div>
-                  )}
                 </div>
 
                 {!isMapFullscreen && (
@@ -2070,65 +2166,109 @@ function App() {
       {/* ── ADD MAP PIN MODAL ── */}
       {isAddMapPinModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-card">
+          <div className="modal-card" style={{ width: '900px', maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <h3 className="modal-title">Add Spot to Map</h3>
               <button className="close-btn" onClick={() => setIsAddMapPinModalOpen(false)}><X size={20} /></button>
             </div>
-            <form onSubmit={handleAddMapPin}>
-              <div className="modal-body">
+            <form onSubmit={handleAddMapPin} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
-                <div className="form-group">
-                  <label className="form-label">Spot / Location Name</label>
-                  <input type="text" className="form-input" placeholder="e.g. Zamboanga City Museum" required
-                    value={newMapPin.name} onChange={e => setNewMapPin({ ...newMapPin, name: e.target.value })} />
+                {/* ── Left: Mini Map ── */}
+                <div style={{ position: 'relative', flex: '0 0 420px', borderRight: '1px solid var(--card-border)' }}>
+                  <div ref={modalMapContainerRef} style={{ width: '100%', height: '100%' }} />
+
+                  {/* Search bar overlay */}
+                  <div style={{ position: 'absolute', top: '10px', left: '10px', right: '10px', zIndex: 800, display: 'flex', gap: '6px' }}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Search a place..."
+                      value={modalSearchQuery}
+                      onChange={e => setModalSearchQuery(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleModalSearch(); } }}
+                      style={{ flex: 1, fontSize: '12px', padding: '7px 12px', borderRadius: '8px', background: 'rgba(8,10,21,0.88)', backdropFilter: 'blur(8px)' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleModalSearch}
+                      disabled={modalSearching}
+                      style={{ padding: '7px 12px', borderRadius: '8px', border: '1px solid var(--card-border)', background: 'rgba(8,10,21,0.88)', backdropFilter: 'blur(8px)', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-primary)' }}
+                    >
+                      {modalSearching ? <span style={{ fontSize: '11px' }}>...</span> : <Search size={14} />}
+                    </button>
+                  </div>
+
+                  {/* Coordinate pill */}
+                  <div style={{
+                    position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)',
+                    background: 'rgba(8,10,21,0.82)', backdropFilter: 'blur(6px)',
+                    color: 'var(--text-secondary)', fontSize: '11px', padding: '5px 12px',
+                    borderRadius: '20px', whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 400,
+                    border: '1px solid var(--card-border)',
+                  }}>
+                    {newMapPin.lat && newMapPin.lng
+                      ? `📍 ${parseFloat(newMapPin.lat).toFixed(4)}° N, ${parseFloat(newMapPin.lng).toFixed(4)}° E`
+                      : 'Click the map to place a pin'}
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Description</label>
-                  <textarea className="form-textarea" placeholder="Brief description of this spot..."
-                    value={newMapPin.description} onChange={e => setNewMapPin({ ...newMapPin, description: e.target.value })} />
-                </div>
+                {/* ── Right: Form Fields ── */}
+                <div className="modal-body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div className="form-group">
-                    <label className="form-label">Latitude</label>
-                    <input type="number" step="any" className="form-input" placeholder="e.g. 6.9032" required
-                      value={newMapPin.lat} onChange={e => setNewMapPin({ ...newMapPin, lat: e.target.value })} />
+                    <label className="form-label">Spot / Location Name</label>
+                    <input type="text" className="form-input" placeholder="e.g. Zamboanga City Museum" required
+                      value={newMapPin.name} onChange={e => setNewMapPin({ ...newMapPin, name: e.target.value })} />
                   </div>
+
                   <div className="form-group">
-                    <label className="form-label">Longitude</label>
-                    <input type="number" step="any" className="form-input" placeholder="e.g. 122.0821" required
-                      value={newMapPin.lng} onChange={e => setNewMapPin({ ...newMapPin, lng: e.target.value })} />
+                    <label className="form-label">Description</label>
+                    <textarea className="form-textarea" placeholder="Brief description of this spot..."
+                      value={newMapPin.description} onChange={e => setNewMapPin({ ...newMapPin, description: e.target.value })} />
                   </div>
-                </div>
 
-                <div className="form-group">
-                  <label className="form-label">Feature Type(s) <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(select at least one)</span></label>
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                    {Object.entries(PIN_TYPE_CONFIG).map(([type, cfg]) => {
-                      const checked = newMapPin.featureTypes.includes(type);
-                      return (
-                        <button type="button" key={type}
-                          onClick={() => toggleNewPinType(type)}
-                          style={{
-                            flex: 1, padding: '10px 8px', borderRadius: '10px', border: `2px solid ${checked ? cfg.color : 'var(--card-border)'}`,
-                            backgroundColor: checked ? cfg.color + '22' : 'transparent',
-                            cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
-                            transition: 'all 0.15s',
-                          }}
-                        >
-                          {type === 'qr' && <QrCode size={20} color={checked ? cfg.color : 'var(--text-muted)'} />}
-                          {type === 'ar' && <Eye size={20} color={checked ? cfg.color : 'var(--text-muted)'} />}
-                          {type === 'catch' && <Crosshair size={20} color={checked ? cfg.color : 'var(--text-muted)'} />}
-                          <span style={{ fontSize: '11px', fontWeight: 700, color: checked ? cfg.color : 'var(--text-muted)' }}>{cfg.label}</span>
-                        </button>
-                      );
-                    })}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Latitude</label>
+                      <input type="number" step="any" className="form-input" placeholder="e.g. 6.9032" required
+                        value={newMapPin.lat} onChange={e => setNewMapPin({ ...newMapPin, lat: e.target.value })} />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Longitude</label>
+                      <input type="number" step="any" className="form-input" placeholder="e.g. 122.0821" required
+                        value={newMapPin.lng} onChange={e => setNewMapPin({ ...newMapPin, lng: e.target.value })} />
+                    </div>
                   </div>
-                </div>
 
+                  <div className="form-group">
+                    <label className="form-label">Feature Type(s) <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(select at least one)</span></label>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                      {Object.entries(PIN_TYPE_CONFIG).map(([type, cfg]) => {
+                        const checked = newMapPin.featureTypes.includes(type);
+                        return (
+                          <button type="button" key={type}
+                            onClick={() => toggleNewPinType(type)}
+                            style={{
+                              flex: 1, padding: '10px 8px', borderRadius: '10px', border: `2px solid ${checked ? cfg.color : 'var(--card-border)'}`,
+                              backgroundColor: checked ? cfg.color + '22' : 'transparent',
+                              cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            {type === 'qr' && <QrCode size={20} color={checked ? cfg.color : 'var(--text-muted)'} />}
+                            {type === 'ar' && <Eye size={20} color={checked ? cfg.color : 'var(--text-muted)'} />}
+                            {type === 'catch' && <Crosshair size={20} color={checked ? cfg.color : 'var(--text-muted)'} />}
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: checked ? cfg.color : 'var(--text-muted)' }}>{cfg.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                </div>
               </div>
+
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setIsAddMapPinModalOpen(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary">Add to Map</button>

@@ -20,6 +20,7 @@ import CreateAccountScreen from '../screens/CreateAccountScreen';
 import CharacterSelectScreen from '../screens/CharacterSelectScreen';
 import CatchDetailsScreen from '../screens/CatchDetailsScreen';
 import QuizScreen from '../screens/QuizScreen';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
