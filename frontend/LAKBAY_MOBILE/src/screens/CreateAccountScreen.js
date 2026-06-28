@@ -71,6 +71,8 @@ const handleCreate = async () => {
           <View style={styles.blobTL} />
           <View style={styles.blobBR} />
 
+          <Text style={styles.stepLabel}>STEP 1 OF 2</Text>
+
           <View style={styles.logoRing}>
             <Text style={styles.logoIcon}>⛵</Text>
           </View>
@@ -222,8 +224,15 @@ const styles = StyleSheet.create({
   scroll:    { flexGrow: 1 },
 
   // ── Hero Banner ────────────────────────────────────────────────────
+  stepLabel: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.65)',
+    letterSpacing: 2.5,
+    marginBottom: 12,
+  },
   heroBanner: {
-    height: 200,
+    height: 220,
     backgroundColor: COLORS.accent,
     alignItems: 'center',
     justifyContent: 'center',
