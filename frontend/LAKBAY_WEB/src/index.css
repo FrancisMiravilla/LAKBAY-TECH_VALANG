@@ -1180,7 +1180,11 @@ body {
   justify-content: space-between;
   width: 100%;
   align-items: center;
-  margin-bottom: -4px;
+}
+
+.qr-image-container {
+  margin-top: 4px;
+  margin-bottom: 4px;
 }
 
 .qr-card-rating {

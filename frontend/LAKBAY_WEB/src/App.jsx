@@ -60,7 +60,7 @@ const QRCodeCanvas = ({ value }) => {
   }, [value]);
 
   if (!value) return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A0AEC0', fontSize: '11px' }}>
+    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '11px' }}>
       No QR string
     </div>
   );
@@ -418,7 +418,7 @@ function App() {
     }
   }, [isMapFullscreen]);
 
-  const [users, setUsers] = useState(INITIAL_USERS);
+  const [users, setUsers] = useState([]);
   const [trivia, setTrivia] = useState(INITIAL_TRIVIA);
   const [triviaQuestions, setTriviaQuestions] = useState([]);
   const [triviaSpotFilter, setTriviaSpotFilter] = useState('');
@@ -509,6 +509,7 @@ function App() {
     qrService.getSpots().then(({ data }) => setSpots(data.map(normalizeSpot))).catch(console.error);
     qrService.getMarkers().then(({ data }) => setQrcodes(data.map(normalizeMarker))).catch(console.error);
     qrService.getTriviaQuestions().then(({ data }) => setTriviaQuestions(data)).catch(console.error);
+    qrService.getUsers().then(({ data }) => setUsers(data)).catch(console.error);
   }, [isAuthenticated]);
 
   // Search/Filters
@@ -577,10 +578,12 @@ function App() {
 
   // Filtered Users list based on Search
   const filteredUsers = useMemo(() => {
-    return users.filter(user => {
-      return user.name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-             user.email.toLowerCase().includes(userSearchQuery.toLowerCase());
-    });
+    const q = userSearchQuery.toLowerCase();
+    return users.filter(u =>
+      (u.full_name || '').toLowerCase().includes(q) ||
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.in_game_name || '').toLowerCase().includes(q)
+    );
   }, [users, userSearchQuery]);
 
   // Handlers
@@ -761,14 +764,13 @@ function App() {
     ? triviaQuestions.filter(q => q.spot_name === spots.find(s => s.id === parseInt(triviaSpotFilter))?.name)
     : triviaQuestions;
 
-  const toggleUserStatus = (id) => {
-    setUsers(users.map(u => {
-      if (u.id === id) {
-        const nextStatus = u.status === 'Active' ? 'Suspended' : 'Active';
-        return { ...u, status: nextStatus };
-      }
-      return u;
-    }));
+  const toggleUserStatus = async (id) => {
+    try {
+      const { data } = await qrService.toggleUserStatus(id);
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, is_active: data.is_active } : u));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   if (!isAuthenticated) {
@@ -1033,7 +1035,7 @@ function App() {
                   </div>
                   <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                     {notifications.length === 0 ? (
-                      <span style={{fontSize: '12px', color: '#A0AEC0', textAlign: 'center', padding: '12px 0'}}>No alerts</span>
+                      <span style={{fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', padding: '12px 0'}}>No alerts</span>
                     ) : (
                       notifications.map(n => (
                         <div key={n.id} style={{display: 'flex', flexDirection: 'column', gap: '2px', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '8px'}}>
@@ -1171,7 +1173,7 @@ function App() {
                     })}
                   </div>
 
-                  <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#A0AEC0'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)'}}>
                     <span>Visits counted via app check-ins</span>
                     <span>Magenta Pink accents represent high-traffic spots</span>
                   </div>
@@ -1238,14 +1240,14 @@ function App() {
                   <tbody>
                     {filteredSpots.length === 0 ? (
                       <tr>
-                        <td colSpan="4" style={{textAlign: 'center', padding: '32px 0', color: '#A0AEC0'}}>
+                        <td colSpan="4" style={{textAlign: 'center', padding: '32px 0', color: 'var(--text-secondary)'}}>
                           No feature places match the filters or search query.
                         </td>
                       </tr>
                     ) : (
                       filteredSpots.map(spot => (
                         <tr key={spot.id}>
-                          <td style={{fontWeight: 700, color: 'white'}}>{spot.name}</td>
+                          <td style={{fontWeight: 700, color: 'var(--text-title)'}}>{spot.name}</td>
                           <td>{spot.location}</td>
                           <td>
                             <span className="badge active-status">
@@ -1399,12 +1401,12 @@ function App() {
                 <table className="custom-table">
                   <thead>
                     <tr>
-                      <th>Name</th>
+                      <th>Full Name</th>
                       <th>Email</th>
-                      <th>Spots Visited</th>
-                      <th>Catches</th>
-                      <th>AR Completed</th>
-                      <th>Badges Earned</th>
+                      <th>Explorer Name</th>
+                      <th>Character</th>
+                      <th>XP</th>
+                      <th>Joined</th>
                       <th>Status</th>
                       <th>Actions</th>
                     </tr>
@@ -1412,31 +1414,31 @@ function App() {
                   <tbody>
                     {filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan="8" style={{textAlign: 'center', padding: '32px 0', color: '#A0AEC0'}}>
-                          No registered users match the search terms.
+                        <td colSpan="8" style={{textAlign: 'center', padding: '32px 0', color: 'var(--text-secondary)'}}>
+                          {users.length === 0 ? 'Loading users...' : 'No users match the search.'}
                         </td>
                       </tr>
                     ) : (
                       filteredUsers.map(user => (
                         <tr key={user.id}>
-                          <td style={{fontWeight: 700, color: 'white'}}>{user.name}</td>
-                          <td style={{color: '#A0AEC0'}}>{user.email}</td>
-                          <td style={{textAlign: 'center', fontWeight: 600}}>{user.spotsVisited}</td>
-                          <td style={{textAlign: 'center', fontWeight: 600}}>{user.catches}</td>
-                          <td style={{textAlign: 'center', fontWeight: 600}}>{user.arCompleted}</td>
-                          <td style={{textAlign: 'center', fontWeight: 600, color: 'var(--accent-gold)'}}>{user.badgesEarned}</td>
+                          <td style={{fontWeight: 700, color: 'var(--text-title)'}}>{user.full_name}</td>
+                          <td style={{color: 'var(--text-secondary)'}}>{user.email}</td>
+                          <td style={{color: 'var(--text-secondary)'}}>{user.in_game_name || '—'}</td>
+                          <td style={{color: 'var(--text-secondary)', textTransform: 'capitalize'}}>{user.chosen_character || '—'}</td>
+                          <td style={{textAlign: 'center', fontWeight: 600, color: 'var(--accent-gold)'}}>{user.xp}</td>
+                          <td style={{color: 'var(--text-secondary)', fontSize: '12px'}}>{user.date_joined}</td>
                           <td>
-                            <span className={`badge ${user.status === 'Active' ? 'active-status' : 'inactive-status'}`}>
-                              {user.status}
+                            <span className={`badge ${user.is_active ? 'active-status' : 'inactive-status'}`}>
+                              {user.is_active ? 'Active' : 'Suspended'}
                             </span>
                           </td>
                           <td>
-                            <button 
-                              className={`btn ${user.status === 'Active' ? 'btn-secondary' : 'btn-primary'}`}
+                            <button
+                              className={`btn ${user.is_active ? 'btn-secondary' : 'btn-primary'}`}
                               style={{padding: '6px 10px', fontSize: '11px', whiteSpace: 'nowrap'}}
                               onClick={() => toggleUserStatus(user.id)}
                             >
-                              {user.status === 'Active' ? 'Suspend' : 'Activate'}
+                              {user.is_active ? 'Suspend' : 'Activate'}
                             </button>
                           </td>
                         </tr>
@@ -1499,14 +1501,14 @@ function App() {
 
               <div style={{display: 'flex', gap: '16px', flexWrap: 'wrap'}}>
                 <div style={{flex: 1, minWidth: '240px', backgroundColor: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--card-border)', borderRadius: '12px', padding: '20px'}}>
-                  <h4 style={{fontSize: '15px', color: 'white', marginBottom: '10px'}}>Total Tourism Check-ins</h4>
-                  <p style={{fontSize: '12px', color: '#A0AEC0', marginBottom: '16px'}}>Generate a full list of all spots visited and active user durations in CSV format.</p>
+                  <h4 style={{fontSize: '15px', color: 'var(--text-title)', marginBottom: '10px'}}>Total Tourism Check-ins</h4>
+                  <p style={{fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px'}}>Generate a full list of all spots visited and active user durations in CSV format.</p>
                   <button className="btn btn-primary" onClick={() => alert('CSV check-ins compiled!')}>Compile Check-ins</button>
                 </div>
 
                 <div style={{flex: 1, minWidth: '240px', backgroundColor: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--card-border)', borderRadius: '12px', padding: '20px'}}>
-                  <h4 style={{fontSize: '15px', color: 'white', marginBottom: '10px'}}>Preservation Metrics (Catches)</h4>
-                  <p style={{fontSize: '12px', color: '#A0AEC0', marginBottom: '16px'}}>Export data on Yakan symbols captured, Chavacano trivia unlocked, and badge distribution.</p>
+                  <h4 style={{fontSize: '15px', color: 'var(--text-title)', marginBottom: '10px'}}>Preservation Metrics (Catches)</h4>
+                  <p style={{fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px'}}>Export data on Yakan symbols captured, Chavacano trivia unlocked, and badge distribution.</p>
                   <button className="btn btn-primary" onClick={() => alert('PDF report exported!')}>Export PDF Report</button>
                 </div>
               </div>
@@ -1545,7 +1547,7 @@ function App() {
                       className="header-btn"
                       onClick={() => setIsMapFullscreen(!isMapFullscreen)}
                       title={isMapFullscreen ? 'Exit Fullscreen' : 'View Fullscreen'}
-                      style={{ padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid var(--card-border)', color: 'white' }}
+                      style={{ padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid var(--card-border)', color: 'var(--text-primary)' }}
                     >
                       {isMapFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
                     </button>
@@ -1826,7 +1828,7 @@ function App() {
                       <span className="chart-bar-label">Weaving</span>
                     </div>
                   </div>
-                  <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#A0AEC0'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)'}}>
                     <span>Visits based on camera interactions</span>
                     <span>Pink accents represent popular AR views</span>
                   </div>
@@ -1967,7 +1969,7 @@ function App() {
                       <span className="chart-bar-label">Vinta</span>
                     </div>
                   </div>
-                  <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#A0AEC0'}}>
+                  <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)'}}>
                     <span>Total successful catches</span>
                     <span>Pink accents represent popular icons</span>
                   </div>
@@ -2056,7 +2058,7 @@ function App() {
                   <tbody>
                     {filteredTriviaQuestions.length === 0 ? (
                       <tr>
-                        <td colSpan="5" style={{ textAlign: 'center', padding: '40px 0', color: '#A0AEC0' }}>
+                        <td colSpan="5" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)' }}>
                           {triviaSpotFilter ? 'No questions for this spot yet. Add one!' : 'No trivia questions yet. Add some to get started.'}
                         </td>
                       </tr>
@@ -2066,12 +2068,12 @@ function App() {
                           <td>
                             <span className="badge active-status" style={{ fontSize: '10px' }}>{q.spot_name}</span>
                           </td>
-                          <td style={{ fontWeight: 500, color: 'white', maxWidth: '300px' }}>
+                          <td style={{ fontWeight: 500, color: 'var(--text-title)', maxWidth: '300px' }}>
                             <span title={q.question}>
                               {q.question.length > 80 ? q.question.slice(0, 80) + '…' : q.question}
                             </span>
                           </td>
-                          <td style={{ textAlign: 'center', color: '#A0AEC0', fontSize: '12px' }}>
+                          <td style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '12px' }}>
                             {q.choices?.length || 0} options
                           </td>
                           <td style={{ color: 'var(--accent-gold)', fontWeight: 600, fontSize: '12px' }}>

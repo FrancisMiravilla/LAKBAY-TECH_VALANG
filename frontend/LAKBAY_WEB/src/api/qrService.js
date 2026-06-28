@@ -32,6 +32,9 @@ const qrService = {
   createTriviaQuestion: (data)   => adminClient.post('/api/qr/trivia-questions/', data),
   updateTriviaQuestion: (id, data) => adminClient.put(`/api/qr/trivia-questions/${id}/`, data),
   deleteTriviaQuestion: (id)     => adminClient.delete(`/api/qr/trivia-questions/${id}/`),
+
+  getUsers:           ()   => adminClient.get('/api/auth/users/'),
+  toggleUserStatus:   (id) => adminClient.patch(`/api/auth/users/${id}/toggle-status/`),
 };
 
 export default qrService;
