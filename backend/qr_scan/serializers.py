@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion
+from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, TriviaAttempt
 
 
 class CulturalSpotSerializer(serializers.ModelSerializer):
@@ -26,14 +26,27 @@ class QRScanSerializer(serializers.ModelSerializer):
 
 
 class TriviaQuestionSerializer(serializers.ModelSerializer):
-    correct_answer = serializers.SerializerMethodField()
+    """Safe for clients — correct_index is never exposed."""
+    class Meta:
+        model = TriviaQuestion
+        fields = ('id', 'question', 'choices')
+
+
+class TriviaQuestionAdminSerializer(serializers.ModelSerializer):
+    """Admin-only — includes correct_index for create/update."""
+    spot_id = serializers.PrimaryKeyRelatedField(
+        queryset=CulturalSpot.objects.all(), source='spot', write_only=True
+    )
+    spot_name = serializers.CharField(source='spot.name', read_only=True)
 
     class Meta:
         model = TriviaQuestion
-        fields = ('id', 'question', 'choices', 'correct_answer')
+        fields = ('id', 'spot_id', 'spot_name', 'question', 'choices', 'correct_index')
 
-    def get_correct_answer(self, obj):
-        try:
-            return obj.choices[obj.correct_index]
-        except (IndexError, TypeError):
-            return None
+
+class TriviaAttemptSerializer(serializers.ModelSerializer):
+    spot_name = serializers.CharField(source='spot.name', read_only=True)
+
+    class Meta:
+        model = TriviaAttempt
+        fields = ('id', 'spot_name', 'score', 'total', 'passed', 'attempted_at')

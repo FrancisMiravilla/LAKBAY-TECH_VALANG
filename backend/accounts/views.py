@@ -93,3 +93,39 @@ def test_auth(request):
         "user": request.user.email,
         "message": "Authentication successful!"
     })
+
+
+class UserListView(APIView):
+    """Admin-only: list all non-staff registered users."""
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        users = User.objects.filter(is_staff=False).order_by('-date_joined')
+        data = [
+            {
+                'id':               u.id,
+                'full_name':        u.full_name,
+                'email':            u.email,
+                'in_game_name':     u.in_game_name or '',
+                'chosen_character': u.chosen_character or '',
+                'xp':               u.xp,
+                'is_active':        u.is_active,
+                'date_joined':      u.date_joined.strftime('%Y-%m-%d'),
+            }
+            for u in users
+        ]
+        return Response(data)
+
+
+class ToggleUserStatusView(APIView):
+    """Admin-only: activate or suspend a user."""
+    permission_classes = [permissions.IsAdminUser]
+
+    def patch(self, request, user_id):
+        try:
+            user = User.objects.get(pk=user_id, is_staff=False)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        user.is_active = not user.is_active
+        user.save(update_fields=['is_active'])
+        return Response({'id': user.id, 'is_active': user.is_active})

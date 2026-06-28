@@ -174,6 +174,9 @@ SIMPLE_JWT = {
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
 GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default='')
 
+# Groq AI
+GROQ_API_KEY = config('GROQ_API_KEY', default='')
+
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
     'allauth.account.auth_backends.AuthenticationBackend',

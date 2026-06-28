@@ -1,7 +1,7 @@
 from django.contrib import admin
-from .models import CulturalSpot, QRMarker, QRScan
+from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, SpotBadge, TriviaAttempt
 
-# Register your models here.
+
 @admin.register(CulturalSpot)
 class CulturalSpotAdmin(admin.ModelAdmin):
     list_display = ('name', 'location_name', 'latitude', 'longitude')
@@ -19,3 +19,24 @@ class QRMarkerAdmin(admin.ModelAdmin):
 class QRScanAdmin(admin.ModelAdmin):
     list_display = ('user', 'qr_marker', 'scanned_at')
     list_filter = ('scanned_at',)
+
+
+@admin.register(TriviaQuestion)
+class TriviaQuestionAdmin(admin.ModelAdmin):
+    list_display = ('spot', 'question', 'correct_index')
+    list_filter = ('spot',)
+    search_fields = ('question', 'spot__name')
+
+
+@admin.register(SpotBadge)
+class SpotBadgeAdmin(admin.ModelAdmin):
+    list_display = ('user', 'spot', 'awarded_at')
+    list_filter = ('spot', 'awarded_at')
+    search_fields = ('user__email', 'spot__name')
+
+
+@admin.register(TriviaAttempt)
+class TriviaAttemptAdmin(admin.ModelAdmin):
+    list_display = ('user', 'spot', 'score', 'total', 'passed', 'attempted_at')
+    list_filter = ('passed', 'spot', 'attempted_at')
+    search_fields = ('user__email', 'spot__name')
