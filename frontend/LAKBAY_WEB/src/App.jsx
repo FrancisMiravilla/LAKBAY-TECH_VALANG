@@ -33,7 +33,8 @@ import {
   Camera,
   Crosshair,
   Compass,
-  Shield
+  Shield,
+  LogOut
 } from 'lucide-react'
 import './App.css'
 import mapboxgl from 'mapbox-gl'
@@ -419,6 +420,12 @@ function App() {
 
   const [users, setUsers] = useState(INITIAL_USERS);
   const [trivia, setTrivia] = useState(INITIAL_TRIVIA);
+  const [triviaQuestions, setTriviaQuestions] = useState([]);
+  const [triviaSpotFilter, setTriviaSpotFilter] = useState('');
+  const [isAddTriviaModalOpen, setIsAddTriviaModalOpen] = useState(false);
+  const [isEditTriviaModalOpen, setIsEditTriviaModalOpen] = useState(false);
+  const [editingTrivia, setEditingTrivia] = useState(null);
+  const [newTrivia, setNewTrivia] = useState({ spot_id: '', question: '', choice_a: '', choice_b: '', choice_c: '', choice_d: '', correct_index: '0' });
   const [creatures] = useState(INITIAL_CREATURES);
   const [exhibits] = useState(INITIAL_EXHIBITS);
   const [badges, setBadges] = useState(INITIAL_BADGES);
@@ -491,10 +498,17 @@ function App() {
   }
 };
 
+  const handleLogout = () => {
+    authService.logout();
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+  };
+
   useEffect(() => {
     if (!isAuthenticated) return;
     qrService.getSpots().then(({ data }) => setSpots(data.map(normalizeSpot))).catch(console.error);
     qrService.getMarkers().then(({ data }) => setQrcodes(data.map(normalizeMarker))).catch(console.error);
+    qrService.getTriviaQuestions().then(({ data }) => setTriviaQuestions(data)).catch(console.error);
   }, [isAuthenticated]);
 
   // Search/Filters
@@ -535,6 +549,7 @@ function App() {
 
   const [isEditQrModalOpen, setIsEditQrModalOpen] = useState(false);
   const [editingQr, setEditingQr] = useState(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   // Stats Calculations
   const stats = useMemo(() => {
@@ -693,6 +708,59 @@ function App() {
     }
   };
 
+  const triviaFormToPayload = (form) => ({
+    spot_id: parseInt(form.spot_id),
+    question: form.question,
+    choices: [form.choice_a, form.choice_b, form.choice_c, form.choice_d],
+    correct_index: parseInt(form.correct_index),
+  });
+
+  const handleAddTrivia = async (e) => {
+    e.preventDefault();
+    try {
+      const { data } = await qrService.createTriviaQuestion(triviaFormToPayload(newTrivia));
+      setTriviaQuestions(prev => [...prev, data]);
+      setIsAddTriviaModalOpen(false);
+      setNewTrivia({ spot_id: '', question: '', choice_a: '', choice_b: '', choice_c: '', choice_d: '', correct_index: '0' });
+    } catch (err) { console.error(err); }
+  };
+
+  const handleEditTriviaSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const { data } = await qrService.updateTriviaQuestion(editingTrivia.id, triviaFormToPayload(editingTrivia));
+      setTriviaQuestions(prev => prev.map(q => q.id === data.id ? data : q));
+      setIsEditTriviaModalOpen(false);
+      setEditingTrivia(null);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteTrivia = async (id) => {
+    if (!confirm('Delete this trivia question?')) return;
+    try {
+      await qrService.deleteTriviaQuestion(id);
+      setTriviaQuestions(prev => prev.filter(q => q.id !== id));
+    } catch (err) { console.error(err); }
+  };
+
+  const openEditTrivia = (q) => {
+    setEditingTrivia({
+      id: q.id,
+      spot_id: String(spots.find(s => s.name === q.spot_name)?.id || ''),
+      question: q.question,
+      choice_a: q.choices[0] || '',
+      choice_b: q.choices[1] || '',
+      choice_c: q.choices[2] || '',
+      choice_d: q.choices[3] || '',
+      correct_index: String(q.correct_index),
+    });
+    setIsEditTriviaModalOpen(true);
+  };
+
+  const filteredTriviaQuestions = triviaSpotFilter
+    ? triviaQuestions.filter(q => q.spot_name === spots.find(s => s.id === parseInt(triviaSpotFilter))?.name)
+    : triviaQuestions;
+
   const toggleUserStatus = (id) => {
     setUsers(users.map(u => {
       if (u.id === id) {
@@ -815,6 +883,14 @@ function App() {
 
 
 
+          <div
+            className={`menu-item ${activeTab === 'trivia' ? 'active' : ''}`}
+            onClick={() => setActiveTab('trivia')}
+          >
+            <HelpCircle className="menu-icon" />
+            Trivia Questions
+          </div>
+
           <span className="menu-section-title">Operations</span>
           <div 
             className={`menu-item ${activeTab === 'users' ? 'active' : ''}`}
@@ -840,23 +916,26 @@ function App() {
         </nav>
 
       <div className="sidebar-footer">
-        <div className="user-avatar">
-          {/* Try multiple possible sources for the name, default to 'G' */}
-          {(currentUser?.name || currentUser?.username || currentUser?.email || 'G')
-            .charAt(0)
-            .toUpperCase()}
+        <div className="sidebar-user-row">
+          <div className="user-avatar">
+            {(currentUser?.name || currentUser?.username || currentUser?.email || 'G')
+              .charAt(0)
+              .toUpperCase()}
+          </div>
+          <div className="user-info">
+            <span className="user-name">
+              {currentUser?.name || currentUser?.username || currentUser?.email || 'Guest User'}
+            </span>
+            <span className="user-role">
+              {currentUser?.is_staff ? 'Super Administrator' : 'User'}
+            </span>
+          </div>
         </div>
-        
-        <div className="user-info">
-          <span className="user-name">
-            {/* Fallback to different properties if 'name' is missing */}
-            {currentUser?.name || currentUser?.username || currentUser?.email || 'Guest User'}
-          </span>
-          
-          <span className="user-role">
-            {currentUser?.is_staff ? 'Super Administrator' : 'User'}
-          </span>
-        </div>
+
+        <button className="sidebar-logout-btn" onClick={() => setShowLogoutModal(true)}>
+          <LogOut size={13} />
+          Sign Out
+        </button>
       </div>
       </aside>
 
@@ -873,6 +952,7 @@ function App() {
               {activeTab === 'ar' && 'AR Progress'}
               {activeTab === 'catch' && 'CATCH Progress'}
 
+              {activeTab === 'trivia' && 'Trivia Questions'}
               {activeTab === 'users' && 'User Directory'}
               {activeTab === 'badges' && 'Gamification Badges'}
               {activeTab === 'reports' && 'Analytics & Reports'}
@@ -885,6 +965,7 @@ function App() {
               {activeTab === 'ar' && 'Track AR museum exhibit interactions and visits'}
               {activeTab === 'catch' && 'Monitor the capture rate of cultural icons'}
 
+              {activeTab === 'trivia' && 'Manage the randomized question pool for each cultural spot'}
               {activeTab === 'users' && 'Manage user achievements, checks, and registration status'}
               {activeTab === 'badges' && 'Configure and inspect user achievement badges'}
               {activeTab === 'reports' && 'Export records and review monthly performance summaries'}
@@ -978,12 +1059,15 @@ function App() {
 
             {/* Context Add Button */}
             {activeTab === 'spots' && (
-              <button 
-                className="btn btn-primary"
-                onClick={() => setIsAddSpotModalOpen(true)}
-              >
+              <button className="btn btn-primary" onClick={() => setIsAddSpotModalOpen(true)}>
                 <Plus size={16} />
                 Add New Spot
+              </button>
+            )}
+            {activeTab === 'trivia' && (
+              <button className="btn btn-primary" onClick={() => setIsAddTriviaModalOpen(true)}>
+                <Plus size={16} />
+                Add Question
               </button>
             )}
           </div>
@@ -1930,6 +2014,108 @@ function App() {
             </div>
           )}
 
+          {/* TAB CONTENT: TRIVIA QUESTIONS */}
+          {activeTab === 'trivia' && (
+            <section className="content-card" style={{ gap: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                <h3 className="card-title">
+                  <HelpCircle className="card-title-icon" size={18} />
+                  Trivia Question Bank
+                </h3>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <select
+                    className="form-select"
+                    style={{ padding: '8px 12px', fontSize: '12px', minWidth: '200px' }}
+                    value={triviaSpotFilter}
+                    onChange={(e) => setTriviaSpotFilter(e.target.value)}
+                  >
+                    <option value="">All Spots ({triviaQuestions.length} questions)</option>
+                    {spots.map(s => {
+                      const count = triviaQuestions.filter(q => q.spot_name === s.name).length;
+                      return <option key={s.id} value={s.id}>{s.name} ({count})</option>;
+                    })}
+                  </select>
+                  <button className="btn btn-primary" onClick={() => setIsAddTriviaModalOpen(true)}>
+                    <Plus size={16} />
+                    Add Question
+                  </button>
+                </div>
+              </div>
+
+              <div className="table-wrapper">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '160px' }}>Spot</th>
+                      <th>Question</th>
+                      <th style={{ width: '90px' }}>Choices</th>
+                      <th>Correct Answer</th>
+                      <th style={{ width: '100px' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTriviaQuestions.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" style={{ textAlign: 'center', padding: '40px 0', color: '#A0AEC0' }}>
+                          {triviaSpotFilter ? 'No questions for this spot yet. Add one!' : 'No trivia questions yet. Add some to get started.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredTriviaQuestions.map(q => (
+                        <tr key={q.id}>
+                          <td>
+                            <span className="badge active-status" style={{ fontSize: '10px' }}>{q.spot_name}</span>
+                          </td>
+                          <td style={{ fontWeight: 500, color: 'white', maxWidth: '300px' }}>
+                            <span title={q.question}>
+                              {q.question.length > 80 ? q.question.slice(0, 80) + '…' : q.question}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center', color: '#A0AEC0', fontSize: '12px' }}>
+                            {q.choices?.length || 0} options
+                          </td>
+                          <td style={{ color: 'var(--accent-gold)', fontWeight: 600, fontSize: '12px' }}>
+                            {['A', 'B', 'C', 'D'][q.correct_index]} — {q.choices?.[q.correct_index]?.slice(0, 40)}{q.choices?.[q.correct_index]?.length > 40 ? '…' : ''}
+                          </td>
+                          <td>
+                            <div className="action-buttons">
+                              <button className="icon-action-btn" title="Edit" onClick={() => openEditTrivia(q)}>
+                                <Edit size={14} />
+                              </button>
+                              <button className="icon-action-btn delete" title="Delete" onClick={() => handleDeleteTrivia(q.id)}>
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {triviaQuestions.length > 0 && (
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                  {spots.map(s => {
+                    const count = triviaQuestions.filter(q => q.spot_name === s.name).length;
+                    if (count === 0) return null;
+                    const color = count >= 10 ? '#10B981' : count >= 5 ? 'var(--accent-gold)' : 'var(--accent-pink)';
+                    return (
+                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', border: `1px solid ${color}44`, backgroundColor: `${color}11` }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
+                        <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 500 }}>{s.name}</span>
+                        <span style={{ fontSize: '11px', color, fontWeight: 700 }}>{count}q</span>
+                      </div>
+                    );
+                  })}
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', alignSelf: 'center', marginLeft: 'auto' }}>
+                    Green = 10+ questions · Gold = 5–9 · Pink = &lt;5
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
         </div>
       </main>
 
@@ -2378,6 +2564,147 @@ function App() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADD TRIVIA MODAL */}
+      {isAddTriviaModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3 className="modal-title"><HelpCircle size={18} style={{ marginRight: '8px' }} /> Add Trivia Question</h3>
+              <button className="close-btn" onClick={() => setIsAddTriviaModalOpen(false)}><X size={20} /></button>
+            </div>
+            <form onSubmit={handleAddTrivia}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Cultural Spot</label>
+                  <select className="form-select" value={newTrivia.spot_id}
+                    onChange={(e) => setNewTrivia({ ...newTrivia, spot_id: e.target.value })} required>
+                    <option value="">— Select a spot —</option>
+                    {spots.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Question</label>
+                  <textarea className="form-textarea" placeholder="e.g. In what year was Fort Pilar built?"
+                    value={newTrivia.question} onChange={(e) => setNewTrivia({ ...newTrivia, question: e.target.value })} required />
+                </div>
+                {['a', 'b', 'c', 'd'].map((letter, idx) => (
+                  <div className="form-group" key={letter}>
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: parseInt(newTrivia.correct_index) === idx ? 'var(--accent-pink)' : 'rgba(255,255,255,0.1)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
+                        {letter.toUpperCase()}
+                      </span>
+                      Choice {letter.toUpperCase()}
+                      {parseInt(newTrivia.correct_index) === idx && <span style={{ fontSize: '10px', color: 'var(--accent-pink)', fontWeight: 700 }}>✓ CORRECT</span>}
+                    </label>
+                    <input type="text" className="form-input" placeholder={`Choice ${letter.toUpperCase()}...`}
+                      value={newTrivia[`choice_${letter}`]}
+                      onChange={(e) => setNewTrivia({ ...newTrivia, [`choice_${letter}`]: e.target.value })} required />
+                  </div>
+                ))}
+                <div className="form-group">
+                  <label className="form-label">Correct Answer</label>
+                  <select className="form-select" value={newTrivia.correct_index}
+                    onChange={(e) => setNewTrivia({ ...newTrivia, correct_index: e.target.value })}>
+                    <option value="0">A — {newTrivia.choice_a || '(empty)'}</option>
+                    <option value="1">B — {newTrivia.choice_b || '(empty)'}</option>
+                    <option value="2">C — {newTrivia.choice_c || '(empty)'}</option>
+                    <option value="3">D — {newTrivia.choice_d || '(empty)'}</option>
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setIsAddTriviaModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Question</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT TRIVIA MODAL */}
+      {isEditTriviaModalOpen && editingTrivia && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3 className="modal-title"><Edit size={18} style={{ marginRight: '8px' }} /> Edit Trivia Question</h3>
+              <button className="close-btn" onClick={() => { setIsEditTriviaModalOpen(false); setEditingTrivia(null); }}><X size={20} /></button>
+            </div>
+            <form onSubmit={handleEditTriviaSubmit}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Cultural Spot</label>
+                  <select className="form-select" value={editingTrivia.spot_id}
+                    onChange={(e) => setEditingTrivia({ ...editingTrivia, spot_id: e.target.value })} required>
+                    <option value="">— Select a spot —</option>
+                    {spots.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Question</label>
+                  <textarea className="form-textarea" value={editingTrivia.question}
+                    onChange={(e) => setEditingTrivia({ ...editingTrivia, question: e.target.value })} required />
+                </div>
+                {['a', 'b', 'c', 'd'].map((letter, idx) => (
+                  <div className="form-group" key={letter}>
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: parseInt(editingTrivia.correct_index) === idx ? 'var(--accent-pink)' : 'rgba(255,255,255,0.1)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
+                        {letter.toUpperCase()}
+                      </span>
+                      Choice {letter.toUpperCase()}
+                      {parseInt(editingTrivia.correct_index) === idx && <span style={{ fontSize: '10px', color: 'var(--accent-pink)', fontWeight: 700 }}>✓ CORRECT</span>}
+                    </label>
+                    <input type="text" className="form-input" value={editingTrivia[`choice_${letter}`]}
+                      onChange={(e) => setEditingTrivia({ ...editingTrivia, [`choice_${letter}`]: e.target.value })} required />
+                  </div>
+                ))}
+                <div className="form-group">
+                  <label className="form-label">Correct Answer</label>
+                  <select className="form-select" value={editingTrivia.correct_index}
+                    onChange={(e) => setEditingTrivia({ ...editingTrivia, correct_index: e.target.value })}>
+                    <option value="0">A — {editingTrivia.choice_a || '(empty)'}</option>
+                    <option value="1">B — {editingTrivia.choice_b || '(empty)'}</option>
+                    <option value="2">C — {editingTrivia.choice_c || '(empty)'}</option>
+                    <option value="3">D — {editingTrivia.choice_d || '(empty)'}</option>
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => { setIsEditTriviaModalOpen(false); setEditingTrivia(null); }}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showLogoutModal && (
+        <div className="logout-modal-overlay" onClick={() => setShowLogoutModal(false)}>
+          <div className="logout-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="logout-modal-icon">
+              <LogOut size={28} />
+            </div>
+            <h3 className="logout-modal-title">Sign Out?</h3>
+            <p className="logout-modal-body">
+              You'll be returned to the login screen. Any unsaved changes will be lost.
+            </p>
+            <div className="logout-modal-actions">
+              <button
+                className="logout-modal-btn logout-modal-btn--cancel"
+                onClick={() => setShowLogoutModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="logout-modal-btn logout-modal-btn--confirm"
+                onClick={handleLogout}
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       )}

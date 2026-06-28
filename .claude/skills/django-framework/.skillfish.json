@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "django-framework",
+  "owner": "pluginagentmarketplace",
+  "repo": "custom-plugin-python",
+  "path": "skills/django-framework",
+  "branch": "main",
+  "sha": "dbb20856e0d6a88ce28a7d47e4f44cd22181c4b1",
+  "source": "manual"
+}
