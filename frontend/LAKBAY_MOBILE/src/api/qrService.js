@@ -25,5 +25,8 @@ export const getMyScans = () =>
 export const getSpotTrivia = (spotId) =>
   qrClient.get(`/api/qr/spots/${spotId}/trivia/`).then((r) => r.data);
 
+export const getAITrivia = (spotId) =>
+  qrClient.get(`/api/qr/spots/${spotId}/ai-trivia/`, { timeout: 20000 }).then((r) => r.data);
+
 export const awardSpotBadge = (spotId) =>
   qrClient.post(`/api/qr/spots/${spotId}/award-badge/`).then((r) => r.data);

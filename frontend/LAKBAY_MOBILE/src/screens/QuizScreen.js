@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
-import { getSpotTrivia, awardSpotBadge } from '../api/qrService';
+import { getAITrivia, awardSpotBadge } from '../api/qrService';
 
 // ─── Backend origin (strips /api/auth/ suffix) ───────────────────────────────
 const ORIGIN = (process.env.EXPO_PUBLIC_API_BASE_URL || '').replace(/\/api\/.*$/, '');
@@ -69,7 +69,7 @@ export default function QuizScreen({ navigation, route }) {
       setLoading(false);
       return;
     }
-    getSpotTrivia(spotId)
+    getAITrivia(spotId)
       .then((data) => {
         if (!data.questions || data.questions.length === 0) {
           setError('No trivia questions available for this spot yet.');

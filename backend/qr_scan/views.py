@@ -1,11 +1,14 @@
+import json
 import random
 from html import escape
+from django.conf import settings
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.db.models import F
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions, viewsets
+from groq import Groq
 from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, SpotBadge, TriviaAttempt
 from .serializers import (
     CulturalSpotSerializer, QRMarkerSerializer,
@@ -202,6 +205,77 @@ class SubmitTriviaView(APIView):
         })
 
 
+class GenerateAITriviaView(APIView):
+    """
+    GET /api/qr/spots/<spot_id>/ai-trivia/
+    Generates 5 unique trivia questions for the spot using Gemini.
+    Each call returns a fresh set so every user gets a different experience.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, spot_id):
+        spot = get_object_or_404(CulturalSpot, pk=spot_id)
+
+        client = Groq(api_key=settings.GROQ_API_KEY)
+
+        prompt = f"""You are a cultural trivia generator for a Philippine tourism app called LAKBAY.
+
+Generate exactly 5 multiple-choice trivia questions about this cultural spot:
+
+Name: {spot.name}
+Location: {spot.location_name}
+Description: {spot.description}
+Historical Background: {spot.historical_background}
+Cultural Significance: {spot.cultural_significance}
+Fun Fact: {spot.fun_fact or 'N/A'}
+
+Rules:
+- Each question must have exactly 4 choices
+- Questions must be factual and based on the info above
+- Vary the difficulty (mix easy, medium, hard)
+- Do NOT repeat the same question type
+- Return ONLY valid JSON, no markdown, no explanation
+
+Required JSON format:
+{{
+  "questions": [
+    {{
+      "question": "Question text here?",
+      "choices": ["Choice A", "Choice B", "Choice C", "Choice D"],
+      "correct_index": 0
+    }}
+  ]
+}}"""
+
+        try:
+            response = client.chat.completions.create(
+                model='llama-3.1-8b-instant',
+                messages=[{'role': 'user', 'content': prompt}],
+                temperature=1.0,
+            )
+            raw = response.choices[0].message.content.strip()
+            # Strip markdown code fences if Gemini wraps with ```json
+            if raw.startswith('```'):
+                raw = raw.split('```')[1]
+                if raw.startswith('json'):
+                    raw = raw[4:]
+            data = json.loads(raw.strip())
+            questions = []
+            for q in data.get('questions', [])[:5]:
+                idx = q.get('correct_index', 0)
+                questions.append({
+                    'question':      q['question'],
+                    'choices':       q['choices'],
+                    'correct_answer': q['choices'][idx],
+                })
+            return Response({'spot_id': spot.id, 'spot_name': spot.name, 'questions': questions})
+        except Exception as e:
+            return Response(
+                {'error': f'AI generation failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
 def model_viewer_page(request):
     """Serves the 3-D model viewer HTML page for the mobile WebView.
     Query param: ?url=<glb_url>
@@ -291,20 +365,24 @@ def model_viewer_page(request):
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(0x000000, 0);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     document.body.appendChild(renderer.domElement);
 
     // ── Scene / Camera ────────────────────────────────────────────────────────
     const scene  = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.set(0, 0.2, 3.2);
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 0.3, 2.8);
 
     // ── Lighting ──────────────────────────────────────────────────────────────
-    scene.add(new THREE.AmbientLight(0xffffff, 1.8));
-    const sun = new THREE.DirectionalLight(0xffffff, 2.5);
+    scene.add(new THREE.AmbientLight(0xffffff, 2.5));
+    const sun = new THREE.DirectionalLight(0xffffff, 3.0);
     sun.position.set(4, 8, 6);
     scene.add(sun);
-    const fill = new THREE.DirectionalLight(0xe91e8c, 0.6);
-    fill.position.set(-4, -4, -4);
+    const back = new THREE.DirectionalLight(0xffffff, 1.5);
+    back.position.set(-4, 4, -4);
+    scene.add(back);
+    const fill = new THREE.DirectionalLight(0xe91e8c, 0.4);
+    fill.position.set(0, -4, 4);
     scene.add(fill);
 
     // ── Load GLB ──────────────────────────────────────────────────────────────
@@ -316,11 +394,22 @@ def model_viewer_page(request):
       (gltf) => {{
         model = gltf.scene;
 
-        // Auto-fit to viewport
+        // Fix materials — ensure vertex colors and textures render correctly
+        model.traverse((child) => {{
+          if (child.isMesh) {{
+            const mat = child.material;
+            if (mat) {{
+              mat.needsUpdate = true;
+              if (child.geometry.attributes.color) mat.vertexColors = true;
+            }}
+          }}
+        }});
+
+        // Auto-fit to viewport (larger target size)
         const box    = new THREE.Box3().setFromObject(model);
         const center = box.getCenter(new THREE.Vector3());
         const size   = box.getSize(new THREE.Vector3());
-        const scale  = 1.8 / Math.max(size.x, size.y, size.z);
+        const scale  = 2.4 / Math.max(size.x, size.y, size.z);
         model.scale.setScalar(scale);
         model.position.sub(center.multiplyScalar(scale));
 
