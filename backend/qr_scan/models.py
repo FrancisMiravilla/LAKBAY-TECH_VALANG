@@ -66,5 +66,21 @@ class SpotBadge(models.Model):
     user = models.ForeignKey('accounts.CustomUser', on_delete=models.CASCADE, related_name='spot_badges')
     spot = models.ForeignKey(CulturalSpot, on_delete=models.CASCADE)
     awarded_at = models.DateTimeField(auto_now_add=True)
+
     class Meta:
         unique_together = ('user', 'spot')
+
+
+class TriviaAttempt(models.Model):
+    user = models.ForeignKey('accounts.CustomUser', on_delete=models.CASCADE, related_name='trivia_attempts')
+    spot = models.ForeignKey(CulturalSpot, on_delete=models.CASCADE, related_name='trivia_attempts')
+    score = models.IntegerField()
+    total = models.IntegerField()
+    passed = models.BooleanField(default=False)
+    attempted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-attempted_at']
+
+    def __str__(self):
+        return f"{self.user.email} — {self.spot.name} ({self.score}/{self.total})"

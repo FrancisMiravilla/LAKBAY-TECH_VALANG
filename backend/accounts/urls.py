@@ -2,8 +2,9 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from djoser.views import UserViewSet
 from .views import (
-    GoogleLoginView, LogoutView, 
+    GoogleLoginView, LogoutView,
     CharacterSetupView, test_auth,
+    UserListView, ToggleUserStatusView,
 )
 
 urlpatterns = [
@@ -17,5 +18,6 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(), name='logout'),
     path('character-setup/', CharacterSetupView.as_view(), name='character_setup'),
     path("test-auth/", test_auth),
-
+    path('users/', UserListView.as_view(), name='user_list'),
+    path('users/<int:user_id>/toggle-status/', ToggleUserStatusView.as_view(), name='toggle_user_status'),
 ]

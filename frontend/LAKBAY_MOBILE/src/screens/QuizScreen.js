@@ -1,22 +1,67 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, StatusBar } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  StyleSheet, Text, View, TouchableOpacity,
+  ActivityIndicator, StatusBar, ScrollView, Animated,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
-import { getSpotTrivia, awardSpotBadge } from '../api/qrService';
+import { getAITrivia, awardSpotBadge } from '../api/qrService';
 
+// ─── Backend origin (strips /api/auth/ suffix) ───────────────────────────────
+const ORIGIN = (process.env.EXPO_PUBLIC_API_BASE_URL || '').replace(/\/api\/.*$/, '');
+
+// ─── Spot → 3D model mapping ───────────────────────────────────────────────
+const SPOT_MODEL_MAP = {
+  'Fort Pilar':              'https://res.cloudinary.com/diwmkpfto/image/upload/v1782606417/resort_building_final_jbqdce.glb',
+  'Paseo del Mar':           'https://res.cloudinary.com/diwmkpfto/image/upload/v1782606432/vinta_model_rhv9do.glb',
+  'Yakan Weaving Village':   'https://res.cloudinary.com/diwmkpfto/image/upload/v1782606380/cloth_final_jn1t6s.glb',
+  'Santa Cruz Island':       'https://res.cloudinary.com/diwmkpfto/image/upload/v1782606400/curacha_model_jgfozb.glb',
+  'Great Santa Cruz Island': 'https://res.cloudinary.com/diwmkpfto/image/upload/v1782606400/curacha_model_jgfozb.glb',
+};
+
+const DEFAULT_MODEL_URL =
+  'https://res.cloudinary.com/diwmkpfto/image/upload/v1782606432/vinta_model_rhv9do.glb';
+
+function getModelUrl(spotName) {
+  if (!spotName) return DEFAULT_MODEL_URL;
+  if (SPOT_MODEL_MAP[spotName]) return SPOT_MODEL_MAP[spotName];
+  const lower = spotName.toLowerCase();
+  if (lower.includes('fort pilar'))  return SPOT_MODEL_MAP['Fort Pilar'];
+  if (lower.includes('paseo'))       return SPOT_MODEL_MAP['Paseo del Mar'];
+  if (lower.includes('yakan'))       return SPOT_MODEL_MAP['Yakan Weaving Village'];
+  if (lower.includes('santa cruz'))  return SPOT_MODEL_MAP['Santa Cruz Island'];
+  return DEFAULT_MODEL_URL;
+}
+
+// ─── Build model-viewer URI served by Django (avoids WebView CDN sandbox) ────
+const buildModelUri = (modelUrl) =>
+  `${ORIGIN}/model-viewer/?url=${encodeURIComponent(modelUrl)}`;
+
+
+// ─── Component ──────────────────────────────────────────────────────────────
 export default function QuizScreen({ navigation, route }) {
-  const spotId = route.params?.spotId;
+  const spotId   = route.params?.spotId;
   const spotName = route.params?.spotName || 'this spot';
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState('');
+  const [questions, setQuestions]       = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
-  const [isCorrect, setIsCorrect] = useState(null);
-  const [showReward, setShowReward] = useState(false);
-  const [reward, setReward] = useState({ xp_earned: 0, total_xp: 0, awarded: false });
+  const [isCorrect, setIsCorrect]       = useState(null);
+  const [showReward, setShowReward]     = useState(false);
+  const [reward, setReward]             = useState({ xp_earned: 0, total_xp: 0, awarded: false });
+  const [modelLoaded, setModelLoaded]   = useState(false);
+  const modelFadeAnim                   = useRef(new Animated.Value(0)).current;
+
+  // Fallback: if MODEL_LOADED is never posted (CDN/network issue), clear the spinner after 12s
+  useEffect(() => {
+    if (modelLoaded) return;
+    const timer = setTimeout(() => setModelLoaded(true), 12000);
+    return () => clearTimeout(timer);
+  }, [modelLoaded]);
 
   useEffect(() => {
     if (!spotId) {
@@ -24,8 +69,7 @@ export default function QuizScreen({ navigation, route }) {
       setLoading(false);
       return;
     }
-
-    getSpotTrivia(spotId)
+    getAITrivia(spotId)
       .then((data) => {
         if (!data.questions || data.questions.length === 0) {
           setError('No trivia questions available for this spot yet.');
@@ -37,9 +81,22 @@ export default function QuizScreen({ navigation, route }) {
       .finally(() => setLoading(false));
   }, [spotId]);
 
+  const handleModelMessage = (event) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === 'MODEL_LOADED') {
+        setModelLoaded(true);
+        Animated.timing(modelFadeAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }).start();
+      }
+    } catch {}
+  };
+
   const handleSelectOption = (option) => {
     if (selectedOption !== null) return;
-
     setSelectedOption(option);
     const correct = option === questions[currentIndex].correct_answer;
     setIsCorrect(correct);
@@ -51,7 +108,6 @@ export default function QuizScreen({ navigation, route }) {
           setSelectedOption(null);
           setIsCorrect(null);
         } else {
-          // All questions answered — award badge
           try {
             const result = await awardSpotBadge(spotId);
             setReward(result);
@@ -67,6 +123,7 @@ export default function QuizScreen({ navigation, route }) {
     }, 1500);
   };
 
+  // ── Loading state ──────────────────────────────────────────────────────────
   if (loading) {
     return (
       <SafeAreaView style={styles.centeredContainer}>
@@ -76,18 +133,57 @@ export default function QuizScreen({ navigation, route }) {
     );
   }
 
+  // ── Error state (still show the 3D model) ────────────────────────────────
   if (error) {
+    const errorModelUri = buildModelUri(getModelUrl(spotName));
     return (
-      <SafeAreaView style={styles.centeredContainer}>
-        <Ionicons name="alert-circle-outline" size={48} color="rgba(255,255,255,0.4)" />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.backBtnSmall} onPress={() => navigation.goBack()}>
-          <Text style={styles.backBtnSmallText}>Go Back</Text>
-        </TouchableOpacity>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#0F0920" />
+
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+            <Ionicons name="close" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Capture Challenge</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        {/* Floating 3D Model */}
+        <View style={styles.modelContainer}>
+          <Animated.View style={[styles.webViewWrapper, { opacity: modelFadeAnim }]}>
+            <WebView
+              source={{ uri: errorModelUri, headers: { 'ngrok-skip-browser-warning': '1' } }}
+              style={styles.webView}
+              originWhitelist={['*']}
+              javaScriptEnabled
+              scrollEnabled={false}
+              mixedContentMode="always"
+              allowsInlineMediaPlayback
+              mediaPlaybackRequiresUserAction={false}
+              onMessage={handleModelMessage}
+            />
+          </Animated.View>
+          {!modelLoaded && (
+            <View style={styles.modelLoadingOverlay}>
+              <ActivityIndicator size="small" color={COLORS.accent} />
+            </View>
+          )}
+        </View>
+
+        {/* No-quiz message */}
+        <View style={styles.centeredContent}>
+          <Ionicons name="help-circle-outline" size={48} color="rgba(255,255,255,0.25)" />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.backBtnSmall} onPress={() => navigation.goBack()}>
+            <Text style={styles.backBtnSmallText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
 
+  // ── Reward state ───────────────────────────────────────────────────────────
   if (showReward) {
     return (
       <SafeAreaView style={styles.rewardContainer}>
@@ -131,12 +227,15 @@ export default function QuizScreen({ navigation, route }) {
     );
   }
 
-  const currentQ = questions[currentIndex];
+  // ── Quiz state ─────────────────────────────────────────────────────────────
+  const currentQ   = questions[currentIndex];
+  const modelUri   = buildModelUri(getModelUrl(spotName));
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0920" />
 
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
           <Ionicons name="close" size={24} color="#FFF" />
@@ -145,64 +244,101 @@ export default function QuizScreen({ navigation, route }) {
         <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.progressContainer}>
-        <Text style={styles.progressText}>Question {currentIndex + 1} of {questions.length}</Text>
-        <View style={styles.progressBarBg}>
-          <View style={[styles.progressBarFill, { width: `${(currentIndex / questions.length) * 100}%` }]} />
-        </View>
+      {/* Floating 3D Model */}
+      <View style={styles.modelContainer}>
+        <Animated.View style={[styles.webViewWrapper, { opacity: modelFadeAnim }]}>
+          <WebView
+            source={{ uri: modelUri, headers: { 'ngrok-skip-browser-warning': '1' } }}
+            style={styles.webView}
+            originWhitelist={['*']}
+            javaScriptEnabled
+            scrollEnabled={false}
+            mixedContentMode="always"
+            allowsInlineMediaPlayback
+            mediaPlaybackRequiresUserAction={false}
+            onMessage={handleModelMessage}
+          />
+        </Animated.View>
+        {!modelLoaded && (
+          <View style={styles.modelLoadingOverlay}>
+            <ActivityIndicator size="small" color={COLORS.accent} />
+          </View>
+        )}
       </View>
 
-      <View style={styles.questionCard}>
-        <Text style={styles.questionText}>{currentQ.question}</Text>
-      </View>
-
-      <View style={styles.optionsContainer}>
-        {currentQ.choices.map((option, index) => {
-          let btnStyle = styles.optionBtn;
-          let textStyle = styles.optionText;
-          let icon = null;
-
-          if (selectedOption === option) {
-            if (isCorrect) {
-              btnStyle = [styles.optionBtn, styles.optionCorrect];
-              textStyle = [styles.optionText, { color: '#FFF' }];
-              icon = <Ionicons name="checkmark-circle" size={20} color="#FFF" />;
-            } else {
-              btnStyle = [styles.optionBtn, styles.optionWrong];
-              textStyle = [styles.optionText, { color: '#FFF' }];
-              icon = <Ionicons name="close-circle" size={20} color="#FFF" />;
-            }
-          } else if (selectedOption !== null && option === currentQ.correct_answer && !isCorrect) {
-            btnStyle = [styles.optionBtn, styles.optionCorrect];
-            textStyle = [styles.optionText, { color: '#FFF' }];
-            icon = <Ionicons name="checkmark-circle" size={20} color="#FFF" />;
-          }
-
-          return (
-            <TouchableOpacity
-              key={index}
-              style={btnStyle}
-              activeOpacity={0.7}
-              onPress={() => handleSelectOption(option)}
-            >
-              <Text style={textStyle}>{option}</Text>
-              {icon}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {selectedOption !== null && (
-        <View style={styles.feedbackContainer}>
-          <Text style={[styles.feedbackText, { color: isCorrect ? '#10B981' : '#EF4444' }]}>
-            {isCorrect ? 'Correct! Awesome job!' : 'Oops! Try again.'}
+      {/* Progress + Questions scroll */}
+      <ScrollView
+        style={styles.scrollArea}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.progressContainer}>
+          <Text style={styles.progressText}>
+            Question {currentIndex + 1} of {questions.length}
           </Text>
+          <View style={styles.progressBarBg}>
+            <View
+              style={[
+                styles.progressBarFill,
+                { width: `${(currentIndex / questions.length) * 100}%` },
+              ]}
+            />
+          </View>
         </View>
-      )}
+
+        <View style={styles.questionCard}>
+          <Text style={styles.questionText}>{currentQ.question}</Text>
+        </View>
+
+        <View style={styles.optionsContainer}>
+          {currentQ.choices.map((option, index) => {
+            let btnStyle  = styles.optionBtn;
+            let textStyle = styles.optionText;
+            let icon      = null;
+
+            if (selectedOption === option) {
+              if (isCorrect) {
+                btnStyle  = [styles.optionBtn, styles.optionCorrect];
+                textStyle = [styles.optionText, { color: '#FFF' }];
+                icon      = <Ionicons name="checkmark-circle" size={20} color="#FFF" />;
+              } else {
+                btnStyle  = [styles.optionBtn, styles.optionWrong];
+                textStyle = [styles.optionText, { color: '#FFF' }];
+                icon      = <Ionicons name="close-circle" size={20} color="#FFF" />;
+              }
+            } else if (selectedOption !== null && option === currentQ.correct_answer && !isCorrect) {
+              btnStyle  = [styles.optionBtn, styles.optionCorrect];
+              textStyle = [styles.optionText, { color: '#FFF' }];
+              icon      = <Ionicons name="checkmark-circle" size={20} color="#FFF" />;
+            }
+
+            return (
+              <TouchableOpacity
+                key={index}
+                style={btnStyle}
+                activeOpacity={0.7}
+                onPress={() => handleSelectOption(option)}
+              >
+                <Text style={textStyle}>{option}</Text>
+                {icon}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {selectedOption !== null && (
+          <View style={styles.feedbackContainer}>
+            <Text style={[styles.feedbackText, { color: isCorrect ? '#10B981' : '#EF4444' }]}>
+              {isCorrect ? 'Correct! Awesome job!' : 'Oops! Try again.'}
+            </Text>
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
+// ─── Styles ─────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -211,6 +347,13 @@ const styles = StyleSheet.create({
   centeredContainer: {
     flex: 1,
     backgroundColor: '#0F0920',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 30,
+    gap: 16,
+  },
+  centeredContent: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 30,
@@ -242,6 +385,8 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold,
     fontSize: 14,
   },
+
+  // ── Header ────────────────────────────────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -250,7 +395,8 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
   },
   iconBtn: {
-    width: 40, height: 40,
+    width: 40,
+    height: 40,
     borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.1)',
     justifyContent: 'center',
@@ -262,10 +408,38 @@ const styles = StyleSheet.create({
     color: '#FFF',
     letterSpacing: 1,
   },
+
+  // ── 3D model viewer ───────────────────────────────────────────────────────
+  modelContainer: {
+    height: 210,
+    marginHorizontal: 0,
+    backgroundColor: 'transparent',
+  },
+  webViewWrapper: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  webView: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  modelLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+
+  // ── Quiz content ──────────────────────────────────────────────────────────
+  scrollArea: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
   progressContainer: {
     paddingHorizontal: 24,
-    marginTop: 10,
-    marginBottom: 30,
+    marginTop: 4,
+    marginBottom: 20,
   },
   progressText: {
     fontFamily: FONTS.semiBold,
@@ -290,7 +464,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: COLORS.accent,
-    marginBottom: 30,
+    marginBottom: 20,
     ...SHADOW.accent,
   },
   questionText: {
@@ -301,14 +475,14 @@ const styles = StyleSheet.create({
   },
   optionsContainer: {
     paddingHorizontal: 24,
-    gap: 16,
+    gap: 12,
   },
   optionBtn: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 18,
+    paddingVertical: 16,
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 16,
     borderWidth: 1,
@@ -330,13 +504,15 @@ const styles = StyleSheet.create({
     borderColor: '#EF4444',
   },
   feedbackContainer: {
-    marginTop: 30,
+    marginTop: 20,
     alignItems: 'center',
   },
   feedbackText: {
     fontFamily: FONTS.bold,
     fontSize: 18,
   },
+
+  // ── Reward ────────────────────────────────────────────────────────────────
   rewardContainer: {
     flex: 1,
     backgroundColor: '#0F0920',
