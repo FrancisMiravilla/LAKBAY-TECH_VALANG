@@ -12,7 +12,7 @@ from groq import Groq
 from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, SpotBadge, TriviaAttempt
 from .serializers import (
     CulturalSpotSerializer, QRMarkerSerializer,
-    TriviaQuestionSerializer, TriviaQuestionAdminSerializer,
+    TriviaQuestionSerializer, TriviaQuestionAdminSerializer
 )
 
 XP_PER_QUIZ = 50
@@ -22,7 +22,11 @@ PASS_THRESHOLD = 0.6  # 60% correct to pass
 class CulturalSpotViewSet(viewsets.ModelViewSet):
     queryset = CulturalSpot.objects.all().order_by('name')
     serializer_class = CulturalSpotSerializer
-    permission_classes = [permissions.IsAdminUser]
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAdminUser()]
 
 
 class QRMarkerViewSet(viewsets.ModelViewSet):
@@ -75,6 +79,8 @@ class ValidateQRView(APIView):
 
         spot = marker.spot
         image_url = request.build_absolute_uri(spot.image.url) if spot.image else None
+        image2_url = request.build_absolute_uri(spot.image2.url) if getattr(spot, 'image2', None) else None
+        image3_url = request.build_absolute_uri(spot.image3.url) if getattr(spot, 'image3', None) else None
         has_trivia = TriviaQuestion.objects.filter(spot=spot).exists()
 
         return Response({
@@ -88,6 +94,8 @@ class ValidateQRView(APIView):
                 'name': spot.name,
                 'hook': spot.hook,
                 'image': image_url,
+                'image2': image2_url,
+                'image3': image3_url,
                 'description': spot.description,
                 'historical': {
                     'label': 'HISTORICAL BACKGROUND',
