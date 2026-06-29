@@ -1,31 +1,99 @@
 import React, { useState } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity,
-  StatusBar, ScrollView
+  StatusBar, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
-import CustomButton from '../components/CustomButton';
 
-const INITIAL_COLLECTION = [
-  { id: 'curacha',  name: 'Curacha',       emoji: '🦀', location: 'Fort Pilar Museum',      caught: true,  color: '#E91E8C' },
-  { id: 'vinta',    name: 'Vinta',         emoji: '⛵', location: 'Paseo del Mar',          caught: false, color: '#4A5568' },
-  { id: 'lantaka',  name: 'Lantaka',       emoji: '🏰', location: 'Fort Pilar Grounds',     caught: false, color: '#4A5568' },
-  { id: 'yakan',    name: 'Yakan Weaver',  emoji: '🎨', location: 'Yakan Weaving Village',  caught: false, color: '#4A5568' },
+const ICONS = [
+  {
+    id: 'curacha',
+    name: 'Curacha',
+    emoji: '🦀',
+    tagline: 'The Spanner Crab of Zamboanga',
+    type: 'Marine Creature',
+    color: '#E91E8C',
+    glow: 'rgba(233,30,140,0.35)',
+    about:
+      'The Curacha (Ranina ranina), also known as the spanner crab, is a large sea crab unique to the warm coastal waters surrounding Zamboanga City. Distinguished by its bright orange shell and flat, paddle-like claws, it is prized across the Philippines for its exceptionally rich, buttery meat. It is most famously served drenched in Alavar sauce — a secret blend of coconut milk, spices, and aromatic herbs perfected over generations at the legendary Alavar Restaurant, founded in 1948.',
+    significance:
+      'The Curacha is more than a seafood delicacy — it is a proud symbol of Zamboangueño identity and coastal culinary heritage. Served at family fiestas, local celebrations, and tourist dining tables alike, it brings people together to experience the true flavor of the City of Flowers.',
+    facts: [
+      { label: 'Type', value: 'Marine Crustacean' },
+      { label: 'Scientific Name', value: 'Ranina ranina' },
+      { label: 'Season', value: 'Year-round' },
+      { label: 'Best Served', value: 'With Alavar Sauce' },
+    ],
+  },
+  {
+    id: 'vinta',
+    name: 'Vinta',
+    emoji: '⛵',
+    tagline: 'The Sailboat of the Seas',
+    type: 'Traditional Watercraft',
+    color: '#38BDF8',
+    glow: 'rgba(56,189,248,0.35)',
+    about:
+      'The Vinta is a colorful traditional outrigger boat used by the Tausug, Sama, and Badjao peoples of the Zamboanga Peninsula and Sulu Archipelago. Known for its vibrant, geometric sails called "layag," the Vinta is both a functional fishing vessel and a celebrated symbol of maritime freedom and artistry.',
+    significance:
+      'The Vinta represents the seafaring heritage and artistic expression of the indigenous Muslim coastal communities. Its iconic multicolored sails are featured throughout Zamboanga City\'s festivals, logos, and cultural events — a living emblem of the city\'s identity on the water.',
+    facts: [
+      { label: 'Type', value: 'Traditional Watercraft' },
+      { label: 'People', value: 'Tausug / Sama / Badjao' },
+      { label: 'Sail Name', value: 'Layag' },
+      { label: 'Festival', value: 'Vinta Festival' },
+    ],
+  },
+  {
+    id: 'lantaka',
+    name: 'Lantaka',
+    emoji: '⚔️',
+    tagline: 'The Cannon of the Moro Warriors',
+    type: 'Historical Weapon',
+    color: '#FBBF24',
+    glow: 'rgba(251,191,36,0.35)',
+    about:
+      'The Lantaka is a traditional bronze or brass swivel cannon historically used by the Moro warriors of Mindanao and Sulu. Ranging from small portable versions to large ship-mounted artillery, Lantakas were crafted by skilled metalworkers and served as symbols of power, sovereignty, and military prestige.',
+    significance:
+      'The Lantaka represents the military heritage and sovereignty of the Moro peoples. Prominently displayed at Fort Pilar, the 17th-century Spanish fortress of Zamboanga City, the Lantaka stands as a testament to the city\'s complex history of resistance, conflict, and cultural pride.',
+    facts: [
+      { label: 'Type', value: 'Traditional Cannon' },
+      { label: 'Material', value: 'Bronze or Brass' },
+      { label: 'Origin', value: 'Moro / Mindanao' },
+      { label: 'Found At', value: 'Fort Pilar Museum' },
+    ],
+  },
+  {
+    id: 'yakan',
+    name: 'Yakan Weave',
+    emoji: '🎨',
+    tagline: 'The Art Woven by the Yakan People',
+    type: 'Indigenous Textile',
+    color: '#10B981',
+    glow: 'rgba(16,185,129,0.35)',
+    about:
+      'The Yakan Weave is a traditional textile created by the Yakan indigenous people of Basilan and Zamboanga Peninsula. Using a backstrap loom, weavers create bold geometric patterns in vibrant colors — each piece taking days or weeks to complete. No two patterns are exactly the same.',
+    significance:
+      'The Yakan Weave is a living art form that preserves Yakan identity, beliefs, and social structure. Each pattern is passed down through generations by female weavers, representing family lineage and spiritual protection. The Yakan Weaving Village in Zamboanga City keeps this tradition alive for visitors.',
+    facts: [
+      { label: 'Type', value: 'Traditional Textile' },
+      { label: 'People', value: 'Yakan Indigenous' },
+      { label: 'Technique', value: 'Backstrap Loom' },
+      { label: 'Colors', value: 'Red, Yellow, Green, Black' },
+    ],
+  },
 ];
 
 export default function CatchScreen({ navigation }) {
-  const [collection, setCollection] = useState(INITIAL_COLLECTION);
-  const caughtCount = collection.filter(c => c.caught).length;
-  const total = collection.length;
-  const pct = caughtCount / total;
+  const [caught] = useState(['curacha']);
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
-      {/* Top Header */}
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Ionicons name="sparkles" size={20} color={COLORS.gold} style={{ marginRight: 6 }} />
@@ -34,7 +102,7 @@ export default function CatchScreen({ navigation }) {
             <Text style={styles.logoSub}>ZAMBOANGA CITY</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.headerBtn}>
+        <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('Notifications')}>
           <Ionicons name="notifications-outline" size={20} color="#FFF" />
         </TouchableOpacity>
       </View>
@@ -50,104 +118,69 @@ export default function CatchScreen({ navigation }) {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
-        {/* Collection Progress */}
+        {/* Progress */}
         <View style={styles.progressCard}>
           <View style={styles.progressTopRow}>
-            <Text style={styles.progressLabel}>Collection progress</Text>
+            <Text style={styles.progressLabel}>Collection Progress</Text>
             <Text style={styles.progressValue}>
-              <Text style={styles.progressCaught}>{caughtCount}</Text> / {total}
+              <Text style={styles.progressCaught}>{caught.length}</Text>
+              {' '}/ {ICONS.length}
             </Text>
           </View>
           <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: `${Math.round(pct * 100)}%` }]} />
+            <View style={[styles.progressBarFill, { width: `${Math.round((caught.length / ICONS.length) * 100)}%` }]} />
           </View>
         </View>
 
-        {/* Map View */}
-        <View style={styles.mapCard}>
-          {/* Mock Map Background using gradients / colors */}
-          <View style={styles.mapBg}>
-            <View style={styles.mapGridLineV1} />
-            <View style={styles.mapGridLineV2} />
-            <View style={styles.mapGridLineH1} />
-            <View style={styles.mapGridLineH2} />
-            
-            {/* Mock terrain arc */}
-            <View style={styles.terrainArc} />
-            <View style={styles.terrainCircle1} />
-            <View style={styles.terrainCircle2} />
-            
-            <View style={styles.compassMock}>
-              <Text style={styles.compassN}>N</Text>
-              <Text style={styles.compassArrow}>↑</Text>
-            </View>
-
-            {/* Mock Nodes */}
-            <TouchableOpacity 
-              style={[styles.mapNode, { bottom: '25%', left: '15%' }]}
-              onPress={() => navigation.navigate('CatchDetails')}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.nodePin, { backgroundColor: '#E91E8C', shadowColor: '#E91E8C', shadowOpacity: 0.8, shadowRadius: 10 }]}>
-                <Text style={styles.nodeEmoji}>🦀</Text>
-              </View>
-              <Text style={styles.nodeLabel}>Curacha</Text>
-              <Text style={styles.nodeSubLabel}>ZAMBOANGA CITY</Text>
-            </TouchableOpacity>
-
-            <View style={[styles.mapNode, { top: '30%', left: '45%' }]}>
-              <View style={[styles.nodePin, { backgroundColor: '#4A5568' }]}>
-                <Text style={styles.nodeEmoji}>⛵</Text>
-              </View>
-              <Text style={styles.nodeLabel}>Vinta</Text>
-            </View>
-
-            <View style={[styles.mapNode, { top: '30%', right: '15%' }]}>
-              <View style={[styles.nodePin, { backgroundColor: '#4A5568' }]}>
-                <Text style={styles.nodeEmoji}>🏰</Text>
-              </View>
-              <Text style={styles.nodeLabel}>Lantaka</Text>
-            </View>
-
-            <View style={[styles.mapNode, { bottom: '25%', right: '15%' }]}>
-              <View style={[styles.nodePin, { backgroundColor: '#4A5568' }]}>
-                <Text style={styles.nodeEmoji}>🎨</Text>
-              </View>
-              <Text style={styles.nodeLabel}>Yakan</Text>
-            </View>
-
-            <Text style={styles.mapScaleLabel}>📏 5 km</Text>
-          </View>
+        {/* Section heading */}
+        <View style={styles.sectionRow}>
+          <View style={styles.accentBar} />
+          <Text style={styles.sectionTitle}>Choose a Cultural Icon</Text>
         </View>
+        <Text style={styles.sectionSub}>
+          Tap any icon to learn about its history and cultural significance.
+        </Text>
 
-        {/* Your Collection */}
-        <Text style={styles.sectionTitle}>Your collection</Text>
-        <View style={styles.collectionGrid}>
-          {collection.map(item => (
-            <View key={item.id} style={styles.collectionCard}>
-              <View style={styles.cardHeader}>
-                <View style={[styles.cardIconRing, { borderColor: item.color, shadowColor: item.color, backgroundColor: item.color + '22' }]}>
-                  <Text style={styles.cardIconEmoji}>{item.emoji}</Text>
+        {/* 2×2 Icon Grid */}
+        <View style={styles.grid}>
+          {ICONS.map(icon => {
+            const isCaught = caught.includes(icon.id);
+            return (
+              <TouchableOpacity
+                key={icon.id}
+                style={[styles.iconCard, { borderColor: icon.color + '55' }]}
+                activeOpacity={0.82}
+                onPress={() => navigation.navigate('CatchDetails', { icon })}
+              >
+                {/* Glow blob */}
+                <View style={[styles.cardGlow, { backgroundColor: icon.glow }]} />
+
+                {/* Caught badge */}
+                {isCaught && (
+                  <View style={[styles.caughtBadge, { backgroundColor: icon.color }]}>
+                    <Ionicons name="checkmark" size={9} color="#FFF" />
+                    <Text style={styles.caughtBadgeText}>Caught</Text>
+                  </View>
+                )}
+
+                {/* Emoji */}
+                <View style={[styles.emojiRing, { borderColor: icon.color + '88', backgroundColor: icon.color + '18' }]}>
+                  <Text style={styles.emojiText}>{icon.emoji}</Text>
                 </View>
-                <View style={[styles.statusBadge, item.caught ? styles.statusCaught : styles.statusNotCaught]}>
-                  <Text style={[styles.statusText, item.caught && { color: '#10B981' }]}>
-                    {item.caught ? 'Caught' : 'Not caught'}
-                  </Text>
+
+                <Text style={[styles.iconName, { color: icon.color }]}>{icon.name}</Text>
+                <Text style={styles.iconType}>{icon.type}</Text>
+                <Text style={styles.iconTagline} numberOfLines={2}>{icon.tagline}</Text>
+
+                {/* Arrow */}
+                <View style={[styles.arrowBtn, { backgroundColor: icon.color + '22', borderColor: icon.color + '44' }]}>
+                  <Ionicons name="arrow-forward" size={14} color={icon.color} />
                 </View>
-              </View>
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              <Text style={styles.cardSub}>{item.location}</Text>
-            </View>
-          ))}
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        <View style={{ marginTop: 32, marginBottom: 40 }}>
-          <CustomButton 
-            title="Start Capturing" 
-            onPress={() => alert('Starting AR Capture Mode...')} 
-            variant="primary" 
-          />
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -156,40 +189,32 @@ export default function CatchScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
 
-  /* ── Headers ── */
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    height: 60,
-    backgroundColor: '#C8175A', // Gradient mock
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, height: 60, backgroundColor: '#C8175A',
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center' },
   logoTitle: { fontFamily: FONTS.pixel, fontSize: 9, color: '#FFF', letterSpacing: 1, lineHeight: 16 },
   logoSub: { fontFamily: FONTS.medium, fontSize: 8, color: 'rgba(255,255,255,0.7)', letterSpacing: 1 },
   headerBtn: {
     width: 32, height: 32, borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'center', alignItems: 'center'
+    backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'center', alignItems: 'center',
   },
-  
+
   subHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, height: 48, backgroundColor: '#1A0A30',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)'
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   backBtn: { width: 32, height: 32, justifyContent: 'center', alignItems: 'flex-start' },
   subHeaderTitle: { fontFamily: FONTS.bold, fontSize: 14, color: '#FFF', letterSpacing: 1 },
 
-  scroll: { padding: 16 },
+  scroll: { padding: 16, paddingBottom: 40 },
 
-  /* ── Progress Card ── */
   progressCard: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.md,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1, borderColor: COLORS.border
+    backgroundColor: COLORS.bgCard, borderRadius: RADIUS.md,
+    padding: 16, marginBottom: 24,
+    borderWidth: 1, borderColor: COLORS.border,
   },
   progressTopRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   progressLabel: { fontFamily: FONTS.semiBold, fontSize: 13, color: '#FFF' },
@@ -198,51 +223,54 @@ const styles = StyleSheet.create({
   progressBarBg: { height: 6, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 3, overflow: 'hidden' },
   progressBarFill: { height: '100%', backgroundColor: COLORS.gold, borderRadius: 3 },
 
-  /* ── Map Card ── */
-  mapCard: {
-    height: 220,
-    borderRadius: RADIUS.md,
-    overflow: 'hidden',
-    borderWidth: 1.5, borderColor: COLORS.accent,
-    marginBottom: 24
+  sectionRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  accentBar: { width: 3, height: 18, backgroundColor: COLORS.accent, borderRadius: 2, marginRight: 10 },
+  sectionTitle: { fontFamily: FONTS.bold, fontSize: 17, color: '#FFF' },
+  sectionSub: {
+    fontFamily: FONTS.regular, fontSize: 12,
+    color: COLORS.textMuted, marginBottom: 20, lineHeight: 18,
   },
-  mapBg: { flex: 1, backgroundColor: '#1A202C', position: 'relative' },
-  mapGridLineV1: { position: 'absolute', left: '33%', width: 1, height: '100%', backgroundColor: 'rgba(255,255,255,0.05)' },
-  mapGridLineV2: { position: 'absolute', left: '66%', width: 1, height: '100%', backgroundColor: 'rgba(255,255,255,0.05)' },
-  mapGridLineH1: { position: 'absolute', top: '33%', height: 1, width: '100%', backgroundColor: 'rgba(255,255,255,0.05)' },
-  mapGridLineH2: { position: 'absolute', top: '66%', height: 1, width: '100%', backgroundColor: 'rgba(255,255,255,0.05)' },
-  terrainArc: { position: 'absolute', bottom: -50, left: -50, width: 500, height: 200, borderRadius: 250, backgroundColor: '#2D3748', opacity: 0.5 },
-  terrainCircle1: { position: 'absolute', top: '20%', left: '5%', width: 40, height: 40, borderRadius: 20, backgroundColor: '#2D3748', opacity: 0.3 },
-  terrainCircle2: { position: 'absolute', bottom: '10%', right: '5%', width: 60, height: 30, borderRadius: 30, backgroundColor: '#2D3748', opacity: 0.3 },
-  
-  compassMock: { position: 'absolute', top: 10, right: 10, alignItems: 'center' },
-  compassN: { color: '#A0AEC0', fontSize: 8, fontFamily: FONTS.bold },
-  compassArrow: { color: '#E91E8C', fontSize: 12, marginTop: -2 },
 
-  mapNode: { position: 'absolute', alignItems: 'center' },
-  nodePin: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
-  nodeEmoji: { fontSize: 14 },
-  nodeLabel: { fontFamily: FONTS.semiBold, fontSize: 9, color: '#E2E8F0' },
-  nodeSubLabel: { fontFamily: FONTS.regular, fontSize: 7, color: '#A0AEC0', marginTop: 1 },
-  mapScaleLabel: { position: 'absolute', bottom: 10, left: 10, color: 'rgba(255,255,255,0.4)', fontSize: 9, fontFamily: FONTS.regular },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
 
-  /* ── Collection ── */
-  sectionTitle: { fontFamily: FONTS.bold, fontSize: 16, color: '#FFF', marginBottom: 16 },
-  collectionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  collectionCard: {
-    width: '48%',
+  iconCard: {
+    width: '47.5%',
     backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.sm,
-    padding: 12,
-    borderWidth: 1, borderColor: COLORS.border
+    borderRadius: RADIUS.md,
+    padding: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  cardIconRing: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
-  cardIconEmoji: { fontSize: 18 },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.pill, borderWidth: 1 },
-  statusCaught: { backgroundColor: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.3)' },
-  statusNotCaught: { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.1)' },
-  statusText: { fontFamily: FONTS.semiBold, fontSize: 9, color: COLORS.textMuted },
-  cardTitle: { fontFamily: FONTS.bold, fontSize: 13, color: '#FFF', marginBottom: 2 },
-  cardSub: { fontFamily: FONTS.regular, fontSize: 10, color: COLORS.textMuted },
+  cardGlow: {
+    position: 'absolute', top: -30, right: -30,
+    width: 100, height: 100, borderRadius: 50,
+    opacity: 0.4,
+  },
+  caughtBadge: {
+    position: 'absolute', top: 10, right: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 7, paddingVertical: 3,
+    borderRadius: RADIUS.pill,
+  },
+  caughtBadgeText: { fontFamily: FONTS.bold, fontSize: 8, color: '#FFF' },
+
+  emojiRing: {
+    width: 56, height: 56, borderRadius: 28,
+    borderWidth: 1.5,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: 12,
+  },
+  emojiText: { fontSize: 26 },
+
+  iconName: { fontFamily: FONTS.bold, fontSize: 16, marginBottom: 2 },
+  iconType: { fontFamily: FONTS.semiBold, fontSize: 10, color: COLORS.textMuted, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  iconTagline: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textSub, lineHeight: 16, marginBottom: 14 },
+
+  arrowBtn: {
+    alignSelf: 'flex-start',
+    width: 28, height: 28, borderRadius: 14,
+    borderWidth: 1,
+    justifyContent: 'center', alignItems: 'center',
+  },
 });

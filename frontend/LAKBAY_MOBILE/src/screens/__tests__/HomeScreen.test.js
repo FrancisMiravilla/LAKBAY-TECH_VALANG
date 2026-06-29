@@ -1,67 +1,34 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import HomeScreen from '../HomeScreen';
 
-// Mock the react-navigation navigation prop
-const mockNavigation = {
-  navigate: jest.fn(),
-};
+const mockNavigation = { navigate: jest.fn() };
 
-// Manually mock @rnmapbox/maps so its components render as simple View elements and expose their children
-jest.mock('@rnmapbox/maps', () => {
+jest.mock('react-native-webview', () => {
   const React = require('react');
   const { View } = require('react-native');
-
-  const MockMapView = ({ children, ...props }) => {
-    return React.createElement(View, props, children);
-  };
-
-  const MockMarkerView = ({ children, ...props }) => {
-    return React.createElement(View, props, children);
-  };
-
-  const MockCamera = ({ children }) => {
-    return children ? children : null;
-  };
-
-  const mockMapbox = {
-    setAccessToken: jest.fn(),
-    StyleURL: {
-      Dark: 'dark-style-url',
-    },
-    MapView: MockMapView,
-    MarkerView: MockMarkerView,
-    Camera: MockCamera,
-  };
-
   return {
-    __esModule: true,
-    default: mockMapbox,
-    ...mockMapbox,
+    WebView: ({ testID, ...props }) =>
+      React.createElement(View, { testID: testID ?? 'leaflet-mini-map', ...props }),
   };
 });
 
+beforeEach(() => jest.clearAllMocks());
+
 describe('HomeScreen Map Feature', () => {
-  it('renders the Mapbox MapView and interactive markers when Mapbox is loaded', async () => {
-    const { getByTestId, queryByTestId, getByText } = await render(
-      <HomeScreen navigation={mockNavigation} />
-    );
+  it('renders the Leaflet WebView mini-map', () => {
+    const { getByTestId } = render(<HomeScreen navigation={mockNavigation} />);
+    expect(getByTestId('leaflet-mini-map')).toBeTruthy();
+  });
 
-    // Assert that the real Mapbox map view is rendered using our testID
-    expect(getByTestId('mapbox-map')).toBeTruthy();
+  it('shows the tap-to-explore overlay', () => {
+    const { getByText } = render(<HomeScreen navigation={mockNavigation} />);
+    expect(getByText('Tap to Explore Interactive Map')).toBeTruthy();
+  });
 
-    // Assert that the two Mapbox markers are correctly rendered on the map
-    expect(getByTestId('marker-santa-cruz')).toBeTruthy();
-    expect(getByTestId('marker-city-center')).toBeTruthy();
-
-    // Assert that the markers display their correct labels
-    expect(getByText('🏝️ Santa Cruz')).toBeTruthy();
-    expect(getByText('🏢 City Center')).toBeTruthy();
-
-    // Assert that the fallback grid mock map is not shown
-    expect(queryByTestId('mockup-map')).toBeNull();
-
-    // Assert that the map mock is rendered (already done above)
-
+  it('navigates to Map screen when overlay is pressed', () => {
+    const { getByText } = render(<HomeScreen navigation={mockNavigation} />);
+    fireEvent.press(getByText('Tap to Explore Interactive Map'));
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('Map');
   });
 });

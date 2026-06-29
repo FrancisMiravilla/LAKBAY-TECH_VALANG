@@ -2,6 +2,7 @@
   "expo": {
     "name": "LAKBAY",
     "slug": "LAKBAY",
+    "scheme": "lakbay",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,7 +17,11 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.anonymous.LAKBAY"
+      "package": "com.anonymous.LAKBAY",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -29,6 +34,11 @@
         }
       ],
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d051bd25-77e5-44b6-a2c5-9ad82d200377"
+      }
+    }
   }
 }

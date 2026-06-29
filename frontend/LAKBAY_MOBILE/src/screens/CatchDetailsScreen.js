@@ -4,111 +4,85 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 
-export default function CatchDetailsScreen({ navigation }) {
+export default function CatchDetailsScreen({ route, navigation }) {
+  const { icon } = route.params;
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#C8175A" />
-      
-      {/* ── Header Area (Pink) ── */}
-      <View style={styles.headerBg}>
+
+      {/* Header */}
+      <View style={[styles.headerBg, { backgroundColor: icon.color }]}>
         <View style={styles.headerTop}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
             <Ionicons name="arrow-back" size={20} color="#FFF" />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Curacha</Text>
-            <Text style={styles.headerSub}>CULTURAL ICON</Text>
+            <Text style={styles.headerTitle}>{icon.name}</Text>
+            <Text style={styles.headerSub}>{icon.type.toUpperCase()}</Text>
           </View>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="share-social-outline" size={20} color="#FFF" />
-          </TouchableOpacity>
+          <View style={styles.iconBtn} />
         </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {/* ── Glow Card ── */}
+
+        {/* Main Card */}
         <View style={styles.cardContainer}>
-          <View style={styles.glowBg} />
-          <View style={styles.mainCard}>
-            
-            {/* Top Identity Row */}
+          <View style={[styles.cardGlow, { shadowColor: icon.color, backgroundColor: icon.color }]} />
+          <View style={[styles.mainCard, { borderColor: icon.color }]}>
+
+            {/* Identity Row */}
             <View style={styles.identityRow}>
-              <View style={styles.avatarWrap}>
-                <View style={styles.avatarCircle}>
-                  <Text style={styles.avatarEmoji}>🦀</Text>
-                </View>
-                <View style={styles.checkBadge}>
-                  <Ionicons name="checkmark" size={10} color="#FFF" />
-                </View>
+              <View style={[styles.avatarCircle, { backgroundColor: icon.color + '33', borderColor: icon.color }]}>
+                <Text style={styles.avatarEmoji}>{icon.emoji}</Text>
               </View>
-              
               <View style={styles.identityTextWrap}>
-                <Text style={styles.cardTitle}>Curacha</Text>
-                <View style={styles.locationRow}>
-                  <Ionicons name="location-outline" size={12} color="#A0AEC0" />
-                  <Text style={styles.locationText}>Alavar Restaurant, Zamboanga</Text>
+                <Text style={styles.cardTitle}>{icon.name}</Text>
+                <Text style={styles.cardTagline}>{icon.tagline}</Text>
+                <View style={[styles.typeBadge, { backgroundColor: icon.color + '22', borderColor: icon.color + '55' }]}>
+                  <Text style={[styles.typeBadgeText, { color: icon.color }]}>{icon.type}</Text>
                 </View>
-                <View style={styles.starsRow}>
-                  <Ionicons name="star" size={12} color="#F5A623" />
-                  <Ionicons name="star" size={12} color="#F5A623" />
-                  <Ionicons name="star" size={12} color="#F5A623" />
-                  <Ionicons name="star" size={12} color="#F5A623" />
-                  <Ionicons name="star-half" size={12} color="#F5A623" />
-                  <Text style={styles.ratingText}>4.9</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Badges Row */}
-            <View style={styles.badgesRow}>
-              <View style={styles.badgePink}>
-                <Ionicons name="star" size={10} color="#FFF" />
-                <Text style={styles.badgePinkText}>Cultural Symbol</Text>
-              </View>
-              <View style={styles.badgeGreen}>
-                <Text style={styles.badgeGreenText}>Zamboanga City</Text>
               </View>
             </View>
 
             <View style={styles.divider} />
 
-            {/* ABOUT Section */}
-            <Text style={styles.sectionTitle}>ABOUT</Text>
-            <Text style={styles.bodyText}>
-              The <Text style={styles.highlight}>Curacha</Text> (Ranina ranina), also known as the 
-              spanner crab, is a large sea crab unique to the 
-              warm coastal waters surrounding <Text style={styles.highlight}>Zamboanga City</Text>. 
-              Distinguished by its bright orange shell and flat, 
-              paddle-like claws, it is prized across the Philippines 
-              for its exceptionally <Text style={styles.highlight}>rich, buttery meat</Text>. It is most 
-              famously served drenched in <Text style={styles.highlight}>Alavar sauce</Text> — a 
-              secret blend of coconut milk, spices, and aromatic 
-              herbs perfected over generations at the legendary 
-              Alavar Restaurant, founded in 1948.
-            </Text>
+            {/* ABOUT */}
+            <Text style={[styles.sectionTitle, { color: icon.color }]}>ABOUT</Text>
+            <Text style={styles.bodyText}>{icon.about}</Text>
 
             <View style={styles.divider} />
 
-            {/* CULTURAL SIGNIFICANCE Section */}
-            <Text style={styles.sectionTitle}>CULTURAL SIGNIFICANCE</Text>
-            <Text style={styles.bodyText}>
-              The Curacha is more than a seafood delicacy — it is 
-              a proud symbol of <Text style={styles.highlight}>Zamboangueño identity</Text> and 
-              coastal culinary heritage. Served at family fiestas, 
-              local celebrations, and tourist dining tables alike, it 
-              brings people together to experience the true flavor 
-              of the City of Flowers.
-            </Text>
+            {/* CULTURAL SIGNIFICANCE */}
+            <Text style={[styles.sectionTitle, { color: icon.color }]}>CULTURAL SIGNIFICANCE</Text>
+            <Text style={styles.bodyText}>{icon.significance}</Text>
+
+            <View style={styles.divider} />
+
+            {/* BASIC FACTS */}
+            <Text style={[styles.sectionTitle, { color: icon.color }]}>BASIC FACTS</Text>
+            <View style={styles.factsGrid}>
+              {icon.facts.map(fact => (
+                <View key={fact.label} style={[styles.factCard, { borderColor: icon.color + '33' }]}>
+                  <Text style={[styles.factLabel, { color: icon.color }]}>{fact.label.toUpperCase()}</Text>
+                  <Text style={styles.factValue}>{fact.value}</Text>
+                </View>
+              ))}
+            </View>
 
           </View>
         </View>
 
       </ScrollView>
 
-      {/* ── Bottom Nav / Actions ── */}
+      {/* Bottom Button */}
       <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.continueBtn} onPress={() => navigation.navigate('QuizScreen')}>
-          <Text style={styles.continueBtnText}>Continue</Text>
+        <TouchableOpacity
+          style={[styles.continueBtn, { backgroundColor: icon.color }, SHADOW.accent]}
+          onPress={() => navigation.navigate('QuizScreen')}
+        >
+          <Text style={styles.continueBtnText}>Continue to Quiz</Text>
           <Ionicons name="arrow-forward" size={20} color="#FFF" style={{ marginLeft: 8 }} />
         </TouchableOpacity>
       </View>
@@ -117,212 +91,75 @@ export default function CatchDetailsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0F0920', // Deep dark blue/purple background
-  },
+  container: { flex: 1, backgroundColor: COLORS.bg },
+
   headerBg: {
-    backgroundColor: '#C8175A',
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    paddingBottom: 40,
-    marginBottom: -30, // overlap with the card
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    paddingBottom: 36,
+    marginBottom: -28,
     zIndex: 0,
   },
   headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 10,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, paddingTop: 10,
   },
   iconBtn: {
-    width: 36, height: 36,
-    borderRadius: 18,
+    width: 36, height: 36, borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center', alignItems: 'center',
   },
-  headerCenter: {
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 20,
-    color: '#FFF',
-    letterSpacing: 1,
-  },
-  headerSub: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.8)',
-    letterSpacing: 2,
-    marginTop: 2,
-  },
-  scroll: {
-    paddingHorizontal: 20,
-    paddingBottom: 100, // padding for bottom nav
-  },
-  cardContainer: {
-    position: 'relative',
-    marginTop: 10,
-    zIndex: 1,
-  },
-  glowBg: {
+  headerCenter: { alignItems: 'center' },
+  headerTitle: { fontFamily: FONTS.bold, fontSize: 20, color: '#FFF', letterSpacing: 1 },
+  headerSub: { fontFamily: FONTS.semiBold, fontSize: 10, color: 'rgba(255,255,255,0.8)', letterSpacing: 2, marginTop: 2 },
+
+  scroll: { paddingHorizontal: 20, paddingBottom: 110 },
+
+  cardContainer: { position: 'relative', marginTop: 10, zIndex: 1 },
+  cardGlow: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#E91E8C',
-    borderRadius: 24,
-    top: -2, bottom: -2, left: -2, right: -2,
-    opacity: 0.5,
-    shadowColor: '#E91E8C',
+    borderRadius: 24, top: -2, bottom: -2, left: -2, right: -2,
+    opacity: 0.45,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOpacity: 1, shadowRadius: 20, elevation: 10,
   },
   mainCard: {
-    backgroundColor: '#1C1434',
-    borderRadius: 22,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#E91E8C',
+    backgroundColor: '#1C1434', borderRadius: 22,
+    padding: 20, borderWidth: 1,
   },
-  identityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  avatarWrap: {
-    position: 'relative',
-    marginRight: 16,
-  },
+
+  identityRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
   avatarCircle: {
-    width: 60, height: 60,
-    borderRadius: 30,
-    backgroundColor: '#C8175A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#E91E8C',
+    width: 68, height: 68, borderRadius: 34, borderWidth: 2,
+    justifyContent: 'center', alignItems: 'center', marginRight: 16,
   },
-  avatarEmoji: {
-    fontSize: 30,
+  avatarEmoji: { fontSize: 34 },
+  identityTextWrap: { flex: 1 },
+  cardTitle: { fontFamily: FONTS.bold, fontSize: 22, color: '#FFF', marginBottom: 4 },
+  cardTagline: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textSub, marginBottom: 8, lineHeight: 17 },
+  typeBadge: {
+    alignSelf: 'flex-start', borderWidth: 1,
+    paddingHorizontal: 10, paddingVertical: 3, borderRadius: RADIUS.pill,
   },
-  checkBadge: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    backgroundColor: '#10B981',
-    width: 20, height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#1C1434',
+  typeBadgeText: { fontFamily: FONTS.bold, fontSize: 10 },
+
+  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 18 },
+
+  sectionTitle: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 1.5, marginBottom: 10 },
+  bodyText: { fontFamily: FONTS.regular, fontSize: 13, color: '#E2E8F0', lineHeight: 22 },
+
+  factsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  factCard: {
+    width: '47%', backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: RADIUS.sm, borderWidth: 1, padding: 12,
   },
-  identityTextWrap: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 22,
-    color: '#FFF',
-    marginBottom: 4,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  locationText: {
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: '#A0AEC0',
-    marginLeft: 4,
-  },
-  starsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 12,
-    color: '#A0AEC0',
-    marginLeft: 6,
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    gap: 10,
-  },
-  badgePink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E91E8C',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    gap: 4,
-  },
-  badgePinkText: {
-    fontFamily: FONTS.bold,
-    fontSize: 11,
-    color: '#FFF',
-  },
-  badgeGreen: {
-    backgroundColor: 'rgba(16,185,129,0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#10B981',
-  },
-  badgeGreenText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 11,
-    color: '#10B981',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginVertical: 16,
-  },
-  sectionTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 13,
-    color: '#F5A623',
-    letterSpacing: 1,
-    marginBottom: 10,
-  },
-  bodyText: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
-    color: '#E2E8F0',
-    lineHeight: 22,
-  },
-  highlight: {
-    color: '#F5A623',
-    fontFamily: FONTS.semiBold,
-  },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-  },
+  factLabel: { fontFamily: FONTS.bold, fontSize: 9, letterSpacing: 1, marginBottom: 6 },
+  factValue: { fontFamily: FONTS.semiBold, fontSize: 13, color: '#FFF' },
+
+  bottomNav: { position: 'absolute', bottom: 20, left: 20, right: 20 },
   continueBtn: {
-    flexDirection: 'row',
-    height: 60,
-    backgroundColor: '#E91E8C',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...SHADOW.accent,
+    flexDirection: 'row', height: 58, borderRadius: RADIUS.md,
+    justifyContent: 'center', alignItems: 'center',
   },
-  continueBtnText: {
-    fontFamily: FONTS.bold,
-    fontSize: 16,
-    color: '#FFF',
-    letterSpacing: 1,
-  },
+  continueBtnText: { fontFamily: FONTS.bold, fontSize: 16, color: '#FFF', letterSpacing: 1 },
 });
