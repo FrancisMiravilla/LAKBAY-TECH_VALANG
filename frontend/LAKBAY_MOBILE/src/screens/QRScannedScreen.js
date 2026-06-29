@@ -1,212 +1,276 @@
 import React, { useRef, useEffect } from 'react';
 import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  StatusBar,
-  ScrollView,
-  Image,
-  Animated,
-  Easing,
-  Dimensions,
+  StyleSheet, Text, View, TouchableOpacity, StatusBar,
+  ScrollView, Image, Animated, Easing, Dimensions, LinearGradient,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, FONTS, RADIUS, SPACING } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { COLORS, FONTS, RADIUS, SPACING, SIZES } from '../constants/theme';
+import { ORIGIN } from '../api/qrService';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+
+const formatImageUrl = (img) => {
+  if (!img) return null;
+  if (img.startsWith('http://localhost:8000') || img.startsWith('http://127.0.0.1:8000')) {
+    return img.replace(/^http:\/\/(localhost|127\.0\.0\.1):8000/, ORIGIN);
+  }
+  if (img.startsWith('/media')) return `${ORIGIN}${img}`;
+  return img;
+};
+
+const CARD_SECTIONS = [
+  { key: 'historical', icon: 'time-outline',     color: '#FBBF24', bg: 'rgba(251,191,36,0.10)',   border: 'rgba(251,191,36,0.28)' },
+  { key: 'cultural',   icon: 'sparkles-outline', color: '#A78BFA', bg: 'rgba(167,139,250,0.10)',  border: 'rgba(167,139,250,0.28)' },
+  { key: 'funFact',    icon: 'bulb-outline',      color: '#10B981', bg: 'rgba(16,185,129,0.10)',   border: 'rgba(16,185,129,0.28)' },
+];
 
 export default function QRScannedScreen({ navigation, route }) {
   const spot = route?.params?.spot;
   const already_scanned = route?.params?.already_scanned ?? false;
 
-  // Safety: if navigated without data, go back
-  if (!spot) {
-    navigation.goBack();
-    return null;
-  }
+  const combinedImages = spot
+    ? [spot.image, spot.image2, spot.image3].filter(Boolean).map(formatImageUrl)
+    : [];
 
-  // Card entrance animations
-  const headerSlide = useRef(new Animated.Value(-30)).current;
+  if (!spot) { navigation.goBack(); return null; }
+
+  // ── Animations ──
+  const unlockScale   = useRef(new Animated.Value(0)).current;
+  const unlockOpacity = useRef(new Animated.Value(0)).current;
+  const headerY       = useRef(new Animated.Value(-40)).current;
   const headerOpacity = useRef(new Animated.Value(0)).current;
-  const imageScale = useRef(new Animated.Value(0.92)).current;
-  const imageOpacity = useRef(new Animated.Value(0)).current;
-  const card1Slide = useRef(new Animated.Value(40)).current;
-  const card1Opacity = useRef(new Animated.Value(0)).current;
-  const card2Slide = useRef(new Animated.Value(60)).current;
-  const card2Opacity = useRef(new Animated.Value(0)).current;
-  const card3Slide = useRef(new Animated.Value(80)).current;
-  const card3Opacity = useRef(new Animated.Value(0)).current;
-  const btnSlide = useRef(new Animated.Value(30)).current;
-  const btnOpacity = useRef(new Animated.Value(0)).current;
+  const imageScale    = useRef(new Animated.Value(0.88)).current;
+  const imageOpacity  = useRef(new Animated.Value(0)).current;
+  const card1Y        = useRef(new Animated.Value(50)).current;
+  const card1Opacity  = useRef(new Animated.Value(0)).current;
+  const card2Y        = useRef(new Animated.Value(60)).current;
+  const card2Opacity  = useRef(new Animated.Value(0)).current;
+  const card3Y        = useRef(new Animated.Value(70)).current;
+  const card3Opacity  = useRef(new Animated.Value(0)).current;
+  const btnY          = useRef(new Animated.Value(30)).current;
+  const btnOpacity    = useRef(new Animated.Value(0)).current;
+  const pulse         = useRef(new Animated.Value(1)).current;
+  const ringScale     = useRef(new Animated.Value(0.6)).current;
+  const ringOpacity   = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    // Pulse loop for the unlock badge
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1.06, duration: 900, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+        Animated.timing(pulse, { toValue: 1,    duration: 900, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+      ])
+    ).start();
+
     (async () => {
-      // Header
+      // Unlock badge pop-in
       Animated.parallel([
-        Animated.timing(headerSlide, { toValue: 0, duration: 400, useNativeDriver: true }),
-        Animated.timing(headerOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.spring(unlockScale,   { toValue: 1, tension: 80, friction: 6, useNativeDriver: true }),
+        Animated.timing(unlockOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.spring(ringScale,     { toValue: 1, tension: 60, friction: 7, useNativeDriver: true }),
+        Animated.timing(ringOpacity,   { toValue: 1, duration: 350, useNativeDriver: true }),
       ]).start();
 
-      await delay(120);
+      await delay(150);
 
-      // Image
+      // Header slides in
       Animated.parallel([
-        Animated.timing(imageScale, { toValue: 1, duration: 450, easing: Easing.out(Easing.back(1.2)), useNativeDriver: true }),
-        Animated.timing(imageOpacity, { toValue: 1, duration: 380, useNativeDriver: true }),
+        Animated.timing(headerY,       { toValue: 0, duration: 380, useNativeDriver: true }),
+        Animated.timing(headerOpacity, { toValue: 1, duration: 380, useNativeDriver: true }),
       ]).start();
 
       await delay(200);
 
-      // Card 1
+      // Hero image pops in
       Animated.parallel([
-        Animated.timing(card1Slide, { toValue: 0, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(card1Opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+        Animated.timing(imageScale,   { toValue: 1, duration: 450, easing: Easing.out(Easing.back(1.15)), useNativeDriver: true }),
+        Animated.timing(imageOpacity, { toValue: 1, duration: 380, useNativeDriver: true }),
       ]).start();
 
-      await delay(120);
+      await delay(180);
 
-      // Card 2
-      Animated.parallel([
-        Animated.timing(card2Slide, { toValue: 0, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(card2Opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
-      ]).start();
-
-      await delay(100);
-
-      // Card 3
-      Animated.parallel([
-        Animated.timing(card3Slide, { toValue: 0, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(card3Opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
-      ]).start();
-
-      await delay(100);
+      // Info cards cascade in
+      for (const [slideAnim, opacityAnim] of [
+        [card1Y, card1Opacity],
+        [card2Y, card2Opacity],
+        [card3Y, card3Opacity],
+      ]) {
+        Animated.parallel([
+          Animated.timing(slideAnim,   { toValue: 0, duration: 360, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+          Animated.timing(opacityAnim, { toValue: 1, duration: 330, useNativeDriver: true }),
+        ]).start();
+        await delay(100);
+      }
 
       // Button
       Animated.parallel([
-        Animated.timing(btnSlide, { toValue: 0, duration: 350, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(btnOpacity, { toValue: 1, duration: 320, useNativeDriver: true }),
+        Animated.timing(btnY,       { toValue: 0, duration: 340, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(btnOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
       ]).start();
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const cardAnims = [
+    [card1Y, card1Opacity],
+    [card2Y, card2Opacity],
+    [card3Y, card3Opacity],
+  ];
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
+      {/* ── Glow ring behind unlock badge ── */}
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.glowRing, { transform: [{ scale: ringScale }], opacity: ringOpacity }]}
+      />
+
       {/* ── App Header ── */}
-      <Animated.View style={[styles.appHeader, { transform: [{ translateY: headerSlide }], opacity: headerOpacity }]}>
-        {/* Left: back + logo */}
+      <Animated.View style={[styles.appHeader, { transform: [{ translateY: headerY }], opacity: headerOpacity }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backArrow}>←</Text>
+          <Ionicons name="chevron-back" size={20} color="#fff" />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={styles.pageTitle}>QR SCAN MODE</Text>
+          <View style={styles.headerBadge}>
+            <Ionicons name="scan" size={12} color={COLORS.accent} style={{ marginRight: 5 }} />
+            <Text style={styles.headerBadgeText}>QR SCAN</Text>
+          </View>
+          <Text style={styles.headerTitle}>Discovery Unlocked</Text>
         </View>
 
-        {/* Right spacer */}
         <View style={{ width: 40 }} />
       </Animated.View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+
         {/* ── Already scanned banner ── */}
         {already_scanned && (
-          <View style={styles.alreadyScannedBanner}>
-            <Text style={styles.alreadyScannedText}>✓ You've already scanned this spot</Text>
+          <View style={styles.alreadyBanner}>
+            <Ionicons name="checkmark-circle" size={15} color={COLORS.teal} />
+            <Text style={styles.alreadyBannerText}>Already scanned — revisiting this spot</Text>
           </View>
         )}
 
-        {/* ── Location chip & Hook ── */}
-        <View style={styles.locationChipRow}>
-          <View style={styles.locationChip}>
-            <View style={styles.locationDot} />
-            <Text style={styles.locationText}>{spot.name}</Text>
+        {/* ── Unlock hero badge ── */}
+        <Animated.View style={[styles.unlockBadgeWrapper, { transform: [{ scale: unlockScale }], opacity: unlockOpacity }]}>
+          <View style={styles.unlockBadgeOuter}>
+            <Animated.View style={[styles.unlockBadgeInner, { transform: [{ scale: pulse }] }]}>
+              <Ionicons name="checkmark" size={42} color={COLORS.accent} />
+            </Animated.View>
           </View>
-          {spot.hook ? (
-            <Text style={styles.hookText}>"{spot.hook}"</Text>
+          <View style={styles.unlockXPChip}>
+            <Ionicons name="star" size={11} color={COLORS.gold} />
+            <Text style={styles.unlockXPText}>+50 XP</Text>
+          </View>
+        </Animated.View>
+
+        {/* ── Spot name & location ── */}
+        <View style={styles.spotMeta}>
+          <Text style={styles.spotName}>{spot.name}</Text>
+          {spot.hook ? <Text style={styles.spotHook}>"{spot.hook}"</Text> : null}
+          {spot.location_name ? (
+            <View style={styles.locationRow}>
+              <Ionicons name="location-sharp" size={13} color={COLORS.accent} />
+              <Text style={styles.locationText}>{spot.location_name}</Text>
+            </View>
           ) : null}
         </View>
 
-        {/* ── Hero image ── */}
-        <Animated.View
-          style={[
-            styles.imageWrapper,
-            { transform: [{ scale: imageScale }], opacity: imageOpacity },
-          ]}
-        >
-          {spot.image ? (
-            <Image source={{ uri: spot.image }} style={styles.heroImage} resizeMode="cover" />
+        {/* ── Image slider ── */}
+        <Animated.View style={[styles.imageWrapper, { transform: [{ scale: imageScale }], opacity: imageOpacity }]}>
+          {combinedImages.length > 0 ? (
+            <>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={SCREEN_W - 32}
+                decelerationRate="fast"
+                style={{ width: '100%', height: '100%' }}
+                contentContainerStyle={{ paddingRight: 0 }}
+              >
+                {combinedImages.map((imgUrl, idx) => (
+                  <Image
+                    key={idx}
+                    source={{ uri: imgUrl }}
+                    style={{ width: SCREEN_W - 32, height: '100%', borderRadius: RADIUS.lg }}
+                    resizeMode="cover"
+                  />
+                ))}
+              </ScrollView>
+              {/* Dot indicators */}
+              {combinedImages.length > 1 && (
+                <View style={styles.dotRow}>
+                  {combinedImages.map((_, i) => (
+                    <View key={i} style={[styles.dot, i === 0 && styles.dotActive]} />
+                  ))}
+                </View>
+              )}
+            </>
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Text style={styles.imagePlaceholderEmoji}>🏛️</Text>
-              <Text style={styles.imagePlaceholderText}>{spot.name}</Text>
+              <Text style={styles.placeholderEmoji}>🏛️</Text>
+              <Text style={styles.placeholderText}>{spot.name}</Text>
             </View>
           )}
-          {/* Gradient scrim at bottom */}
           <View style={styles.imageScrim} />
-        </Animated.View>
 
-        {/* ── Historical Info Card ── */}
-        <Animated.View
-          style={[
-            styles.infoCard,
-            styles.infoCardGold,
-            { transform: [{ translateY: card1Slide }], opacity: card1Opacity },
-          ]}
-        >
-          <View style={styles.infoCardHeader}>
-            <View style={[styles.infoAccentBar, { backgroundColor: COLORS.gold }]} />
-            <Text style={[styles.infoCardLabel, { color: COLORS.gold }]}>{spot.historical.label}</Text>
+          {/* Top-right scan success badge */}
+          <View style={styles.scanSuccessBadge}>
+            <Ionicons name="checkmark-circle" size={14} color="#fff" />
+            <Text style={styles.scanSuccessText}>SCANNED</Text>
           </View>
-          <Text style={styles.infoCardBody}>{spot.historical.body}</Text>
         </Animated.View>
 
-        {/* ── Cultural Significance Card ── */}
-        <Animated.View
-          style={[
-            styles.infoCard,
-            styles.infoCardPurple,
-            { transform: [{ translateY: card2Slide }], opacity: card2Opacity },
-          ]}
-        >
-          <View style={styles.infoCardHeader}>
-            <View style={[styles.infoAccentBar, { backgroundColor: '#A78BFA' }]} />
-            <Text style={[styles.infoCardLabel, { color: '#A78BFA' }]}>{spot.cultural.label}</Text>
-          </View>
-          <Text style={styles.infoCardBody}>{spot.cultural.body}</Text>
-        </Animated.View>
+        {/* ── Info cards ── */}
+        {CARD_SECTIONS.map((section, idx) => {
+          const data = spot[section.key];
+          if (!data?.body) return null;
+          const [translateY, opacity] = cardAnims[idx];
+          return (
+            <Animated.View
+              key={section.key}
+              style={[
+                styles.infoCard,
+                { backgroundColor: section.bg, borderColor: section.border },
+                { transform: [{ translateY }], opacity },
+              ]}
+            >
+              <View style={styles.infoCardHeader}>
+                <View style={[styles.infoIconCircle, { backgroundColor: section.color + '22' }]}>
+                  <Ionicons name={section.icon} size={14} color={section.color} />
+                </View>
+                <Text style={[styles.infoCardLabel, { color: section.color }]}>{data.label}</Text>
+                <View style={[styles.infoCardLine, { backgroundColor: section.color + '40' }]} />
+              </View>
+              <Text style={styles.infoCardBody}>{data.body}</Text>
+            </Animated.View>
+          );
+        })}
 
-        {/* ── Fun Fact Card ── */}
-        <Animated.View
-          style={[
-            styles.infoCard,
-            styles.infoCardTeal,
-            { transform: [{ translateY: card3Slide }], opacity: card3Opacity },
-          ]}
-        >
-          <View style={styles.infoCardHeader}>
-            <View style={[styles.infoAccentBar, { backgroundColor: '#14B8A6' }]} />
-            <Text style={[styles.infoCardLabel, { color: '#14B8A6' }]}>{spot.funFact.label}</Text>
-          </View>
-          <Text style={styles.infoCardBody}>{spot.funFact.body}</Text>
-        </Animated.View>
-
-        {/* ── Continue Button ── */}
-        <Animated.View style={[{ transform: [{ translateY: btnSlide }], opacity: btnOpacity }, styles.continueBtnWrapper]}>
+        {/* ── Continue / Quiz button ── */}
+        <Animated.View style={[styles.btnWrapper, { transform: [{ translateY: btnY }], opacity: btnOpacity }]}>
           <TouchableOpacity
             style={styles.continueBtn}
-            activeOpacity={0.85}
+            activeOpacity={0.88}
             onPress={() => navigation.navigate('QuizScreen', { spotId: spot.id, spotName: spot.name })}
           >
-            <Text style={styles.continueBtnText}>Continue</Text>
+            <View style={styles.continueBtnInner}>
+              <Ionicons name="game-controller" size={18} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.continueBtnText}>Take the Quiz</Text>
+              <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" style={{ marginLeft: 4 }} />
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.backToMapBtn} onPress={() => navigation.goBack()}>
+            <Text style={styles.backToMapText}>← Back to Scanner</Text>
           </TouchableOpacity>
         </Animated.View>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -218,213 +282,218 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
   },
 
-  // ── App header ──
+  // Ambient glow ring
+  glowRing: {
+    position: 'absolute',
+    top: -60,
+    left: SCREEN_W / 2 - 160,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(233,30,140,0.12)',
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 60,
+  },
+
+  // ── Header ──
   appHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 56,
+    height: 60,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.accentBorder,
     backgroundColor: COLORS.bg,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
-  backArrow: {
-    color: '#FFF',
-    fontSize: 22,
-    fontFamily: FONTS.bold,
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerBadge: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: COLORS.accentSoft,
+    paddingHorizontal: 10, paddingVertical: 3,
+    borderRadius: 20, borderWidth: 1, borderColor: COLORS.accentBorder,
+    marginBottom: 3,
   },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
+  headerBadgeText: {
+    fontFamily: FONTS.bold, fontSize: 9,
+    color: COLORS.accent, letterSpacing: 1.5,
   },
-  pageTitle: {
-    color: '#FFF',
-    fontSize: 14,
-    fontFamily: FONTS.black,
-    fontWeight: '900',
-    letterSpacing: 2.5,
+  headerTitle: {
+    fontFamily: FONTS.bold, fontSize: 14,
+    color: '#fff', letterSpacing: 0.5,
   },
 
-  // ── Scroll content ──
+  // ── Scroll ──
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 36,
+    paddingTop: 20,
+    paddingBottom: 40,
   },
 
-  // ── Already scanned banner ──
-  alreadyScannedBanner: {
-    backgroundColor: 'rgba(16,185,129,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(16,185,129,0.35)',
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    marginBottom: 12,
-    alignItems: 'center',
+  // ── Already scanned ──
+  alreadyBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(16,185,129,0.10)',
+    borderWidth: 1, borderColor: 'rgba(16,185,129,0.3)',
+    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14,
+    marginBottom: 18,
   },
-  alreadyScannedText: {
-    color: '#10B981',
-    fontSize: 12,
-    fontFamily: FONTS.semiBold,
-    fontWeight: '600',
+  alreadyBannerText: {
+    fontFamily: FONTS.semiBold, fontSize: 12.5,
+    color: COLORS.teal,
   },
 
-  // ── Location chip ──
-  locationChipRow: {
-    marginBottom: 12,
+  // ── Unlock badge ──
+  unlockBadgeWrapper: {
+    alignItems: 'center', marginBottom: 20,
   },
-  locationChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    gap: 6,
-  },
-  locationDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.accent,
-  },
-  locationText: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 12,
-    fontFamily: FONTS.semiBold,
-    fontWeight: '600',
-  },
-  hookText: {
-    color: COLORS.accentPink || '#E91E8C',
-    fontSize: 13,
-    fontFamily: FONTS.medium,
-    fontStyle: 'italic',
-    marginTop: 8,
-    marginLeft: 4,
-  },
-
-  // ── Hero image ──
-  imageWrapper: {
-    borderRadius: RADIUS.lg,
-    overflow: 'hidden',
-    marginBottom: 16,
-    height: 210,
-    backgroundColor: COLORS.bgCard,
-    borderWidth: 1,
-    borderColor: COLORS.accentBorder,
+  unlockBadgeOuter: {
+    width: 96, height: 96, borderRadius: 48,
+    borderWidth: 2, borderColor: COLORS.accentBorder,
+    justifyContent: 'center', alignItems: 'center',
+    backgroundColor: COLORS.accentSoft,
     shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.55, shadowRadius: 22, elevation: 10,
   },
-  heroImage: {
-    width: '100%',
-    height: '100%',
+  unlockBadgeInner: {
+    width: 74, height: 74, borderRadius: 37,
+    backgroundColor: 'rgba(233,30,140,0.18)',
+    justifyContent: 'center', alignItems: 'center',
   },
-  imagePlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.bgCard,
+  unlockEmoji: { fontSize: 36 },
+  unlockXPChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    marginTop: 10, backgroundColor: COLORS.goldSoft,
+    paddingHorizontal: 12, paddingVertical: 4,
+    borderRadius: 20, borderWidth: 1, borderColor: COLORS.goldGlow,
   },
-  imagePlaceholderEmoji: {
-    fontSize: 48,
-    marginBottom: 10,
+  unlockXPText: {
+    fontFamily: FONTS.bold, fontSize: 13, color: COLORS.gold,
   },
-  imagePlaceholderText: {
-    color: COLORS.textSub,
-    fontSize: 13,
-    fontFamily: FONTS.semiBold,
+
+  // ── Spot meta ──
+  spotMeta: { alignItems: 'center', marginBottom: 18 },
+  spotName: {
+    fontFamily: FONTS.bold, fontSize: 24,
+    color: '#fff', textAlign: 'center', lineHeight: 30, marginBottom: 6,
+  },
+  spotHook: {
+    fontFamily: FONTS.medium, fontSize: 13,
+    color: COLORS.accent, fontStyle: 'italic', marginBottom: 8,
     textAlign: 'center',
   },
+  locationRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+  },
+  locationText: {
+    fontFamily: FONTS.medium, fontSize: 12.5,
+    color: 'rgba(255,255,255,0.6)',
+  },
+
+  // ── Image slider ──
+  imageWrapper: {
+    height: 220, borderRadius: RADIUS.lg, overflow: 'hidden',
+    marginBottom: 20,
+    backgroundColor: COLORS.bgCard,
+    borderWidth: 1, borderColor: COLORS.accentBorder,
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28, shadowRadius: 18, elevation: 8,
+  },
+  imagePlaceholder: {
+    flex: 1, justifyContent: 'center', alignItems: 'center',
+    backgroundColor: COLORS.bgCard,
+  },
+  placeholderEmoji: { fontSize: 48, marginBottom: 8 },
+  placeholderText: {
+    fontFamily: FONTS.semiBold, fontSize: 13,
+    color: COLORS.textSub, textAlign: 'center',
+  },
   imageScrim: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 60,
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: 70,
     backgroundColor: 'rgba(13,5,32,0.55)',
+  },
+  dotRow: {
+    position: 'absolute', bottom: 12,
+    flexDirection: 'row', alignSelf: 'center', gap: 5,
+  },
+  dot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  dotActive: {
+    width: 18, backgroundColor: COLORS.accent,
+  },
+  scanSuccessBadge: {
+    position: 'absolute', top: 12, right: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(16,185,129,0.85)',
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 20,
+  },
+  scanSuccessText: {
+    fontFamily: FONTS.bold, fontSize: 10,
+    color: '#fff', letterSpacing: 1,
   },
 
   // ── Info cards ──
   infoCard: {
-    borderRadius: RADIUS.md,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-  },
-  infoCardGold: {
-    backgroundColor: 'rgba(251,191,36,0.07)',
-    borderColor: 'rgba(251,191,36,0.22)',
-  },
-  infoCardPurple: {
-    backgroundColor: 'rgba(167,139,250,0.07)',
-    borderColor: 'rgba(167,139,250,0.22)',
-  },
-  infoCardTeal: {
-    backgroundColor: 'rgba(20,184,166,0.07)',
-    borderColor: 'rgba(20,184,166,0.22)',
+    borderRadius: RADIUS.md, padding: 16,
+    marginBottom: 12, borderWidth: 1,
   },
   infoCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-    gap: 8,
+    flexDirection: 'row', alignItems: 'center',
+    marginBottom: 10, gap: 8,
   },
-  infoAccentBar: {
-    width: 3,
-    height: 14,
-    borderRadius: 2,
+  infoIconCircle: {
+    width: 28, height: 28, borderRadius: 14,
+    justifyContent: 'center', alignItems: 'center',
   },
   infoCardLabel: {
-    fontSize: 10,
-    fontFamily: FONTS.black,
-    fontWeight: '800',
-    letterSpacing: 1.4,
+    fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.4,
+  },
+  infoCardLine: {
+    flex: 1, height: 1,
   },
   infoCardBody: {
-    color: 'rgba(255,255,255,0.82)',
-    fontSize: 12.5,
     fontFamily: FONTS.regular,
-    lineHeight: 20,
-    textAlign: 'center',
+    fontSize: 13.5, color: 'rgba(255,255,255,0.82)',
+    lineHeight: 21,
   },
 
-  // ── Continue button ──
-  continueBtnWrapper: {
-    marginTop: 6,
-  },
+  // ── Buttons ──
+  btnWrapper: { marginTop: 8, gap: 12 },
   continueBtn: {
-    borderRadius: RADIUS.pill,
-    paddingVertical: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: RADIUS.pill, overflow: 'hidden',
     backgroundColor: COLORS.accent,
     shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 14,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.55, shadowRadius: 18, elevation: 10,
+  },
+  continueBtnInner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 16, paddingHorizontal: 24,
   },
   continueBtnText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontFamily: FONTS.bold,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontFamily: FONTS.bold, fontSize: 16,
+    color: '#fff', letterSpacing: 0.5,
+  },
+  backToMapBtn: {
+    alignItems: 'center', paddingVertical: 10,
+  },
+  backToMapText: {
+    fontFamily: FONTS.medium, fontSize: 13,
+    color: 'rgba(255,255,255,0.45)',
   },
 });
