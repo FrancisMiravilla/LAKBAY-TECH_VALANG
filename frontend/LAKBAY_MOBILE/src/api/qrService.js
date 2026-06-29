@@ -6,7 +6,7 @@ export const ORIGIN = (process.env.EXPO_PUBLIC_API_BASE_URL || '').replace(/\/ap
 
 const qrClient = axios.create({
   baseURL: ORIGIN,
-  timeout: 8000,
+  timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -18,6 +18,12 @@ qrClient.interceptors.request.use(async (config) => {
 
 export const getSpots = () =>
   qrClient.get('/api/qr/spots/').then((r) => r.data);
+
+export const getCatchIcons = () =>
+  qrClient.get('/api/qr/catch-icons/').then((r) => r.data);
+
+export const getIconAITrivia = (iconId) =>
+  qrClient.get(`/api/qr/catch-icons/${iconId}/ai-trivia/`, { timeout: 20000 }).then((r) => r.data);
 
 export const validateQR = (qrCode) =>
   qrClient.post('/api/qr/validate/', { qr_code: qrCode }).then((r) => r.data);

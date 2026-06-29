@@ -28,10 +28,19 @@ const qrService = {
   toggleMarker: (id, isActive)  => adminClient.patch(`/api/qr/markers/${id}/`, { is_active: isActive }),
   deleteMarker: (id)            => adminClient.delete(`/api/qr/markers/${id}/`),
 
+  getCatchIcons: ()             => adminClient.get('/api/qr/catch-icons/'),
+  createCatchIcon: (data)       => adminClient.post('/api/qr/catch-icons/', data),
+  updateCatchIcon: (id, data)   => adminClient.put(`/api/qr/catch-icons/${id}/`, data),
+  deleteCatchIcon: (id)         => adminClient.delete(`/api/qr/catch-icons/${id}/`),
+
   getTriviaQuestions: (spotId)   => adminClient.get('/api/qr/trivia-questions/' + (spotId ? `?spot=${spotId}` : '')),
   createTriviaQuestion: (data)   => adminClient.post('/api/qr/trivia-questions/', data),
   updateTriviaQuestion: (id, data) => adminClient.put(`/api/qr/trivia-questions/${id}/`, data),
   deleteTriviaQuestion: (id)     => adminClient.delete(`/api/qr/trivia-questions/${id}/`),
+
+  getMediaUrl: (path) => path
+    ? (path.startsWith('http') || path.startsWith('data:') ? path : `${origin}${path}`)
+    : null,
 
   getUsers:           ()   => adminClient.get('/api/auth/users/'),
   toggleUserStatus:   (id) => adminClient.patch(`/api/auth/users/${id}/toggle-status/`),

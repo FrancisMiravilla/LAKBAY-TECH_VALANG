@@ -33,13 +33,15 @@ import {
   Crosshair,
   Compass,
   Shield,
-  LogOut
+  LogOut,
+  ArrowLeft
 } from 'lucide-react'
 
 import './App.css'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { authService } from './api/authService';
+import '@google/model-viewer';
 import qrService from './api/qrService';
 import QRCodeLib from 'qrcode';
 
@@ -231,6 +233,7 @@ function App() {
   const [spots, setSpots] = useState([]);
   const [selectedPinId, setSelectedPinId] = useState(1);
   const [qrcodes, setQrcodes] = useState([]);
+  const [catchIcons, setCatchIcons] = useState([]);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
 
   // Modals & Forms
@@ -624,6 +627,10 @@ function App() {
       const items = Array.isArray(data) ? data : (data.results || []);
       setQrcodes(items.map(normalizeMarker));
     }).catch(console.error);
+    qrService.getCatchIcons().then(({ data }) => {
+      const items = Array.isArray(data) ? data : (data.results || []);
+      setCatchIcons(items);
+    }).catch(console.error);
     qrService.getTriviaQuestions().then(({ data }) => {
       const items = Array.isArray(data) ? data : (data.results || []);
       setTriviaQuestions(items);
@@ -648,6 +655,15 @@ function App() {
 
   const [isEditSpotModalOpen, setIsEditSpotModalOpen] = useState(false);
   const [editingSpot, setEditingSpot] = useState(null);
+
+  const [isAddCatchIconModalOpen, setIsAddCatchIconModalOpen] = useState(false);
+  const [isEditCatchIconModalOpen, setIsEditCatchIconModalOpen] = useState(false);
+  const [editingCatchIcon, setEditingCatchIcon] = useState(null);
+  const [selectedCatchForView, setSelectedCatchForView] = useState(null);
+  const [newCatchIcon, setNewCatchIcon] = useState({
+    name: '', emoji: '👾', tagline: '', type_name: 'Catch Model', color: '#38BDF8',
+    about: '', significance: '', facts: [], model_3d: ''
+  });
 
   const [isAddQrModalOpen, setIsAddQrModalOpen] = useState(false);
   const [newQr, setNewQr] = useState({
@@ -851,10 +867,68 @@ function App() {
     const nextActive = marker.status !== 'Active';
     try {
       await qrService.toggleMarker(id, nextActive);
-      setQrcodes(prev => prev.map(q => q.id === id ? { ...q, status: nextActive ? 'Active' : 'Disabled' } : q));
-    } catch (err) {
-      console.error(err);
-    }
+      setQrcodes(prev => prev.map(q => q.id === id ? { ...q, status: nextActive ? 'Active' : 'Inactive' } : q));
+    } catch (err) { console.error(err); }
+  };
+
+  // ─── Catch Handlers ──────────────────────────────────────────────────────────
+  const handleCatchFileChange = (e, isEditing) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (isEditing) {
+        setEditingCatchIcon({ ...editingCatchIcon, model_3d: event.target.result });
+      } else {
+        setNewCatchIcon({ ...newCatchIcon, model_3d: event.target.result });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCatchSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = { ...newCatchIcon };
+      if (!payload.emoji) payload.emoji = '👾';
+      if (!payload.type_name) payload.type_name = 'Catch Model';
+      
+      const res = await qrService.createCatchIcon(payload);
+      setCatchIcons(prev => [...prev, res.data]);
+      setNotifications(prev => [
+        { id: generateNotificationId(), text: `Catch Icon "${payload.name}" added.`, time: 'Just now' },
+        ...prev,
+      ]);
+      setNewCatchIcon({ name: '', emoji: '👾', tagline: '', type_name: 'Catch Model', color: '#38BDF8', about: '', significance: '', facts: [], model_3d: '' });
+      setIsAddCatchIconModalOpen(false);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleCatchEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await qrService.updateCatchIcon(editingCatchIcon.id, editingCatchIcon);
+      setCatchIcons(prev => prev.map(c => (c.id === editingCatchIcon.id ? res.data : c)));
+      setNotifications(prev => [
+        { id: generateNotificationId(), text: `Catch Icon "${editingCatchIcon.name}" updated.`, time: 'Just now' },
+        ...prev,
+      ]);
+      setEditingCatchIcon(null);
+      setIsEditCatchIconModalOpen(false);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteCatch = async (id) => {
+    const iconToDelete = catchIcons.find(c => c.id === id);
+    if (!confirm(`Delete "${iconToDelete?.name}"?`)) return;
+    try {
+      await qrService.deleteCatchIcon(id);
+      setCatchIcons(prev => prev.filter(c => c.id !== id));
+      setNotifications(prev => [
+        { id: generateNotificationId(), text: `Catch Icon "${iconToDelete?.name}" removed.`, time: 'Just now' },
+        ...prev,
+      ]);
+    } catch (err) { console.error(err); }
   };
 
   const downloadQR = async (qrCodeString, spotName) => {
@@ -2060,141 +2134,139 @@ function App() {
           {/* TAB CONTENT: CATCH PROGRESS */}
           {activeTab === 'catch' && (
             <div className="tab-content fade-in">
-              <div className="section-header">
-                <h2>Cultural Icons Caught</h2>
-                <div className="header-actions">
-                  <button className="btn btn-secondary">
-                    <Download size={16} style={{marginRight: '8px'}} />
-                    Export Catch Data
-                  </button>
-                </div>
-              </div>
 
-              {/* Stats Grid */}
-              <section className="stats-grid">
-                <div className="stat-card">
-                  <div className="stat-info">
-                    <span className="stat-label">Total Catches</span>
-                    <span className="stat-value gold">{stats.totalCatches}</span>
-                    <span className="stat-trend trend-up">
-                      <ArrowUpRight size={14} />
-                      +12 items unlocked
-                    </span>
+              {selectedCatchForView ? (
+                /* ── Detail View ── */
+                <div>
+                  {/* Toolbar */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
+                    <button className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                      onClick={() => setSelectedCatchForView(null)}>
+                      <ArrowLeft size={15} /> Back to Icons
+                    </button>
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+                      <button className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                        onClick={() => { setEditingCatchIcon(selectedCatchForView); setIsEditCatchIconModalOpen(true); }}>
+                        <Edit size={14} /> Edit
+                      </button>
+                      <button className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                        onClick={() => { handleDeleteCatch(selectedCatchForView.id); setSelectedCatchForView(null); }}>
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </div>
                   </div>
-                  <div className="stat-icon-wrapper yellow">
-                    <Target size={24} />
-                  </div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-info">
-                    <span className="stat-label">Epic Icons Found</span>
-                    <span className="stat-value gold">85</span>
-                    <span className="stat-trend trend-up">
-                      <ArrowUpRight size={14} />
-                      Rare items found
-                    </span>
-                  </div>
-                  <div className="stat-icon-wrapper purple">
-                    <Star size={24} />
-                  </div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-info">
-                    <span className="stat-label">Unlock Rate</span>
-                    <span className="stat-value gold">42%</span>
-                    <span className="stat-trend trend-up">
-                      <ArrowUpRight size={14} />
-                      Of total catalog
-                    </span>
-                  </div>
-                  <div className="stat-icon-wrapper blue">
-                    <TrendingUp size={24} />
-                  </div>
-                </div>
-              </section>
 
-              {/* Dashboard Grid for Catch */}
-              <section className="dashboard-grid" style={{marginTop: '20px'}}>
-                {/* Bar Chart */}
-                <div className="content-card">
-                  <div className="content-card-header">
-                    <h3 className="card-title">
-                      <TrendingUp className="card-title-icon" size={18} />
-                      Most Caught Icons
-                    </h3>
-                  </div>
-                  <div className="chart-wrapper">
-                    <div className="chart-grid-line" style={{bottom: '0%'}}></div>
-                    <div className="chart-grid-line" style={{bottom: '25%'}}></div>
-                    <div className="chart-grid-line" style={{bottom: '50%'}}></div>
-                    <div className="chart-grid-line" style={{bottom: '75%'}}></div>
-                    
-                    {/* Hardcoded Catch Bars */}
-                    <div className="chart-bar-item">
-                      <div className="chart-tooltip">133 catches</div>
-                      <div className="chart-bar" style={{height: '95%'}}></div>
-                      <span className="chart-bar-label">Curacha</span>
+                  {/* Detail card */}
+                  <div className="content-card" style={{ maxWidth: '700px', margin: '0 auto', gap: '0', padding: '0', overflow: 'hidden' }}>
+
+                    {/* 3D Model centred */}
+                    <div style={{ width: '100%', height: '360px', backgroundColor: 'var(--body-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                      {selectedCatchForView.model_3d ? (
+                        <model-viewer
+                          src={qrService.getMediaUrl(selectedCatchForView.model_3d)}
+                          auto-rotate camera-controls
+                          style={{ width: '100%', height: '100%' }}
+                          exposure="1"
+                        />
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                          <Target size={52} color="var(--text-muted)" />
+                          <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No 3D model uploaded</span>
+                        </div>
+                      )}
                     </div>
-                    <div className="chart-bar-item">
-                      <div className="chart-tooltip">124 catches</div>
-                      <div className="chart-bar" style={{height: '85%'}}></div>
-                      <span className="chart-bar-label">Yakan Weaving</span>
+
+                    <div style={{ padding: '28px 32px 32px' }}>
+                      {/* Name + tagline centred */}
+                      <h2 style={{ textAlign: 'center', fontFamily: 'var(--font-heading)', fontSize: '28px', fontWeight: 800, color: 'var(--text-title)', marginBottom: '6px', letterSpacing: '-0.5px' }}>
+                        {selectedCatchForView.name}
+                      </h2>
+                      <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '28px' }}>
+                        {selectedCatchForView.tagline}
+                      </p>
+
+                      <div style={{ height: '1px', background: 'var(--card-border)', marginBottom: '24px' }} />
+
+                      {/* About */}
+                      <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent-blue)', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '10px' }}>About</p>
+                      <p style={{ fontSize: '14px', color: 'var(--text-primary)', lineHeight: 1.75, marginBottom: '28px' }}>
+                        {selectedCatchForView.about || <span style={{ color: 'var(--text-muted)' }}>No description provided.</span>}
+                      </p>
+
+                      <div style={{ height: '1px', background: 'var(--card-border)', marginBottom: '24px' }} />
+
+                      {/* Cultural Significance */}
+                      <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent-blue)', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '10px' }}>Cultural Significance</p>
+                      <p style={{ fontSize: '14px', color: 'var(--text-primary)', lineHeight: 1.75 }}>
+                        {selectedCatchForView.significance || <span style={{ color: 'var(--text-muted)' }}>No significance noted.</span>}
+                      </p>
                     </div>
-                    <div className="chart-bar-item">
-                      <div className="chart-tooltip">85 catches</div>
-                      <div className="chart-bar" style={{height: '60%'}}></div>
-                      <span className="chart-bar-label">Lantaka</span>
-                    </div>
-                    <div className="chart-bar-item">
-                      <div className="chart-tooltip">40 catches</div>
-                      <div className="chart-bar" style={{height: '25%'}}></div>
-                      <span className="chart-bar-label">Vinta</span>
-                    </div>
-                  </div>
-                  <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)'}}>
-                    <span>Total successful catches</span>
-                    <span>Pink accents represent popular icons</span>
                   </div>
                 </div>
 
-                {/* Table Card */}
-                <div className="content-card">
-                  <div className="content-card-header">
-                    <h3 className="card-title">
-                      <Target className="card-title-icon" size={18} />
-                      Icon Details
-                    </h3>
+              ) : (
+                /* ── Card Grid View ── */
+                <>
+                  <div className="section-header">
+                    <h2>Catch Models (Cultural Icons)</h2>
+                    <button className="btn btn-primary" onClick={() => setIsAddCatchIconModalOpen(true)}>
+                      <Plus size={16} /> Add Catch Icon
+                    </button>
                   </div>
-                  <div className="table-wrapper" style={{marginTop: '16px', border: 'none', background: 'transparent'}}>
-                    <table className="custom-table">
-                      <thead>
-                        <tr>
-                          <th>Icon</th>
-                          <th>Rarity</th>
-                          <th>Catches</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td>Golden Vinta</td>
-                          <td><span className="badge" style={{backgroundColor: 'var(--accent-gold)', color: '#000'}}>Epic</span></td>
-                          <td>85</td>
-                        </tr>
-                        <tr>
-                          <td>Chabacano Scroll</td>
-                          <td><span className="badge" style={{backgroundColor: '#A78BFA', color: '#FFF'}}>Rare</span></td>
-                          <td>124</td>
-                        </tr>
-                        <tr>
-                          <td>Yakan Fabric</td>
-                          <td><span className="badge" style={{backgroundColor: '#14B8A6', color: '#FFF'}}>Common</span></td>
-                          <td>133</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </section>
+
+                  {catchIcons.length === 0 ? (
+                    <div className="content-card" style={{ alignItems: 'center', padding: '60px 20px', textAlign: 'center', marginTop: '20px' }}>
+                      <Target size={48} color="var(--text-muted)" style={{ marginBottom: '12px' }} />
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>No cultural icons yet. Click <strong>Add Catch Icon</strong> to create the first one.</p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '20px', marginTop: '20px' }}>
+                      {catchIcons.map(icon => (
+                        <div key={icon.id} className="content-card"
+                          style={{ padding: 0, gap: 0, overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
+                          onClick={() => setSelectedCatchForView(icon)}
+                          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
+
+                          {/* 3D preview or colour placeholder */}
+                          <div style={{ height: '190px', backgroundColor: 'var(--body-bg)', overflow: 'hidden', position: 'relative' }}>
+                            {icon.model_3d ? (
+                              <model-viewer
+                                src={qrService.getMediaUrl(icon.model_3d)}
+                                auto-rotate
+                                style={{ width: '100%', height: '100%' }}
+                                exposure="1"
+                              />
+                            ) : (
+                              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                background: `linear-gradient(135deg, ${icon.color || '#1A56DB'}22, ${icon.color || '#1A56DB'}55)` }}>
+                                <Target size={44} color={icon.color || 'var(--accent-blue)'} style={{ opacity: 0.7 }} />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Name + tagline + actions */}
+                          <div style={{ padding: '16px 18px 14px' }}>
+                            <p style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '16px', color: 'var(--text-title)', marginBottom: '3px' }}>{icon.name}</p>
+                            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>{icon.tagline}</p>
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}
+                              onClick={e => e.stopPropagation()}>
+                              <button className="icon-action-btn" title="Edit"
+                                onClick={() => { setEditingCatchIcon(icon); setIsEditCatchIconModalOpen(true); }}>
+                                <Edit size={13} />
+                              </button>
+                              <button className="icon-action-btn delete" title="Delete"
+                                onClick={() => handleDeleteCatch(icon.id)}>
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
@@ -2303,7 +2375,152 @@ function App() {
         </div>
       </main>
 
-      {/* ADD SPOT MODAL */}
+      {/* Add Catch Icon Modal */}
+      {isAddCatchIconModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{width: '90vw', maxWidth: '1000px', maxHeight: '90vh', display: 'flex', flexDirection: 'column'}}>
+            <div className="modal-header">
+              <h3 className="modal-title">Add Catch Icon</h3>
+              <button className="close-btn" onClick={() => setIsAddCatchIconModalOpen(false)}><X size={20}/></button>
+            </div>
+            <form onSubmit={handleCatchSubmit} style={{display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0}}>
+              <div className="modal-body" style={{overflowY: 'auto', flex: 1, padding: '24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px'}}>
+                {/* Left Side - 3D Model Drag & Drop */}
+                <div style={{display: 'flex', flexDirection: 'column'}}>
+                  <label className="form-label" style={{marginBottom: '10px'}}>3D Model Preview</label>
+                  <label style={{
+                    position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    flex: 1, border: newCatchIcon.model_3d ? '2px solid var(--accent-color)' : '2px dashed var(--card-border)', borderRadius: '10px',
+                    backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', minHeight: '350px'
+                  }}>
+                    <input type="file" accept=".glb,.gltf" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+                      onChange={(e) => handleCatchFileChange(e, false)} required={!newCatchIcon.model_3d} />
+                    
+                    {newCatchIcon.model_3d ? (
+                      <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5}}>
+                        <model-viewer 
+                          src={newCatchIcon.model_3d}
+                          auto-rotate 
+                          camera-controls 
+                          style={{width: '100%', height: '100%', backgroundColor: 'transparent'}}
+                          exposure="1"
+                        ></model-viewer>
+                        <div style={{position: 'absolute', bottom: '10px', left: 0, width: '100%', textAlign: 'center'}}>
+                          <span style={{ backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 10px', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>Change Model</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', pointerEvents: 'none'}}>
+                        <Target size={32} color="var(--text-muted)" />
+                        <span style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center', fontWeight: 600 }}>Drag and drop .glb file<br/>or click to upload</span>
+                      </div>
+                    )}
+                  </label>
+                </div>
+
+                {/* Right Side - Input Fields */}
+                <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
+                  <div className="form-group" style={{marginBottom: 0}}>
+                    <label className="form-label">Name</label>
+                    <input type="text" className="form-input" value={newCatchIcon.name} onChange={e => setNewCatchIcon({...newCatchIcon, name: e.target.value})} required />
+                  </div>
+                  <div className="form-group" style={{marginBottom: 0}}>
+                    <label className="form-label">Tagline</label>
+                    <input type="text" className="form-input" value={newCatchIcon.tagline} onChange={e => setNewCatchIcon({...newCatchIcon, tagline: e.target.value})} required />
+                  </div>
+                  <div className="form-group" style={{marginBottom: 0}}>
+                    <label className="form-label">About</label>
+                    <textarea className="form-input" rows="4" value={newCatchIcon.about} onChange={e => setNewCatchIcon({...newCatchIcon, about: e.target.value})} required style={{resize: 'vertical', minHeight: '100px'}}></textarea>
+                  </div>
+                  <div className="form-group" style={{marginBottom: 0}}>
+                    <label className="form-label">Cultural Significance</label>
+                    <textarea className="form-input" rows="4" value={newCatchIcon.significance} onChange={e => setNewCatchIcon({...newCatchIcon, significance: e.target.value})} required style={{resize: 'vertical', minHeight: '100px'}}></textarea>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setIsAddCatchIconModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Icon</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Catch Icon Modal */}
+      {isEditCatchIconModalOpen && editingCatchIcon && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{width: '90vw', maxWidth: '1000px', maxHeight: '90vh', display: 'flex', flexDirection: 'column'}}>
+            <div className="modal-header">
+              <h3 className="modal-title">Edit Catch Icon</h3>
+              <button className="close-btn" onClick={() => { setIsEditCatchIconModalOpen(false); setEditingCatchIcon(null); }}><X size={20}/></button>
+            </div>
+            <form onSubmit={handleCatchEditSubmit} style={{display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0}}>
+              <div className="modal-body" style={{overflowY: 'auto', flex: 1, padding: '24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px'}}>
+                
+                {/* Left Side - 3D Model Drag & Drop */}
+                <div style={{display: 'flex', flexDirection: 'column'}}>
+                  <label className="form-label" style={{marginBottom: '10px'}}>3D Model Preview</label>
+                  <label style={{
+                    position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    flex: 1, border: editingCatchIcon.model_3d ? '2px solid var(--accent-color)' : '2px dashed var(--card-border)', borderRadius: '10px',
+                    backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', minHeight: '350px'
+                  }}>
+                    <input type="file" accept=".glb,.gltf" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+                      onChange={(e) => handleCatchFileChange(e, true)} />
+                    
+                    {editingCatchIcon.model_3d ? (
+                      <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5}}>
+                        <model-viewer 
+                          src={editingCatchIcon.model_3d.startsWith('data:') ? editingCatchIcon.model_3d : qrService.getMediaUrl(editingCatchIcon.model_3d)}
+                          auto-rotate 
+                          camera-controls 
+                          style={{width: '100%', height: '100%', backgroundColor: 'transparent'}}
+                          exposure="1"
+                        ></model-viewer>
+                        <div style={{position: 'absolute', bottom: '10px', left: 0, width: '100%', textAlign: 'center'}}>
+                          <span style={{ backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 10px', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>Change Model</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', pointerEvents: 'none'}}>
+                        <Target size={32} color="var(--text-muted)" />
+                        <span style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center', fontWeight: 600 }}>Drag and drop .glb file<br/>or click to upload</span>
+                      </div>
+                    )}
+                  </label>
+                </div>
+
+                {/* Right Side - Input Fields */}
+                <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
+                  <div className="form-group" style={{marginBottom: 0}}>
+                    <label className="form-label">Name</label>
+                    <input type="text" className="form-input" value={editingCatchIcon.name} onChange={e => setEditingCatchIcon({...editingCatchIcon, name: e.target.value})} required />
+                  </div>
+                  <div className="form-group" style={{marginBottom: 0}}>
+                    <label className="form-label">Tagline</label>
+                    <input type="text" className="form-input" value={editingCatchIcon.tagline} onChange={e => setEditingCatchIcon({...editingCatchIcon, tagline: e.target.value})} required />
+                  </div>
+                  <div className="form-group" style={{marginBottom: 0}}>
+                    <label className="form-label">About</label>
+                    <textarea className="form-input" rows="4" value={editingCatchIcon.about} onChange={e => setEditingCatchIcon({...editingCatchIcon, about: e.target.value})} required style={{resize: 'vertical', minHeight: '100px'}}></textarea>
+                  </div>
+                  <div className="form-group" style={{marginBottom: 0}}>
+                    <label className="form-label">Cultural Significance</label>
+                    <textarea className="form-input" rows="4" value={editingCatchIcon.significance} onChange={e => setEditingCatchIcon({...editingCatchIcon, significance: e.target.value})} required style={{resize: 'vertical', minHeight: '100px'}}></textarea>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => { setIsEditCatchIconModalOpen(false); setEditingCatchIcon(null); }}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODALS */}
       {isAddSpotModalOpen && (
         <div className="modal-overlay">
           <div className="modal-card" style={{ width: '90vw', maxWidth: '1200px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>

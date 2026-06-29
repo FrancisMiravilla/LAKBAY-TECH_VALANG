@@ -2,7 +2,7 @@ import base64
 import uuid
 from django.core.files.base import ContentFile
 from rest_framework import serializers
-from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, TriviaAttempt
+from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, TriviaAttempt, CulturalIcon
 
 class Base64ImageField(serializers.ImageField):
     def to_internal_value(self, data):
@@ -62,4 +62,23 @@ class TriviaQuestionAdminSerializer(serializers.ModelSerializer):
 class TriviaAttemptSerializer(serializers.ModelSerializer):
     spot_name = serializers.CharField(source='spot.name', read_only=True)
 
+    class Meta:
+        model = TriviaAttempt
+        fields = '__all__'
 
+
+class Base64FileField(serializers.FileField):
+    def to_internal_value(self, data):
+        if isinstance(data, str) and data.startswith('data:'):
+            # Format: data:<mime_type>;base64,<data>
+            format, filestr = data.split(';base64,') 
+            ext = 'glb'
+            data = ContentFile(base64.b64decode(filestr), name=f"{uuid.uuid4().hex}.{ext}")
+        return super().to_internal_value(data)
+
+class CulturalIconSerializer(serializers.ModelSerializer):
+    model_3d = Base64FileField(required=False, allow_null=True)
+
+    class Meta:
+        model = CulturalIcon
+        fields = '__all__'

@@ -9,14 +9,25 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions, viewsets
 from groq import Groq
-from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, SpotBadge, TriviaAttempt
+from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, SpotBadge, TriviaAttempt, CulturalIcon
 from .serializers import (
     CulturalSpotSerializer, QRMarkerSerializer,
-    TriviaQuestionSerializer, TriviaQuestionAdminSerializer
+    TriviaQuestionSerializer, TriviaQuestionAdminSerializer,
+    CulturalIconSerializer
 )
 
 XP_PER_QUIZ = 50
 PASS_THRESHOLD = 0.6  # 60% correct to pass
+
+
+class CulturalIconViewSet(viewsets.ModelViewSet):
+    queryset = CulturalIcon.objects.all().order_by('name')
+    serializer_class = CulturalIconSerializer
+    
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAdminUser()]
 
 
 class CulturalSpotViewSet(viewsets.ModelViewSet):
@@ -277,6 +288,73 @@ Required JSON format:
                     'correct_answer': q['choices'][idx],
                 })
             return Response({'spot_id': spot.id, 'spot_name': spot.name, 'questions': questions})
+        except Exception as e:
+            return Response(
+                {'error': f'AI generation failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class GenerateIconAITriviaView(APIView):
+    """
+    GET /api/qr/catch-icons/<icon_id>/ai-trivia/
+    Generates 5 trivia questions about a cultural icon using Groq AI.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, icon_id):
+        icon = get_object_or_404(CulturalIcon, pk=icon_id)
+
+        client = Groq(api_key=settings.GROQ_API_KEY)
+
+        prompt = f"""You are a cultural trivia generator for a Philippine tourism app called LAKBAY.
+
+Generate exactly 5 multiple-choice trivia questions about this cultural icon from Zamboanga City:
+
+Name: {icon.name}
+About: {icon.about}
+Cultural Significance: {icon.significance}
+Tagline: {icon.tagline}
+
+Rules:
+- Each question must have exactly 4 choices
+- Questions must be factual and based on the info above
+- Vary the difficulty (mix easy, medium, hard)
+- Do NOT repeat the same question type
+- Return ONLY valid JSON, no markdown, no explanation
+
+Required JSON format:
+{{
+  "questions": [
+    {{
+      "question": "Question text here?",
+      "choices": ["Choice A", "Choice B", "Choice C", "Choice D"],
+      "correct_index": 0
+    }}
+  ]
+}}"""
+
+        try:
+            response = client.chat.completions.create(
+                model='llama-3.1-8b-instant',
+                messages=[{'role': 'user', 'content': prompt}],
+                temperature=1.0,
+            )
+            raw = response.choices[0].message.content.strip()
+            if raw.startswith('```'):
+                raw = raw.split('```')[1]
+                if raw.startswith('json'):
+                    raw = raw[4:]
+            data = json.loads(raw.strip())
+            questions = []
+            for q in data.get('questions', [])[:5]:
+                idx = q.get('correct_index', 0)
+                questions.append({
+                    'question':      q['question'],
+                    'choices':       q['choices'],
+                    'correct_answer': q['choices'][idx],
+                })
+            return Response({'icon_id': icon.id, 'icon_name': icon.name, 'questions': questions})
         except Exception as e:
             return Response(
                 {'error': f'AI generation failed: {str(e)}'},

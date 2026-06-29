@@ -1,4 +1,5 @@
 from django.db import models
+from .cloudinary_storage import CloudinaryRawStorage
 
 # Create your models here.
 class CulturalSpot(models.Model):
@@ -86,3 +87,24 @@ class TriviaAttempt(models.Model):
 
     def __str__(self):
         return f"{self.user.email} — {self.spot.name} ({self.score}/{self.total})"
+
+
+class CulturalIcon(models.Model):
+    name = models.CharField(max_length=100)
+    emoji = models.CharField(max_length=10)
+    tagline = models.CharField(max_length=200)
+    type_name = models.CharField(max_length=100) # e.g. "Marine Creature"
+    color = models.CharField(max_length=20, default="#E91E8C")
+    about = models.TextField()
+    significance = models.TextField()
+    facts = models.JSONField(default=list, blank=True)
+    model_3d = models.FileField(
+        upload_to='lakbay/models/',
+        storage=CloudinaryRawStorage(),
+        max_length=500,
+        null=True, blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name

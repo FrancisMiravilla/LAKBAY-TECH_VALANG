@@ -1,101 +1,100 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity,
-  ActivityIndicator, StatusBar, ScrollView, Animated,
+  ActivityIndicator, StatusBar, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
-import { getAITrivia, awardSpotBadge } from '../api/qrService';
+import { getAITrivia, getIconAITrivia, awardSpotBadge } from '../api/qrService';
 
-// ─── Backend origin (strips /api/auth/ suffix) ───────────────────────────────
-const ORIGIN = (process.env.EXPO_PUBLIC_API_BASE_URL || '').replace(/\/api\/.*$/, '');
+// ─── 3-D viewer HTML (same security pattern as CatchDetailsScreen) ────────────
+const HTML_ESCAPE = { '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;', '&': '&amp;' };
+const escapeAttr = (s) => String(s).replace(/["'<>&]/g, (c) => HTML_ESCAPE[c]);
 
-// ─── Spot → 3D model mapping ───────────────────────────────────────────────
-const SPOT_MODEL_MAP = {
-  'Fort Pilar':              'https://res.cloudinary.com/diwmkpfto/image/upload/v1782606417/resort_building_final_jbqdce.glb',
-  'Paseo del Mar':           'https://res.cloudinary.com/diwmkpfto/image/upload/v1782606432/vinta_model_rhv9do.glb',
-  'Yakan Weaving Village':   'https://res.cloudinary.com/diwmkpfto/image/upload/v1782606380/cloth_final_jn1t6s.glb',
-  'Santa Cruz Island':       'https://res.cloudinary.com/diwmkpfto/image/upload/v1782606400/curacha_model_jgfozb.glb',
-  'Great Santa Cruz Island': 'https://res.cloudinary.com/diwmkpfto/image/upload/v1782606400/curacha_model_jgfozb.glb',
-};
-
-const DEFAULT_MODEL_URL =
-  'https://res.cloudinary.com/diwmkpfto/image/upload/v1782606432/vinta_model_rhv9do.glb';
-
-function getModelUrl(spotName) {
-  if (!spotName) return DEFAULT_MODEL_URL;
-  if (SPOT_MODEL_MAP[spotName]) return SPOT_MODEL_MAP[spotName];
-  const lower = spotName.toLowerCase();
-  if (lower.includes('fort pilar'))  return SPOT_MODEL_MAP['Fort Pilar'];
-  if (lower.includes('paseo'))       return SPOT_MODEL_MAP['Paseo del Mar'];
-  if (lower.includes('yakan'))       return SPOT_MODEL_MAP['Yakan Weaving Village'];
-  if (lower.includes('santa cruz'))  return SPOT_MODEL_MAP['Santa Cruz Island'];
-  return DEFAULT_MODEL_URL;
+function buildViewerHTML(modelUrl) {
+  try {
+    const parsed = new URL(modelUrl);
+    if (parsed.protocol !== 'https:') return null;
+  } catch {
+    return null;
+  }
+  const safe = escapeAttr(modelUrl);
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+  <script type="module"
+    src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"
+    integrity="sha384-NxrHiuPcsJaRbXc9EoFTt5OZ6WPVqKeDgcnykGs3spXmq0J7hbbGGlyUkrGuoJoA"
+    crossorigin="anonymous"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    html,body{width:100%;height:100%;background:transparent;overflow:hidden}
+    model-viewer{width:100%;height:100%;--progress-bar-color:transparent}
+  </style>
+</head>
+<body>
+  <model-viewer src="${safe}" auto-rotate camera-controls exposure="1"
+    style="width:100%;height:100%"></model-viewer>
+</body>
+</html>`;
 }
 
-// ─── Build model-viewer URI served by Django (avoids WebView CDN sandbox) ────
-const buildModelUri = (modelUrl) =>
-  `${ORIGIN}/model-viewer/?url=${encodeURIComponent(modelUrl)}`;
-
-
-// ─── Component ──────────────────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function QuizScreen({ navigation, route }) {
-  const spotId   = route.params?.spotId;
-  const spotName = route.params?.spotName || 'this spot';
+  // Icon-based catch quiz
+  const icon   = route.params?.icon   ?? null;
+  // Spot-based quiz (existing flow)
+  const spotId   = route.params?.spotId   ?? null;
+  const spotName = route.params?.spotName ?? 'this spot';
 
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState('');
-  const [questions, setQuestions]       = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const isIconMode = !!icon;
+  const accentColor = icon?.color ?? COLORS.accent;
+  const displayName = isIconMode ? icon.name : spotName;
+
+  const [loading, setLoading]               = useState(true);
+  const [error, setError]                   = useState('');
+  const [questions, setQuestions]           = useState([]);
+  const [currentIndex, setCurrentIndex]     = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
-  const [isCorrect, setIsCorrect]       = useState(null);
-  const [showReward, setShowReward]     = useState(false);
-  const [reward, setReward]             = useState({ xp_earned: 0, total_xp: 0, awarded: false });
-  const [modelLoaded, setModelLoaded]   = useState(false);
-  const modelFadeAnim                   = useRef(new Animated.Value(0)).current;
+  const [isCorrect, setIsCorrect]           = useState(null);
+  const [showReward, setShowReward]         = useState(false);
+  const [reward, setReward]                 = useState({ xp_earned: 0, total_xp: 0, awarded: false });
 
-  // Fallback: if MODEL_LOADED is never posted (CDN/network issue), clear the spinner after 12s
-  useEffect(() => {
-    if (modelLoaded) return;
-    const timer = setTimeout(() => setModelLoaded(true), 12000);
-    return () => clearTimeout(timer);
-  }, [modelLoaded]);
+  // 3-D viewer HTML (only for icon mode)
+  const viewerHTML = useMemo(() => {
+    if (!isIconMode || !icon.model_3d) return null;
+    return buildViewerHTML(icon.model_3d);
+  }, [isIconMode, icon?.model_3d]);
 
   useEffect(() => {
-    if (!spotId) {
-      setError('No spot selected.');
-      setLoading(false);
-      return;
-    }
-    getAITrivia(spotId)
+    const fetchTrivia = isIconMode
+      ? getIconAITrivia(icon.id)
+      : spotId ? getAITrivia(spotId) : Promise.reject(new Error('no-id'));
+
+    fetchTrivia
       .then((data) => {
-        if (!data.questions || data.questions.length === 0) {
-          setError('No trivia questions available for this spot yet.');
+        if (!data.questions?.length) {
+          setError('No trivia questions available yet.');
         } else {
           setQuestions(data.questions);
         }
       })
-      .catch(() => setError('Could not load quiz. Check your connection and try again.'))
+      .catch((err) => {
+        if (err.message === 'no-id') {
+          setError('No icon or spot selected.');
+        } else if (err?.code === 'ECONNABORTED') {
+          setError('The AI is taking too long to respond. Please try again.');
+        } else {
+          setError(err?.response?.data?.error || 'Could not load quiz. Make sure the backend is running.');
+        }
+      })
       .finally(() => setLoading(false));
-  }, [spotId]);
+  }, []);
 
-  const handleModelMessage = (event) => {
-    try {
-      const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === 'MODEL_LOADED') {
-        setModelLoaded(true);
-        Animated.timing(modelFadeAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }).start();
-      }
-    } catch {}
-  };
-
-  const handleSelectOption = (option) => {
+  const handleSelect = (option) => {
     if (selectedOption !== null) return;
     setSelectedOption(option);
     const correct = option === questions[currentIndex].correct_answer;
@@ -108,11 +107,13 @@ export default function QuizScreen({ navigation, route }) {
           setSelectedOption(null);
           setIsCorrect(null);
         } else {
-          try {
-            const result = await awardSpotBadge(spotId);
-            setReward(result);
-          } catch {
-            setReward({ xp_earned: 0, total_xp: 0, awarded: false });
+          if (!isIconMode && spotId) {
+            try {
+              const result = await awardSpotBadge(spotId);
+              setReward(result);
+            } catch {
+              setReward({ xp_earned: 0, total_xp: 0, awarded: false });
+            }
           }
           setShowReward(true);
         }
@@ -120,103 +121,72 @@ export default function QuizScreen({ navigation, route }) {
         setSelectedOption(null);
         setIsCorrect(null);
       }
-    }, 1500);
+    }, 1400);
   };
 
-  // ── Loading state ──────────────────────────────────────────────────────────
+  // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <SafeAreaView style={styles.centeredContainer}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
-        <Text style={styles.loadingText}>Loading quiz for {spotName}...</Text>
+      <SafeAreaView style={[styles.centered, { backgroundColor: '#0F0920' }]}>
+        <ActivityIndicator size="large" color={accentColor} />
+        <Text style={styles.loadingText}>AI is generating trivia for {displayName}…</Text>
       </SafeAreaView>
     );
   }
 
-  // ── Error state (still show the 3D model) ────────────────────────────────
+  // ── Error ────────────────────────────────────────────────────────────────────
   if (error) {
-    const errorModelUri = buildModelUri(getModelUrl(spotName));
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="#0F0920" />
-
-        {/* Header */}
-        <View style={styles.header}>
+        <View style={styles.topBar}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-            <Ionicons name="close" size={24} color="#FFF" />
+            <Ionicons name="close" size={22} color="#FFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Capture Challenge</Text>
+          <Text style={styles.topBarTitle}>Capture Challenge</Text>
           <View style={{ width: 40 }} />
         </View>
-
-        {/* Floating 3D Model */}
-        <View style={styles.modelContainer}>
-          <Animated.View style={[styles.webViewWrapper, { opacity: modelFadeAnim }]}>
-            <WebView
-              source={{ uri: errorModelUri, headers: { 'ngrok-skip-browser-warning': '1' } }}
-              style={styles.webView}
-              originWhitelist={['*']}
-              javaScriptEnabled
-              scrollEnabled={false}
-              mixedContentMode="always"
-              allowsInlineMediaPlayback
-              mediaPlaybackRequiresUserAction={false}
-              onMessage={handleModelMessage}
-            />
-          </Animated.View>
-          {!modelLoaded && (
-            <View style={styles.modelLoadingOverlay}>
-              <ActivityIndicator size="small" color={COLORS.accent} />
-            </View>
-          )}
-        </View>
-
-        {/* No-quiz message */}
-        <View style={styles.centeredContent}>
+        <View style={styles.centered}>
           <Ionicons name="help-circle-outline" size={48} color="rgba(255,255,255,0.25)" />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.backBtnSmall} onPress={() => navigation.goBack()}>
-            <Text style={styles.backBtnSmallText}>Go Back</Text>
+          <TouchableOpacity style={styles.ghostBtn} onPress={() => navigation.goBack()}>
+            <Text style={styles.ghostBtnText}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
-  // ── Reward state ───────────────────────────────────────────────────────────
+  // ── Reward ───────────────────────────────────────────────────────────────────
   if (showReward) {
     return (
       <SafeAreaView style={styles.rewardContainer}>
         <StatusBar barStyle="light-content" backgroundColor="#0F0920" />
-        <View style={styles.rewardContent}>
-          <View style={styles.rewardIconGlow}>
-            <Ionicons name="trophy" size={80} color="#FBBF24" />
+        <View style={styles.rewardBody}>
+          <View style={[styles.trophyRing, { borderColor: accentColor + '66', backgroundColor: accentColor + '22' }]}>
+            <Ionicons name="trophy" size={72} color="#FBBF24" />
           </View>
           <Text style={styles.rewardTitle}>Congratulations!</Text>
-          <Text style={styles.rewardSubTitle}>You mastered {spotName}</Text>
+          <Text style={styles.rewardSub}>You mastered {displayName}!</Text>
 
-          {reward.awarded ? (
+          {!isIconMode && reward.awarded ? (
             <View style={styles.xpBadge}>
-              <Ionicons name="star" size={24} color="#FBBF24" />
+              <Ionicons name="star" size={22} color="#FBBF24" />
               <Text style={styles.xpText}>+{reward.xp_earned} XP</Text>
-              <Ionicons name="star" size={24} color="#FBBF24" />
+              <Ionicons name="star" size={22} color="#FBBF24" />
             </View>
           ) : (
-            <View style={styles.alreadyBadge}>
-              <Text style={styles.alreadyBadgeText}>Badge already earned — no duplicate XP</Text>
+            <View style={styles.noBadge}>
+              <Text style={styles.noBadgeText}>
+                {isIconMode ? 'Great job, Explorer!' : 'Badge already earned — no duplicate XP'}
+              </Text>
             </View>
           )}
-
-          <Text style={styles.rewardMessage}>
-            {reward.awarded
-              ? `Great job, Explorer! Total XP: ${reward.total_xp}`
-              : 'Keep discovering new spots to earn more XP!'}
-          </Text>
         </View>
 
         <View style={styles.rewardFooter}>
           <TouchableOpacity
-            style={styles.claimBtn}
+            style={[styles.claimBtn, { backgroundColor: accentColor }]}
             activeOpacity={0.8}
             onPress={() => navigation.navigate('MainTabs')}
           >
@@ -227,392 +197,254 @@ export default function QuizScreen({ navigation, route }) {
     );
   }
 
-  // ── Quiz state ─────────────────────────────────────────────────────────────
-  const currentQ   = questions[currentIndex];
-  const modelUri   = buildModelUri(getModelUrl(spotName));
+  const currentQ = questions[currentIndex];
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0F0920" />
 
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Top bar */}
+      <View style={styles.topBar}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-          <Ionicons name="close" size={24} color="#FFF" />
+          <Ionicons name="close" size={22} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Capture Challenge</Text>
+        <Text style={styles.topBarTitle}>Capture Challenge</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Floating 3D Model */}
-      <View style={styles.modelContainer}>
-        <Animated.View style={[styles.webViewWrapper, { opacity: modelFadeAnim }]}>
-          <WebView
-            source={{ uri: modelUri, headers: { 'ngrok-skip-browser-warning': '1' } }}
-            style={styles.webView}
-            originWhitelist={['*']}
-            javaScriptEnabled
-            scrollEnabled={false}
-            mixedContentMode="always"
-            allowsInlineMediaPlayback
-            mediaPlaybackRequiresUserAction={false}
-            onMessage={handleModelMessage}
-          />
-        </Animated.View>
-        {!modelLoaded && (
-          <View style={styles.modelLoadingOverlay}>
-            <ActivityIndicator size="small" color={COLORS.accent} />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+      >
+
+        {/* ── 3D Model (icon mode only) ── */}
+        {isIconMode && (
+          <View style={styles.modelSection}>
+            <View style={[styles.modelCard, { borderColor: accentColor + '55' }]}>
+              {viewerHTML ? (
+                <WebView
+                  source={{ html: viewerHTML }}
+                  style={styles.webview}
+                  javaScriptEnabled
+                  originWhitelist={['https://*']}
+                  scrollEnabled={false}
+                />
+              ) : (
+                <View style={styles.noModel}>
+                  <Ionicons name="cube-outline" size={40} color={accentColor} style={{ opacity: 0.5 }} />
+                </View>
+              )}
+            </View>
+            <Text style={[styles.modelName, { color: accentColor }]}>{icon.name}</Text>
           </View>
         )}
-      </View>
 
-      {/* Progress + Questions scroll */}
-      <ScrollView
-        style={styles.scrollArea}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.progressContainer}>
-          <Text style={styles.progressText}>
+        {/* ── Progress ── */}
+        <View style={styles.progressSection}>
+          <Text style={styles.progressLabel}>
             Question {currentIndex + 1} of {questions.length}
           </Text>
-          <View style={styles.progressBarBg}>
-            <View
-              style={[
-                styles.progressBarFill,
-                { width: `${(currentIndex / questions.length) * 100}%` },
-              ]}
-            />
+          <View style={styles.progressBg}>
+            <View style={[styles.progressFill, {
+              width: `${(currentIndex / questions.length) * 100}%`,
+              backgroundColor: accentColor,
+            }]} />
           </View>
         </View>
 
-        <View style={styles.questionCard}>
+        {/* ── Question card ── */}
+        <View style={[styles.questionCard, { borderColor: accentColor }]}>
           <Text style={styles.questionText}>{currentQ.question}</Text>
         </View>
 
-        <View style={styles.optionsContainer}>
-          {currentQ.choices.map((option, index) => {
-            let btnStyle  = styles.optionBtn;
-            let textStyle = styles.optionText;
-            let icon      = null;
+        {/* ── Options ── */}
+        <View style={styles.options}>
+          {currentQ.choices.map((option, idx) => {
+            const isSelected = selectedOption === option;
+            const isCorrectAnswer = option === currentQ.correct_answer;
+            const showCorrect = selectedOption !== null && isCorrectAnswer && !isCorrect;
 
-            if (selectedOption === option) {
-              if (isCorrect) {
-                btnStyle  = [styles.optionBtn, styles.optionCorrect];
-                textStyle = [styles.optionText, { color: '#FFF' }];
-                icon      = <Ionicons name="checkmark-circle" size={20} color="#FFF" />;
-              } else {
-                btnStyle  = [styles.optionBtn, styles.optionWrong];
-                textStyle = [styles.optionText, { color: '#FFF' }];
-                icon      = <Ionicons name="close-circle" size={20} color="#FFF" />;
-              }
-            } else if (selectedOption !== null && option === currentQ.correct_answer && !isCorrect) {
-              btnStyle  = [styles.optionBtn, styles.optionCorrect];
-              textStyle = [styles.optionText, { color: '#FFF' }];
-              icon      = <Ionicons name="checkmark-circle" size={20} color="#FFF" />;
+            let bg = 'rgba(255,255,255,0.05)';
+            let border = 'rgba(255,255,255,0.1)';
+            let textColor = '#E2E8F0';
+            let icon = null;
+
+            if (isSelected && isCorrect) {
+              bg = '#10B981'; border = '#10B981';
+              textColor = '#FFF';
+              icon = <Ionicons name="checkmark-circle" size={18} color="#FFF" />;
+            } else if (isSelected && !isCorrect) {
+              bg = '#EF4444'; border = '#EF4444';
+              textColor = '#FFF';
+              icon = <Ionicons name="close-circle" size={18} color="#FFF" />;
+            } else if (showCorrect) {
+              bg = '#10B981'; border = '#10B981';
+              textColor = '#FFF';
+              icon = <Ionicons name="checkmark-circle" size={18} color="#FFF" />;
             }
 
             return (
               <TouchableOpacity
-                key={index}
-                style={btnStyle}
-                activeOpacity={0.7}
-                onPress={() => handleSelectOption(option)}
+                key={idx}
+                style={[styles.optionBtn, { backgroundColor: bg, borderColor: border }]}
+                activeOpacity={0.75}
+                onPress={() => handleSelect(option)}
               >
-                <Text style={textStyle}>{option}</Text>
+                <Text style={[styles.optionText, { color: textColor }]}>{option}</Text>
                 {icon}
               </TouchableOpacity>
             );
           })}
         </View>
 
+        {/* ── Feedback ── */}
         {selectedOption !== null && (
-          <View style={styles.feedbackContainer}>
+          <View style={styles.feedback}>
             <Text style={[styles.feedbackText, { color: isCorrect ? '#10B981' : '#EF4444' }]}>
-              {isCorrect ? 'Correct! Awesome job!' : 'Oops! Try again.'}
+              {isCorrect ? 'Correct! Awesome!' : 'Oops! Try again.'}
             </Text>
           </View>
         )}
+
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// ─── Styles ─────────────────────────────────────────────────────────────────
+// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0F0920',
-  },
-  centeredContainer: {
-    flex: 1,
-    backgroundColor: '#0F0920',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 30,
-    gap: 16,
-  },
-  centeredContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 30,
-    gap: 16,
+  container: { flex: 1, backgroundColor: '#0F0920' },
+
+  centered: {
+    flex: 1, justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: 30, gap: 16, backgroundColor: '#0F0920',
   },
   loadingText: {
-    marginTop: 8,
-    fontFamily: FONTS.semiBold,
-    color: '#FFF',
-    fontSize: 15,
-    textAlign: 'center',
+    fontFamily: FONTS.semiBold, color: '#FFF', fontSize: 14,
+    textAlign: 'center', marginTop: 8,
   },
   errorText: {
-    fontFamily: FONTS.semiBold,
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 22,
+    fontFamily: FONTS.semiBold, color: 'rgba(255,255,255,0.6)',
+    fontSize: 14, textAlign: 'center', lineHeight: 22,
   },
-  backBtnSmall: {
-    marginTop: 4,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 20,
+  ghostBtn: {
+    marginTop: 4, paddingVertical: 10, paddingHorizontal: 24,
+    backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 20,
   },
-  backBtnSmallText: {
-    color: '#FFF',
-    fontFamily: FONTS.semiBold,
-    fontSize: 14,
-  },
+  ghostBtnText: { color: '#FFF', fontFamily: FONTS.semiBold, fontSize: 14 },
 
-  // ── Header ────────────────────────────────────────────────────────────────
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+  // Top bar
+  topBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 14,
   },
   iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38, height: 38, borderRadius: 19,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center', alignItems: 'center',
   },
-  headerTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 18,
-    color: '#FFF',
-    letterSpacing: 1,
+  topBarTitle: { fontFamily: FONTS.bold, fontSize: 17, color: '#FFF', letterSpacing: 0.8 },
+
+  scroll: { paddingBottom: 44 },
+
+  // 3D model section
+  modelSection: { alignItems: 'center', paddingHorizontal: 24, marginBottom: 20 },
+  modelCard: {
+    width: '100%', height: 220,
+    borderRadius: RADIUS.md, borderWidth: 1,
+    overflow: 'hidden', backgroundColor: '#12102A',
+  },
+  webview: { flex: 1, backgroundColor: 'transparent' },
+  noModel: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+  },
+  modelName: {
+    fontFamily: FONTS.bold, fontSize: 20, marginTop: 12,
+    letterSpacing: 0.3,
   },
 
-  // ── 3D model viewer ───────────────────────────────────────────────────────
-  modelContainer: {
-    height: 210,
-    marginHorizontal: 0,
-    backgroundColor: 'transparent',
+  // Progress
+  progressSection: { paddingHorizontal: 24, marginBottom: 18 },
+  progressLabel: {
+    fontFamily: FONTS.semiBold, fontSize: 13, color: '#A0AEC0', marginBottom: 8,
   },
-  webViewWrapper: {
-    ...StyleSheet.absoluteFillObject,
+  progressBg: {
+    height: 7, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden',
   },
-  webView: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-  modelLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-  },
+  progressFill: { height: '100%', borderRadius: 4 },
 
-  // ── Quiz content ──────────────────────────────────────────────────────────
-  scrollArea: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  progressContainer: {
-    paddingHorizontal: 24,
-    marginTop: 4,
-    marginBottom: 20,
-  },
-  progressText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 14,
-    color: '#A0AEC0',
-    marginBottom: 8,
-  },
-  progressBarBg: {
-    height: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 4,
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: COLORS.accent,
-    borderRadius: 4,
-  },
+  // Question
   questionCard: {
-    marginHorizontal: 24,
-    padding: 24,
-    backgroundColor: '#1C1434',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: COLORS.accent,
-    marginBottom: 20,
-    ...SHADOW.accent,
+    marginHorizontal: 24, padding: 22,
+    backgroundColor: '#1C1434', borderRadius: 18,
+    borderWidth: 1, marginBottom: 20,
   },
   questionText: {
-    fontFamily: FONTS.bold,
-    fontSize: 18,
-    color: '#FFF',
-    lineHeight: 28,
-  },
-  optionsContainer: {
-    paddingHorizontal: 24,
-    gap: 12,
-  },
-  optionBtn: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  optionText: {
-    fontFamily: FONTS.medium,
-    fontSize: 15,
-    color: '#E2E8F0',
-    flex: 1,
-    marginRight: 10,
-  },
-  optionCorrect: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
-  },
-  optionWrong: {
-    backgroundColor: '#EF4444',
-    borderColor: '#EF4444',
-  },
-  feedbackContainer: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  feedbackText: {
-    fontFamily: FONTS.bold,
-    fontSize: 18,
+    fontFamily: FONTS.bold, fontSize: 17, color: '#FFF', lineHeight: 27,
   },
 
-  // ── Reward ────────────────────────────────────────────────────────────────
+  // Options
+  options: { paddingHorizontal: 24, gap: 12 },
+  optionBtn: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 18, paddingVertical: 15,
+    borderRadius: 14, borderWidth: 1,
+  },
+  optionText: {
+    fontFamily: FONTS.medium, fontSize: 14, flex: 1, marginRight: 10,
+  },
+
+  // Feedback
+  feedback: { marginTop: 18, alignItems: 'center' },
+  feedbackText: { fontFamily: FONTS.bold, fontSize: 17 },
+
+  // Reward
   rewardContainer: {
-    flex: 1,
-    backgroundColor: '#0F0920',
-    justifyContent: 'space-between',
+    flex: 1, backgroundColor: '#0F0920', justifyContent: 'space-between',
   },
-  rewardContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 30,
+  rewardBody: {
+    flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30,
   },
-  rewardIconGlow: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(251,191,36,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 30,
-    borderWidth: 2,
-    borderColor: 'rgba(251,191,36,0.4)',
-    shadowColor: '#FBBF24',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 10,
+  trophyRing: {
+    width: 130, height: 130, borderRadius: 65,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: 28, borderWidth: 2,
+    shadowColor: '#FBBF24', shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.7, shadowRadius: 18, elevation: 10,
   },
   rewardTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 28,
-    color: '#FFF',
-    marginBottom: 10,
-    textAlign: 'center',
+    fontFamily: FONTS.bold, fontSize: 26, color: '#FFF',
+    marginBottom: 8, textAlign: 'center',
   },
-  rewardSubTitle: {
-    fontFamily: FONTS.medium,
-    fontSize: 16,
-    color: '#A0AEC0',
-    marginBottom: 30,
-    textAlign: 'center',
+  rewardSub: {
+    fontFamily: FONTS.medium, fontSize: 15, color: '#A0AEC0',
+    marginBottom: 28, textAlign: 'center',
   },
   xpBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(251,191,36,0.2)',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 30,
-    marginBottom: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(251,191,36,0.5)',
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(251,191,36,0.18)',
+    paddingHorizontal: 22, paddingVertical: 12,
+    borderRadius: 30, borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.45)',
   },
   xpText: {
-    fontFamily: FONTS.bold,
-    fontSize: 24,
-    color: '#FBBF24',
-    marginHorizontal: 15,
+    fontFamily: FONTS.bold, fontSize: 22, color: '#FBBF24', marginHorizontal: 14,
   },
-  alreadyBadge: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginBottom: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+  noBadge: {
+    backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 18, paddingVertical: 10,
+    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
-  alreadyBadgeText: {
-    color: 'rgba(255,255,255,0.5)',
-    fontFamily: FONTS.medium,
-    fontSize: 13,
+  noBadgeText: {
+    color: 'rgba(255,255,255,0.55)', fontFamily: FONTS.medium, fontSize: 13,
   },
-  rewardMessage: {
-    fontFamily: FONTS.medium,
-    fontSize: 14,
-    color: '#E2E8F0',
-    textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: 10,
-  },
-  rewardFooter: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-  },
+  rewardFooter: { paddingHorizontal: 24, paddingBottom: 38 },
   claimBtn: {
-    backgroundColor: COLORS.accent,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
+    height: 58, borderRadius: 29,
+    justifyContent: 'center', alignItems: 'center',
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.45,
+    shadowRadius: 12, elevation: 8,
   },
   claimBtnText: {
-    fontFamily: FONTS.bold,
-    fontSize: 16,
-    color: '#FFF',
-    letterSpacing: 2,
+    fontFamily: FONTS.bold, fontSize: 15, color: '#FFF', letterSpacing: 2,
   },
 });
