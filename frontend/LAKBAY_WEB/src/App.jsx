@@ -37,8 +37,8 @@ import {
 } from 'lucide-react'
 
 import './App.css'
-import mapboxgl from 'mapbox-gl'
-import 'mapbox-gl/dist/mapbox-gl.css'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import { authService } from './api/authService';
 import qrService from './api/qrService';
 import QRCodeLib from 'qrcode';
@@ -260,17 +260,22 @@ function App() {
   // Initialize Leaflet map — only rebuilds on tab/theme/pins change, NOT on pin selection
   useEffect(() => {
     if (activeTab !== 'map' || !mapContainerRef.current) return;
-    if (isTokenPlaceholder) return;
 
-    mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+    const tileUrl = theme === 'dark'
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
-    const map = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: theme === 'dark' ? 'mapbox://styles/mapbox/navigation-night-v1' : 'mapbox://styles/mapbox/navigation-day-v1',
-      center: [122.0790, 6.9214],
-      zoom: 11.5,
-      pitch: 30,
+    const map = L.map(mapContainerRef.current, {
+      center: [6.9214, 122.0790],
+      zoom: 12,
+      zoomControl: true,
     });
+
+    L.tileLayer(tileUrl, {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 20,
+    }).addTo(map);
 
     mapRef.current = map;
 
@@ -418,6 +423,80 @@ function App() {
       }, 150);
     }
   }, [isMapFullscreen]);
+
+  // Initialize modal map when Add Spot modal opens
+  useEffect(() => {
+    if (!isAddMapPinModalOpen) {
+      if (modalMapRef.current) {
+        modalMapRef.current.remove();
+        modalMapRef.current = null;
+        modalMarkerRef.current = null;
+        modalCircleRef.current = null;
+      }
+      return;
+    }
+
+    // Wait for the DOM to render the container
+    const timer = setTimeout(() => {
+      if (!modalMapContainerRef.current || modalMapRef.current) return;
+
+      const tileUrl = theme === 'dark'
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+      const map = L.map(modalMapContainerRef.current, {
+        center: [6.9214, 122.0790],
+        zoom: 13,
+        zoomControl: false,
+      });
+
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      L.tileLayer(tileUrl, {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20,
+      }).addTo(map);
+
+      map.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        setNewMapPin(prev => ({ ...prev, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
+
+        if (modalMarkerRef.current) modalMarkerRef.current.remove();
+        modalMarkerRef.current = L.circleMarker([lat, lng], {
+          radius: 8,
+          color: '#6c63ff',
+          fillColor: '#6c63ff',
+          fillOpacity: 0.9,
+          weight: 2,
+        }).addTo(map);
+      });
+
+      modalMapRef.current = map;
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [isAddMapPinModalOpen, theme]);
+
+  const handleModalSearch = async () => {
+    if (!modalSearchQuery.trim() || !modalMapRef.current) return;
+    setModalSearching(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(modalSearchQuery)}&limit=1`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const results = await res.json();
+      if (results.length > 0) {
+        const { lat, lon } = results[0];
+        modalMapRef.current.flyTo([parseFloat(lat), parseFloat(lon)], 15);
+      }
+    } catch {
+      // silently ignore search errors
+    } finally {
+      setModalSearching(false);
+    }
+  };
 
   const [users, setUsers] = useState([]);
   const [trivia, setTrivia] = useState(INITIAL_TRIVIA);
