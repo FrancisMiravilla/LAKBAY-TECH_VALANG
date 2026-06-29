@@ -4,7 +4,7 @@ import {
   StatusBar, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, FONTS, RADIUS } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { getCatchIcons, ORIGIN } from '../api/qrService';
 
@@ -165,20 +165,20 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, height: 60, backgroundColor: '#C8175A',
+    paddingHorizontal: 20, height: 60, backgroundColor: COLORS.navy,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center' },
   logoTitle: { fontFamily: FONTS.pixel, fontSize: 9, color: '#FFF', letterSpacing: 1, lineHeight: 16 },
-  logoSub: { fontFamily: FONTS.medium, fontSize: 8, color: 'rgba(255,255,255,0.7)', letterSpacing: 1 },
+  logoSub: { fontFamily: FONTS.medium, fontSize: 8, color: 'rgba(255,255,255,0.65)', letterSpacing: 1 },
   headerBtn: {
     width: 32, height: 32, borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'center', alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center',
   },
 
   subHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, height: 48, backgroundColor: '#1A0A30',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)',
+    paddingHorizontal: 16, height: 48, backgroundColor: COLORS.navyMid,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   backBtn: { width: 32, height: 32, justifyContent: 'center', alignItems: 'flex-start' },
   subHeaderTitle: { fontFamily: FONTS.bold, fontSize: 14, color: '#FFF', letterSpacing: 1 },
@@ -195,17 +195,18 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bgCard, borderRadius: RADIUS.md,
     padding: 16, marginBottom: 24,
     borderWidth: 1, borderColor: COLORS.border,
+    ...SHADOW.card,
   },
   progressTopRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  progressLabel: { fontFamily: FONTS.semiBold, fontSize: 13, color: '#FFF' },
+  progressLabel: { fontFamily: FONTS.semiBold, fontSize: 13, color: COLORS.text },
   progressValue: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.textMuted },
-  progressCaught: { color: COLORS.gold },
-  progressBarBg: { height: 6, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 3, overflow: 'hidden' },
-  progressBarFill: { height: '100%', backgroundColor: COLORS.gold, borderRadius: 3 },
+  progressCaught: { color: COLORS.accent },
+  progressBarBg: { height: 6, backgroundColor: COLORS.bgSurface, borderRadius: 3, overflow: 'hidden' },
+  progressBarFill: { height: '100%', backgroundColor: COLORS.accent, borderRadius: 3 },
 
   sectionRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   accentBar: { width: 3, height: 18, backgroundColor: COLORS.accent, borderRadius: 2, marginRight: 10 },
-  sectionTitle: { fontFamily: FONTS.bold, fontSize: 17, color: '#FFF' },
+  sectionTitle: { fontFamily: FONTS.bold, fontSize: 17, color: COLORS.text },
   sectionSub: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMuted, marginBottom: 20, lineHeight: 18 },
 
   emptyBox: { alignItems: 'center', gap: 10, paddingVertical: 40 },
@@ -217,10 +218,11 @@ const styles = StyleSheet.create({
     width: '47.5%', backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.md, padding: 16, borderWidth: 1,
     overflow: 'hidden', position: 'relative',
+    ...SHADOW.card,
   },
   cardGlow: {
     position: 'absolute', top: -30, right: -30,
-    width: 100, height: 100, borderRadius: 50, opacity: 0.4,
+    width: 100, height: 100, borderRadius: 50, opacity: 0.25,
   },
 
   modelRing: {
@@ -230,7 +232,7 @@ const styles = StyleSheet.create({
   },
 
   iconName: { fontFamily: FONTS.bold, fontSize: 16, marginBottom: 4 },
-  iconTagline: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textSub, lineHeight: 16, marginBottom: 14 },
+  iconTagline: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textMuted, lineHeight: 16, marginBottom: 14 },
 
   arrowBtn: {
     alignSelf: 'flex-start', width: 28, height: 28, borderRadius: 14,

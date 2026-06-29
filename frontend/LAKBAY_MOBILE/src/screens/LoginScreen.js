@@ -63,7 +63,7 @@ const testConnection = async () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#E91E8C" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.navy} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   // ── Hero Banner ────────────────────────────────────────────────────
   heroBanner: {
     height: 200,
-    backgroundColor: COLORS.accent,
+    backgroundColor: COLORS.navy,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -222,17 +222,17 @@ const styles = StyleSheet.create({
   blobTL: {
     position: 'absolute', top: -40, left: -40,
     width: 140, height: 140, borderRadius: 70,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   blobBR: {
     position: 'absolute', bottom: -30, right: 20,
     width: 90, height: 90, borderRadius: 45,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(26,86,219,0.35)',
   },
   logoRing: {
     width: 64, height: 64, borderRadius: 32,
-    backgroundColor: 'rgba(255,255,255,0.20)',
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.40)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.35)',
     justifyContent: 'center', alignItems: 'center',
     marginBottom: 12,
   },
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     letterSpacing: 3, marginBottom: 2,
   },
   logoSub: {
-    fontFamily: FONTS.medium, fontSize: 10, color: 'rgba(255,255,255,0.75)',
+    fontFamily: FONTS.medium, fontSize: 10, color: 'rgba(255,255,255,0.70)',
     letterSpacing: 3, marginTop: 2,
   },
 

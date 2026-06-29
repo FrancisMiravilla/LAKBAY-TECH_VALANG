@@ -35,13 +35,13 @@ function buildMiniMapHTML(spots) {
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
-    html,body{width:100%;height:100%;background:#0D0520;overflow:hidden;}
+    html,body{width:100%;height:100%;background:#EEF3FF;overflow:hidden;}
     #map{width:100%;height:100%;}
-    .leaflet-container{background:#0D0520;}
+    .leaflet-container{background:#EEF3FF;}
     .leaflet-control-container{display:none;}
-    .pin{width:12px;height:12px;border-radius:50%;background:#E91E8C;
-      border:2px solid rgba(255,255,255,0.8);
-      box-shadow:0 0 8px rgba(233,30,140,0.7),0 0 0 3px rgba(233,30,140,0.2);}
+    .pin{width:12px;height:12px;border-radius:50%;background:#1A56DB;
+      border:2px solid rgba(255,255,255,0.9);
+      box-shadow:0 0 8px rgba(26,86,219,0.6),0 0 0 3px rgba(26,86,219,0.2);}
   </style>
 </head>
 <body>
@@ -50,7 +50,7 @@ function buildMiniMapHTML(spots) {
 var map=L.map('map',{center:[6.885,122.07],zoom:11,zoomControl:false,
   dragging:false,touchZoom:false,doubleClickZoom:false,
   scrollWheelZoom:false,boxZoom:false,keyboard:false,tap:false});
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
   {attribution:'',subdomains:'abcd',maxZoom:20}).addTo(map);
 var coords = ${JSON.stringify(coords)};
 coords.forEach(function(c){

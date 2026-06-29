@@ -264,9 +264,9 @@ export default function QuizScreen({ navigation, route }) {
             const isCorrectAnswer = option === currentQ.correct_answer;
             const showCorrect = selectedOption !== null && isCorrectAnswer && !isCorrect;
 
-            let bg = 'rgba(255,255,255,0.05)';
-            let border = 'rgba(255,255,255,0.1)';
-            let textColor = '#E2E8F0';
+            let bg = COLORS.bgCard;
+            let border = COLORS.border;
+            let textColor = COLORS.text;
             let icon = null;
 
             if (isSelected && isCorrect) {
@@ -313,34 +313,35 @@ export default function QuizScreen({ navigation, route }) {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F0920' },
+  container: { flex: 1, backgroundColor: COLORS.bg },
 
   centered: {
     flex: 1, justifyContent: 'center', alignItems: 'center',
-    paddingHorizontal: 30, gap: 16, backgroundColor: '#0F0920',
+    paddingHorizontal: 30, gap: 16, backgroundColor: COLORS.bg,
   },
   loadingText: {
-    fontFamily: FONTS.semiBold, color: '#FFF', fontSize: 14,
+    fontFamily: FONTS.semiBold, color: COLORS.text, fontSize: 14,
     textAlign: 'center', marginTop: 8,
   },
   errorText: {
-    fontFamily: FONTS.semiBold, color: 'rgba(255,255,255,0.6)',
+    fontFamily: FONTS.semiBold, color: COLORS.textMuted,
     fontSize: 14, textAlign: 'center', lineHeight: 22,
   },
   ghostBtn: {
     marginTop: 4, paddingVertical: 10, paddingHorizontal: 24,
-    backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 20,
+    backgroundColor: COLORS.accentSoft, borderRadius: 20,
+    borderWidth: 1, borderColor: COLORS.accentBorder,
   },
-  ghostBtnText: { color: '#FFF', fontFamily: FONTS.semiBold, fontSize: 14 },
+  ghostBtnText: { color: COLORS.accent, fontFamily: FONTS.semiBold, fontSize: 14 },
 
   // Top bar
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 14,
+    paddingHorizontal: 20, paddingVertical: 14, backgroundColor: COLORS.navy,
   },
   iconBtn: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center', alignItems: 'center',
   },
   topBarTitle: { fontFamily: FONTS.bold, fontSize: 17, color: '#FFF', letterSpacing: 0.8 },
@@ -348,11 +349,11 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: 44 },
 
   // 3D model section
-  modelSection: { alignItems: 'center', paddingHorizontal: 24, marginBottom: 20 },
+  modelSection: { alignItems: 'center', paddingHorizontal: 24, marginBottom: 20, paddingTop: 20 },
   modelCard: {
     width: '100%', height: 220,
     borderRadius: RADIUS.md, borderWidth: 1,
-    overflow: 'hidden', backgroundColor: '#12102A',
+    overflow: 'hidden', backgroundColor: COLORS.bgSurface,
   },
   webview: { flex: 1, backgroundColor: 'transparent' },
   noModel: {
@@ -360,27 +361,29 @@ const styles = StyleSheet.create({
   },
   modelName: {
     fontFamily: FONTS.bold, fontSize: 20, marginTop: 12,
-    letterSpacing: 0.3,
+    letterSpacing: 0.3, color: COLORS.text,
   },
 
   // Progress
-  progressSection: { paddingHorizontal: 24, marginBottom: 18 },
+  progressSection: { paddingHorizontal: 24, marginBottom: 18, paddingTop: 20 },
   progressLabel: {
-    fontFamily: FONTS.semiBold, fontSize: 13, color: '#A0AEC0', marginBottom: 8,
+    fontFamily: FONTS.semiBold, fontSize: 13, color: COLORS.textMuted, marginBottom: 8,
   },
   progressBg: {
-    height: 7, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden',
+    height: 7, backgroundColor: COLORS.bgSurface, borderRadius: 4, overflow: 'hidden',
+    borderWidth: 1, borderColor: COLORS.border,
   },
   progressFill: { height: '100%', borderRadius: 4 },
 
   // Question
   questionCard: {
     marginHorizontal: 24, padding: 22,
-    backgroundColor: '#1C1434', borderRadius: 18,
+    backgroundColor: COLORS.bgCard, borderRadius: 18,
     borderWidth: 1, marginBottom: 20,
+    ...SHADOW.card,
   },
   questionText: {
-    fontFamily: FONTS.bold, fontSize: 17, color: '#FFF', lineHeight: 27,
+    fontFamily: FONTS.bold, fontSize: 17, color: COLORS.text, lineHeight: 27,
   },
 
   // Options
@@ -400,7 +403,7 @@ const styles = StyleSheet.create({
 
   // Reward
   rewardContainer: {
-    flex: 1, backgroundColor: '#0F0920', justifyContent: 'space-between',
+    flex: 1, backgroundColor: COLORS.bg, justifyContent: 'space-between',
   },
   rewardBody: {
     flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30,
@@ -410,38 +413,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
     marginBottom: 28, borderWidth: 2,
     shadowColor: '#FBBF24', shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.7, shadowRadius: 18, elevation: 10,
+    shadowOpacity: 0.5, shadowRadius: 18, elevation: 10,
   },
   rewardTitle: {
-    fontFamily: FONTS.bold, fontSize: 26, color: '#FFF',
+    fontFamily: FONTS.bold, fontSize: 26, color: COLORS.text,
     marginBottom: 8, textAlign: 'center',
   },
   rewardSub: {
-    fontFamily: FONTS.medium, fontSize: 15, color: '#A0AEC0',
+    fontFamily: FONTS.medium, fontSize: 15, color: COLORS.textMuted,
     marginBottom: 28, textAlign: 'center',
   },
   xpBadge: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(251,191,36,0.18)',
+    backgroundColor: COLORS.goldSoft,
     paddingHorizontal: 22, paddingVertical: 12,
     borderRadius: 30, borderWidth: 1,
     borderColor: 'rgba(251,191,36,0.45)',
   },
   xpText: {
-    fontFamily: FONTS.bold, fontSize: 22, color: '#FBBF24', marginHorizontal: 14,
+    fontFamily: FONTS.bold, fontSize: 22, color: '#B45309', marginHorizontal: 14,
   },
   noBadge: {
-    backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 18, paddingVertical: 10,
-    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: COLORS.bgSurface, paddingHorizontal: 18, paddingVertical: 10,
+    borderRadius: 20, borderWidth: 1, borderColor: COLORS.border,
   },
   noBadgeText: {
-    color: 'rgba(255,255,255,0.55)', fontFamily: FONTS.medium, fontSize: 13,
+    color: COLORS.textMuted, fontFamily: FONTS.medium, fontSize: 13,
   },
   rewardFooter: { paddingHorizontal: 24, paddingBottom: 38 },
   claimBtn: {
     height: 58, borderRadius: 29,
     justifyContent: 'center', alignItems: 'center',
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.45,
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25,
     shadowRadius: 12, elevation: 8,
   },
   claimBtnText: {

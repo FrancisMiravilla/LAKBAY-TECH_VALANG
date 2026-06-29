@@ -5,7 +5,7 @@ import {
   ScrollView, Animated, Easing, ActivityIndicator, Alert,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { COLORS, FONTS } from '../constants/theme';
+import { COLORS, FONTS, SHADOW } from '../constants/theme';
 import { validateQR } from '../api/qrService';
 
 export default function QRScreen({ navigation }) {
@@ -287,26 +287,29 @@ const styles = StyleSheet.create({
   errorText: { color: '#FCA5A5', fontSize: 12, fontFamily: FONTS.semiBold, flex: 1 },
   errorDismiss: { color: '#FCA5A5', fontSize: 14, marginLeft: 10, fontWeight: '700' },
   instructionCard: {
-    backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)', marginBottom: 16,
+    backgroundColor: COLORS.bgCard, borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: COLORS.border, marginBottom: 16,
+    ...SHADOW.card,
   },
-  instructionHeader: { color: COLORS.gold, fontSize: 13, fontFamily: FONTS.bold, fontWeight: '700', marginBottom: 6 },
+  instructionHeader: { color: COLORS.accent, fontSize: 13, fontFamily: FONTS.bold, fontWeight: '700', marginBottom: 6 },
   instructionBody: { color: COLORS.textSub, fontSize: 12, fontFamily: FONTS.regular, lineHeight: 18 },
   guidelinesSection: {
     flexDirection: 'row', justifyContent: 'space-between', backgroundColor: COLORS.bgCard,
-    borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 16, marginBottom: 20,
+    borderRadius: 16, borderWidth: 1, borderColor: COLORS.border, padding: 16, marginBottom: 20,
+    ...SHADOW.card,
   },
   guidelineRow: { flexDirection: 'row', alignItems: 'center' },
-  bulletPoint: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.gold, marginRight: 8 },
+  bulletPoint: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.accent, marginRight: 8 },
   guidelineText: { color: COLORS.textSub, fontSize: 11, fontFamily: FONTS.regular, fontWeight: '500' },
   tipsContainer: { gap: 12, marginBottom: 20 },
   tipItem: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.03)',
-    borderRadius: 14, padding: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bgCard,
+    borderRadius: 14, padding: 12, borderWidth: 1, borderColor: COLORS.border,
+    ...SHADOW.card,
   },
   tipEmoji: { fontSize: 20, marginRight: 16 },
-  tipText: { flex: 1, color: '#FFF', fontSize: 11, fontFamily: FONTS.semiBold, fontWeight: '600', lineHeight: 16 },
-  cameraFallback: { ...StyleSheet.absoluteFillObject, backgroundColor: '#0F091E', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  tipText: { flex: 1, color: COLORS.text, fontSize: 11, fontFamily: FONTS.semiBold, fontWeight: '600', lineHeight: 16 },
+  cameraFallback: { ...StyleSheet.absoluteFillObject, backgroundColor: COLORS.navy, justifyContent: 'center', alignItems: 'center', padding: 20 },
   cameraFallbackText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: FONTS.semiBold, fontWeight: '600' },
   permissionDeniedContainer: { alignItems: 'center', justifyContent: 'center' },
   permissionDeniedText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: FONTS.semiBold, fontWeight: '600', marginBottom: 12, textAlign: 'center' },

@@ -34,7 +34,7 @@ const TAB_ICON = {
 function TabIcon({ name, focused }) {
   const cfg = TAB_ICON[name];
   const iconName = focused ? cfg.active : cfg.inactive;
-  const iconColor = focused ? COLORS.accent : 'rgba(255,255,255,0.40)';
+  const iconColor = focused ? COLORS.accent : 'rgba(255,255,255,0.55)';
   return (
     <View style={[tabStyles.iconWrap, focused && tabStyles.iconWrapActive]}>
       <Ionicons name={iconName} size={22} color={iconColor} />
@@ -100,16 +100,16 @@ export default function AppNavigator() {
 
 const tabStyles = StyleSheet.create({
   tabBar: {
-    backgroundColor: 'rgba(13,5,32,0.97)',
+    backgroundColor: COLORS.navy,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(233,30,140,0.18)',
+    borderTopColor: 'rgba(255,255,255,0.10)',
     height: 72,
     paddingBottom: 10,
     paddingTop: 6,
     elevation: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.30,
     shadowRadius: 12,
   },
   iconWrap: {
@@ -120,7 +120,7 @@ const tabStyles = StyleSheet.create({
     borderRadius: 14,
   },
   iconWrapActive: {
-    backgroundColor: 'rgba(233,30,140,0.12)',
+    backgroundColor: 'rgba(26,86,219,0.22)',
   },
   activeDot: {
     width: 4,
@@ -132,11 +132,11 @@ const tabStyles = StyleSheet.create({
   tabLabel: {
     fontSize: 10,
     fontFamily: FONTS.medium,
-    color: 'rgba(255,255,255,0.40)',
+    color: 'rgba(255,255,255,0.55)',
     marginTop: 1,
   },
   tabLabelActive: {
-    color: COLORS.accent,
+    color: '#FFFFFF',
     fontFamily: FONTS.semiBold,
   },
 });

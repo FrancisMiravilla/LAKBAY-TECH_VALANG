@@ -1,32 +1,56 @@
+// Palette mirrors the web admin (LAKBAY_WEB) light theme:
+//   --body-bg   #EEF3FF  →  bg / background
+//   --card-bg   #FFFFFF  →  bgCard / surface
+//   --card-border #C3D8FF →  border / accentBorder
+//   --sidebar-bg #0C2461 →  navy (headers / tab bar)
+//   --accent-blue #1A56DB → accent / primary
+
 export const COLORS = {
-  bg:           '#0D0520',
-  bgSurface:    '#1A0A30',
-  bgCard:       '#231545',
-  bgCardAlt:    '#1C1040',
-  accent:       '#E91E8C',
-  accentDark:   '#C8175A',
-  accentSoft:   'rgba(233,30,140,0.15)',
-  accentGlow:   'rgba(233,30,140,0.35)',
-  accentBorder: 'rgba(233,30,140,0.22)',
+  // ── Backgrounds ────────────────────────────────────────────────
+  bg:           '#EEF3FF',           // web --body-bg
+  bgSurface:    '#E0EAFF',
+  bgCard:       '#FFFFFF',           // web --card-bg
+  bgCardAlt:    '#F5F8FF',
+
+  // ── Navy (headers, tab bar, status bar) ────────────────────────
+  navy:         '#0C2461',           // web --sidebar-bg
+  navyMid:      '#1A3A7A',
+
+  // ── Philippine Flag Blue — primary accent ──────────────────────
+  accent:       '#1A56DB',           // web --accent-blue
+  accentDark:   '#1344B3',
+  accentSoft:   'rgba(26,86,219,0.10)',
+  accentGlow:   'rgba(26,86,219,0.22)',
+  accentBorder: '#C3D8FF',           // web --card-border
+
+  // ── Gold — achievements / rewards ──────────────────────────────
   gold:         '#FBBF24',
   goldSoft:     'rgba(251,191,36,0.15)',
-  goldGlow:     'rgba(251,191,36,0.3)',
+  goldGlow:     'rgba(251,191,36,0.30)',
+
+  // ── Semantic ───────────────────────────────────────────────────
   teal:         '#10B981',
-  tealSoft:     'rgba(16,185,129,0.15)',
-  border:       'rgba(255,255,255,0.08)',
-  borderAccent: 'rgba(233,30,140,0.22)',
-  text:         '#FFFFFF',
-  textSub:      'rgba(255,255,255,0.70)',
-  textMuted:    'rgba(255,255,255,0.40)',
+  tealSoft:     'rgba(16,185,129,0.12)',
   danger:       '#EF4444',
   success:      '#10B981',
-  // legacy compat
-  primary:      '#E91E8C',
+
+  // ── Borders ───────────────────────────────────────────────────
+  border:       '#C3D8FF',           // web --card-border
+  borderLight:  '#E0EAFF',
+
+  // ── Text (dark on light bg) ────────────────────────────────────
+  text:         '#1E293B',           // web --text-title
+  textSub:      '#334155',           // web --text-primary
+  textMuted:    '#64748B',           // web --text-secondary
+  textFaint:    '#94A3B8',           // web --text-muted
+
+  // ── Legacy aliases (keep old references working) ───────────────
+  primary:      '#1A56DB',
   secondary:    '#FBBF24',
-  background:   '#0D0520',
-  surface:      '#231545',
-  textPrimary:  '#FFFFFF',
-  textSecondary:'rgba(255,255,255,0.70)',
+  background:   '#EEF3FF',
+  surface:      '#FFFFFF',
+  textPrimary:  '#1E293B',
+  textSecondary:'#64748B',
   error:        '#EF4444',
 };
 
@@ -66,30 +90,30 @@ export const SIZES = {
 
 export const SHADOW = {
   accent: {
-    shadowColor: '#E91E8C',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowColor: '#1A56DB',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 6,
   },
   gold: {
     shadowColor: '#FBBF24',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.30,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    elevation: 5,
   },
   card: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowColor: '#1A56DB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
 };
 
 export const FONTS = {
-  pixel:   'PressStart2P_400Regular', // ← big headers / logo / hero titles
+  pixel:   'PressStart2P_400Regular',
   light:   'Rajdhani_300Light',
   regular: 'Rajdhani_400Regular',
   medium:  'Rajdhani_500Medium',

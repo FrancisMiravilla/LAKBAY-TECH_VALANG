@@ -6,7 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { getSpots } from '../api/qrService';
-import { COLORS, FONTS, SIZES, RADIUS, SPACING } from '../constants/theme';
+import { COLORS, FONTS, SIZES, RADIUS, SPACING, SHADOW } from '../constants/theme';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 const CARD_HEIGHT = 220;
@@ -32,9 +32,9 @@ function buildLeafletHTML(spots) {
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
-    html,body{width:100%;height:100%;background:#0D0520;overflow:hidden;}
+    html,body{width:100%;height:100%;background:#EEF3FF;overflow:hidden;}
     #map{width:100%;height:100%;}
-    .leaflet-container{background:#0D0520;}
+    .leaflet-container{background:#EEF3FF;}
     .pin{
       width:18px;height:18px;border-radius:50%;
       border:2.5px solid rgba(255,255,255,0.85);
@@ -50,11 +50,12 @@ function buildLeafletHTML(spots) {
       transform:scale(1.35);
     }
     .leaflet-popup-content-wrapper{
-      background:rgba(13,5,32,0.95);border:1px solid rgba(233,30,140,0.3);
-      border-radius:10px;color:#fff;font-family:sans-serif;
+      background:#FFFFFF;border:1px solid #C3D8FF;
+      border-radius:10px;color:#1E293B;font-family:sans-serif;
+      box-shadow:0 4px 16px rgba(26,86,219,0.12);
     }
-    .leaflet-popup-tip{background:rgba(13,5,32,0.95);}
-    .leaflet-popup-close-button{color:#fff!important;}
+    .leaflet-popup-tip{background:#FFFFFF;}
+    .leaflet-popup-close-button{color:#64748B!important;}
   </style>
 </head>
 <body>
@@ -68,7 +69,7 @@ function buildLeafletHTML(spots) {
 
   var map=L.map('map',{center:[6.9214,122.0790],zoom:12,zoomControl:true});
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
     attribution:'&copy; OpenStreetMap &copy; CARTO',
     subdomains:'abcd',maxZoom:20,
   }).addTo(map);
@@ -304,12 +305,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 16,
     right: 16,
-    backgroundColor: 'rgba(13,5,32,0.90)',
+    backgroundColor: '#FFFFFF',
     borderRadius: RADIUS.sm,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#C3D8FF',
+    shadowColor: '#1A56DB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius: 6,
+    elevation: 4,
   },
   legendRow: {
     flexDirection: 'row',
@@ -325,18 +331,18 @@ const styles = StyleSheet.create({
   legendText: {
     fontFamily: FONTS.medium,
     fontSize: 11,
-    color: COLORS.text,
+    color: '#1E293B',
   },
   legendCount: {
     fontFamily: FONTS.regular,
     fontSize: 10,
-    color: COLORS.textMuted,
+    color: '#64748B',
     marginTop: 2,
     textAlign: 'right',
   },
   legendDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#C3D8FF',
     marginVertical: 6,
   },
 
@@ -346,16 +352,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#130929',
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: SPACING.lg,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(233,30,140,0.25)',
-    shadowColor: COLORS.accent,
+    borderTopColor: '#C3D8FF',
+    shadowColor: '#1A56DB',
     shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.12,
     shadowRadius: 18,
     elevation: 20,
   },
@@ -363,7 +369,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: '#C3D8FF',
     alignSelf: 'center',
     marginBottom: 16,
   },
@@ -376,22 +382,22 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#EEF3FF',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: '#C3D8FF',
   },
   spotTypeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(233,30,140,0.15)',
+    backgroundColor: COLORS.accentSoft,
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: 'rgba(233,30,140,0.35)',
+    borderColor: COLORS.accentBorder,
     marginBottom: 10,
   },
   spotTypeBadgeText: {
@@ -422,7 +428,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#C3D8FF',
     marginBottom: 12,
   },
   spotDesc: {

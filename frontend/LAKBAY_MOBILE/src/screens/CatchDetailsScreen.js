@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
     marginBottom: 20,
-    backgroundColor: '#12102A',
+    backgroundColor: COLORS.bgSurface,
   },
   webview: { flex: 1, backgroundColor: 'transparent' },
 
@@ -179,21 +179,23 @@ const styles = StyleSheet.create({
 
   /* Name */
   iconName: {
-    fontFamily: FONTS.bold, fontSize: 26, color: '#FFF',
+    fontFamily: FONTS.bold, fontSize: 26, color: COLORS.text,
     textAlign: 'center', marginBottom: 6, letterSpacing: -0.3,
   },
   iconTagline: {
-    fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textSub,
+    fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMuted,
     textAlign: 'center', marginBottom: 22, lineHeight: 19,
   },
 
   /* Info card */
   infoCard: {
-    backgroundColor: '#1C1434',
+    backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.md,
     borderWidth: 1,
+    borderColor: COLORS.border,
     padding: 22,
     marginBottom: 16,
+    ...SHADOW.card,
   },
 
   sectionLabel: {
@@ -201,17 +203,17 @@ const styles = StyleSheet.create({
     letterSpacing: 1.6, marginBottom: 10,
   },
   bodyText: {
-    fontFamily: FONTS.regular, fontSize: 13,
-    color: '#CBD5E1', lineHeight: 22,
+    fontFamily: FONTS.regular, fontSize: 14,
+    color: COLORS.textSub, lineHeight: 22,
   },
-  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 20 },
+  divider: { height: 1, backgroundColor: COLORS.border, marginVertical: 20 },
 
   /* Bottom button */
   bottomNav: { position: 'absolute', bottom: 20, left: 20, right: 20 },
   continueBtn: {
     flexDirection: 'row', height: 56, borderRadius: RADIUS.md,
     justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25, shadowRadius: 8, elevation: 6,
   },
   continueBtnText: { fontFamily: FONTS.bold, fontSize: 15, color: '#FFF', letterSpacing: 0.8 },
