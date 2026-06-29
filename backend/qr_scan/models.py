@@ -9,9 +9,14 @@ class CulturalSpot(models.Model):
     fun_fact = models.TextField(blank=True)
     hook = models.CharField(max_length=300, blank=True)
     image = models.ImageField(upload_to='spot_images/', null=True, blank=True)
+    image2 = models.ImageField(upload_to='spot_images/', null=True, blank=True)
+    image3 = models.ImageField(upload_to='spot_images/', null=True, blank=True)
+    images = models.JSONField(default=list, blank=True)
     location_name = models.CharField(max_length=200)
     latitude = models.FloatField()
     longitude = models.FloatField()
+    feature_types = models.JSONField(default=list)
+    is_featured = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -78,9 +83,6 @@ class TriviaAttempt(models.Model):
     total = models.IntegerField()
     passed = models.BooleanField(default=False)
     attempted_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['-attempted_at']
 
     def __str__(self):
         return f"{self.user.email} — {self.spot.name} ({self.score}/{self.total})"
