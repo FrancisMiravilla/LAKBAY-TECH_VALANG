@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // Strip '/api/auth/' suffix to get the root origin
-const ORIGIN = process.env.EXPO_PUBLIC_API_BASE_URL.replace(/\/api\/.*$/, '');
+export const ORIGIN = (process.env.EXPO_PUBLIC_API_BASE_URL || '').replace(/\/api\/.*$/, '');
 
 const qrClient = axios.create({
   baseURL: ORIGIN,
@@ -15,6 +15,9 @@ qrClient.interceptors.request.use(async (config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+export const getSpots = () =>
+  qrClient.get('/api/qr/spots/').then((r) => r.data);
 
 export const validateQR = (qrCode) =>
   qrClient.post('/api/qr/validate/', { qr_code: qrCode }).then((r) => r.data);

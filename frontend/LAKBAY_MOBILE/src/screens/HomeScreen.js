@@ -4,20 +4,63 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Animat
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import CustomModal from '../components/CustomModal';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { WebView } from 'react-native-webview';
 
-const mapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#181D38' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#181D38' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#A0AEC0' }] },
-  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#E91E8C' }] },
-  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#A0AEC0' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#1e284a' }] },
-  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#38BDF8' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2D376D' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#181D38' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0E1225' }] }
-];
+import { getSpots, ORIGIN } from '../api/qrService';
+
+const formatImageUrl = (img) => {
+  if (!img) return null;
+  if (img.startsWith('http://localhost:8000') || img.startsWith('http://127.0.0.1:8000')) {
+    return img.replace(/^http:\/\/(localhost|127\.0\.0\.1):8000/, ORIGIN);
+  }
+  if (img.startsWith('/media')) return `${ORIGIN}${img}`;
+  return img;
+};
+
+function buildMiniMapHTML(spots) {
+  const coords = spots
+    .filter(s => s.latitude && s.longitude)
+    .map(s => [s.latitude, s.longitude]);
+
+  // Fallback coords if backend has no spots
+  if (coords.length === 0) {
+    coords.push([6.8653, 122.0625], [6.9039, 122.0761], [6.9015, 122.0805], [6.9452, 122.0298]);
+  }
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html,body{width:100%;height:100%;background:#0D0520;overflow:hidden;}
+    #map{width:100%;height:100%;}
+    .leaflet-container{background:#0D0520;}
+    .leaflet-control-container{display:none;}
+    .pin{width:12px;height:12px;border-radius:50%;background:#E91E8C;
+      border:2px solid rgba(255,255,255,0.8);
+      box-shadow:0 0 8px rgba(233,30,140,0.7),0 0 0 3px rgba(233,30,140,0.2);}
+  </style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+var map=L.map('map',{center:[6.885,122.07],zoom:11,zoomControl:false,
+  dragging:false,touchZoom:false,doubleClickZoom:false,
+  scrollWheelZoom:false,boxZoom:false,keyboard:false,tap:false});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  {attribution:'',subdomains:'abcd',maxZoom:20}).addTo(map);
+var coords = ${JSON.stringify(coords)};
+coords.forEach(function(c){
+  var el=document.createElement('div');el.className='pin';
+  L.marker(c,{icon:L.divIcon({html:el,className:'',iconSize:[12,12],iconAnchor:[6,6]})}).addTo(map);
+});
+</script>
+</body>
+</html>`;
+}
 
 
 const PROMO_STATS = [
@@ -85,6 +128,16 @@ export default function HomeScreen({ navigation }) {
   const [heroSlide] = useState(() => new Animated.Value(20));
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedQa, setSelectedQa] = useState(null);
+  const [spots, setSpots] = useState([]); // used for map
+  const [featuredPlaces, setFeaturedPlaces] = useState([]); // used for places to experience
+
+  useEffect(() => {
+    getSpots().then(data => {
+      const allSpots = Array.isArray(data) ? data : (data.results || []);
+      setSpots(allSpots);
+      setFeaturedPlaces(allSpots.filter(s => s.is_featured));
+    }).catch(e => console.log('Home spots error', e));
+  }, []);
 
   useEffect(() => {
     Animated.parallel([
@@ -162,30 +215,15 @@ export default function HomeScreen({ navigation }) {
 
           {/* Map Card */}
           <View style={styles.mapCard}>
-            <MapView
-              provider={PROVIDER_GOOGLE}
+            <WebView
+              source={{ html: buildMiniMapHTML(spots), baseUrl: 'https://localhost' }}
               style={styles.map}
-              initialRegion={{
-                latitude: 6.8850,
-                longitude: 122.0700,
-                latitudeDelta: 0.1,
-                longitudeDelta: 0.1,
-              }}
-              customMapStyle={mapStyle}
-            >
-              <Marker coordinate={{ latitude: 6.8653, longitude: 122.0625 }} testID="marker-santa-cruz">
-                <View style={styles.mapNodeContainer}>
-                  <View style={styles.nodePulse} />
-                  <Text style={styles.mapNodeText}>🏝️ Santa Cruz</Text>
-                </View>
-              </Marker>
-              <Marker coordinate={{ latitude: 6.9039, longitude: 122.0761 }} testID="marker-city-center">
-                <View style={styles.mapNodeContainer}>
-                  <View style={styles.nodePulseActive} />
-                  <Text style={styles.mapNodeText}>🏢 City Center</Text>
-                </View>
-              </Marker>
-            </MapView>
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              originWhitelist={['*']}
+              scrollEnabled={false}
+              mixedContentMode="always"
+            />
                 <View style={styles.mapCompass}>
                   <Text style={styles.mapCompassLabel}>N</Text>
                   <Text style={styles.mapCompassArrow}>↑</Text>
@@ -237,38 +275,54 @@ export default function HomeScreen({ navigation }) {
             </View>
 
             {/* Destination promo cards */}
-            {DESTINATIONS.map((d) => (
-              <TouchableOpacity
-                key={d.label}
-                style={styles.destinationCard}
-                activeOpacity={0.85}
-                onPress={() => navigation.navigate('Details', { destination: d.nav })}
-              >
-                {/* Left color stripe */}
-                <View style={[styles.destStripe, { backgroundColor: d.color }]} />
+            {featuredPlaces.map((d) => {
+              // Extract primary feature type
+              const primaryType = d.feature_types && d.feature_types.length > 0 ? d.feature_types[0] : 'qr';
+              
+              // Map primary feature type to visual attributes
+              let emoji = '📍';
+              let tag = 'Culture';
+              let color = COLORS.accent;
+              if (primaryType === 'qr') { emoji = '🔍'; tag = 'QR Discovery'; color = COLORS.teal; }
+              else if (primaryType === 'ar') { emoji = '📷'; tag = 'AR Experience'; color = COLORS.accent; }
+              else if (primaryType === 'catch') { emoji = '🏆'; tag = 'Collect & Win'; color = COLORS.gold; }
 
-                <View style={styles.destBody}>
-                  {/* Top row: emoji + tag badge */}
-                  <View style={styles.destTopRow}>
-                    <Text style={styles.destEmoji}>{d.emoji}</Text>
-                    <View style={[styles.destTagBadge, { backgroundColor: d.tagColor + '22', borderColor: d.tagColor + '55' }]}>
-                      <Text style={[styles.destTagText, { color: d.tagColor }]}>{d.tag}</Text>
+              return (
+                <TouchableOpacity
+                  key={d.id}
+                  style={styles.destinationCard}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    const combinedImages = [d.image, d.image2, d.image3].filter(img => img).map(formatImageUrl);
+                    navigation.navigate('Details', { destination: { title: d.name, location: d.location_name, description: d.description, historical_background: d.historical_background, cultural_significance: d.cultural_significance, fun_fact: d.fun_fact, image: formatImageUrl(d.image), images: combinedImages } });
+                  }}
+                >
+                  {/* Left color stripe */}
+                  <View style={[styles.destStripe, { backgroundColor: color }]} />
+
+                  <View style={styles.destBody}>
+                    {/* Top row: emoji + tag badge */}
+                    <View style={styles.destTopRow}>
+                      <Text style={styles.destEmoji}>{emoji}</Text>
+                      <View style={[styles.destTagBadge, { backgroundColor: color + '22', borderColor: color + '55' }]}>
+                        <Text style={[styles.destTagText, { color: color }]}>{tag}</Text>
+                      </View>
+                    </View>
+
+                    {/* Name */}
+                    <Text style={styles.destName}>{d.name}</Text>
+
+                    {/* Description */}
+                    <Text style={styles.destDesc} numberOfLines={2}>{d.description}</Text>
+
+                    {/* Footer CTA */}
+                    <View style={styles.destFooter}>
+                      <Text style={[styles.destCta, { color: color }]}>Explore →</Text>
                     </View>
                   </View>
-
-                  {/* Name */}
-                  <Text style={styles.destName}>{d.label}</Text>
-
-                  {/* Description */}
-                  <Text style={styles.destDesc} numberOfLines={2}>{d.desc}</Text>
-
-                  {/* Footer CTA */}
-                  <View style={styles.destFooter}>
-                    <Text style={[styles.destCta, { color: d.color }]}>Explore →</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
