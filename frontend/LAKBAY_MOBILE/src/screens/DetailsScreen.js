@@ -1,7 +1,9 @@
 import React from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Alert, Image, Dimensions } from 'react-native';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+
+const { width: SCREEN_W } = Dimensions.get('window');
 import { Ionicons } from '@expo/vector-icons';
 
 const CATEGORY_COLORS = {
@@ -69,7 +71,13 @@ export default function DetailsScreen({ route, navigation }) {
   };
 
   const catColor = CATEGORY_COLORS[destination.category] || CATEGORY_COLORS.default;
-  const info     = CATEGORY_INFO[destination.category]   || CATEGORY_INFO.Culture;
+  const baseInfo = CATEGORY_INFO[destination.category]   || CATEGORY_INFO.Culture;
+  
+  const info = {
+    ...baseInfo,
+    overview: destination.description || baseInfo.overview,
+    funFact: destination.fun_fact || destination.funFact || baseInfo.funFact,
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -98,11 +106,19 @@ export default function DetailsScreen({ route, navigation }) {
           <View style={[styles.heroBlobBottom, { backgroundColor: COLORS.bg }]} />
 
           <View style={styles.bannerContent}>
-            <View style={[styles.emojiGlowRing, { borderColor: catColor + '55', shadowColor: catColor }]}>
-              <View style={[styles.emojiInnerRing, { backgroundColor: catColor + '22' }]}>
-                <Text style={styles.bannerEmoji}>🌴</Text>
+            {destination.images && destination.images.filter(img => img).length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} snapToInterval={SCREEN_W - 40} decelerationRate="fast" style={{ width: SCREEN_W, flexGrow: 0, marginBottom: 20 }} contentContainerStyle={{ paddingHorizontal: 20 }}>
+                {destination.images.filter(img => img).map((imgUrl, idx) => (
+                  <Image key={idx} source={{ uri: imgUrl }} style={{ width: SCREEN_W - 40, height: 220, borderRadius: RADIUS.md, marginRight: idx === destination.images.filter(img => img).length - 1 ? 0 : 16, backgroundColor: COLORS.card }} resizeMode="cover" />
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={[styles.emojiGlowRing, { borderColor: catColor + '55', shadowColor: catColor }]}>
+                <View style={[styles.emojiInnerRing, { backgroundColor: catColor + '22' }]}>
+                  <Text style={styles.bannerEmoji}>🌴</Text>
+                </View>
               </View>
-            </View>
+            )}
             <Text style={styles.bannerTitle}>{destination.title}</Text>
             <View style={[styles.categoryPill, { borderColor: catColor, backgroundColor: catColor + '22' }]}>
               <Text style={[styles.categoryPillText, { color: catColor }]}>{destination.category}</Text>
@@ -125,12 +141,14 @@ export default function DetailsScreen({ route, navigation }) {
               <Ionicons name="location-outline" size={13} color={COLORS.gold} />
               <Text style={styles.metaChipText}>{destination.location}</Text>
             </View>
-            <View style={styles.metaChip}>
-              <Ionicons name="ticket-outline" size={13} color={COLORS.teal} />
-              <Text style={[styles.metaChipText, { color: COLORS.teal }]}>
-                {destination.price === 'Free' ? 'Free Entry' : `Entry: ${destination.price}`}
-              </Text>
-            </View>
+            {destination.price && (
+              <View style={styles.metaChip}>
+                <Ionicons name="ticket-outline" size={13} color={COLORS.teal} />
+                <Text style={[styles.metaChipText, { color: COLORS.teal }]}>
+                  {destination.price === 'Free' ? 'Free Entry' : `Entry: ${destination.price}`}
+                </Text>
+              </View>
+            )}
           </View>
 
           <Text style={styles.titleText}>{destination.title}</Text>
@@ -139,53 +157,6 @@ export default function DetailsScreen({ route, navigation }) {
           <Text style={styles.sectionTitle}>About this Place</Text>
           <Text style={styles.desc}>{info.overview}</Text>
 
-          {/* Highlights */}
-          <Text style={styles.sectionTitle}>What to Experience</Text>
-          <View style={styles.highlightsGrid}>
-            {info.highlights.map((h) => (
-              <View key={h.label} style={[styles.highlightCard, { borderColor: catColor + '33' }]}>
-                <View style={[styles.highlightIconCircle, { backgroundColor: catColor + '18' }]}>
-                  <Ionicons name={h.icon} size={20} color={catColor} />
-                </View>
-                <Text style={styles.highlightLabel}>{h.label}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Fun Fact */}
-          <View style={[styles.funFactCard, { borderLeftColor: catColor }]}>
-            <Text style={styles.funFactLabel}>Did You Know?</Text>
-            <Text style={styles.funFactText}>{info.funFact}</Text>
-          </View>
-
-          {/* Visit Tips */}
-          <Text style={styles.sectionTitle}>Visit Information</Text>
-          <View style={styles.visitTipsCard}>
-            {VISIT_TIPS.map((tip, i) => (
-              <View
-                key={tip.label}
-                style={[
-                  styles.visitTipRow,
-                  i < VISIT_TIPS.length - 1 && styles.visitTipBorder,
-                ]}
-              >
-                <View style={styles.visitTipLeft}>
-                  <Ionicons name={tip.icon} size={15} color={catColor} />
-                  <Text style={styles.visitTipLabel}>{tip.label}</Text>
-                </View>
-                <Text style={styles.visitTipValue}>{tip.value}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Cultural note */}
-          <View style={styles.culturalNote}>
-            <Text style={styles.culturalNoteText}>
-              🏙️  This destination is part of the{' '}
-              <Text style={{ color: COLORS.accent, fontFamily: FONTS.bold }}>LAKBAY Zamboanga</Text>
-              {' '}cultural trail. Scan the QR code on-site to unlock AR experiences and earn XP.
-            </Text>
-          </View>
 
         </View>
       </ScrollView>
