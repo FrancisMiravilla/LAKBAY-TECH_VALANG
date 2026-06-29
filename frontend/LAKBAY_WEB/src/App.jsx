@@ -39,7 +39,6 @@ import {
 import './App.css'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import { useNavigate } from 'react-router-dom';
 import { authService } from './api/authService';
 import qrService from './api/qrService';
 import QRCodeLib from 'qrcode';
@@ -465,40 +464,49 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '' });
   const [loginError, setLoginError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // Restore session from localStorage on page load
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+    authService.getProfile()
+      .then((user) => {
+        if (user.is_staff) {
+          setCurrentUser(user);
+          setIsAuthenticated(true);
+        } else {
+          authService.logout();
+        }
+      })
+      .catch(() => {
+        authService.logout();
+      });
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setLoginError('');
+    setIsLoggingIn(true);
 
     try {
-      const loginResult = await authService.login(
-        loginCredentials.email,
-        loginCredentials.password
-      );
-      
-      console.log('=== LOGIN SUCCESS ===');
-      console.log('Login result:', loginResult); // check tokens are here
-
+      await authService.login(loginCredentials.email, loginCredentials.password);
       const user = await authService.getProfile();
+
+      if (!user.is_staff) {
+        authService.logout();
+        setLoginError('Access denied. Staff accounts only.');
+        return;
+      }
+
       setCurrentUser(user);
       setIsAuthenticated(true);
-
-      console.log('=== PROFILE FETCH SUCCESS ===');
-      console.log('Profile result:', user);
-      console.log('is_staff value:', user.is_staff);
-      console.log('is_staff type:', typeof user.is_staff);
-
-    if (user.is_staff) {
-      console.log('Navigating to dashboard...');
-      navigate('/dashboard');
-    }else{
-      console.log('User is not staff, navigating to login...');
+    } catch (error) {
+      setLoginError('Invalid credentials. Please try again.');
+    } finally {
+      setIsLoggingIn(false);
     }
-
-  } catch (error) {
-    console.error('=== LOGIN FLOW FAILED ===');
-    console.error(error);
-  }
-};
+  };
 
   const handleLogout = () => {
     authService.logout();
@@ -817,8 +825,8 @@ function App() {
               />
             </div>
             
-            <button type="submit" className="btn btn-primary login-btn">
-              Authenticate
+            <button type="submit" className="btn btn-primary login-btn" disabled={isLoggingIn}>
+              {isLoggingIn ? 'Authenticating...' : 'Authenticate'}
             </button>
           </form>
         </div>
