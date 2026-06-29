@@ -35,6 +35,7 @@ const qrService = {
 
   getUsers:           ()   => adminClient.get('/api/auth/users/'),
   toggleUserStatus:   (id) => adminClient.patch(`/api/auth/users/${id}/toggle-status/`),
+
 };
 
 export default qrService;

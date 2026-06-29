@@ -102,7 +102,7 @@ const INITIAL_MAP_PINS = [
 
 // Helper: primary feature type determines marker color
 const PIN_TYPE_CONFIG = {
-  qr:    { color: '#E91E8C', glow: 'rgba(233,30,140,0.55)', label: 'QR Scan' },
+  qr:    { color: '#1A56DB', glow: 'rgba(26,86,219,0.55)', label: 'QR Scan' },
   ar:    { color: '#10B981', glow: 'rgba(16,185,129,0.55)',  label: 'AR Exhibit' },
   catch: { color: '#FBBF24', glow: 'rgba(251,191,36,0.55)', label: 'Catch Zone' },
 };
@@ -174,12 +174,20 @@ const normalizeSpot = (s) => ({
   id: s.id,
   name: s.name,
   location: s.location_name,
+  location_name: s.location_name,
   latitude: s.latitude,
   longitude: s.longitude,
   aboutPlace: s.description,
+  description: s.description,
   historical_background: s.historical_background,
   cultural_significance: s.cultural_significance,
   fun_fact: s.fun_fact,
+  feature_types: s.feature_types || [],
+  images: [s.image, s.image2, s.image3].filter(img => img).map(img => {
+    if (img.startsWith('/media')) return `http://localhost:8000${img}`;
+    return img;
+  }),
+  is_featured: s.is_featured,
   trivia: s.fun_fact,
   status: 'QR',
   category: 'cultural',
@@ -208,14 +216,14 @@ const normalizeMarker = (m) => ({
 
 function App() {
   const [activeTab, setActiveTab] = useState('overview');
-  const [theme, setTheme] = useState('dark');
-  
+  const [theme, setTheme] = useState('light');
+
   // Apply theme class to document
   useEffect(() => {
-    if (theme === 'light') {
-      document.documentElement.classList.add('light-theme');
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark-theme');
     } else {
-      document.documentElement.classList.remove('light-theme');
+      document.documentElement.classList.remove('dark-theme');
     }
   }, [theme]);
   
@@ -225,26 +233,32 @@ function App() {
   const [qrcodes, setQrcodes] = useState([]);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
 
-  // Map Pins State
-  const [mapPins, setMapPins] = useState(INITIAL_MAP_PINS);
-  const [selectedMapPinId, setSelectedMapPinId] = useState(null); // default: Museum AR
-  const [isAddMapPinModalOpen, setIsAddMapPinModalOpen] = useState(false);
-  const [modalSearchQuery, setModalSearchQuery] = useState('');
-  const [modalSearching, setModalSearching] = useState(false);
-  const [newMapPin, setNewMapPin] = useState({
+  // Modals & Forms
+  const [isAddSpotModalOpen, setIsAddSpotModalOpen] = useState(false);
+  const [newSpot, setNewSpot] = useState({
     name: '',
+    location_name: '',
+    latitude: '',
+    longitude: '',
     description: '',
-    lat: '',
-    lng: '',
+    historical_background: '',
+    cultural_significance: '',
+    fun_fact: '',
     featureTypes: ['qr'],
+    images: ['', '', ''],
+    is_featured: false,
   });
 
-  const selectedMapPin = useMemo(() => mapPins.find(p => p.id === selectedMapPinId), [mapPins, selectedMapPinId]);
+  const [selectedMapPinId, setSelectedMapPinId] = useState(null);
+  const [modalSearchQuery, setModalSearchQuery] = useState('');
+  const [modalSearching, setModalSearching] = useState(false);
 
   // Selected Spot for Interactive Map
   const selectedSpot = useMemo(() => {
     return spots.find(s => s.id === selectedPinId);
   }, [spots, selectedPinId]);
+
+  const selectedMapPin = useMemo(() => spots.find(p => p.id === selectedMapPinId), [spots, selectedMapPinId]);
 
   // Map Refs
   const mapContainerRef = useRef(null);
@@ -255,7 +269,6 @@ function App() {
   const modalMapContainerRef = useRef(null);
   const modalMapRef = useRef(null);
   const modalMarkerRef = useRef(null);
-  const modalCircleRef = useRef(null);
 
   // Initialize Leaflet map — only rebuilds on tab/theme/pins change, NOT on pin selection
   useEffect(() => {
@@ -279,8 +292,8 @@ function App() {
 
     mapRef.current = map;
 
-    mapPins.forEach(pin => {
-      const primaryType = pin.featureTypes[0];
+    spots.forEach(pin => {
+      const primaryType = pin.feature_types && pin.feature_types.length > 0 ? pin.feature_types[0] : 'qr';
       const cfg = PIN_TYPE_CONFIG[primaryType] || PIN_TYPE_CONFIG.qr;
       const isSelected = selectedMapPinId === pin.id;
 
@@ -327,13 +340,13 @@ function App() {
       el.addEventListener('click', () => setSelectedMapPinId(pin.id));
 
       // Rich popup
-      const typeLabels = pin.featureTypes.map(t => `<span style="background:${PIN_TYPE_CONFIG[t]?.color};color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;margin-right:4px">${PIN_TYPE_CONFIG[t]?.label}</span>`).join('');
+      const typeLabels = (pin.feature_types || []).map(t => `<span style="background:${PIN_TYPE_CONFIG[t]?.color};color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;margin-right:4px">${PIN_TYPE_CONFIG[t]?.label}</span>`).join('');
       const popupHtml = `
         <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:4px 0;min-width:180px">
           <div style="margin-bottom:6px">${typeLabels}</div>
           <strong style="font-size:13px;color:#1a1a2e;display:block;margin-bottom:4px">${pin.name}</strong>
           <p style="font-size:11px;color:#555;margin:0 0 6px 0;line-height:1.5">${pin.description || 'No description available.'}</p>
-          <p style="font-size:10px;color:#999;margin:0">📍 ${pin.coordinates[1].toFixed(4)}° N, ${pin.coordinates[0].toFixed(4)}° E</p>
+          <p style="font-size:10px;color:#999;margin:0">📍 ${parseFloat(pin.latitude || 0).toFixed(4)}° N, ${parseFloat(pin.longitude || 0).toFixed(4)}° E</p>
         </div>`;
 
       const divIcon = L.divIcon({
@@ -343,15 +356,17 @@ function App() {
         iconAnchor: [11, 11],
         popupAnchor: [0, -14],
       });
-
-      L.marker([pin.coordinates[1], pin.coordinates[0]], { icon: divIcon })
+      const coord = [parseFloat(pin.latitude) || 0, parseFloat(pin.longitude) || 0];
+      const marker = L.marker(coord, {
+        icon: divIcon
+      })
         .bindPopup(popupHtml, { maxWidth: 240 })
         .addTo(map);
     });
 
     return () => { map.remove(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, theme, mapPins]);
+  }, [activeTab, theme, spots, selectedMapPinId]);
 
   // Update marker highlight styles WITHOUT rebuilding the map
   useEffect(() => {
@@ -371,39 +386,15 @@ function App() {
   // Handle flyTo when selectedMapPinId changes
   useEffect(() => {
     if (!mapRef.current) return;
-    const pin = mapPins.find(p => p.id === selectedMapPinId);
-    if (pin?.coordinates) {
-      mapRef.current.flyTo([pin.coordinates[1], pin.coordinates[0]], 14);
+    const pin = spots.find(p => p.id === selectedMapPinId);
+    if (pin && pin.latitude) {
+      mapRef.current.flyTo([parseFloat(pin.latitude), parseFloat(pin.longitude)], 14);
     }
-  }, [selectedMapPinId, mapPins]);
+  }, [selectedMapPinId, spots]);
 
-  // handleAddMapPin
-  const handleAddMapPin = (e) => {
-    e.preventDefault();
-    const lat = parseFloat(newMapPin.lat);
-    const lng = parseFloat(newMapPin.lng);
-    if (!newMapPin.name || isNaN(lat) || isNaN(lng)) return;
-    if (newMapPin.featureTypes.length === 0) return;
 
-    const pin = {
-      id: Date.now(),
-      name: newMapPin.name,
-      description: newMapPin.description,
-      coordinates: [lng, lat],
-      featureTypes: newMapPin.featureTypes,
-    };
-    setMapPins(prev => [...prev, pin]);
-    setSelectedMapPinId(pin.id);
-    setIsAddMapPinModalOpen(false);
-    setNewMapPin({ name: '', description: '', lat: '', lng: '', featureTypes: ['qr'] });
-    setNotifications(prev => [
-      { id: Date.now(), text: `Map pin "${pin.name}" (${pin.featureTypes.join('/')}) added to the map.`, time: 'Just now' },
-      ...prev,
-    ]);
-  };
-
-  const toggleNewPinType = (type) => {
-    setNewMapPin(prev => {
+  const toggleNewSpotType = (type) => {
+    setNewSpot(prev => {
       const has = prev.featureTypes.includes(type);
       if (has && prev.featureTypes.length === 1) return prev; // keep at least one
       return {
@@ -411,6 +402,20 @@ function App() {
         featureTypes: has
           ? prev.featureTypes.filter(t => t !== type)
           : [...prev.featureTypes, type],
+      };
+    });
+  };
+
+  const toggleEditingSpotType = (type) => {
+    setEditingSpot(prev => {
+      const types = prev.feature_types || [];
+      const has = types.includes(type);
+      if (has && types.length === 1) return prev; // keep at least one
+      return {
+        ...prev,
+        feature_types: has
+          ? types.filter(t => t !== type)
+          : [...types, type],
       };
     });
   };
@@ -426,12 +431,11 @@ function App() {
 
   // Initialize modal map when Add Spot modal opens
   useEffect(() => {
-    if (!isAddMapPinModalOpen) {
+    if (!isAddSpotModalOpen) {
       if (modalMapRef.current) {
         modalMapRef.current.remove();
         modalMapRef.current = null;
         modalMarkerRef.current = null;
-        modalCircleRef.current = null;
       }
       return;
     }
@@ -453,14 +457,14 @@ function App() {
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
       L.tileLayer(tileUrl, {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 20,
       }).addTo(map);
 
       map.on('click', (e) => {
         const { lat, lng } = e.latlng;
-        setNewMapPin(prev => ({ ...prev, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
+        setNewSpot(prev => ({ ...prev, latitude: lat.toFixed(6), longitude: lng.toFixed(6) }));
 
         if (modalMarkerRef.current) modalMarkerRef.current.remove();
         modalMarkerRef.current = L.circleMarker([lat, lng], {
@@ -476,7 +480,7 @@ function App() {
     }, 50);
 
     return () => clearTimeout(timer);
-  }, [isAddMapPinModalOpen, theme]);
+  }, [isAddSpotModalOpen, theme]);
 
   const handleModalSearch = async () => {
     if (!modalSearchQuery.trim() || !modalMapRef.current) return;
@@ -489,7 +493,20 @@ function App() {
       const results = await res.json();
       if (results.length > 0) {
         const { lat, lon } = results[0];
-        modalMapRef.current.flyTo([parseFloat(lat), parseFloat(lon)], 15);
+        const parsedLat = parseFloat(lat);
+        const parsedLon = parseFloat(lon);
+        modalMapRef.current.flyTo([parsedLat, parsedLon], 15);
+        setNewSpot(prev => ({ ...prev, latitude: parsedLat.toFixed(6), longitude: parsedLon.toFixed(6) }));
+        if (modalMarkerRef.current) modalMarkerRef.current.remove();
+        modalMarkerRef.current = L.circleMarker([parsedLat, parsedLon], {
+          radius: 8,
+          color: '#6c63ff',
+          fillColor: '#6c63ff',
+          fillOpacity: 0.9,
+          weight: 2,
+        }).addTo(modalMapRef.current);
+      } else {
+        alert('Location not found. Try a different search term.');
       }
     } catch {
       // silently ignore search errors
@@ -497,6 +514,9 @@ function App() {
       setModalSearching(false);
     }
   };
+
+
+
 
   const [users, setUsers] = useState([]);
   const [trivia, setTrivia] = useState(INITIAL_TRIVIA);
@@ -595,10 +615,23 @@ function App() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    qrService.getSpots().then(({ data }) => setSpots(data.map(normalizeSpot))).catch(console.error);
-    qrService.getMarkers().then(({ data }) => setQrcodes(data.map(normalizeMarker))).catch(console.error);
-    qrService.getTriviaQuestions().then(({ data }) => setTriviaQuestions(data)).catch(console.error);
-    qrService.getUsers().then(({ data }) => setUsers(data)).catch(console.error);
+    qrService.getSpots().then(({ data }) => {
+      const items = Array.isArray(data) ? data : (data.results || []);
+      setSpots(items.map(normalizeSpot));
+    }).catch(console.error);
+
+    qrService.getMarkers().then(({ data }) => {
+      const items = Array.isArray(data) ? data : (data.results || []);
+      setQrcodes(items.map(normalizeMarker));
+    }).catch(console.error);
+    qrService.getTriviaQuestions().then(({ data }) => {
+      const items = Array.isArray(data) ? data : (data.results || []);
+      setTriviaQuestions(items);
+    }).catch(console.error);
+    qrService.getUsers().then(({ data }) => {
+      const items = Array.isArray(data) ? data : (data.results || []);
+      setUsers(items);
+    }).catch(console.error);
   }, [isAuthenticated]);
 
   // Search/Filters
@@ -612,18 +645,6 @@ function App() {
   ]);
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
 
-  // Modals
-  const [isAddSpotModalOpen, setIsAddSpotModalOpen] = useState(false);
-  const [newSpot, setNewSpot] = useState({
-    name: '',
-    location_name: '',
-    latitude: '',
-    longitude: '',
-    description: '',
-    historical_background: '',
-    cultural_significance: '',
-    fun_fact: '',
-  });
 
   const [isEditSpotModalOpen, setIsEditSpotModalOpen] = useState(false);
   const [editingSpot, setEditingSpot] = useState(null);
@@ -675,6 +696,29 @@ function App() {
     );
   }, [users, userSearchQuery]);
 
+  const handleImageFileChange = (e, index, isEdit) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result;
+      if (isEdit) {
+        setEditingSpot(prev => {
+          const newImages = [...(prev.images || ['', '', ''])];
+          newImages[index] = base64String;
+          return { ...prev, images: newImages };
+        });
+      } else {
+        setNewSpot(prev => {
+          const newImages = [...(prev.images || ['', '', ''])];
+          newImages[index] = base64String;
+          return { ...prev, images: newImages };
+        });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Handlers
   const handleAddSpot = async (e) => {
     e.preventDefault();
@@ -689,10 +733,15 @@ function App() {
         historical_background: newSpot.historical_background,
         cultural_significance: newSpot.cultural_significance,
         fun_fact: newSpot.fun_fact,
+        feature_types: newSpot.featureTypes,
+        image: newSpot.images[0] || null,
+        image2: newSpot.images[1] || null,
+        image3: newSpot.images[2] || null,
+        is_featured: newSpot.is_featured,
       });
       setSpots(prev => [...prev, normalizeSpot(data)]);
       setIsAddSpotModalOpen(false);
-      setNewSpot({ name: '', location_name: '', latitude: '', longitude: '', description: '', historical_background: '', cultural_significance: '', fun_fact: '' });
+      setNewSpot({ name: '', location_name: '', latitude: '', longitude: '', description: '', historical_background: '', cultural_significance: '', fun_fact: '', featureTypes: ['qr'], images: ['', '', ''], is_featured: false });
       setNotifications(prev => [{ id: Date.now(), text: `Spot "${data.name}" created.`, time: 'Just now' }, ...prev]);
     } catch (err) {
       console.error(err);
@@ -705,13 +754,18 @@ function App() {
     try {
       const { data } = await qrService.updateSpot(editingSpot.id, {
         name: editingSpot.name,
-        location_name: editingSpot.location,
+        location_name: editingSpot.location || editingSpot.location_name,
         latitude: editingSpot.latitude || 0,
         longitude: editingSpot.longitude || 0,
-        description: editingSpot.aboutPlace || '',
+        description: editingSpot.description || editingSpot.aboutPlace || '',
         historical_background: editingSpot.historical_background || '',
         cultural_significance: editingSpot.cultural_significance || '',
         fun_fact: editingSpot.fun_fact || '',
+        feature_types: editingSpot.feature_types || [],
+        image: editingSpot.images?.[0] || null,
+        image2: editingSpot.images?.[1] || null,
+        image3: editingSpot.images?.[2] || null,
+        is_featured: editingSpot.is_featured || false,
       });
       setSpots(prev => prev.map(s => s.id === data.id ? normalizeSpot(data) : s));
       setQrcodes(prev => prev.map(q => q.spot_id === data.id ? { ...q, exhibitName: data.name } : q));
@@ -762,17 +816,33 @@ function App() {
 
   const handleDeleteSpot = async (id) => {
     const spotToDelete = spots.find(s => s.id === id);
-    if (!confirm(`Are you sure you want to delete "${spotToDelete?.name}"?`)) return;
+    if (!confirm(`Are you sure you want to delete "${spotToDelete?.name}"? This will also remove any linked QR codes.`)) return;
     try {
       await qrService.deleteSpot(id);
       setSpots(prev => prev.filter(s => s.id !== id));
-      setQrcodes(prev => prev.filter(q => q.spot_id !== id));
+      setQrcodes(prev => prev.filter(q => q.spot?.id !== id && q.spot_id !== id));
       setNotifications(prev => [
         { id: generateNotificationId(), text: `Spot "${spotToDelete?.name}" removed.`, time: 'Just now' },
         ...prev,
       ]);
     } catch (err) {
       console.error(err);
+      alert('Failed to delete spot. Please try again.');
+    }
+  };
+
+  const handleDeleteQr = async (qr) => {
+    if (!confirm(`Delete QR code for "${qr.exhibitName}"? This cannot be undone.`)) return;
+    try {
+      await qrService.deleteMarker(qr.id);
+      setQrcodes(prev => prev.filter(q => q.id !== qr.id));
+      setNotifications(prev => [
+        { id: generateNotificationId(), text: `QR code for "${qr.exhibitName}" deleted.`, time: 'Just now' },
+        ...prev,
+      ]);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete QR code. Please try again.');
     }
   };
 
@@ -1120,7 +1190,7 @@ function App() {
                 }}>
                   <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid #2D376D', paddingBottom: '8px'}}>
                     <span style={{fontWeight: 700, fontSize: '13px'}}>Notifications</span>
-                    <span style={{fontSize: '11px', color: '#E91E8C', cursor: 'pointer'}} onClick={() => setNotifications([])}>Clear all</span>
+                    <span style={{fontSize: '11px', color: 'var(--accent-blue)', cursor: 'pointer'}} onClick={() => setNotifications([])}>Clear all</span>
                   </div>
                   <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                     {notifications.length === 0 ? (
@@ -1306,13 +1376,6 @@ function App() {
                   <MapPin className="card-title-icon" size={18} />
                   Zamboanga Spots Database
                 </h3>
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => setIsAddSpotModalOpen(true)}
-                >
-                  <Plus size={16} />
-                  Add New Spot
-                </button>
               </div>
 
               {/* Data Table */}
@@ -1327,14 +1390,14 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredSpots.length === 0 ? (
+                    {filteredSpots.filter(s => s.is_featured).length === 0 ? (
                       <tr>
                         <td colSpan="4" style={{textAlign: 'center', padding: '32px 0', color: 'var(--text-secondary)'}}>
                           No feature places match the filters or search query.
                         </td>
                       </tr>
                     ) : (
-                      filteredSpots.map(spot => (
+                      filteredSpots.filter(s => s.is_featured).map(spot => (
                         <tr key={spot.id}>
                           <td style={{fontWeight: 700, color: 'var(--text-title)'}}>{spot.name}</td>
                           <td>{spot.location}</td>
@@ -1438,7 +1501,7 @@ function App() {
                         )}
                         
                         <div className="qr-scan-count" style={{ marginTop: '4px' }}>
-                          <TrendingUp size={14} color="#E91E8C" />
+                          <TrendingUp size={14} color="var(--accent-blue)" />
                           <span>{qr.scanCount.toLocaleString()} Scans</span>
                         </div>
 
@@ -1466,6 +1529,15 @@ function App() {
                         >
                           <Power size={12} style={{marginRight: '4px'}} />
                           {qr.status === 'Active' ? 'Disable' : 'Enable'}
+                        </button>
+
+                        <button
+                          className="icon-action-btn delete"
+                          title="Delete QR Code"
+                          onClick={() => handleDeleteQr(qr)}
+                          style={{ padding: '8px', flexShrink: 0 }}
+                        >
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
@@ -1606,8 +1678,8 @@ function App() {
 
           {/* TAB CONTENT: 10. INTERACTIVE MAP */}
           {activeTab === 'map' && (
+            <>
             <section className="dashboard-grid" style={{ gridTemplateColumns: isMapFullscreen ? '1fr' : '2fr 1.1fr', gap: '28px' }}>
-
               {/* ── Map Canvas Card ── */}
               <div className={`content-card ${isMapFullscreen ? 'fullscreen-map-card' : ''}`} style={{ minHeight: isMapFullscreen ? '100vh' : '500px' }}>
                 <div className="content-card-header" style={{ borderBottom: '1px solid var(--card-border)', paddingBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
@@ -1625,13 +1697,12 @@ function App() {
                         </span>
                       ))}
                     </div>
-                    <button
-                      className="btn btn-primary"
-                      style={{ padding: '6px 12px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                      onClick={() => setIsAddMapPinModalOpen(true)}
-                    >
-                      <Plus size={13} /> Add Spot to Map
+
+                    <button className="btn btn-primary" onClick={() => setIsAddSpotModalOpen(true)}>
+                      <Plus size={16} />
+                      Add New Spot
                     </button>
+
                     <button
                       className="header-btn"
                       onClick={() => setIsMapFullscreen(!isMapFullscreen)}
@@ -1651,7 +1722,7 @@ function App() {
                   {isMapFullscreen && selectedMapPin && (
                     <div className="floating-map-details-card">
                       <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                        {selectedMapPin.featureTypes.map(t => (
+                        {(selectedMapPin.feature_types || []).map(t => (
                           <span key={t} style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', backgroundColor: PIN_TYPE_CONFIG[t]?.color, color: '#fff' }}>
                             {PIN_TYPE_CONFIG[t]?.label}
                           </span>
@@ -1660,12 +1731,26 @@ function App() {
                       <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', color: 'var(--text-title)', fontWeight: 700 }}>{selectedMapPin.name}</h4>
                       <p style={{ margin: '0 0 10px 0', fontSize: '12px', color: 'var(--text-primary)', lineHeight: '1.5' }}>{selectedMapPin.description}</p>
                       <p style={{ margin: '0 0 12px 0', fontSize: '11px', color: 'var(--text-muted)' }}>
-                        📍 {selectedMapPin.coordinates[1].toFixed(4)}° N, {selectedMapPin.coordinates[0].toFixed(4)}° E
+                        📍 {parseFloat(selectedMapPin.latitude || 0).toFixed(4)}° N, {parseFloat(selectedMapPin.longitude || 0).toFixed(4)}° E
                       </p>
-                      <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '11px', width: '100%' }}
-                        onClick={() => alert(`Geofencing triggered at ${selectedMapPin.name}.`)}>
-                        Trigger Geofence
-                      </button>
+                      <div style={{ display: 'flex', gap: '6px', marginTop: '12px' }}>
+                        <button className="btn btn-secondary" style={{ padding: '6px 10px', flex: 1, fontSize: '11px' }}
+                          onClick={() => { setEditingSpot(selectedMapPin); setIsEditSpotModalOpen(true); }}>
+                          <Edit size={12} /> Edit
+                        </button>
+                        <button className="btn btn-secondary" style={{ padding: '6px 10px', fontSize: '11px', color: 'var(--accent-pink)' }}
+                          onClick={async () => {
+                            if (window.confirm(`Delete ${selectedMapPin.name}?`)) {
+                              try {
+                                await qrService.deleteSpot(selectedMapPin.id);
+                                setSpots(prev => prev.filter(s => s.id !== selectedMapPin.id));
+                                setSelectedMapPinId(null);
+                              } catch (err) { console.error(err); }
+                            }
+                          }}>
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     </div>
                   )}
 
@@ -1673,7 +1758,7 @@ function App() {
 
                 {!isMapFullscreen && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)', marginTop: '10px' }}>
-                    <span>Click any pin to view details · {mapPins.length} spots registered</span>
+                    <span>Click any pin to view details · {spots.length} spots registered</span>
                     <span>6.9214° N, 122.0790° E</span>
                   </div>
                 )}
@@ -1689,7 +1774,7 @@ function App() {
 
                       {/* Feature type badges */}
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        {selectedMapPin.featureTypes.map(t => (
+                        {(selectedMapPin.feature_types || []).map(t => (
                           <span key={t} style={{ fontSize: '10px', fontWeight: 800, padding: '4px 10px', borderRadius: '6px', backgroundColor: PIN_TYPE_CONFIG[t]?.color + '22', color: PIN_TYPE_CONFIG[t]?.color, border: `1px solid ${PIN_TYPE_CONFIG[t]?.color}55`, display: 'flex', alignItems: 'center', gap: '4px' }}>
                             {t === 'qr' && <QrCode size={11} />}
                             {t === 'ar' && <Eye size={11} />}
@@ -1704,7 +1789,7 @@ function App() {
                         <h4 style={{ fontFamily: 'var(--font-heading)', fontSize: '20px', fontWeight: 700, color: 'var(--text-title)', margin: '0 0 4px 0', lineHeight: 1.2 }}>{selectedMapPin.name}</h4>
                         <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <MapPin size={11} color="var(--accent-pink)" />
-                          {selectedMapPin.coordinates[1].toFixed(5)}° N, {selectedMapPin.coordinates[0].toFixed(5)}° E
+                          {parseFloat(selectedMapPin.latitude || 0).toFixed(5)}° N, {parseFloat(selectedMapPin.longitude || 0).toFixed(5)}° E
                         </p>
                       </div>
 
@@ -1715,8 +1800,8 @@ function App() {
 
                       {/* Feature-specific info rows */}
                       <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--card-border)' }}>
-                        {selectedMapPin.featureTypes.includes('qr') && (
-                          <div style={{ padding: '10px 12px', borderBottom: selectedMapPin.featureTypes.length > 1 ? '1px solid var(--card-border)' : 'none', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                        {(selectedMapPin.feature_types || []).includes('qr') && (
+                          <div style={{ padding: '10px 12px', borderBottom: (selectedMapPin.feature_types || []).length > 1 ? '1px solid var(--card-border)' : 'none', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                             <QrCode size={16} color={PIN_TYPE_CONFIG.qr.color} style={{ flexShrink: 0, marginTop: '1px' }} />
                             <div>
                               <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: PIN_TYPE_CONFIG.qr.color }}>QR Scan Spot</p>
@@ -1724,8 +1809,8 @@ function App() {
                             </div>
                           </div>
                         )}
-                        {selectedMapPin.featureTypes.includes('ar') && (
-                          <div style={{ padding: '10px 12px', borderBottom: selectedMapPin.featureTypes.filter(t => t !== 'ar').length > 0 ? '1px solid var(--card-border)' : 'none', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                        {(selectedMapPin.feature_types || []).includes('ar') && (
+                          <div style={{ padding: '10px 12px', borderBottom: (selectedMapPin.feature_types || []).filter(t => t !== 'ar').length > 0 ? '1px solid var(--card-border)' : 'none', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                             <Eye size={16} color={PIN_TYPE_CONFIG.ar.color} style={{ flexShrink: 0, marginTop: '1px' }} />
                             <div>
                               <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: PIN_TYPE_CONFIG.ar.color }}>AR Exhibit Zone</p>
@@ -1733,7 +1818,7 @@ function App() {
                             </div>
                           </div>
                         )}
-                        {selectedMapPin.featureTypes.includes('catch') && (
+                        {(selectedMapPin.feature_types || []).includes('catch') && (
                           <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                             <Crosshair size={16} color={PIN_TYPE_CONFIG.catch.color} style={{ flexShrink: 0, marginTop: '1px' }} />
                             <div>
@@ -1756,11 +1841,26 @@ function App() {
                         <button
                           className="btn btn-secondary"
                           style={{ padding: '8px 10px', fontSize: '12px' }}
-                          title="Remove pin"
+                          title="Edit Spot"
                           onClick={() => {
-                            if (confirm(`Remove pin "${selectedMapPin.name}" from the map?`)) {
-                              setMapPins(prev => prev.filter(p => p.id !== selectedMapPin.id));
-                              setSelectedMapPinId(mapPins.find(p => p.id !== selectedMapPin.id)?.id ?? null);
+                            setEditingSpot(selectedMapPin);
+                            setIsEditSpotModalOpen(true);
+                          }}
+                        >
+                          <Edit size={14} />
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: '8px 10px', fontSize: '12px' }}
+                          title="Remove Spot"
+                          onClick={async () => {
+                            if (window.confirm(`Remove spot "${selectedMapPin.name}" from the map?`)) {
+                              try {
+                                await qrService.deleteSpot(selectedMapPin.id);
+                                setSpots(prev => prev.filter(p => p.id !== selectedMapPin.id));
+                                setSelectedMapPinId(null);
+                                setNotifications(prev => [{ id: Date.now(), text: `Spot "${selectedMapPin.name}" deleted.`, time: 'Just now' }, ...prev]);
+                              } catch (err) { console.error(err); }
                             }
                           }}
                         >
@@ -1780,11 +1880,11 @@ function App() {
                   <div style={{ marginTop: '16px', flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                       <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>All Map Pins</span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{mapPins.length} spots</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{spots.length} spots</span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '280px', overflowY: 'auto' }}>
-                      {mapPins.map(pin => {
-                        const primaryType = pin.featureTypes[0];
+                      {spots.map(pin => {
+                        const primaryType = pin.feature_types && pin.feature_types.length > 0 ? pin.feature_types[0] : 'qr';
                         const cfg = PIN_TYPE_CONFIG[primaryType] || PIN_TYPE_CONFIG.qr;
                         const isActive = pin.id === selectedMapPinId;
                         return (
@@ -1802,7 +1902,7 @@ function App() {
                             <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: cfg.color, flexShrink: 0, boxShadow: `0 0 6px ${cfg.glow}` }} />
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{ margin: 0, fontSize: '12px', fontWeight: isActive ? 700 : 500, color: isActive ? cfg.color : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pin.name}</p>
-                              <p style={{ margin: 0, fontSize: '10px', color: 'var(--text-muted)' }}>{pin.featureTypes.map(t => PIN_TYPE_CONFIG[t]?.label).join(' · ')}</p>
+                              <p style={{ margin: 0, fontSize: '10px', color: 'var(--text-muted)' }}>{(pin.feature_types || []).map(t => PIN_TYPE_CONFIG[t]?.label).join(' · ')}</p>
                             </div>
                           </button>
                         );
@@ -1812,6 +1912,8 @@ function App() {
                 </div>
               )}
             </section>
+
+            </>
           )}
 
           {/* TAB CONTENT: AR PROGRESS */}
@@ -2204,7 +2306,7 @@ function App() {
       {/* ADD SPOT MODAL */}
       {isAddSpotModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-card">
+          <div className="modal-card" style={{ width: '90vw', maxWidth: '1200px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <h3 className="modal-title">Add New Feature Place</h3>
               <button className="close-btn" onClick={() => setIsAddSpotModalOpen(false)}>
@@ -2212,21 +2314,43 @@ function App() {
               </button>
             </div>
 
-            <form onSubmit={handleAddSpot}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">Spot Name</label>
-                  <input type="text" className="form-input" placeholder="e.g. Paseo del Mar"
-                    value={newSpot.name} onChange={(e) => setNewSpot({...newSpot, name: e.target.value})} required />
+            <form onSubmit={handleAddSpot} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '24px' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <label className="form-label">Search Location on Map</label>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <MapPin size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                      <input type="text" className="form-input" style={{ paddingLeft: '38px' }} placeholder="Search e.g. Zamboanga City Hall"
+                        value={modalSearchQuery} onChange={(e) => setModalSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleModalSearch())} />
+                    </div>
+                    <button type="button" className="btn btn-secondary" onClick={handleModalSearch} disabled={modalSearching} style={{ minWidth: '80px', display: 'flex', justifyContent: 'center' }}>
+                      {modalSearching ? <div className="spinner" style={{ width: '16px', height: '16px', border: '2px solid var(--text-primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> : 'Search'}
+                    </button>
+                  </div>
+                  <div style={{ width: '100%', height: '220px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--card-border)', position: 'relative', zIndex: 1 }}>
+                    <div ref={modalMapContainerRef} style={{ width: '100%', height: '100%' }} />
+                    <div style={{ position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'rgba(26,26,46,0.85)', backdropFilter: 'blur(4px)', padding: '6px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, color: '#fff', zIndex: 1000, pointerEvents: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                      Click on the map to pin a location
+                    </div>
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Location</label>
-                  <input type="text" className="form-input" placeholder="e.g. Valderosa St, Zamboanga City"
-                    value={newSpot.location_name} onChange={(e) => setNewSpot({...newSpot, location_name: e.target.value})} required />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Spot Name</label>
+                    <input type="text" className="form-input" placeholder="e.g. Paseo del Mar"
+                      value={newSpot.name} onChange={(e) => setNewSpot({...newSpot, name: e.target.value})} required />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Location</label>
+                    <input type="text" className="form-input" placeholder="e.g. Valderosa St, Zamboanga City"
+                      value={newSpot.location_name} onChange={(e) => setNewSpot({...newSpot, location_name: e.target.value})} required />
+                  </div>
                 </div>
 
-                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px'}}>
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
                   <div className="form-group">
                     <label className="form-label">Latitude</label>
                     <input type="number" step="any" className="form-input" placeholder="e.g. 6.9015"
@@ -2245,16 +2369,18 @@ function App() {
                     value={newSpot.description} onChange={(e) => setNewSpot({...newSpot, description: e.target.value})} required />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Historical Background</label>
-                  <textarea className="form-textarea" placeholder="Historical facts and background..."
-                    value={newSpot.historical_background} onChange={(e) => setNewSpot({...newSpot, historical_background: e.target.value})} />
-                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Historical Background</label>
+                    <textarea className="form-textarea" placeholder="Historical facts and background..."
+                      value={newSpot.historical_background} onChange={(e) => setNewSpot({...newSpot, historical_background: e.target.value})} />
+                  </div>
 
-                <div className="form-group">
-                  <label className="form-label">Cultural Significance</label>
-                  <textarea className="form-textarea" placeholder="Why it matters culturally..."
-                    value={newSpot.cultural_significance} onChange={(e) => setNewSpot({...newSpot, cultural_significance: e.target.value})} />
+                  <div className="form-group">
+                    <label className="form-label">Cultural Significance</label>
+                    <textarea className="form-textarea" placeholder="Why it matters culturally..."
+                      value={newSpot.cultural_significance} onChange={(e) => setNewSpot({...newSpot, cultural_significance: e.target.value})} />
+                  </div>
                 </div>
 
                 <div className="form-group">
@@ -2262,103 +2388,40 @@ function App() {
                   <textarea className="form-textarea" placeholder="Did you know..."
                     value={newSpot.fun_fact} onChange={(e) => setNewSpot({...newSpot, fun_fact: e.target.value})} />
                 </div>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setIsAddSpotModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Save Spot</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── ADD MAP PIN MODAL ── */}
-      {isAddMapPinModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-card" style={{ width: '900px', maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
-            <div className="modal-header">
-              <h3 className="modal-title">Add Spot to Map</h3>
-              <button className="close-btn" onClick={() => setIsAddMapPinModalOpen(false)}><X size={20} /></button>
-            </div>
-            <form onSubmit={handleAddMapPin} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-              <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-
-                {/* ── Left: Mini Map ── */}
-                <div style={{ position: 'relative', flex: '0 0 420px', borderRight: '1px solid var(--card-border)' }}>
-                  <div ref={modalMapContainerRef} style={{ width: '100%', height: '100%' }} />
-
-                  {/* Search bar overlay */}
-                  <div style={{ position: 'absolute', top: '10px', left: '10px', right: '10px', zIndex: 800, display: 'flex', gap: '6px' }}>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Search a place..."
-                      value={modalSearchQuery}
-                      onChange={e => setModalSearchQuery(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleModalSearch(); } }}
-                      style={{ flex: 1, fontSize: '12px', padding: '7px 12px', borderRadius: '8px', background: 'rgba(8,10,21,0.88)', backdropFilter: 'blur(8px)' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleModalSearch}
-                      disabled={modalSearching}
-                      style={{ padding: '7px 12px', borderRadius: '8px', border: '1px solid var(--card-border)', background: 'rgba(8,10,21,0.88)', backdropFilter: 'blur(8px)', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-primary)' }}
-                    >
-                      {modalSearching ? <span style={{ fontSize: '11px' }}>...</span> : <Search size={14} />}
-                    </button>
-                  </div>
-
-                  {/* Coordinate pill */}
-                  <div style={{
-                    position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)',
-                    background: 'rgba(8,10,21,0.82)', backdropFilter: 'blur(6px)',
-                    color: 'var(--text-secondary)', fontSize: '11px', padding: '5px 12px',
-                    borderRadius: '20px', whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 400,
-                    border: '1px solid var(--card-border)',
-                  }}>
-                    {newMapPin.lat && newMapPin.lng
-                      ? `📍 ${parseFloat(newMapPin.lat).toFixed(4)}° N, ${parseFloat(newMapPin.lng).toFixed(4)}° E`
-                      : 'Click the map to place a pin'}
+                
+                <div className="form-group">
+                  <label className="form-label">Destination Images (Upload Files) <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(minimum 3 pictures)</span></label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                    {[0,1,2].map(idx => (
+                      <label key={idx} style={{
+                        position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        height: '100px', border: newSpot.images[idx] ? '2px solid var(--accent-color)' : '2px dashed var(--card-border)', borderRadius: '10px',
+                        backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden'
+                      }}>
+                        <input type="file" accept="image/*" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+                          onChange={(e) => handleImageFileChange(e, idx, false)} required={!newSpot.images[idx]} />
+                        {newSpot.images[idx] ? (
+                          <>
+                            <img src={newSpot.images[idx]} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0, opacity: 0.4 }} alt="" />
+                            <span style={{ position: 'relative', zIndex: 5, color: '#fff', fontSize: '12px', fontWeight: 'bold', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>Change Image</span>
+                          </>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center', padding: '0 10px' }}>Drag and drop<br/>or click</span>
+                        )}
+                      </label>
+                    ))}
                   </div>
                 </div>
-
-                {/* ── Right: Form Fields ── */}
-                <div className="modal-body" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-
-                  <div className="form-group">
-                    <label className="form-label">Spot / Location Name</label>
-                    <input type="text" className="form-input" placeholder="e.g. Zamboanga City Museum" required
-                      value={newMapPin.name} onChange={e => setNewMapPin({ ...newMapPin, name: e.target.value })} />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Description</label>
-                    <textarea className="form-textarea" placeholder="Brief description of this spot..."
-                      value={newMapPin.description} onChange={e => setNewMapPin({ ...newMapPin, description: e.target.value })} />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">Latitude</label>
-                      <input type="number" step="any" className="form-input" placeholder="e.g. 6.9032" required
-                        value={newMapPin.lat} onChange={e => setNewMapPin({ ...newMapPin, lat: e.target.value })} />
-                    </div>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">Longitude</label>
-                      <input type="number" step="any" className="form-input" placeholder="e.g. 122.0821" required
-                        value={newMapPin.lng} onChange={e => setNewMapPin({ ...newMapPin, lng: e.target.value })} />
-                    </div>
-                  </div>
-
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                   <div className="form-group">
                     <label className="form-label">Feature Type(s) <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(select at least one)</span></label>
                     <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
                       {Object.entries(PIN_TYPE_CONFIG).map(([type, cfg]) => {
-                        const checked = newMapPin.featureTypes.includes(type);
+                        const checked = newSpot.featureTypes?.includes(type);
                         return (
                           <button type="button" key={type}
-                            onClick={() => toggleNewPinType(type)}
+                            onClick={() => toggleNewSpotType(type)}
                             style={{
                               flex: 1, padding: '10px 8px', borderRadius: '10px', border: `2px solid ${checked ? cfg.color : 'var(--card-border)'}`,
                               backgroundColor: checked ? cfg.color + '22' : 'transparent',
@@ -2376,22 +2439,37 @@ function App() {
                     </div>
                   </div>
 
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <label className="form-label">Visibility Options</label>
+                    <div style={{ marginTop: '8px', padding: '16px', border: '1px solid var(--card-border)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <input type="checkbox" id="isFeatured" style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
+                        checked={newSpot.is_featured} onChange={(e) => setNewSpot({...newSpot, is_featured: e.target.checked})} />
+                      <label htmlFor="isFeatured" style={{ cursor: 'pointer', margin: 0, fontWeight: 600, fontSize: '13px', color: 'var(--text-title)' }}>
+                        Add to Featured Places
+                      </label>
+                    </div>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                      If checked, this spot will appear in the "Places to Experience" section on Mobile and the Featured Places sidebar.
+                    </p>
+                  </div>
                 </div>
               </div>
 
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setIsAddMapPinModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Add to Map</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsAddSpotModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Spot</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
+
+
       {/* EDIT SPOT MODAL */}
       {isEditSpotModalOpen && editingSpot && (
         <div className="modal-overlay">
-          <div className="modal-card">
+          <div className="modal-card" style={{ width: '90vw', maxWidth: '1200px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <h3 className="modal-title">Edit Feature Place</h3>
               <button className="close-btn" onClick={() => {
@@ -2402,21 +2480,23 @@ function App() {
               </button>
             </div>
 
-            <form onSubmit={handleEditSpotSubmit}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">Spot Name</label>
-                  <input type="text" className="form-input" value={editingSpot.name}
-                    onChange={(e) => setEditingSpot({...editingSpot, name: e.target.value})} required />
+            <form onSubmit={handleEditSpotSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Spot Name</label>
+                    <input type="text" className="form-input" value={editingSpot.name}
+                      onChange={(e) => setEditingSpot({...editingSpot, name: e.target.value})} required />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Location</label>
+                    <input type="text" className="form-input" value={editingSpot.location || editingSpot.location_name || ''}
+                      onChange={(e) => setEditingSpot({...editingSpot, location_name: e.target.value, location: e.target.value})} required />
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Location</label>
-                  <input type="text" className="form-input" value={editingSpot.location || ''}
-                    onChange={(e) => setEditingSpot({...editingSpot, location: e.target.value})} required />
-                </div>
-
-                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px'}}>
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
                   <div className="form-group">
                     <label className="form-label">Latitude</label>
                     <input type="number" step="any" className="form-input" value={editingSpot.latitude || ''}
@@ -2431,26 +2511,97 @@ function App() {
 
                 <div className="form-group">
                   <label className="form-label">Description</label>
-                  <textarea className="form-textarea" value={editingSpot.aboutPlace || ''}
-                    onChange={(e) => setEditingSpot({...editingSpot, aboutPlace: e.target.value})} required />
+                  <textarea className="form-textarea" value={editingSpot.description || editingSpot.aboutPlace || ''}
+                    onChange={(e) => setEditingSpot({...editingSpot, description: e.target.value, aboutPlace: e.target.value})} required />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Historical Background</label>
-                  <textarea className="form-textarea" value={editingSpot.historical_background || ''}
-                    onChange={(e) => setEditingSpot({...editingSpot, historical_background: e.target.value})} />
-                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Historical Background</label>
+                    <textarea className="form-textarea" value={editingSpot.historical_background || ''}
+                      onChange={(e) => setEditingSpot({...editingSpot, historical_background: e.target.value})} />
+                  </div>
 
-                <div className="form-group">
-                  <label className="form-label">Cultural Significance</label>
-                  <textarea className="form-textarea" value={editingSpot.cultural_significance || ''}
-                    onChange={(e) => setEditingSpot({...editingSpot, cultural_significance: e.target.value})} />
+                  <div className="form-group">
+                    <label className="form-label">Cultural Significance</label>
+                    <textarea className="form-textarea" value={editingSpot.cultural_significance || ''}
+                      onChange={(e) => setEditingSpot({...editingSpot, cultural_significance: e.target.value})} />
+                  </div>
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Fun Fact</label>
                   <textarea className="form-textarea" value={editingSpot.fun_fact || ''}
                     onChange={(e) => setEditingSpot({...editingSpot, fun_fact: e.target.value})} />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Destination Images (Upload Files) <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(Upload new to replace)</span></label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                    {[0,1,2].map(idx => {
+                      const hasImage = !!editingSpot.images?.[idx];
+                      const imgSrc = hasImage ? editingSpot.images[idx] : null;
+                      return (
+                        <label key={idx} style={{
+                          position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                          height: '100px', border: hasImage ? '2px solid var(--accent-color)' : '2px dashed var(--card-border)', borderRadius: '10px',
+                          backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden'
+                        }}>
+                          <input type="file" accept="image/*" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+                            onChange={(e) => handleImageFileChange(e, idx, true)} />
+                          {hasImage ? (
+                            <>
+                              <img src={imgSrc} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0, opacity: 0.4 }} alt="" />
+                              <span style={{ position: 'relative', zIndex: 5, color: '#fff', fontSize: '12px', fontWeight: 'bold', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>Change</span>
+                            </>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center', padding: '0 10px' }}>Drag and drop<br/>or click</span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Feature Type(s) <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(select at least one)</span></label>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                      {Object.entries(PIN_TYPE_CONFIG).map(([type, cfg]) => {
+                        const checked = editingSpot.feature_types?.includes(type);
+                        return (
+                          <button type="button" key={type}
+                            onClick={() => toggleEditingSpotType(type)}
+                            style={{
+                              flex: 1, padding: '10px 8px', borderRadius: '10px', border: `2px solid ${checked ? cfg.color : 'var(--card-border)'}`,
+                              backgroundColor: checked ? cfg.color + '22' : 'transparent',
+                              cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            {type === 'qr' && <QrCode size={20} color={checked ? cfg.color : 'var(--text-muted)'} />}
+                            {type === 'ar' && <Eye size={20} color={checked ? cfg.color : 'var(--text-muted)'} />}
+                            {type === 'catch' && <Crosshair size={20} color={checked ? cfg.color : 'var(--text-muted)'} />}
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: checked ? cfg.color : 'var(--text-muted)' }}>{cfg.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <label className="form-label">Visibility Options</label>
+                    <div style={{ marginTop: '8px', padding: '16px', border: '1px solid var(--card-border)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <input type="checkbox" id="editIsFeatured" style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
+                        checked={editingSpot.is_featured} onChange={(e) => setEditingSpot({...editingSpot, is_featured: e.target.checked})} />
+                      <label htmlFor="editIsFeatured" style={{ cursor: 'pointer', margin: 0, fontWeight: 600, fontSize: '13px', color: 'var(--text-title)' }}>
+                        Add to Featured Places
+                      </label>
+                    </div>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                      If checked, this spot will appear in the "Places to Experience" section on Mobile and the Featured Places sidebar.
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -2484,7 +2635,7 @@ function App() {
                   <select className="form-select" value={newQr.spot_id}
                     onChange={(e) => setNewQr({...newQr, spot_id: e.target.value})} required>
                     <option value="">— Select a spot —</option>
-                    {spots.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    {spots.filter(s => s.feature_types?.includes('qr') || !s.feature_types?.includes('ar')).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
 
@@ -2547,7 +2698,7 @@ function App() {
                   <select className="form-select" value={editingQr.spot_id || ''}
                     onChange={(e) => setEditingQr({...editingQr, spot_id: parseInt(e.target.value)})} required>
                     <option value="">— Select a spot —</option>
-                    {spots.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    {spots.filter(s => s.feature_types?.includes('qr') || !s.feature_types?.includes('ar')).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
 
@@ -2720,7 +2871,7 @@ function App() {
                 {['a', 'b', 'c', 'd'].map((letter, idx) => (
                   <div className="form-group" key={letter}>
                     <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: parseInt(newTrivia.correct_index) === idx ? 'var(--accent-pink)' : 'rgba(255,255,255,0.1)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
+                      <span style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: parseInt(newTrivia.correct_index) === idx ? 'var(--accent-blue)' : '#E2E8F0', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
                         {letter.toUpperCase()}
                       </span>
                       Choice {letter.toUpperCase()}
@@ -2777,7 +2928,7 @@ function App() {
                 {['a', 'b', 'c', 'd'].map((letter, idx) => (
                   <div className="form-group" key={letter}>
                     <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: parseInt(editingTrivia.correct_index) === idx ? 'var(--accent-pink)' : 'rgba(255,255,255,0.1)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
+                      <span style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: parseInt(editingTrivia.correct_index) === idx ? 'var(--accent-blue)' : '#E2E8F0', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
                         {letter.toUpperCase()}
                       </span>
                       Choice {letter.toUpperCase()}
