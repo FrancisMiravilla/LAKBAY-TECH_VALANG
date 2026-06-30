@@ -19,7 +19,7 @@ adminClient.interceptors.request.use((config) => {
 const qrService = {
   getSpots:     ()         => adminClient.get('/api/qr/spots/'),
   createSpot:   (data)     => adminClient.post('/api/qr/spots/', data),
-  updateSpot:   (id, data) => adminClient.put(`/api/qr/spots/${id}/`, data),
+  updateSpot:   (id, data) => adminClient.patch(`/api/qr/spots/${id}/`, data),
   deleteSpot:   (id)       => adminClient.delete(`/api/qr/spots/${id}/`),
 
   getMarkers:   ()              => adminClient.get('/api/qr/markers/'),
@@ -38,9 +38,12 @@ const qrService = {
   updateTriviaQuestion: (id, data) => adminClient.put(`/api/qr/trivia-questions/${id}/`, data),
   deleteTriviaQuestion: (id)     => adminClient.delete(`/api/qr/trivia-questions/${id}/`),
 
-  getMediaUrl: (path) => path
-    ? (path.startsWith('http') || path.startsWith('data:') ? path : `${origin}${path}`)
-    : null,
+  getMediaUrl: (path) => {
+    if (!path) return null;
+    if (path.startsWith('data:')) return path;
+    if (path.startsWith('http')) return path.replace('http://res.cloudinary.com', 'https://res.cloudinary.com');
+    return `${origin}${path}`;
+  },
 
   getUsers:           ()   => adminClient.get('/api/auth/users/'),
   toggleUserStatus:   (id) => adminClient.patch(`/api/auth/users/${id}/toggle-status/`),

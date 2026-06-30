@@ -40,6 +40,7 @@ function build3DViewerHTML(modelUrl) {
     src="${safe}"
     auto-rotate
     camera-controls
+    bounds="tight"
     exposure="1"
     shadow-intensity="1"
     style="width:100%;height:100%"

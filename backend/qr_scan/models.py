@@ -17,6 +17,12 @@ class CulturalSpot(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
     feature_types = models.JSONField(default=list)
+    model_3d = models.FileField(
+        upload_to='lakbay/models/',
+        storage=CloudinaryRawStorage(),
+        max_length=500,
+        null=True, blank=True,
+    )
     is_featured = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

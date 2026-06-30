@@ -12,11 +12,21 @@ class Base64ImageField(serializers.ImageField):
             data = ContentFile(base64.b64decode(imgstr), name=f"{uuid.uuid4().hex}.{ext}")
         return super().to_internal_value(data)
 
+class Base64FileField(serializers.FileField):
+    def to_internal_value(self, data):
+        if isinstance(data, str) and data.startswith('data:'):
+            # Format: data:<mime_type>;base64,<data>
+            format, filestr = data.split(';base64,') 
+            ext = 'glb'
+            data = ContentFile(base64.b64decode(filestr), name=f"{uuid.uuid4().hex}.{ext}")
+        return super().to_internal_value(data)
+
 
 class CulturalSpotSerializer(serializers.ModelSerializer):
     image = Base64ImageField(required=False, allow_null=True)
     image2 = Base64ImageField(required=False, allow_null=True)
     image3 = Base64ImageField(required=False, allow_null=True)
+    model_3d = Base64FileField(required=False, allow_null=True)
     
     class Meta:
         model = CulturalSpot
@@ -67,14 +77,6 @@ class TriviaAttemptSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class Base64FileField(serializers.FileField):
-    def to_internal_value(self, data):
-        if isinstance(data, str) and data.startswith('data:'):
-            # Format: data:<mime_type>;base64,<data>
-            format, filestr = data.split(';base64,') 
-            ext = 'glb'
-            data = ContentFile(base64.b64decode(filestr), name=f"{uuid.uuid4().hex}.{ext}")
-        return super().to_internal_value(data)
 
 class CulturalIconSerializer(serializers.ModelSerializer):
     model_3d = Base64FileField(required=False, allow_null=True)

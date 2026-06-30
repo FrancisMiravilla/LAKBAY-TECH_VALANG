@@ -249,6 +249,8 @@ function App() {
     fun_fact: '',
     featureTypes: ['qr'],
     images: ['', '', ''],
+    model_3d: null,
+    images: ['', '', ''],
     is_featured: false,
   });
 
@@ -735,6 +737,21 @@ function App() {
     reader.readAsDataURL(file);
   };
 
+  const handleModelFileChange = (e, isEdit) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result;
+      if (isEdit) {
+        setEditingSpot(prev => ({ ...prev, model_3d: base64String }));
+      } else {
+        setNewSpot(prev => ({ ...prev, model_3d: base64String }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Handlers
   const handleAddSpot = async (e) => {
     e.preventDefault();
@@ -753,11 +770,12 @@ function App() {
         image: newSpot.images[0] || null,
         image2: newSpot.images[1] || null,
         image3: newSpot.images[2] || null,
+        model_3d: newSpot.model_3d || null,
         is_featured: newSpot.is_featured,
       });
       setSpots(prev => [...prev, normalizeSpot(data)]);
       setIsAddSpotModalOpen(false);
-      setNewSpot({ name: '', location_name: '', latitude: '', longitude: '', description: '', historical_background: '', cultural_significance: '', fun_fact: '', featureTypes: ['qr'], images: ['', '', ''], is_featured: false });
+      setNewSpot({ name: '', location_name: '', latitude: '', longitude: '', description: '', historical_background: '', cultural_significance: '', fun_fact: '', featureTypes: ['qr'], images: ['', '', ''], model_3d: null, is_featured: false });
       setNotifications(prev => [{ id: Date.now(), text: `Spot "${data.name}" created.`, time: 'Just now' }, ...prev]);
     } catch (err) {
       console.error(err);
@@ -778,9 +796,10 @@ function App() {
         cultural_significance: editingSpot.cultural_significance || '',
         fun_fact: editingSpot.fun_fact || '',
         feature_types: editingSpot.feature_types || [],
-        image: editingSpot.images?.[0] || null,
-        image2: editingSpot.images?.[1] || null,
-        image3: editingSpot.images?.[2] || null,
+        ...(editingSpot.images?.[0]?.startsWith('data:') && { image: editingSpot.images[0] }),
+        ...(editingSpot.images?.[1]?.startsWith('data:') && { image2: editingSpot.images[1] }),
+        ...(editingSpot.images?.[2]?.startsWith('data:') && { image3: editingSpot.images[2] }),
+        ...(editingSpot.model_3d?.startsWith('data:') && { model_3d: editingSpot.model_3d }),
         is_featured: editingSpot.is_featured || false,
       });
       setSpots(prev => prev.map(s => s.id === data.id ? normalizeSpot(data) : s));
@@ -1898,6 +1917,17 @@ function App() {
                             <div>
                               <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, color: PIN_TYPE_CONFIG.catch.color }}>Creature Catch Zone</p>
                               <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>A mythical creature or cultural symbol can be encountered and captured in this area.</p>
+                              {selectedMapPin.model_3d && (
+                                <div style={{ marginTop: '10px', width: '100%', height: '180px', background: 'radial-gradient(circle at center, #2A3B5C 0%, #0F172A 100%)', borderRadius: '8px', overflow: 'hidden' }}>
+                                  <model-viewer
+                                    src={qrService.getMediaUrl(selectedMapPin.model_3d)}
+                                    auto-rotate camera-controls
+                                    bounds="tight"
+                                    style={{ width: '100%', height: '100%' }}
+                                    exposure="1"
+                                  />
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
@@ -2402,6 +2432,7 @@ function App() {
                           src={newCatchIcon.model_3d}
                           auto-rotate 
                           camera-controls 
+                          bounds="tight"
                           style={{width: '100%', height: '100%', backgroundColor: 'transparent'}}
                           exposure="1"
                         ></model-viewer>
@@ -2475,6 +2506,7 @@ function App() {
                           src={editingCatchIcon.model_3d.startsWith('data:') ? editingCatchIcon.model_3d : qrService.getMediaUrl(editingCatchIcon.model_3d)}
                           auto-rotate 
                           camera-controls 
+                          bounds="tight"
                           style={{width: '100%', height: '100%', backgroundColor: 'transparent'}}
                           exposure="1"
                         ></model-viewer>
@@ -2656,7 +2688,27 @@ function App() {
                     </div>
                   </div>
 
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  {newSpot.featureTypes?.includes('catch') && (
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      <label className="form-label" style={{ color: PIN_TYPE_CONFIG.catch.color }}>3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb only)</span></label>
+                      <label style={{
+                        position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        height: '100%', minHeight: '60px', marginTop: '8px',
+                        border: newSpot.model_3d ? `2px solid ${PIN_TYPE_CONFIG.catch.color}` : '2px dashed var(--card-border)',
+                        borderRadius: '10px', backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden'
+                      }}>
+                        <input type="file" accept=".glb" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+                          onChange={(e) => handleModelFileChange(e, false)} />
+                        {newSpot.model_3d ? (
+                          <span style={{ color: PIN_TYPE_CONFIG.catch.color, fontSize: '13px', fontWeight: 'bold' }}>Model Selected ✓</span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Click to upload</span>
+                        )}
+                      </label>
+                    </div>
+                  )}
+
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gridColumn: newSpot.featureTypes?.includes('catch') ? '1 / -1' : 'auto' }}>
                     <label className="form-label">Visibility Options</label>
                     <div style={{ marginTop: '8px', padding: '16px', border: '1px solid var(--card-border)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <input type="checkbox" id="isFeatured" style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
@@ -2806,7 +2858,27 @@ function App() {
                     </div>
                   </div>
 
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  {editingSpot.feature_types?.includes('catch') && (
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      <label className="form-label" style={{ color: PIN_TYPE_CONFIG.catch.color }}>3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb only)</span></label>
+                      <label style={{
+                        position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        height: '100%', minHeight: '60px', marginTop: '8px',
+                        border: editingSpot.model_3d ? `2px solid ${PIN_TYPE_CONFIG.catch.color}` : '2px dashed var(--card-border)',
+                        borderRadius: '10px', backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden'
+                      }}>
+                        <input type="file" accept=".glb" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+                          onChange={(e) => handleModelFileChange(e, true)} />
+                        {editingSpot.model_3d ? (
+                          <span style={{ color: PIN_TYPE_CONFIG.catch.color, fontSize: '13px', fontWeight: 'bold' }}>Model Selected ✓</span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Click to upload</span>
+                        )}
+                      </label>
+                    </div>
+                  )}
+
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gridColumn: editingSpot.feature_types?.includes('catch') ? '1 / -1' : 'auto' }}>
                     <label className="form-label">Visibility Options</label>
                     <div style={{ marginTop: '8px', padding: '16px', border: '1px solid var(--card-border)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <input type="checkbox" id="editIsFeatured" style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
