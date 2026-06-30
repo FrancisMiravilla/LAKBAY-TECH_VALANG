@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
+import VintaStripe from '../components/VintaStripe';
 
 const STATS = [
   { value: '2,450',label: 'XP Earned',   color: COLORS.gold   },
@@ -27,12 +28,13 @@ const BADGES = [
 export default function BadgesScreen() {
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.navy} />
 
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>User Progress</Text>
       </View>
+      <VintaStripe height={4} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
@@ -127,16 +129,14 @@ const styles = StyleSheet.create({
 
   header: {
     height: 60,
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.navy,
     justifyContent: 'center',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.accentBorder,
   },
   headerTitle: {
     fontFamily: FONTS.bold,
     fontSize: 18,
-    color: COLORS.text,
+    color: '#FFFFFF',
     letterSpacing: 0.5,
   },
 
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   },
   progressBarBg: {
     height: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.bgSurface,
     borderRadius: 4,
     overflow: 'hidden',
   },

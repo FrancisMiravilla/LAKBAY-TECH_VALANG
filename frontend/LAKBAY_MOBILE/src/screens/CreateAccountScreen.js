@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
   SafeAreaView, StyleSheet, Text, View, TextInput,
-  TouchableOpacity, ScrollView, StatusBar, Alert, ActivityIndicator,
+  TouchableOpacity, ScrollView, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { authService } from '../api/authService';
+import ErrorModal from '../components/ErrorModal';
 
 export default function CreateAccountScreen({ navigation }) {
   const [fullName, setFullName]       = useState('');
@@ -17,21 +18,23 @@ export default function CreateAccountScreen({ navigation }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [agreed, setAgreed]           = useState(false);
   const [loading, setLoading]         = useState(false);
+  const [errorModal, setErrorModal]   = useState({ visible: false, type: 'error', title: '', message: '' });
+  const showErr = (title, message, type = 'error') => setErrorModal({ visible: true, type, title, message });
 
   const passwordHint = password.length > 0 && (password.length < 8 || !/\d/.test(password) || !/[^a-zA-Z0-9]/.test(password));
   const passwordMatch = confirmPass.length > 0 && password !== confirmPass;
 
 const handleCreate = async () => {
   if (!fullName || !email || !password || !confirmPass) {
-    Alert.alert('Missing fields', 'Please fill in all fields.');
+    showErr('Missing Fields', 'Please fill in all fields.');
     return;
   }
   if (password !== confirmPass) {
-    Alert.alert('Password mismatch', 'Your passwords do not match.');
+    showErr('Password Mismatch', 'Your passwords do not match.');
     return;
   }
   if (!agreed) {
-    Alert.alert('Terms required', 'Please agree to the Terms of Service and Privacy Policy.');
+    showErr('Terms Required', 'Please agree to the Terms of Service and Privacy Policy.');
     return;
   }
 
@@ -52,7 +55,7 @@ const handleCreate = async () => {
       else if (errorData.detail) errorMessage = errorData.detail;
     }
     console.log('Register error:', errorData);
-    Alert.alert('Registration Error', errorMessage);
+    showErr('Registration Error', errorMessage);
   }
 
 };
@@ -182,11 +185,11 @@ const handleCreate = async () => {
             </View>
             <Text style={styles.termsText}>
               I agree to the{' '}
-              <Text style={styles.termsLink} onPress={() => Alert.alert('Terms of Service', 'Full terms will be available in the final release.')}>
+              <Text style={styles.termsLink} onPress={() => showErr('Terms of Service', 'Full terms will be available in the final release.', 'info')}>
                 Terms of Service
               </Text>
               {' '}and{' '}
-              <Text style={styles.termsLink} onPress={() => Alert.alert('Privacy Policy', 'Full privacy policy will be available in the final release.')}>
+              <Text style={styles.termsLink} onPress={() => showErr('Privacy Policy', 'Full privacy policy will be available in the final release.', 'info')}>
                 Privacy Policy
               </Text>
             </Text>
@@ -215,6 +218,15 @@ const handleCreate = async () => {
 
         </View>
       </ScrollView>
+
+      {/* ── Error Modal ── */}
+      <ErrorModal
+        visible={errorModal.visible}
+        type={errorModal.type}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal(prev => ({ ...prev, visible: false }))}
+      />
     </SafeAreaView>
   );
 }

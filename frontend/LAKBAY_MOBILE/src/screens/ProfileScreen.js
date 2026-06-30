@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect } from '@react-navigation/native';
 import { authService } from '../api/authService';
+import VintaStripe from '../components/VintaStripe';
 
 const SETTINGS_OPTIONS = [
   { id: 'edit',   icon: '✏️', label: 'Edit Profile' },
@@ -78,7 +79,7 @@ const handleLogout = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.navy} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -87,6 +88,7 @@ const handleLogout = () => {
           <Ionicons name="settings-outline" size={20} color="#FFF" />
         </TouchableOpacity>
       </View>
+      <VintaStripe height={4} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -148,25 +150,25 @@ const styles = StyleSheet.create({
   /* ── Header ── */
   header: {
     height: 60,
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.navy,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.accentBorder,
   },
   headerTitle: {
     fontFamily: FONTS.bold,
     fontSize: 18,
-    color: COLORS.text,
+    color: '#FFFFFF',
     letterSpacing: 0.5,
   },
   headerBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.bgCard,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.20)',
     justifyContent: 'center',
     alignItems: 'center',
   },

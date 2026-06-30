@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
   SafeAreaView, StyleSheet, Text, View, TextInput,
-  TouchableOpacity, ScrollView, StatusBar, Alert, ActivityIndicator,
+  TouchableOpacity, ScrollView, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { authService } from '../api/authService';
+import ErrorModal from '../components/ErrorModal';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail]           = useState('');
@@ -14,6 +15,8 @@ export default function LoginScreen({ navigation }) {
   const [showPass, setShowPass]     = useState(false);
   const [streakClaimed, setStreakClaimed] = useState(false);
   const [loading, setLoading]       = useState(false);
+  const [errorModal, setErrorModal] = useState({ visible: false, type: 'error', title: '', message: '' });
+  const showErr = (title, message, type = 'error') => setErrorModal({ visible: true, type, title, message });
 
 const handleLogin = async () => {
   setLoading(true);
@@ -27,18 +30,18 @@ const handleLogin = async () => {
   } catch (error) {
     setLoading(false);
     // Do NOT navigate here. Show an alert instead.
-    Alert.alert('Login Failed', 'Check your email and password.');
+    showErr('Login Failed', 'Check your email and password.');
   }
 };
 
   const handleGoogle = () => {
-    Alert.alert('Google Sign-In', 'Google authentication will be integrated with the backend.');
+    showErr('Google Sign-In', 'Google authentication will be integrated with the backend.', 'info');
   };
 
   const handleClaimStreak = () => {
     if (streakClaimed) return;
     setStreakClaimed(true);
-    Alert.alert('🔥 Streak Claimed!', 'You earned +50 XP for your 12-day login streak!');
+    showErr('🔥 Streak Claimed!', 'You earned +50 XP for your 12-day login streak!', 'success');
   };
 
 const testConnection = async () => {
@@ -202,6 +205,15 @@ const testConnection = async () => {
 
         </View>
       </ScrollView>
+
+      {/* ── Error Modal ── */}
+      <ErrorModal
+        visible={errorModal.visible}
+        type={errorModal.type}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal(prev => ({ ...prev, visible: false }))}
+      />
     </SafeAreaView>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet, View, Text, ActivityIndicator, TouchableOpacity,
-  Animated, Dimensions, Alert,
+  Animated, Dimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { getSpots } from '../api/qrService';
 import { COLORS, FONTS, SIZES, RADIUS, SPACING, SHADOW } from '../constants/theme';
+import ErrorModal from '../components/ErrorModal';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 const CARD_HEIGHT = 240;
@@ -245,6 +246,8 @@ export default function MapScreen({ navigation, route }) {
   const webviewRef = useRef(null);
   const slideAnim = useRef(new Animated.Value(CARD_HEIGHT)).current;
   const routeBannerAnim = useRef(new Animated.Value(-80)).current;
+  const [errorModal, setErrorModal] = useState({ visible: false, type: 'error', title: '', message: '' });
+  const showErr = (title, message, type = 'error') => setErrorModal({ visible: true, type, title, message });
 
   // ── Load spots ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -288,7 +291,7 @@ export default function MapScreen({ navigation, route }) {
       }
       if (msg.type === 'ROUTE_ERROR') {
         setRouting(false);
-        Alert.alert('Directions unavailable', 'Could not calculate a route to this spot. Make sure you have an internet connection.');
+        showErr('Directions Unavailable', 'Could not calculate a route to this spot. Make sure you have an internet connection.', 'warning');
       }
     } catch {}
   };
@@ -317,7 +320,7 @@ export default function MapScreen({ navigation, route }) {
     if (!loc) {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Location Required', 'Please enable location permissions to get directions.');
+        showErr('Location Required', 'Please enable location permissions to get directions.', 'warning');
         return;
       }
       const result = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
@@ -360,7 +363,7 @@ export default function MapScreen({ navigation, route }) {
     if (!loc) {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Location Required', 'Please enable location permissions.');
+        showErr('Location Required', 'Please enable location permissions.', 'warning');
         return;
       }
       const result = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
@@ -548,6 +551,15 @@ export default function MapScreen({ navigation, route }) {
           </Animated.View>
         );
       })()}
+
+      {/* ── Error Modal ── */}
+      <ErrorModal
+        visible={errorModal.visible}
+        type={errorModal.type}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal(prev => ({ ...prev, visible: false }))}
+      />
     </SafeAreaView>
   );
 }

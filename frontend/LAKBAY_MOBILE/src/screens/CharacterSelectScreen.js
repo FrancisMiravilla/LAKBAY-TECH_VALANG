@@ -1,12 +1,13 @@
 import React, { useState, useRef } from 'react';
 import {
   SafeAreaView, StyleSheet, Text, View, TextInput,
-  TouchableOpacity, FlatList, StatusBar, Alert,
+  TouchableOpacity, FlatList, StatusBar,
   ActivityIndicator, Dimensions, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { authService } from '../api/authService';
+import ErrorModal from '../components/ErrorModal';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -66,6 +67,8 @@ export default function CharacterSelectScreen({ navigation }) {
   const [currentIndex, setCurrentIndex]  = useState(0);
   const [loading, setLoading]            = useState(false);
   const flatListRef = useRef(null);
+  const [errorModal, setErrorModal]      = useState({ visible: false, type: 'error', title: '', message: '' });
+  const showErr = (title, message, type = 'error') => setErrorModal({ visible: true, type, title, message });
 
   const selected = CHARACTERS[currentIndex];
 
@@ -77,7 +80,7 @@ export default function CharacterSelectScreen({ navigation }) {
 
   const handleConfirm = async () => {
     if (!explorerName.trim()) {
-      Alert.alert('Explorer Name Required', 'Please enter your explorer name to continue.');
+      showErr('Explorer Name Required', 'Please enter your explorer name to continue.');
       return;
     }
     setLoading(true);
@@ -88,7 +91,7 @@ export default function CharacterSelectScreen({ navigation }) {
       const errorData = error.response?.data || error;
       let msg = 'Something went wrong.';
       if (errorData.in_game_name) msg = errorData.in_game_name[0];
-      Alert.alert('Setup Error', msg);
+      showErr('Setup Error', msg);
     } finally {
       setLoading(false);
     }
@@ -218,6 +221,15 @@ export default function CharacterSelectScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* ── Error Modal ── */}
+      <ErrorModal
+        visible={errorModal.visible}
+        type={errorModal.type}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal(prev => ({ ...prev, visible: false }))}
+      />
     </SafeAreaView>
   );
 }

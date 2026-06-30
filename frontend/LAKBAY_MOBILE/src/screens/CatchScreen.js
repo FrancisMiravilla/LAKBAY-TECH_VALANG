@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity,
   StatusBar, ScrollView, ActivityIndicator,
-  Animated, Dimensions, Modal, Platform, Alert,
+  Animated, Dimensions, Modal, Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
@@ -11,6 +11,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
 import { getCatchIcons, getSpots, ORIGIN } from '../api/qrService';
+import ErrorModal from '../components/ErrorModal';
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -257,6 +258,8 @@ export default function CatchScreen({ navigation }) {
   const [catchSpots, setCatchSpots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [errorModal, setErrorModal] = useState({ visible: false, type: 'error', title: '', message: '' });
+  const showErr = (title, message, type = 'error') => setErrorModal({ visible: true, type, title, message });
 
   // GPS & proximity
   const [userLocation, setUserLocation] = useState(null);
@@ -339,7 +342,7 @@ export default function CatchScreen({ navigation }) {
     if (!cameraPermission?.granted) {
       const result = await requestCameraPermission();
       if (!result.granted) {
-        Alert.alert('Camera Required', 'Please allow camera access to use AR catch.');
+        showErr('Camera Required', 'Please allow camera access to use AR catch.', 'warning');
         return;
       }
     }
@@ -543,6 +546,15 @@ export default function CatchScreen({ navigation }) {
           )}
         </View>
       </Modal>
+
+      {/* ── Error Modal ── */}
+      <ErrorModal
+        visible={errorModal.visible}
+        type={errorModal.type}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal(prev => ({ ...prev, visible: false }))}
+      />
     </SafeAreaView>
   );
 }

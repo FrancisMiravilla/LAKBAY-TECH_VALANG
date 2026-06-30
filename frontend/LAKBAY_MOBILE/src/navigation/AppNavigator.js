@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
+import VintaStripe from '../components/VintaStripe';
 
 import HomeScreen from '../screens/HomeScreen';
 import QRScreen from '../screens/QRScreen';
@@ -50,6 +51,11 @@ function MainTabs() {
         headerShown: false,
         tabBarShowLabel: true,
         tabBarStyle: tabStyles.tabBar,
+        tabBarBackground: () => (
+          <View style={{ flex: 1, backgroundColor: COLORS.navy }}>
+            <VintaStripe height={3} />
+          </View>
+        ),
         tabBarLabel: ({ focused }) => (
           <Text style={[tabStyles.tabLabel, focused && tabStyles.tabLabelActive]}>
             {TAB_ICON[route.name]?.label ?? route.name}
@@ -101,8 +107,7 @@ export default function AppNavigator() {
 const tabStyles = StyleSheet.create({
   tabBar: {
     backgroundColor: COLORS.navy,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.10)',
+    borderTopWidth: 0,
     height: 72,
     paddingBottom: 10,
     paddingTop: 6,

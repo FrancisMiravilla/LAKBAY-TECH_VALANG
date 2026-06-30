@@ -44,6 +44,7 @@ import { authService } from './api/authService';
 import '@google/model-viewer';
 import qrService from './api/qrService';
 import QRCodeLib from 'qrcode';
+import ErrorModal from './ErrorModal';
 
 const generateNotificationId = () => Date.now();
 
@@ -511,7 +512,7 @@ function App() {
           weight: 2,
         }).addTo(modalMapRef.current);
       } else {
-        alert('Location not found. Try a different search term.');
+        showError('Location not found. Try a different search term.', 'Location Not Found', 'warning');
       }
     } catch {
       // silently ignore search errors
@@ -570,6 +571,12 @@ function App() {
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
+  // ── Global Error Modal ──────────────────────────────────────────────────────
+  const [errorModal, setErrorModal] = useState({ visible: false, type: 'error', title: '', message: '' });
+  const showError = (message, title = 'Error', type = 'error') =>
+    setErrorModal({ visible: true, type, title, message });
+  const closeErrorModal = () => setErrorModal(prev => ({ ...prev, visible: false }));
+
   // Restore session from localStorage on page load
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -599,14 +606,14 @@ function App() {
 
       if (!user.is_staff) {
         authService.logout();
-        setLoginError('Access denied. Staff accounts only.');
+        showError('Access denied. Only staff accounts can log into the admin panel.', 'Access Denied', 'error');
         return;
       }
 
       setCurrentUser(user);
       setIsAuthenticated(true);
     } catch (error) {
-      setLoginError('Invalid credentials. Please try again.');
+      showError('Invalid credentials. Please check your email and password.', 'Login Failed', 'error');
     } finally {
       setIsLoggingIn(false);
     }
@@ -862,7 +869,7 @@ function App() {
       ]);
     } catch (err) {
       console.error(err);
-      alert('Failed to delete spot. Please try again.');
+      showError('Failed to delete spot. Please try again.', 'Delete Failed', 'error');
     }
   };
 
@@ -877,7 +884,7 @@ function App() {
       ]);
     } catch (err) {
       console.error(err);
-      alert('Failed to delete QR code. Please try again.');
+      showError('Failed to delete QR code. Please try again.', 'Delete Failed', 'error');
     }
   };
 
@@ -1041,7 +1048,6 @@ function App() {
           </div>
           
           <form onSubmit={handleLogin} className="login-form">
-            {loginError && <div className="login-error">{loginError}</div>}
             
             <div className="form-group">
               <label className="form-label">Email</label>
@@ -1073,6 +1079,15 @@ function App() {
           </form>
         </div>
       </div>
+
+      {/* ── Error Modal (login page) ── */}
+      <ErrorModal
+        visible={errorModal.visible}
+        type={errorModal.type}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={closeErrorModal}
+      />
     );
   }
 
@@ -3273,7 +3288,16 @@ function App() {
             </div>
           </div>
         </div>
-      )}
+      )]}
+
+      {/* ── Global Error Modal ─────────────────────────────────────────── */}
+      <ErrorModal
+        visible={errorModal.visible}
+        type={errorModal.type}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={closeErrorModal}
+      />
 
     </div>
   )
