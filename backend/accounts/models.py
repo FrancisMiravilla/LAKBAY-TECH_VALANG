@@ -7,6 +7,11 @@ class CustomUser(AbstractUser):
         ('email', 'Email'),
         ('google', 'Google'),
     )
+    ROLE_CHOICES = (
+        ('tourist', 'Tourist'),
+        ('admin', 'Administrator'),
+        ('tourist_guide', 'Tourist Guide'),
+    )
 
     username = None
     email = models.EmailField(unique=True)
@@ -15,6 +20,7 @@ class CustomUser(AbstractUser):
     chosen_character = models.CharField(max_length=100, null=True, blank=True)
     profile_photo = models.ImageField(upload_to='profile_photos/', null=True, blank=True)
     auth_provider = models.CharField(max_length=50, choices=AUTH_PROVIDERS, default='email')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='tourist')
     xp = models.IntegerField(default=0)
 
     USERNAME_FIELD = 'email'

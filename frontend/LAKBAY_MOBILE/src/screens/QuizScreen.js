@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
-import { getAITrivia, getIconAITrivia, awardSpotBadge } from '../api/qrService';
+import { getSpotTrivia, getIconTrivia, awardSpotBadge } from '../api/qrService';
 
 // ─── 3-D viewer HTML (same security pattern as CatchDetailsScreen) ────────────
 const HTML_ESCAPE = { '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;', '&': '&amp;' };
@@ -71,8 +71,8 @@ export default function QuizScreen({ navigation, route }) {
 
   useEffect(() => {
     const fetchTrivia = isIconMode
-      ? getIconAITrivia(icon.id)
-      : spotId ? getAITrivia(spotId) : Promise.reject(new Error('no-id'));
+      ? getIconTrivia(icon.id)
+      : spotId ? getSpotTrivia(spotId) : Promise.reject(new Error('no-id'));
 
     fetchTrivia
       .then((data) => {
@@ -86,7 +86,7 @@ export default function QuizScreen({ navigation, route }) {
         if (err.message === 'no-id') {
           setError('No icon or spot selected.');
         } else if (err?.code === 'ECONNABORTED') {
-          setError('The AI is taking too long to respond. Please try again.');
+          setError('The server is taking too long to respond. Please try again.');
         } else {
           setError(err?.response?.data?.error || 'Could not load quiz. Make sure the backend is running.');
         }
@@ -97,31 +97,35 @@ export default function QuizScreen({ navigation, route }) {
   const handleSelect = (option) => {
     if (selectedOption !== null) return;
     setSelectedOption(option);
-    const correct = option === questions[currentIndex].correct_answer;
+    
+    const currentQ = questions[currentIndex];
+    const correct = option === currentQ.choices[currentQ.correct_index];
     setIsCorrect(correct);
 
-    setTimeout(async () => {
-      if (correct) {
-        if (currentIndex < questions.length - 1) {
-          setCurrentIndex(currentIndex + 1);
-          setSelectedOption(null);
-          setIsCorrect(null);
-        } else {
-          if (!isIconMode && spotId) {
-            try {
-              const result = await awardSpotBadge(spotId);
-              setReward(result);
-            } catch {
-              setReward({ xp_earned: 0, total_xp: 0, awarded: false });
-            }
-          }
-          setShowReward(true);
-        }
-      } else {
+    if (!correct) {
+      setTimeout(() => {
         setSelectedOption(null);
         setIsCorrect(null);
+      }, 1400);
+    }
+  };
+
+  const handleNext = async () => {
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      setSelectedOption(null);
+      setIsCorrect(null);
+    } else {
+      if (!isIconMode && spotId) {
+        try {
+          const result = await awardSpotBadge(spotId);
+          setReward(result);
+        } catch {
+          setReward({ xp_earned: 0, total_xp: 0, awarded: false });
+        }
       }
-    }, 1400);
+      setShowReward(true);
+    }
   };
 
   // ── Loading ──────────────────────────────────────────────────────────────────
@@ -129,7 +133,7 @@ export default function QuizScreen({ navigation, route }) {
     return (
       <SafeAreaView style={[styles.centered, { backgroundColor: '#0F0920' }]}>
         <ActivityIndicator size="large" color={accentColor} />
-        <Text style={styles.loadingText}>AI is generating trivia for {displayName}…</Text>
+        <Text style={styles.loadingText}>Loading trivia for {displayName}…</Text>
       </SafeAreaView>
     );
   }
@@ -261,7 +265,7 @@ export default function QuizScreen({ navigation, route }) {
         <View style={styles.options}>
           {currentQ.choices.map((option, idx) => {
             const isSelected = selectedOption === option;
-            const isCorrectAnswer = option === currentQ.correct_answer;
+            const isCorrectAnswer = option === currentQ.choices[currentQ.correct_index];
             const showCorrect = selectedOption !== null && isCorrectAnswer && !isCorrect;
 
             let bg = COLORS.bgCard;
@@ -303,6 +307,18 @@ export default function QuizScreen({ navigation, route }) {
             <Text style={[styles.feedbackText, { color: isCorrect ? '#10B981' : '#EF4444' }]}>
               {isCorrect ? 'Correct! Awesome!' : 'Oops! Try again.'}
             </Text>
+            {isCorrect && currentQ.explanation ? (
+              <View style={styles.explanationBox}>
+                <Ionicons name="information-circle" size={20} color="#10B981" />
+                <Text style={styles.explanationText}>{currentQ.explanation}</Text>
+              </View>
+            ) : null}
+            {isCorrect && (
+              <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
+                <Text style={styles.nextBtnText}>{currentIndex < questions.length - 1 ? 'Next Question' : 'Finish Quiz'}</Text>
+                <Ionicons name="arrow-forward" size={18} color="#FFF" />
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -398,8 +414,24 @@ const styles = StyleSheet.create({
   },
 
   // Feedback
-  feedback: { marginTop: 18, alignItems: 'center' },
+  feedback: { marginTop: 18, alignItems: 'center', paddingHorizontal: 24, paddingBottom: 30 },
   feedbackText: { fontFamily: FONTS.bold, fontSize: 17 },
+  explanationBox: {
+    flexDirection: 'row', backgroundColor: 'rgba(16,185,129,0.1)',
+    padding: 14, borderRadius: 12, marginTop: 12, borderWidth: 1, borderColor: 'rgba(16,185,129,0.3)',
+    alignItems: 'flex-start',
+  },
+  explanationText: {
+    fontFamily: FONTS.medium, fontSize: 13, color: COLORS.text, lineHeight: 20, marginLeft: 8, flex: 1
+  },
+  nextBtn: {
+    flexDirection: 'row', backgroundColor: '#10B981', paddingHorizontal: 20, paddingVertical: 12,
+    borderRadius: 24, marginTop: 18, alignItems: 'center', shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4
+  },
+  nextBtnText: {
+    fontFamily: FONTS.bold, fontSize: 14, color: '#FFF', marginRight: 6
+  },
 
   // Reward
   rewardContainer: {

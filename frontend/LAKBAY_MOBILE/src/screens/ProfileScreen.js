@@ -67,15 +67,17 @@ const handleLogout = () => {
   );
 };
 
-  const getEmoji = (characterName) => {
-    switch(characterName) {
-      case 'Kuya Mando': return '🧔‍♂️';
-      case 'Ate Lila': return '🧕';
-      case 'Bossing Dante': return '👴';
-      case 'Ate Sonya': return '👩‍🦱';
-      default: return '🧔‍♂️';
+  const getCharacterDetails = (charId) => {
+    switch(charId) {
+      case 'ricky': return { name: 'Kuya Ricky', emoji: '🧔‍♂️' };
+      case 'lila': return { name: 'Ate Lila', emoji: '🧕' };
+      case 'dante': return { name: 'Bossing Dante', emoji: '👴' };
+      case 'sonya': return { name: 'Ate Sonya', emoji: '👩‍🦱' };
+      default: return { name: 'Kuya Ricky', emoji: '🧔‍♂️' };
     }
   };
+
+  const charDetails = getCharacterDetails(profile?.character);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -99,7 +101,7 @@ const handleLogout = () => {
           <View style={styles.avatarRingOuter}>
             <View style={styles.avatarRingInner}>
               <View style={styles.avatarBg}>
-                <Text style={styles.avatarEmoji}>{getEmoji(profile?.character)}</Text>
+                <Text style={styles.avatarEmoji}>{charDetails.emoji}</Text>
               </View>
             </View>
           </View>
@@ -112,7 +114,7 @@ const handleLogout = () => {
                 <Text style={styles.roleText}>✦ {profile?.in_game_name || 'Zamboanga Explorer'} ✦</Text>
               </View>
               <Text style={{ fontFamily: FONTS.semiBold, color: '#A0AEC0', marginTop: 10, fontSize: 14 }}>
-                Companion: {profile?.character || 'Kuya Mando'}
+                Companion: {charDetails.name}
               </Text>
             </>
           )}

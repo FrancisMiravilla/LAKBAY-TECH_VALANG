@@ -4,6 +4,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts, Rajdhani_300Light, Rajdhani_400Regular, Rajdhani_500Medium, Rajdhani_600SemiBold, Rajdhani_700Bold } from '@expo-google-fonts/rajdhani';
 import { PressStart2P_400Regular } from '@expo-google-fonts/press-start-2p';
 import { View, ActivityIndicator } from 'react-native';
+import * as Font from 'expo-font';
+import { Ionicons } from '@expo/vector-icons';
 import AppNavigator from './src/navigation/AppNavigator';
 import { COLORS } from './src/constants/theme';
 
@@ -18,6 +20,7 @@ export default function App() {
     Rajdhani_600SemiBold,
     Rajdhani_700Bold,
     PressStart2P_400Regular,
+    ...Ionicons.font,
   });
 
   if (!fontsLoaded) {

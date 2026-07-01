@@ -68,10 +68,25 @@ class QRScan(models.Model):
 
 
 class TriviaQuestion(models.Model):
-    spot = models.ForeignKey(CulturalSpot, on_delete=models.CASCADE, related_name='questions')
+    STATUS_CHOICES = (
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    )
+
+    spot = models.ForeignKey(CulturalSpot, on_delete=models.CASCADE, null=True, blank=True, related_name='questions')
+    icon = models.ForeignKey('CulturalIcon', on_delete=models.CASCADE, null=True, blank=True, related_name='questions')
+    
     question = models.CharField(max_length=300)
     choices = models.JSONField()          # ["A", "B", "C", "D"]
     correct_index = models.IntegerField() # never sent to the client
+    explanation = models.TextField(blank=True)
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    generated_by = models.ForeignKey('accounts.CustomUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='generated_quizzes')
+    reviewed_by = models.ForeignKey('accounts.CustomUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_quizzes')
+    review_date = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 class SpotBadge(models.Model):

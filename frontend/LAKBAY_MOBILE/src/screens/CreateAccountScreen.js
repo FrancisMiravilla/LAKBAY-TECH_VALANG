@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView, StyleSheet, Text, View, TextInput,
-  TouchableOpacity, ScrollView, StatusBar, ActivityIndicator,
+  TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { authService } from '../api/authService';
 import ErrorModal from '../components/ErrorModal';
+import VintaStripe from '../components/VintaStripe';
 
 export default function CreateAccountScreen({ navigation }) {
   const [fullName, setFullName]       = useState('');
@@ -19,75 +20,94 @@ export default function CreateAccountScreen({ navigation }) {
   const [agreed, setAgreed]           = useState(false);
   const [loading, setLoading]         = useState(false);
   const [errorModal, setErrorModal]   = useState({ visible: false, type: 'error', title: '', message: '' });
+  const [heroFade]  = useState(() => new Animated.Value(0));
+  const [heroSlide] = useState(() => new Animated.Value(20));
+
   const showErr = (title, message, type = 'error') => setErrorModal({ visible: true, type, title, message });
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(heroFade,  { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.timing(heroSlide, { toValue: 0, duration: 700, useNativeDriver: true }),
+    ]).start();
+  }, []);
 
   const passwordHint = password.length > 0 && (password.length < 8 || !/\d/.test(password) || !/[^a-zA-Z0-9]/.test(password));
   const passwordMatch = confirmPass.length > 0 && password !== confirmPass;
 
-const handleCreate = async () => {
-  if (!fullName || !email || !password || !confirmPass) {
-    showErr('Missing Fields', 'Please fill in all fields.');
-    return;
-  }
-  if (password !== confirmPass) {
-    showErr('Password Mismatch', 'Your passwords do not match.');
-    return;
-  }
-  if (!agreed) {
-    showErr('Terms Required', 'Please agree to the Terms of Service and Privacy Policy.');
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const tempInGameName = `Explorer_${Date.now()}`;
-    await authService.register(email, password, fullName, tempInGameName, 'DefaultCharacter');
-    await SecureStore.setItemAsync('offline_fullName', fullName);
-    setLoading(false);
-    navigation.replace('CharacterSelect');
-  } catch (error) {
-    setLoading(false);
-    const errorData = error.response?.data || error; 
-    let errorMessage = 'An error occurred. Please try again.';
-    if (errorData) {
-      if (errorData.email) errorMessage = `Email: ${errorData.email[0]}`;
-      else if (errorData.password) errorMessage = `Password: ${errorData.password[0]}`;
-      else if (errorData.detail) errorMessage = errorData.detail;
+  const handleCreate = async () => {
+    if (!fullName || !email || !password || !confirmPass) {
+      showErr('Missing Fields', 'Please fill in all fields.');
+      return;
     }
-    console.log('Register error:', errorData);
-    showErr('Registration Error', errorMessage);
-  }
+    if (password !== confirmPass) {
+      showErr('Password Mismatch', 'Your passwords do not match.');
+      return;
+    }
+    if (!agreed) {
+      showErr('Terms Required', 'Please agree to the Terms of Service and Privacy Policy.');
+      return;
+    }
 
-};
+    setLoading(true);
+    try {
+      const tempInGameName = `Explorer_${Date.now()}`;
+      await authService.register(email, password, fullName, tempInGameName, 'DefaultCharacter');
+      await SecureStore.setItemAsync('offline_fullName', fullName);
+      setLoading(false);
+      navigation.replace('CharacterSelect');
+    } catch (error) {
+      setLoading(false);
+      const errorData = error.response?.data || error;
+      let errorMessage = 'An error occurred. Please try again.';
+      if (errorData) {
+        if (errorData.email) errorMessage = `Email: ${errorData.email[0]}`;
+        else if (errorData.password) errorMessage = `Password: ${errorData.password[0]}`;
+        else if (errorData.detail) errorMessage = errorData.detail;
+      }
+      showErr('Registration Error', errorMessage);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.accent} />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.navy} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scroll}
       >
-        {/* ── Pink Header Banner ─────────────────────────────────── */}
-        <View style={styles.heroBanner}>
-          <View style={styles.blobTL} />
-          <View style={styles.blobBR} />
+        {/* ── Hero Banner ─────────────────────────────────── */}
+        <Animated.View
+          style={[styles.heroBanner, { opacity: heroFade, transform: [{ translateY: heroSlide }] }]}
+        >
+          <View style={styles.heroGlowOuter} />
+          <View style={styles.heroGlowInner} />
 
-          <Text style={styles.stepLabel}>STEP 1 OF 2</Text>
-
-          <View style={styles.logoRing}>
-            <Text style={styles.logoIcon}>⛵</Text>
+          <View style={styles.heroContent}>
+            <Text style={styles.heroEyebrow}>✦  START YOUR JOURNEY  ✦</Text>
+            <View style={styles.logoRing}>
+              <Text style={styles.logoIcon}>⛵</Text>
+            </View>
+            <Text style={styles.logoTitle}>LAKBAY</Text>
+            <Text style={styles.logoSub}>ZAMBOANGA CITY</Text>
+            <View style={styles.pills}>
+              {['Heritage', 'Culture', 'Adventure'].map((p) => (
+                <View key={p} style={styles.pill}>
+                  <Text style={styles.pillText}>{p}</Text>
+                </View>
+              ))}
+            </View>
           </View>
+        </Animated.View>
 
-          <Text style={styles.logoTitle}>LAKBAY</Text>
-          <Text style={styles.logoSub}>ZAMBOANGA CITY</Text>
-        </View>
+        <VintaStripe height={6} />
 
         {/* ── Form Card ──────────────────────────────────────────── */}
         <View style={styles.card}>
 
-          {/* Heading */}
+          <Text style={styles.stepLabel}>STEP 1 OF 2</Text>
           <Text style={styles.heading}>Create Your Journey</Text>
           <Text style={styles.subHeading}>Begin Exploring The City Of Flowers With Us</Text>
 
@@ -144,7 +164,12 @@ const handleCreate = async () => {
           {/* Confirm Password */}
           <Text style={styles.label}>Confirm Password</Text>
           <View style={[styles.inputWrap, passwordMatch && styles.inputWrapError]}>
-            <Ionicons name="shield-checkmark-outline" size={16} color={passwordMatch ? COLORS.danger : COLORS.textMuted} style={styles.inputIcon} />
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={16}
+              color={passwordMatch ? COLORS.danger : COLORS.textMuted}
+              style={styles.inputIcon}
+            />
             <TextInput
               style={[styles.input, { flex: 1 }]}
               placeholder="Re-enter password"
@@ -162,7 +187,6 @@ const handleCreate = async () => {
             </TouchableOpacity>
           </View>
 
-          {/* Password hint */}
           {(passwordHint || passwordMatch) && (
             <View style={styles.hintBox}>
               <Ionicons name="information-circle-outline" size={14} color={COLORS.danger} style={{ marginRight: 6 }} />
@@ -212,14 +236,13 @@ const handleCreate = async () => {
           <View style={styles.signinRow}>
             <Text style={styles.signinPrompt}>Already Have an Account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.signinLink}>Sign - In</Text>
+              <Text style={styles.signinLink}>Sign In</Text>
             </TouchableOpacity>
           </View>
 
         </View>
       </ScrollView>
 
-      {/* ── Error Modal ── */}
       <ErrorModal
         visible={errorModal.visible}
         type={errorModal.type}
@@ -236,46 +259,60 @@ const styles = StyleSheet.create({
   scroll:    { flexGrow: 1 },
 
   // ── Hero Banner ────────────────────────────────────────────────────
-  stepLabel: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.65)',
-    letterSpacing: 2.5,
-    marginBottom: 12,
-  },
   heroBanner: {
-    height: 220,
     backgroundColor: COLORS.navy,
+    paddingTop: 36,
+    paddingBottom: 32,
     alignItems: 'center',
-    justifyContent: 'center',
     overflow: 'hidden',
     position: 'relative',
   },
-  blobTL: {
-    position: 'absolute', top: -40, left: -40,
-    width: 140, height: 140, borderRadius: 70,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+  heroGlowOuter: {
+    position: 'absolute',
+    top: -60, right: -60,
+    width: 220, height: 220, borderRadius: 110,
+    backgroundColor: COLORS.accentGlow,
   },
-  blobBR: {
-    position: 'absolute', bottom: -30, right: 20,
-    width: 90, height: 90, borderRadius: 45,
-    backgroundColor: 'rgba(26,86,219,0.35)',
+  heroGlowInner: {
+    position: 'absolute',
+    bottom: -20, left: -40,
+    width: 160, height: 160, borderRadius: 80,
+    backgroundColor: COLORS.accentSoft,
+  },
+  heroContent: { alignItems: 'center', zIndex: 2 },
+  heroEyebrow: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: COLORS.gold,
+    letterSpacing: 2.5,
+    marginBottom: 16,
   },
   logoRing: {
-    width: 64, height: 64, borderRadius: 32,
+    width: 76, height: 76, borderRadius: 38,
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 2, borderColor: 'rgba(255,255,255,0.35)',
     justifyContent: 'center', alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  logoIcon:  { fontSize: 28 },
+  logoIcon:  { fontSize: 34 },
   logoTitle: {
-    fontFamily: FONTS.pixel, fontSize: 14, color: '#fff',
-    letterSpacing: 3, marginBottom: 2,
+    fontFamily: FONTS.pixel, fontSize: 16, color: '#fff',
+    letterSpacing: 3, marginBottom: 4,
   },
   logoSub: {
     fontFamily: FONTS.medium, fontSize: 10, color: 'rgba(255,255,255,0.70)',
-    letterSpacing: 3, marginTop: 2,
+    letterSpacing: 3, marginBottom: 18,
+  },
+  pills: { flexDirection: 'row', gap: 8 },
+  pill: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: RADIUS.pill,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 12, paddingVertical: 5,
+  },
+  pillText: {
+    fontFamily: FONTS.medium, fontSize: 11, color: 'rgba(255,255,255,0.90)',
+    letterSpacing: 0.5,
   },
 
   // ── Card ───────────────────────────────────────────────────────────
@@ -284,12 +321,19 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
     borderTopLeftRadius: RADIUS.xl,
     borderTopRightRadius: RADIUS.xl,
-    marginTop: -20,
     paddingHorizontal: 24,
     paddingTop: 32,
     paddingBottom: 40,
   },
 
+  stepLabel: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: COLORS.accent,
+    letterSpacing: 2.5,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
   heading: {
     fontFamily: FONTS.pixel,
     fontSize: 14,
@@ -317,9 +361,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, height: 52,
     marginBottom: 16,
   },
-  inputWrapError: {
-    borderColor: COLORS.danger + '88',
-  },
+  inputWrapError: { borderColor: COLORS.danger + '88' },
   inputIcon: { marginRight: 10 },
   input: {
     flex: 1, fontFamily: FONTS.regular, fontSize: 14,
@@ -327,7 +369,6 @@ const styles = StyleSheet.create({
   },
   eyeBtn: { padding: 4 },
 
-  // ── Password hint ──────────────────────────────────────────────────
   hintBox: {
     flexDirection: 'row', alignItems: 'flex-start',
     backgroundColor: COLORS.bgCard,
@@ -352,16 +393,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
     marginTop: 1,
   },
-  checkboxActive: {
-    backgroundColor: COLORS.accent, borderColor: COLORS.accent,
-  },
+  checkboxActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   termsText: {
     flex: 1, fontFamily: FONTS.regular, fontSize: 12,
     color: COLORS.textMuted, lineHeight: 19,
   },
-  termsLink: {
-    color: COLORS.accent, fontFamily: FONTS.semiBold,
-  },
+  termsLink: { color: COLORS.accent, fontFamily: FONTS.semiBold },
 
   // ── Buttons ────────────────────────────────────────────────────────
   createBtn: {
@@ -370,9 +407,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
     ...SHADOW.accent,
   },
-  createBtnDisabled: {
-    opacity: 0.5,
-  },
+  createBtnDisabled: { opacity: 0.5 },
   createBtnText: {
     fontFamily: FONTS.bold, fontSize: 16, color: '#fff', letterSpacing: 1,
   },
@@ -381,10 +416,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'center',
     alignItems: 'center', marginTop: 24,
   },
-  signinPrompt: {
-    fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMuted,
-  },
-  signinLink: {
-    fontFamily: FONTS.bold, fontSize: 13, color: COLORS.accent,
-  },
+  signinPrompt: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMuted },
+  signinLink: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.accent },
 });

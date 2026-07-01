@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView, StyleSheet, Text, View, TextInput,
-  TouchableOpacity, ScrollView, StatusBar, ActivityIndicator,
+  TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { authService } from '../api/authService';
 import ErrorModal from '../components/ErrorModal';
+import VintaStripe from '../components/VintaStripe';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail]           = useState('');
@@ -16,23 +17,30 @@ export default function LoginScreen({ navigation }) {
   const [streakClaimed, setStreakClaimed] = useState(false);
   const [loading, setLoading]       = useState(false);
   const [errorModal, setErrorModal] = useState({ visible: false, type: 'error', title: '', message: '' });
+  const [heroFade]  = useState(() => new Animated.Value(0));
+  const [heroSlide] = useState(() => new Animated.Value(20));
+
   const showErr = (title, message, type = 'error') => setErrorModal({ visible: true, type, title, message });
 
-const handleLogin = async () => {
-  setLoading(true);
-  try {
-    const result = await authService.login(email, password);
-    
-    // ONLY navigate if the login was actually successful
-    if (result && result.access) {
-      navigation.replace('MainTabs'); 
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(heroFade,  { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.timing(heroSlide, { toValue: 0, duration: 700, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const handleLogin = async () => {
+    setLoading(true);
+    try {
+      const result = await authService.login(email, password);
+      if (result && result.access) {
+        navigation.replace('MainTabs');
+      }
+    } catch (error) {
+      setLoading(false);
+      showErr('Login Failed', 'Check your email and password.');
     }
-  } catch (error) {
-    setLoading(false);
-    // Do NOT navigate here. Show an alert instead.
-    showErr('Login Failed', 'Check your email and password.');
-  }
-};
+  };
 
   const handleGoogle = () => {
     showErr('Google Sign-In', 'Google authentication will be integrated with the backend.', 'info');
@@ -44,26 +52,6 @@ const handleLogin = async () => {
     showErr('🔥 Streak Claimed!', 'You earned +50 XP for your 12-day login streak!', 'success');
   };
 
-const testConnection = async () => {
-  Alert.alert('Testing...', 'Pinging the Django server now!');
-    setLoading(true);
-  try {
-    const result = await authService.login('your_real@email.com', 'your_real_password');
-    setLoading(false);
-
-    Alert.alert('✅ Login Success!', JSON.stringify(result, null, 2));
-
-    const profile = await authService.getProfile();
-    console.log('Profile:', profile);
-
-  } catch (err) {
-    setLoading(false);
-
-    Alert.alert('❌ Connection Error!', JSON.stringify(err, null, 2));
-    console.error('Test Connection Error:', err);
-  }
-};
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.navy} />
@@ -73,25 +61,35 @@ const testConnection = async () => {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scroll}
       >
-        {/* ── Pink Header Banner ─────────────────────────────────── */}
-        <View style={styles.heroBanner}>
-          {/* Decorative blobs */}
-          <View style={styles.blobTL} />
-          <View style={styles.blobBR} />
+        {/* ── Hero Banner ─────────────────────────────────── */}
+        <Animated.View
+          style={[styles.heroBanner, { opacity: heroFade, transform: [{ translateY: heroSlide }] }]}
+        >
+          <View style={styles.heroGlowOuter} />
+          <View style={styles.heroGlowInner} />
 
-          {/* Vinta icon ring */}
-          <View style={styles.logoRing}>
-            <Text style={styles.logoIcon}>⛵</Text>
+          <View style={styles.heroContent}>
+            <Text style={styles.heroEyebrow}>✦  CITY OF COLORS  ✦</Text>
+            <View style={styles.logoRing}>
+              <Text style={styles.logoIcon}>⛵</Text>
+            </View>
+            <Text style={styles.logoTitle}>LAKBAY</Text>
+            <Text style={styles.logoSub}>ZAMBOANGA CITY</Text>
+            <View style={styles.pills}>
+              {['Heritage', 'Culture', 'Adventure'].map((p) => (
+                <View key={p} style={styles.pill}>
+                  <Text style={styles.pillText}>{p}</Text>
+                </View>
+              ))}
+            </View>
           </View>
+        </Animated.View>
 
-          <Text style={styles.logoTitle}>LAKBAY</Text>
-          <Text style={styles.logoSub}>ZAMBOANGA CITY</Text>
-        </View>
+        <VintaStripe height={6} />
 
         {/* ── Form Card ──────────────────────────────────────────── */}
         <View style={styles.card}>
 
-          {/* Heading */}
           <Text style={styles.heading}>Welcome Back</Text>
           <Text style={styles.subHeading}>Your journey in the City of Flowers awaits.</Text>
 
@@ -110,12 +108,9 @@ const testConnection = async () => {
                 {streakClaimed ? '✅ +50 XP claimed for today' : 'Claim 50 XP for logging in today'}
               </Text>
             </View>
-            <TouchableOpacity
-              style={[styles.claimBtn, streakClaimed && styles.claimBtnDone]}
-              onPress={handleClaimStreak}
-            >
+            <View style={[styles.claimBtn, streakClaimed && styles.claimBtnDone]}>
               <Text style={styles.claimBtnText}>{streakClaimed ? 'Done' : 'Claim'}</Text>
-            </TouchableOpacity>
+            </View>
           </TouchableOpacity>
 
           {/* Email */}
@@ -157,7 +152,7 @@ const testConnection = async () => {
           {/* Forgot password */}
           <TouchableOpacity
             style={styles.forgotRow}
-            onPress={() => Alert.alert('Reset Password', 'A reset link will be sent to your email.')}
+            onPress={() => showErr('Reset Password', 'A reset link will be sent to your email.', 'info')}
           >
             <Text style={styles.forgotText}>Forgot password?</Text>
           </TouchableOpacity>
@@ -173,13 +168,6 @@ const testConnection = async () => {
               ? <ActivityIndicator color="#fff" />
               : <Text style={styles.signInText}>Sign In</Text>
             }
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.signInBtn, { backgroundColor: '#333', marginTop: 10 }]}
-            onPress={testConnection}
-          >
-            <Text style={styles.signInText}>Test Connection</Text>
           </TouchableOpacity>
 
           {/* Divider */}
@@ -206,7 +194,6 @@ const testConnection = async () => {
         </View>
       </ScrollView>
 
-      {/* ── Error Modal ── */}
       <ErrorModal
         visible={errorModal.visible}
         type={errorModal.type}
@@ -224,38 +211,59 @@ const styles = StyleSheet.create({
 
   // ── Hero Banner ────────────────────────────────────────────────────
   heroBanner: {
-    height: 200,
     backgroundColor: COLORS.navy,
+    paddingTop: 36,
+    paddingBottom: 32,
     alignItems: 'center',
-    justifyContent: 'center',
     overflow: 'hidden',
     position: 'relative',
   },
-  blobTL: {
-    position: 'absolute', top: -40, left: -40,
-    width: 140, height: 140, borderRadius: 70,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+  heroGlowOuter: {
+    position: 'absolute',
+    top: -60, right: -60,
+    width: 220, height: 220, borderRadius: 110,
+    backgroundColor: COLORS.accentGlow,
   },
-  blobBR: {
-    position: 'absolute', bottom: -30, right: 20,
-    width: 90, height: 90, borderRadius: 45,
-    backgroundColor: 'rgba(26,86,219,0.35)',
+  heroGlowInner: {
+    position: 'absolute',
+    bottom: -20, left: -40,
+    width: 160, height: 160, borderRadius: 80,
+    backgroundColor: COLORS.accentSoft,
+  },
+  heroContent: { alignItems: 'center', zIndex: 2 },
+  heroEyebrow: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: COLORS.gold,
+    letterSpacing: 2.5,
+    marginBottom: 16,
   },
   logoRing: {
-    width: 64, height: 64, borderRadius: 32,
+    width: 76, height: 76, borderRadius: 38,
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 2, borderColor: 'rgba(255,255,255,0.35)',
     justifyContent: 'center', alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  logoIcon:  { fontSize: 28 },
+  logoIcon:  { fontSize: 34 },
   logoTitle: {
-    fontFamily: FONTS.pixel, fontSize: 14, color: '#fff',
-    letterSpacing: 3, marginBottom: 2,
+    fontFamily: FONTS.pixel, fontSize: 16, color: '#fff',
+    letterSpacing: 3, marginBottom: 4,
   },
   logoSub: {
     fontFamily: FONTS.medium, fontSize: 10, color: 'rgba(255,255,255,0.70)',
-    letterSpacing: 3, marginTop: 2,
+    letterSpacing: 3, marginBottom: 18,
+  },
+  pills: { flexDirection: 'row', gap: 8 },
+  pill: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: RADIUS.pill,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 12, paddingVertical: 5,
+  },
+  pillText: {
+    fontFamily: FONTS.medium, fontSize: 11, color: 'rgba(255,255,255,0.90)',
+    letterSpacing: 0.5,
   },
 
   // ── Card ───────────────────────────────────────────────────────────
@@ -264,7 +272,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
     borderTopLeftRadius: RADIUS.xl,
     borderTopRightRadius: RADIUS.xl,
-    marginTop: -20,
     paddingHorizontal: 24,
     paddingTop: 32,
     paddingBottom: 40,
@@ -292,18 +299,14 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(251,191,36,0.30)',
     padding: 12, marginBottom: 24, gap: 12,
   },
-  streakBannerClaimed: {
-    borderColor: COLORS.teal + '55',
-  },
+  streakBannerClaimed: { borderColor: COLORS.teal + '55' },
   streakIconWrap: {
     width: 44, height: 44, borderRadius: 12,
     backgroundColor: COLORS.accent,
     justifyContent: 'center', alignItems: 'center',
   },
   streakText: { flex: 1 },
-  streakTitle: {
-    fontFamily: FONTS.bold, fontSize: 13, color: COLORS.text,
-  },
+  streakTitle: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.text },
   streakDesc: {
     fontFamily: FONTS.regular, fontSize: 11,
     color: COLORS.textMuted, marginTop: 2, lineHeight: 16,
@@ -314,12 +317,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.gold,
     paddingHorizontal: 14, paddingVertical: 7,
   },
-  claimBtnDone: {
-    borderColor: COLORS.teal,
-  },
-  claimBtnText: {
-    fontFamily: FONTS.bold, fontSize: 12, color: COLORS.gold,
-  },
+  claimBtnDone: { borderColor: COLORS.teal },
+  claimBtnText: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.gold },
 
   // ── Form Fields ────────────────────────────────────────────────────
   label: {
@@ -342,9 +341,7 @@ const styles = StyleSheet.create({
   eyeBtn: { padding: 4 },
 
   forgotRow: { alignItems: 'flex-end', marginTop: -8, marginBottom: 24 },
-  forgotText: {
-    fontFamily: FONTS.semiBold, fontSize: 12, color: COLORS.accent,
-  },
+  forgotText: { fontFamily: FONTS.semiBold, fontSize: 12, color: COLORS.accent },
 
   // ── Buttons ────────────────────────────────────────────────────────
   signInBtn: {
@@ -374,22 +371,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', gap: 10,
   },
-  googleLogo: {
-    fontSize: 20, fontFamily: FONTS.black,
-    color: '#4285F4',
-  },
-  googleText: {
-    fontFamily: FONTS.semiBold, fontSize: 15, color: COLORS.text,
-  },
+  googleLogo: { fontSize: 20, fontFamily: FONTS.black, color: '#4285F4' },
+  googleText: { fontFamily: FONTS.semiBold, fontSize: 15, color: COLORS.text },
 
   signupRow: {
     flexDirection: 'row', justifyContent: 'center',
     alignItems: 'center', marginTop: 24,
   },
-  signupPrompt: {
-    fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMuted,
-  },
-  signupLink: {
-    fontFamily: FONTS.bold, fontSize: 13, color: COLORS.accent,
-  },
+  signupPrompt: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMuted },
+  signupLink: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.accent },
 });

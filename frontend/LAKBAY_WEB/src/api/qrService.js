@@ -38,6 +38,10 @@ const qrService = {
   updateTriviaQuestion: (id, data) => adminClient.put(`/api/qr/trivia-questions/${id}/`, data),
   deleteTriviaQuestion: (id)     => adminClient.delete(`/api/qr/trivia-questions/${id}/`),
 
+  generateAITrivia: (type, id, count = 5) => adminClient.get(`/api/qr/${type === 'icon' ? 'catch-icons' : 'spots'}/${id}/ai-trivia/?count=${count}`),
+  getPendingQuizzes: () => adminClient.get('/api/qr/trivia-review/'),
+  reviewQuizAction: (id, actionData) => adminClient.put(`/api/qr/trivia-review/${id}/`, actionData),
+
   getMediaUrl: (path) => {
     if (!path) return null;
     if (path.startsWith('data:')) return path;

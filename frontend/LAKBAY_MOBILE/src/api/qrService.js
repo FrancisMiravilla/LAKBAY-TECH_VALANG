@@ -22,8 +22,8 @@ export const getSpots = () =>
 export const getCatchIcons = () =>
   qrClient.get('/api/qr/catch-icons/').then((r) => r.data);
 
-export const getIconAITrivia = (iconId) =>
-  qrClient.get(`/api/qr/catch-icons/${iconId}/ai-trivia/`, { timeout: 20000 }).then((r) => r.data);
+export const getIconTrivia = (iconId) =>
+  qrClient.get(`/api/qr/catch-icons/${iconId}/trivia/`).then((r) => r.data);
 
 export const validateQR = (qrCode) =>
   qrClient.post('/api/qr/validate/', { qr_code: qrCode }).then((r) => r.data);
@@ -34,8 +34,7 @@ export const getMyScans = () =>
 export const getSpotTrivia = (spotId) =>
   qrClient.get(`/api/qr/spots/${spotId}/trivia/`).then((r) => r.data);
 
-export const getAITrivia = (spotId) =>
-  qrClient.get(`/api/qr/spots/${spotId}/ai-trivia/`, { timeout: 20000 }).then((r) => r.data);
+
 
 export const awardSpotBadge = (spotId) =>
   qrClient.post(`/api/qr/spots/${spotId}/award-badge/`).then((r) => r.data);

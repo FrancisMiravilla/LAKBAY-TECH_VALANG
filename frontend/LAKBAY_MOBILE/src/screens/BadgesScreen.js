@@ -1,21 +1,11 @@
-import React from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
-import { Ionicons } from '@expo/vector-icons';
 import VintaStripe from '../components/VintaStripe';
-
-const STATS = [
-  { value: '2,450',label: 'XP Earned',   color: COLORS.gold   },
-  { value: '7',    label: 'QR Scanned',  color: COLORS.teal   },
-  { value: '3',    label: 'AR Done',     color: COLORS.accent },
-];
-
-const PROGRESS = [
-  { icon: '🔍', title: 'QR Visited',      sub: '7/12 locations scanned',          pct: 0.58, color: COLORS.teal   },
-  { icon: '📸', title: 'AR Completed',    sub: '3/5 museum AR experiences',       pct: 0.60, color: COLORS.accent },
-  { icon: '🏆', title: 'Catch Progress',  sub: '2/4 cultural symbols caught',     pct: 0.50, color: COLORS.gold   },
-];
+import { authService } from '../api/authService';
+import { getMyScans, getSpots } from '../api/qrService';
 
 const BADGES = [
   { emoji: '⛵', label: 'Vinta',       color: COLORS.accent },
@@ -26,13 +16,79 @@ const BADGES = [
 ];
 
 export default function BadgesScreen() {
+  const [profile, setProfile] = useState(null);
+  const [scans, setScans] = useState([]);
+  const [totalSpots, setTotalSpots] = useState(12);
+  const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      const fetchData = async () => {
+        try {
+          const [p, s, spotsData] = await Promise.all([
+            authService.getProfile(),
+            getMyScans(),
+            getSpots().catch(() => []) // Fallback in case spots fail
+          ]);
+          if (isActive) {
+            setProfile(p);
+            setScans(s?.scans || []);
+            if (spotsData?.length > 0) {
+              setTotalSpots(spotsData.length);
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching badges data:', err);
+        } finally {
+          if (isActive) setLoading(false);
+        }
+      };
+      fetchData();
+      return () => { isActive = false; };
+    }, [])
+  );
+
+  const xp = profile?.xp || 0;
+  // Level calculation: 100 XP per level
+  const level = Math.floor(xp / 100) + 1;
+  const nextLevelXp = level * 100;
+  
+  const scansCount = scans.length;
+  // Assume AR done if unlock_type is AR or if we eventually track it. 
+  // For now, let's just count how many scans have 'ar' unlock type if applicable, or default to 0.
+  const arDone = scans.filter(s => s.unlock_type === 'ar').length;
+
+  const pctQR = totalSpots > 0 ? scansCount / totalSpots : 0;
+  const pctAR = arDone / 5; // Assuming 5 AR experiences total for now
+  
+  const STATS = [
+    { value: xp.toLocaleString(), label: 'XP Earned', color: COLORS.gold },
+    { value: scansCount.toString(), label: 'QR Scanned', color: COLORS.teal },
+    { value: arDone.toString(), label: 'AR Done', color: COLORS.accent },
+  ];
+
+  const PROGRESS = [
+    { icon: '🔍', title: 'QR Visited', sub: `${scansCount}/${totalSpots} locations scanned`, pct: pctQR, color: COLORS.teal },
+    { icon: '📸', title: 'AR Completed', sub: `${arDone}/5 museum AR experiences`, pct: pctAR, color: COLORS.accent },
+    { icon: '🏆', title: 'Catch Progress', sub: `0/4 cultural symbols caught`, pct: 0, color: COLORS.gold },
+  ];
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.accent} />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.navy} />
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>User Progress</Text>
+        <Text style={styles.headerTitle}>Level {level} Explorer</Text>
       </View>
       <VintaStripe height={4} />
 
@@ -79,7 +135,7 @@ export default function BadgesScreen() {
                   style={[
                     styles.progressBarFill,
                     {
-                      width: `${Math.round(p.pct * 100)}%`,
+                      width: `${Math.min(100, Math.round(p.pct * 100))}%`,
                       backgroundColor: p.color,
                     },
                   ]}

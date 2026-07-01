@@ -149,7 +149,11 @@ class SpotTriviaView(APIView):
 
     def get(self, request, spot_id):
         spot = get_object_or_404(CulturalSpot, pk=spot_id)
-        all_questions = list(TriviaQuestion.objects.filter(spot=spot))
+        all_questions = list(TriviaQuestion.objects.filter(spot=spot, status='approved'))
+        
+        if not all_questions:
+            return Response({'error': 'Quiz is currently unavailable. Please try again later.'}, status=status.HTTP_404_NOT_FOUND)
+            
         sample = random.sample(all_questions, min(self.QUESTIONS_PER_QUIZ, len(all_questions)))
         serializer = TriviaQuestionSerializer(sample, many=True)
         return Response({
@@ -234,12 +238,17 @@ class GenerateAITriviaView(APIView):
 
     def get(self, request, spot_id):
         spot = get_object_or_404(CulturalSpot, pk=spot_id)
+        
+        try:
+            count = int(request.GET.get('count', 5))
+        except ValueError:
+            count = 5
 
         client = Groq(api_key=settings.GROQ_API_KEY)
 
         prompt = f"""You are a cultural trivia generator for a Philippine tourism app called LAKBAY.
 
-Generate exactly 5 multiple-choice trivia questions about this cultural spot:
+Generate exactly {count} multiple-choice trivia questions about this cultural spot:
 
 Name: {spot.name}
 Location: {spot.location_name}
@@ -261,7 +270,8 @@ Required JSON format:
     {{
       "question": "Question text here?",
       "choices": ["Choice A", "Choice B", "Choice C", "Choice D"],
-      "correct_index": 0
+      "correct_index": 0,
+      "explanation": "Short explanation of the correct answer."
     }}
   ]
 }}"""
@@ -279,15 +289,25 @@ Required JSON format:
                 if raw.startswith('json'):
                     raw = raw[4:]
             data = json.loads(raw.strip())
-            questions = []
-            for q in data.get('questions', [])[:5]:
+            questions_created = []
+            for q in data.get('questions', [])[:count]:
                 idx = q.get('correct_index', 0)
-                questions.append({
-                    'question':      q['question'],
-                    'choices':       q['choices'],
-                    'correct_answer': q['choices'][idx],
-                })
-            return Response({'spot_id': spot.id, 'spot_name': spot.name, 'questions': questions})
+                # Ensure choices match the expected format
+                if len(q['choices']) != 4: continue
+                
+                new_q = TriviaQuestion.objects.create(
+                    spot=spot,
+                    question=q['question'],
+                    choices=q['choices'],
+                    correct_index=idx,
+                    explanation=q.get('explanation', ''),
+                    status='pending',
+                    generated_by=request.user
+                )
+                questions_created.append(new_q)
+                
+            serializer = TriviaQuestionAdminSerializer(questions_created, many=True)
+            return Response({'message': f'Generated {len(questions_created)} pending questions.', 'questions': serializer.data})
         except Exception as e:
             return Response(
                 {'error': f'AI generation failed: {str(e)}'},
@@ -304,12 +324,17 @@ class GenerateIconAITriviaView(APIView):
 
     def get(self, request, icon_id):
         icon = get_object_or_404(CulturalIcon, pk=icon_id)
+        
+        try:
+            count = int(request.GET.get('count', 5))
+        except ValueError:
+            count = 5
 
         client = Groq(api_key=settings.GROQ_API_KEY)
 
         prompt = f"""You are a cultural trivia generator for a Philippine tourism app called LAKBAY.
 
-Generate exactly 5 multiple-choice trivia questions about this cultural icon from Zamboanga City:
+Generate exactly {count} multiple-choice trivia questions about this cultural icon from Zamboanga City:
 
 Name: {icon.name}
 About: {icon.about}
@@ -329,7 +354,8 @@ Required JSON format:
     {{
       "question": "Question text here?",
       "choices": ["Choice A", "Choice B", "Choice C", "Choice D"],
-      "correct_index": 0
+      "correct_index": 0,
+      "explanation": "Short explanation of the correct answer."
     }}
   ]
 }}"""
@@ -346,15 +372,24 @@ Required JSON format:
                 if raw.startswith('json'):
                     raw = raw[4:]
             data = json.loads(raw.strip())
-            questions = []
-            for q in data.get('questions', [])[:5]:
+            questions_created = []
+            for q in data.get('questions', [])[:count]:
                 idx = q.get('correct_index', 0)
-                questions.append({
-                    'question':      q['question'],
-                    'choices':       q['choices'],
-                    'correct_answer': q['choices'][idx],
-                })
-            return Response({'icon_id': icon.id, 'icon_name': icon.name, 'questions': questions})
+                if len(q['choices']) != 4: continue
+                
+                new_q = TriviaQuestion.objects.create(
+                    icon=icon,
+                    question=q['question'],
+                    choices=q['choices'],
+                    correct_index=idx,
+                    explanation=q.get('explanation', ''),
+                    status='pending',
+                    generated_by=request.user
+                )
+                questions_created.append(new_q)
+                
+            serializer = TriviaQuestionAdminSerializer(questions_created, many=True)
+            return Response({'message': f'Generated {len(questions_created)} pending questions.', 'questions': serializer.data})
         except Exception as e:
             return Response(
                 {'error': f'AI generation failed: {str(e)}'},
@@ -553,3 +588,118 @@ def model_viewer_page(request):
     response['X-Frame-Options'] = 'ALLOWALL'
     response['Access-Control-Allow-Origin'] = '*'
     return response
+
+from django.utils import timezone
+
+class IconTriviaView(APIView):
+    """Mobile endpoint to fetch approved trivia for a Catch icon"""
+    permission_classes = [permissions.IsAuthenticated]
+    QUESTIONS_PER_QUIZ = 5
+
+    def get(self, request, icon_id):
+        icon = get_object_or_404(CulturalIcon, pk=icon_id)
+        all_questions = list(TriviaQuestion.objects.filter(icon=icon, status='approved'))
+        
+        if not all_questions:
+            return Response({'error': 'Quiz is currently unavailable. Please try again later.'}, status=status.HTTP_404_NOT_FOUND)
+            
+        sample = random.sample(all_questions, min(self.QUESTIONS_PER_QUIZ, len(all_questions)))
+        serializer = TriviaQuestionSerializer(sample, many=True)
+        return Response({
+            'icon_id': icon.id,
+            'icon_name': icon.name,
+            'questions': serializer.data,
+        })
+
+
+class SubmitIconTriviaView(APIView):
+    """Mobile endpoint to submit Catch trivia answers"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, icon_id):
+        icon = get_object_or_404(CulturalIcon, pk=icon_id)
+        answers = request.data.get('answers', [])
+
+        if not answers:
+            return Response({'error': 'answers list is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        score = 0
+        results = []
+
+        for item in answers:
+            question_id = item.get('question_id')
+            choice_index = item.get('choice_index')
+
+            try:
+                q = TriviaQuestion.objects.get(pk=question_id, icon=icon)
+                correct = (choice_index == q.correct_index)
+                if correct: score += 1
+                results.append({'question_id': question_id, 'correct': correct})
+            except TriviaQuestion.DoesNotExist:
+                results.append({'question_id': question_id, 'correct': False})
+
+        total = len(answers)
+        passed = total > 0 and (score / total) >= PASS_THRESHOLD
+
+        if passed:
+            request.user.__class__.objects.filter(pk=request.user.pk).update(xp=F('xp') + XP_PER_QUIZ)
+            request.user.refresh_from_db(fields=['xp'])
+
+        return Response({
+            'score': score,
+            'total': total,
+            'passed': passed,
+            'results': results,
+            'xp_earned': XP_PER_QUIZ if passed else 0,
+            'total_xp': request.user.xp,
+        })
+
+
+class TriviaReviewListView(APIView):
+    """Tourist Guide dashboard - List pending quizzes"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role not in ['admin', 'tourist_guide']:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+            
+        pending = TriviaQuestion.objects.filter(status='pending').order_by('-updated_at')
+        serializer = TriviaQuestionAdminSerializer(pending, many=True)
+        return Response(serializer.data)
+
+
+class TriviaReviewActionView(APIView):
+    """Tourist Guide dashboard - Approve/Reject/Edit a quiz"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def put(self, request, pk):
+        if request.user.role not in ['admin', 'tourist_guide']:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+            
+        q = get_object_or_404(TriviaQuestion, pk=pk)
+        
+        action = request.data.get('action') # 'approve', 'reject', 'edit'
+        
+        if action == 'approve':
+            q.status = 'approved'
+            q.reviewed_by = request.user
+            q.review_date = timezone.now()
+            q.save()
+            return Response({'status': 'approved'})
+            
+        elif action == 'reject':
+            q.status = 'rejected'
+            q.reviewed_by = request.user
+            q.review_date = timezone.now()
+            q.save()
+            return Response({'status': 'rejected'})
+            
+        elif action == 'edit':
+            q.question = request.data.get('question', q.question)
+            q.choices = request.data.get('choices', q.choices)
+            q.correct_index = request.data.get('correct_index', q.correct_index)
+            q.explanation = request.data.get('explanation', q.explanation)
+            q.save()
+            return Response(TriviaQuestionAdminSerializer(q).data)
+            
+        return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)

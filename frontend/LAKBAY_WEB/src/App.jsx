@@ -255,6 +255,9 @@ function App() {
     is_featured: false,
   });
 
+  const [isEditSpotModalOpen, setIsEditSpotModalOpen] = useState(false);
+  const [editingSpot, setEditingSpot] = useState(null);
+
   const [selectedMapPinId, setSelectedMapPinId] = useState(null);
   const [modalSearchQuery, setModalSearchQuery] = useState('');
   const [modalSearching, setModalSearching] = useState(false);
@@ -275,6 +278,10 @@ function App() {
   const modalMapContainerRef = useRef(null);
   const modalMapRef = useRef(null);
   const modalMarkerRef = useRef(null);
+
+  const editModalMapContainerRef = useRef(null);
+  const editModalMapRef = useRef(null);
+  const editModalMarkerRef = useRef(null);
 
   // Initialize Leaflet map — only rebuilds on tab/theme/pins change, NOT on pin selection
   useEffect(() => {
@@ -391,12 +398,16 @@ function App() {
 
   // Handle flyTo when selectedMapPinId changes
   useEffect(() => {
-    if (!mapRef.current) return;
-    const pin = spots.find(p => p.id === selectedMapPinId);
-    if (pin && pin.latitude) {
-      mapRef.current.flyTo([parseFloat(pin.latitude), parseFloat(pin.longitude)], 14);
+    if (!mapRef.current || activeTab !== 'map') return;
+    try {
+      const pin = spots.find(p => p.id === selectedMapPinId);
+      if (pin && pin.latitude) {
+        mapRef.current.flyTo([parseFloat(pin.latitude), parseFloat(pin.longitude)], 14);
+      }
+    } catch (err) {
+      console.warn("Leaflet flyTo skipped due to rendering state:", err);
     }
-  }, [selectedMapPinId, spots]);
+  }, [selectedMapPinId, spots, activeTab]);
 
 
   const toggleNewSpotType = (type) => {
@@ -488,6 +499,73 @@ function App() {
     return () => clearTimeout(timer);
   }, [isAddSpotModalOpen, theme]);
 
+  // Initialize modal map when Edit Spot modal opens
+  useEffect(() => {
+    if (!isEditSpotModalOpen) {
+      if (editModalMapRef.current) {
+        editModalMapRef.current.remove();
+        editModalMapRef.current = null;
+        editModalMarkerRef.current = null;
+      }
+      return;
+    }
+
+    // Wait for the DOM to render the container
+    const timer = setTimeout(() => {
+      if (!editModalMapContainerRef.current || editModalMapRef.current || !editingSpot) return;
+
+      const tileUrl = theme === 'dark'
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+      const initialLat = parseFloat(editingSpot.latitude) || 6.9214;
+      const initialLng = parseFloat(editingSpot.longitude) || 122.0790;
+      const hasCoords = !!editingSpot.latitude && !!editingSpot.longitude;
+
+      const map = L.map(editModalMapContainerRef.current, {
+        center: [initialLat, initialLng],
+        zoom: hasCoords ? 15 : 13,
+        zoomControl: false,
+      });
+
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      L.tileLayer(tileUrl, {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        subdomains: 'abcd',
+        maxZoom: 20,
+      }).addTo(map);
+
+      if (hasCoords) {
+        editModalMarkerRef.current = L.circleMarker([initialLat, initialLng], {
+          radius: 8,
+          color: '#e91e8c',
+          fillColor: '#e91e8c',
+          fillOpacity: 0.9,
+          weight: 2,
+        }).addTo(map);
+      }
+
+      map.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        setEditingSpot(prev => ({ ...prev, latitude: lat.toFixed(6), longitude: lng.toFixed(6) }));
+
+        if (editModalMarkerRef.current) editModalMarkerRef.current.remove();
+        editModalMarkerRef.current = L.circleMarker([lat, lng], {
+          radius: 8,
+          color: '#e91e8c',
+          fillColor: '#e91e8c',
+          fillOpacity: 0.9,
+          weight: 2,
+        }).addTo(map);
+      });
+
+      editModalMapRef.current = map;
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [isEditSpotModalOpen, theme]);
+
   const handleModalSearch = async () => {
     if (!modalSearchQuery.trim() || !modalMapRef.current) return;
     setModalSearching(true);
@@ -528,10 +606,21 @@ function App() {
   const [trivia, setTrivia] = useState(INITIAL_TRIVIA);
   const [triviaQuestions, setTriviaQuestions] = useState([]);
   const [triviaSpotFilter, setTriviaSpotFilter] = useState('');
-  const [isAddTriviaModalOpen, setIsAddTriviaModalOpen] = useState(false);
   const [isEditTriviaModalOpen, setIsEditTriviaModalOpen] = useState(false);
   const [editingTrivia, setEditingTrivia] = useState(null);
-  const [newTrivia, setNewTrivia] = useState({ spot_id: '', question: '', choice_a: '', choice_b: '', choice_c: '', choice_d: '', correct_index: '0' });
+  
+  // AI Quiz Generator States
+  const [generateQuizCount, setGenerateQuizCount] = useState(5);
+  const [isGenerateQuizModalOpen, setIsGenerateQuizModalOpen] = useState(false);
+  const [generateQuizStep, setGenerateQuizStep] = useState(1);
+  const [generateQuizType, setGenerateQuizType] = useState('spot'); // 'spot' or 'icon'
+  const [generateQuizContentId, setGenerateQuizContentId] = useState('');
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+
+  // Review Quiz States
+  const [pendingQuizzes, setPendingQuizzes] = useState([]);
+  const [isReviewQuizModalOpen, setIsReviewQuizModalOpen] = useState(false);
+  const [reviewingQuiz, setReviewingQuiz] = useState(null);
   const [creatures] = useState(INITIAL_CREATURES);
   const [exhibits] = useState(INITIAL_EXHIBITS);
   const [badges, setBadges] = useState(INITIAL_BADGES);
@@ -586,6 +675,7 @@ function App() {
         if (user.is_staff) {
           setCurrentUser(user);
           setIsAuthenticated(true);
+          if (user.role === 'tourist_guide') setActiveTab('trivia_review');
         } else {
           authService.logout();
         }
@@ -612,6 +702,7 @@ function App() {
 
       setCurrentUser(user);
       setIsAuthenticated(true);
+      if (user.role === 'tourist_guide') setActiveTab('trivia_review');
     } catch (error) {
       showError('Invalid credentials. Please check your email and password.', 'Login Failed', 'error');
     } finally {
@@ -632,23 +723,35 @@ function App() {
       setSpots(items.map(normalizeSpot));
     }).catch(console.error);
 
-    qrService.getMarkers().then(({ data }) => {
-      const items = Array.isArray(data) ? data : (data.results || []);
-      setQrcodes(items.map(normalizeMarker));
-    }).catch(console.error);
+    if (currentUser && currentUser.role !== 'tourist_guide') {
+      qrService.getMarkers().then(({ data }) => {
+        const items = Array.isArray(data) ? data : (data.results || []);
+        setQrcodes(items.map(normalizeMarker));
+      }).catch(console.error);
+      
+      qrService.getUsers().then(({ data }) => {
+        const items = Array.isArray(data) ? data : (data.results || []);
+        setUsers(items);
+      }).catch(console.error);
+    }
+
     qrService.getCatchIcons().then(({ data }) => {
       const items = Array.isArray(data) ? data : (data.results || []);
       setCatchIcons(items);
     }).catch(console.error);
+    
     qrService.getTriviaQuestions().then(({ data }) => {
       const items = Array.isArray(data) ? data : (data.results || []);
       setTriviaQuestions(items);
     }).catch(console.error);
-    qrService.getUsers().then(({ data }) => {
-      const items = Array.isArray(data) ? data : (data.results || []);
-      setUsers(items);
-    }).catch(console.error);
-  }, [isAuthenticated]);
+
+    // Fetch pending quizzes for Review Module
+    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'tourist_guide')) {
+      qrService.getPendingQuizzes().then(({ data }) => {
+        setPendingQuizzes(data || []);
+      }).catch(console.error);
+    }
+  }, [isAuthenticated, currentUser]);
 
   // Search/Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -661,9 +764,6 @@ function App() {
   ]);
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
 
-
-  const [isEditSpotModalOpen, setIsEditSpotModalOpen] = useState(false);
-  const [editingSpot, setEditingSpot] = useState(null);
 
   const [isAddCatchIconModalOpen, setIsAddCatchIconModalOpen] = useState(false);
   const [isEditCatchIconModalOpen, setIsEditCatchIconModalOpen] = useState(false);
@@ -977,16 +1077,6 @@ function App() {
     correct_index: parseInt(form.correct_index),
   });
 
-  const handleAddTrivia = async (e) => {
-    e.preventDefault();
-    try {
-      const { data } = await qrService.createTriviaQuestion(triviaFormToPayload(newTrivia));
-      setTriviaQuestions(prev => [...prev, data]);
-      setIsAddTriviaModalOpen(false);
-      setNewTrivia({ spot_id: '', question: '', choice_a: '', choice_b: '', choice_c: '', choice_d: '', correct_index: '0' });
-    } catch (err) { console.error(err); }
-  };
-
   const handleEditTriviaSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -1019,6 +1109,70 @@ function App() {
     setIsEditTriviaModalOpen(true);
   };
 
+  const handleGenerateAIQuiz = async () => {
+    if (!generateQuizContentId) return;
+    setIsGeneratingQuiz(true);
+    try {
+      const { data } = await qrService.generateAITrivia(generateQuizType, generateQuizContentId, generateQuizCount);
+      showError(`Successfully generated pending quizzes. They must be reviewed before appearing on mobile.`, 'Success', 'info');
+      // Refresh pending quizzes
+      qrService.getPendingQuizzes().then(res => setPendingQuizzes(res.data || [])).catch(console.error);
+      setIsGenerateQuizModalOpen(false);
+      setGenerateQuizStep(1);
+    } catch (err) {
+      showError('Failed to generate AI quiz. Please try again.', 'Error', 'error');
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  };
+
+  const handleSingleReviewAction = async (action, questionId) => {
+    if (!reviewingQuiz || !reviewingQuiz.questions) return;
+    
+    const question = reviewingQuiz.questions.find(q => q.id === questionId);
+    if (!question) return;
+
+    try {
+      const payload = {
+        action,
+        question: question.question,
+        choices: question.choices,
+        correct_index: question.correct_index,
+        explanation: question.explanation
+      };
+      
+      await qrService.reviewQuizAction(question.id, payload);
+      
+      // Remove this question from the pending list
+      setPendingQuizzes(prev => prev.filter(q => q.id !== question.id));
+      
+      // Update the modal's batch list
+      const remainingQuestions = reviewingQuiz.questions.filter(q => q.id !== question.id);
+      
+      if (action === 'approve' && question.spot_name) {
+         qrService.getTriviaQuestions().then(res => setTriviaQuestions(res.data || []));
+      } else if (action === 'reject') {
+         // Add notification for the admin
+         setNotifications(prev => [{ 
+            id: Date.now(), 
+            text: `Tourist Guide rejected a question for ${question.spot_name || question.icon_name}.`, 
+            time: 'Just now' 
+         }, ...prev]);
+      }
+      
+      // Close modal if no questions left in this batch
+      if (remainingQuestions.length === 0) {
+        setIsReviewQuizModalOpen(false);
+        setReviewingQuiz(null);
+      } else {
+        setReviewingQuiz({ ...reviewingQuiz, questions: remainingQuestions });
+      }
+    } catch (err) {
+      console.error(err);
+      showError('Failed to process review action.', 'Error', 'error');
+    }
+  };
+
   const filteredTriviaQuestions = triviaSpotFilter
     ? triviaQuestions.filter(q => q.spot_name === spots.find(s => s.id === parseInt(triviaSpotFilter))?.name)
     : triviaQuestions;
@@ -1034,60 +1188,64 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className="login-container">
-        <div className="login-card">
-          <div className="login-header">
-            <div className="sidebar-logo-container" style={{ margin: '0 auto 16px', width: '48px', height: '48px' }}>
-              <Anchor className="sidebar-logo-icon" size={24} />
+      <>
+        <div className="login-container">
+          <div className="login-card">
+            <div className="login-header">
+              <div className="sidebar-logo-container" style={{ margin: '0 auto 16px', width: '48px', height: '48px' }}>
+                <Anchor className="sidebar-logo-icon" size={24} />
+              </div>
+              <h1 className="brand-text" style={{ fontSize: '28px', justifyContent: 'center' }}>
+                LAKBAY
+                <span className="brand-subtitle">
+                  {!isAuthenticated ? 'PORTAL' : currentUser?.role === 'tourist_guide' ? 'GUIDE PANEL' : 'ADMIN PANEL'}
+                </span>
+              </h1>
+              <p className="login-subtitle">Sign in to manage the Zamboanga Cultural System</p>
             </div>
-            <h1 className="brand-text" style={{ fontSize: '28px', justifyContent: 'center' }}>
-              LAKBAY
-              <span className="brand-subtitle">ADMIN PANEL</span>
-            </h1>
-            <p className="login-subtitle">Sign in to manage the Zamboanga Cultural System</p>
+            
+            <form onSubmit={handleLogin} className="login-form">
+              
+              <div className="form-group">
+                <label className="form-label">Email</label>
+                <input 
+                  type="email" 
+                  className="form-input" 
+                  placeholder="Enter your email"
+                  value={loginCredentials.email}
+                  onChange={(e) => setLoginCredentials({...loginCredentials, email: e.target.value})}
+                  required 
+                />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Password</label>
+                <input 
+                  type="password" 
+                  className="form-input" 
+                  placeholder="Enter your password"
+                  value={loginCredentials.password}
+                  onChange={(e) => setLoginCredentials({...loginCredentials, password: e.target.value})}
+                  required 
+                />
+              </div>
+              
+              <button type="submit" className="btn btn-primary login-btn" disabled={isLoggingIn}>
+                {isLoggingIn ? 'Authenticating...' : 'Authenticate'}
+              </button>
+            </form>
           </div>
-          
-          <form onSubmit={handleLogin} className="login-form">
-            
-            <div className="form-group">
-              <label className="form-label">Email</label>
-              <input 
-                type="email" 
-                className="form-input" 
-                placeholder="Enter your email"
-                value={loginCredentials.email}
-                onChange={(e) => setLoginCredentials({...loginCredentials, email: e.target.value})}
-                required 
-              />
-            </div>
-            
-            <div className="form-group">
-              <label className="form-label">Password</label>
-              <input 
-                type="password" 
-                className="form-input" 
-                placeholder="Enter your password"
-                value={loginCredentials.password}
-                onChange={(e) => setLoginCredentials({...loginCredentials, password: e.target.value})}
-                required 
-              />
-            </div>
-            
-            <button type="submit" className="btn btn-primary login-btn" disabled={isLoggingIn}>
-              {isLoggingIn ? 'Authenticating...' : 'Authenticate'}
-            </button>
-          </form>
         </div>
-      </div>
 
-      {/* ── Error Modal (login page) ── */}
-      <ErrorModal
-        visible={errorModal.visible}
-        type={errorModal.type}
-        title={errorModal.title}
-        message={errorModal.message}
-        onClose={closeErrorModal}
-      />
+        {/* ── Error Modal (login page) ── */}
+        <ErrorModal
+          visible={errorModal.visible}
+          type={errorModal.type}
+          title={errorModal.title}
+          message={errorModal.message}
+          onClose={closeErrorModal}
+        />
+      </>
     );
   }
 
@@ -1106,82 +1264,102 @@ function App() {
         </div>
 
         <nav className="sidebar-menu">
-          <span className="menu-section-title">Core Panels</span>
-          <div 
-            className={`menu-item ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => setActiveTab('overview')}
-          >
-            <LayoutDashboard className="menu-icon" />
-            Dashboard
-          </div>
-          <div 
-            className={`menu-item ${activeTab === 'spots' ? 'active' : ''}`}
-            onClick={() => setActiveTab('spots')}
-          >
-            <MapPin className="menu-icon" />
-            Feature Places
-          </div>
-          <div 
-            className={`menu-item ${activeTab === 'qrcodes' ? 'active' : ''}`}
-            onClick={() => setActiveTab('qrcodes')}
-          >
-            <QrCode className="menu-icon" />
-            QR Codes
-          </div>
-          <div 
-            className={`menu-item ${activeTab === 'map' ? 'active' : ''}`}
-            onClick={() => setActiveTab('map')}
-          >
-            <Map className="menu-icon" />
-            Interactive Map
-          </div>
-          <div 
-            className={`menu-item ${activeTab === 'ar' ? 'active' : ''}`}
-            onClick={() => setActiveTab('ar')}
-          >
-            <Eye className="menu-icon" />
-            AR
-          </div>
-          <div 
-            className={`menu-item ${activeTab === 'catch' ? 'active' : ''}`}
-            onClick={() => setActiveTab('catch')}
-          >
-            <Target className="menu-icon" />
-            CATCH
-          </div>
+          {currentUser?.role !== 'tourist_guide' && (
+            <>
+              <span className="menu-section-title">Core Panels</span>
+              <div 
+                className={`menu-item ${activeTab === 'overview' ? 'active' : ''}`}
+                onClick={() => setActiveTab('overview')}
+              >
+                <LayoutDashboard className="menu-icon" />
+                Dashboard
+              </div>
+              <div 
+                className={`menu-item ${activeTab === 'spots' ? 'active' : ''}`}
+                onClick={() => setActiveTab('spots')}
+              >
+                <MapPin className="menu-icon" />
+                Feature Places
+              </div>
+              <div 
+                className={`menu-item ${activeTab === 'qrcodes' ? 'active' : ''}`}
+                onClick={() => setActiveTab('qrcodes')}
+              >
+                <QrCode className="menu-icon" />
+                QR Codes
+              </div>
+              <div 
+                className={`menu-item ${activeTab === 'map' ? 'active' : ''}`}
+                onClick={() => setActiveTab('map')}
+              >
+                <Map className="menu-icon" />
+                Interactive Map
+              </div>
+              <div 
+                className={`menu-item ${activeTab === 'ar' ? 'active' : ''}`}
+                onClick={() => setActiveTab('ar')}
+              >
+                <Eye className="menu-icon" />
+                AR
+              </div>
+              <div 
+                className={`menu-item ${activeTab === 'catch' ? 'active' : ''}`}
+                onClick={() => setActiveTab('catch')}
+              >
+                <Target className="menu-icon" />
+                CATCH
+              </div>
+            </>
+          )}
 
 
 
-          <div
-            className={`menu-item ${activeTab === 'trivia' ? 'active' : ''}`}
-            onClick={() => setActiveTab('trivia')}
-          >
-            <HelpCircle className="menu-icon" />
-            Trivia Questions
-          </div>
+          {currentUser?.role !== 'tourist_guide' && (
+            <div
+              className={`menu-item ${activeTab === 'trivia' ? 'active' : ''}`}
+              onClick={() => setActiveTab('trivia')}
+            >
+              <HelpCircle className="menu-icon" />
+              Trivia Generator
+            </div>
+          )}
 
-          <span className="menu-section-title">Operations</span>
-          <div 
-            className={`menu-item ${activeTab === 'users' ? 'active' : ''}`}
-            onClick={() => setActiveTab('users')}
-          >
-            <UsersIcon className="menu-icon" />
-            Users
-          </div>
-          <div 
-            className={`menu-item ${activeTab === 'badges' ? 'active' : ''}`}
-            onClick={() => setActiveTab('badges')}
-          >
-            <Award className="menu-icon" />
-            Badges
-          </div>
-          <div 
-            className={`menu-item ${activeTab === 'reports' ? 'active' : ''}`}
-            onClick={() => setActiveTab('reports')}
-          >
-            <FileText className="menu-icon" />
-            Reports
-          </div>
+          {(currentUser?.role === 'admin' || currentUser?.role === 'tourist_guide') && (
+            <div
+              className={`menu-item ${activeTab === 'trivia_review' ? 'active' : ''}`}
+              onClick={() => setActiveTab('trivia_review')}
+            >
+              <Target className="menu-icon" />
+              Review Quizzes
+            </div>
+          )}
+
+          {currentUser?.role !== 'tourist_guide' && (
+            <>
+              <span className="menu-section-title">Operations</span>
+              <div 
+                className={`menu-item ${activeTab === 'users' ? 'active' : ''}`}
+                onClick={() => setActiveTab('users')}
+              >
+                <UsersIcon className="menu-icon" />
+                Users
+              </div>
+              <div 
+                className={`menu-item ${activeTab === 'badges' ? 'active' : ''}`}
+                onClick={() => setActiveTab('badges')}
+              >
+                <Award className="menu-icon" />
+                Badges
+              </div>
+              <div 
+                className={`menu-item ${activeTab === 'reports' ? 'active' : ''}`}
+                onClick={() => setActiveTab('reports')}
+              >
+                <FileText className="menu-icon" />
+                Reports
+              </div>
+            </>
+          )}
         </nav>
 
       <div className="sidebar-footer">
@@ -1331,12 +1509,6 @@ function App() {
               <button className="btn btn-primary" onClick={() => setIsAddSpotModalOpen(true)}>
                 <Plus size={16} />
                 Add New Spot
-              </button>
-            )}
-            {activeTab === 'trivia' && (
-              <button className="btn btn-primary" onClick={() => setIsAddTriviaModalOpen(true)}>
-                <Plus size={16} />
-                Add Question
               </button>
             )}
           </div>
@@ -2336,9 +2508,9 @@ function App() {
                       return <option key={s.id} value={s.id}>{s.name} ({count})</option>;
                     })}
                   </select>
-                  <button className="btn btn-primary" onClick={() => setIsAddTriviaModalOpen(true)}>
-                    <Plus size={16} />
-                    Add Question
+                  <button className="btn btn-primary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }} onClick={() => setIsGenerateQuizModalOpen(true)}>
+                    <Target size={16} />
+                    Generate AI Quiz
                   </button>
                 </div>
               </div>
@@ -2414,6 +2586,83 @@ function App() {
                   </div>
                 </div>
               )}
+            </section>
+          )}
+
+          {/* TAB CONTENT: TRIVIA REVIEW (TOURIST GUIDE) */}
+          {activeTab === 'trivia_review' && (
+            <section className="content-card" style={{ gap: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 className="card-title">
+                  <Target className="card-title-icon" size={18} />
+                  Pending Quiz Reviews
+                </h3>
+                <span className="badge" style={{ backgroundColor: 'var(--accent-pink)', color: '#fff' }}>
+                  {pendingQuizzes.length} Questions Pending
+                </span>
+              </div>
+
+              <div className="table-wrapper">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '120px' }}>Type</th>
+                      <th>Content Target</th>
+                      <th>Questions in Batch</th>
+                      <th>Generated By</th>
+                      <th style={{ width: '100px' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const grouped = pendingQuizzes.reduce((acc, q) => {
+                        const targetName = q.spot_name || q.icon_name || 'Unknown';
+                        if (!acc[targetName]) acc[targetName] = { type: q.spot_name ? 'QR / AR Spot' : 'Catch Icon', questions: [], targetName, generated_by_name: q.generated_by_name };
+                        acc[targetName].questions.push(q);
+                        return acc;
+                      }, {});
+                      const groups = Object.values(grouped);
+                      
+                      if (groups.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan="5" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)' }}>
+                              No pending quizzes to review!
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return groups.map((g, idx) => (
+                        <tr key={idx}>
+                          <td>
+                            <span className="badge" style={{ fontSize: '10px', backgroundColor: g.type === 'QR / AR Spot' ? 'var(--accent-gold)' : '#38BDF8', color: '#111' }}>
+                              {g.type}
+                            </span>
+                          </td>
+                          <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {g.targetName}
+                          </td>
+                          <td style={{ color: 'var(--text-title)' }}>
+                            {g.questions.length} Questions
+                          </td>
+                          <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
+                            {g.generated_by_name || 'System'}
+                          </td>
+                          <td>
+                            <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => {
+                              setReviewingQuiz(g);
+                              setIsReviewQuizModalOpen(true);
+                            }}>
+                              Review Batch
+                            </button>
+                          </td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
             </section>
           )}
 
@@ -2766,6 +3015,16 @@ function App() {
 
             <form onSubmit={handleEditSpotSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '24px' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <label className="form-label">Update Location on Map</label>
+                  <div style={{ width: '100%', height: '220px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--card-border)', position: 'relative', zIndex: 1 }}>
+                    <div ref={editModalMapContainerRef} style={{ width: '100%', height: '100%' }} />
+                    <div style={{ position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'rgba(26,26,46,0.85)', backdropFilter: 'blur(4px)', padding: '6px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, color: '#fff', zIndex: 1000, pointerEvents: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                      Click on the map to update coordinates
+                    </div>
+                  </div>
+                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                   <div className="form-group">
                     <label className="form-label">Spot Name</label>
@@ -3149,63 +3408,6 @@ function App() {
         </div>
       )}
 
-      {/* ADD TRIVIA MODAL */}
-      {isAddTriviaModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-card">
-            <div className="modal-header">
-              <h3 className="modal-title"><HelpCircle size={18} style={{ marginRight: '8px' }} /> Add Trivia Question</h3>
-              <button className="close-btn" onClick={() => setIsAddTriviaModalOpen(false)}><X size={20} /></button>
-            </div>
-            <form onSubmit={handleAddTrivia}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">Cultural Spot</label>
-                  <select className="form-select" value={newTrivia.spot_id}
-                    onChange={(e) => setNewTrivia({ ...newTrivia, spot_id: e.target.value })} required>
-                    <option value="">— Select a spot —</option>
-                    {spots.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Question</label>
-                  <textarea className="form-textarea" placeholder="e.g. In what year was Fort Pilar built?"
-                    value={newTrivia.question} onChange={(e) => setNewTrivia({ ...newTrivia, question: e.target.value })} required />
-                </div>
-                {['a', 'b', 'c', 'd'].map((letter, idx) => (
-                  <div className="form-group" key={letter}>
-                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: parseInt(newTrivia.correct_index) === idx ? 'var(--accent-blue)' : '#E2E8F0', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
-                        {letter.toUpperCase()}
-                      </span>
-                      Choice {letter.toUpperCase()}
-                      {parseInt(newTrivia.correct_index) === idx && <span style={{ fontSize: '10px', color: 'var(--accent-pink)', fontWeight: 700 }}>✓ CORRECT</span>}
-                    </label>
-                    <input type="text" className="form-input" placeholder={`Choice ${letter.toUpperCase()}...`}
-                      value={newTrivia[`choice_${letter}`]}
-                      onChange={(e) => setNewTrivia({ ...newTrivia, [`choice_${letter}`]: e.target.value })} required />
-                  </div>
-                ))}
-                <div className="form-group">
-                  <label className="form-label">Correct Answer</label>
-                  <select className="form-select" value={newTrivia.correct_index}
-                    onChange={(e) => setNewTrivia({ ...newTrivia, correct_index: e.target.value })}>
-                    <option value="0">A — {newTrivia.choice_a || '(empty)'}</option>
-                    <option value="1">B — {newTrivia.choice_b || '(empty)'}</option>
-                    <option value="2">C — {newTrivia.choice_c || '(empty)'}</option>
-                    <option value="3">D — {newTrivia.choice_d || '(empty)'}</option>
-                  </select>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setIsAddTriviaModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Save Question</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* EDIT TRIVIA MODAL */}
       {isEditTriviaModalOpen && editingTrivia && (
         <div className="modal-overlay">
@@ -3253,11 +3455,204 @@ function App() {
                   </select>
                 </div>
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => { setIsEditTriviaModalOpen(false); setEditingTrivia(null); }}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Save Changes</button>
-              </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* GENERATE AI QUIZ MODAL (3-STEP) */}
+      {isGenerateQuizModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3 className="modal-title">
+                <Target size={18} style={{ marginRight: '8px' }} />
+                Generate AI Quiz
+              </h3>
+              <button className="close-btn" onClick={() => { setIsGenerateQuizModalOpen(false); setGenerateQuizStep(1); }}><X size={20} /></button>
+            </div>
+            <div className="modal-body" style={{ minHeight: '200px' }}>
+              
+              {/* STEP 1: Choose Type */}
+              {generateQuizStep === 1 && (
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                  <h4 style={{ marginBottom: '20px', color: 'var(--text-title)' }}>Step 1: Choose Content Type</h4>
+                  <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
+                    <button 
+                      className="btn" 
+                      style={{ padding: '20px', background: generateQuizType === 'spot' ? 'var(--accent-blue)' : 'var(--card-bg)', color: generateQuizType === 'spot' ? '#fff' : 'var(--text-primary)', border: '2px solid var(--accent-blue)' }}
+                      onClick={() => setGenerateQuizType('spot')}
+                    >
+                      <MapPin size={32} style={{ margin: '0 auto 8px' }} />
+                      <br/>QR / AR Spot
+                    </button>
+                    <button 
+                      className="btn" 
+                      style={{ padding: '20px', background: generateQuizType === 'icon' ? 'var(--accent-pink)' : 'var(--card-bg)', color: generateQuizType === 'icon' ? '#fff' : 'var(--text-primary)', border: '2px solid var(--accent-pink)' }}
+                      onClick={() => setGenerateQuizType('icon')}
+                    >
+                      <Target size={32} style={{ margin: '0 auto 8px' }} />
+                      <br/>Catch Icon
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2: Choose Content */}
+              {generateQuizStep === 2 && (
+                <div style={{ padding: '10px' }}>
+                  <h4 style={{ marginBottom: '16px', color: 'var(--text-title)' }}>Step 2: Select Content</h4>
+                  <select 
+                    className="form-select" 
+                    value={generateQuizContentId} 
+                    onChange={(e) => setGenerateQuizContentId(e.target.value)}
+                  >
+                    <option value="">— Select {generateQuizType === 'spot' ? 'a Spot' : 'an Icon'} —</option>
+                    {generateQuizType === 'spot' && spots.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    {generateQuizType === 'icon' && catchIcons.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* STEP 3: Generate */}
+              {generateQuizStep === 3 && (
+                <div style={{ textAlign: 'center', padding: '10px' }}>
+                  <h4 style={{ marginBottom: '16px', color: 'var(--text-title)' }}>Step 3: Generate AI Quiz</h4>
+                  
+                  <div className="form-group" style={{ textAlign: 'left', marginBottom: '24px' }}>
+                    <label className="form-label">Number of Questions to Generate</label>
+                    <select 
+                      className="form-select" 
+                      value={generateQuizCount} 
+                      onChange={(e) => setGenerateQuizCount(parseInt(e.target.value))}
+                    >
+                      <option value="1">1 Question</option>
+                      <option value="3">3 Questions</option>
+                      <option value="5">5 Questions</option>
+                      <option value="10">10 Questions</option>
+                    </select>
+                  </div>
+                  
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '13px' }}>
+                    Groq AI will read the information for the selected content and generate <strong>{generateQuizCount}</strong> factual multiple-choice questions. 
+                    <br/><br/>
+                    <strong>Note:</strong> The generated questions will be sent to the Tourist Guides for review. They will NOT appear in the mobile app until they are approved.
+                  </p>
+                </div>
+              )}
+
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+              {generateQuizStep > 1 ? (
+                <button type="button" className="btn btn-secondary" onClick={() => setGenerateQuizStep(prev => prev - 1)}>Back</button>
+              ) : (
+                <button type="button" className="btn btn-secondary" onClick={() => setIsGenerateQuizModalOpen(false)}>Cancel</button>
+              )}
+
+              {generateQuizStep < 3 ? (
+                <button type="button" className="btn btn-primary" onClick={() => {
+                  if (generateQuizStep === 2 && !generateQuizContentId) return showError('Please select a target content first.', 'Missing Selection', 'error');
+                  setGenerateQuizStep(prev => prev + 1);
+                }}>Next</button>
+              ) : (
+                <button type="button" className="btn btn-primary" onClick={handleGenerateAIQuiz} disabled={isGeneratingQuiz || !generateQuizContentId} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {isGeneratingQuiz ? <div className="spinner" style={{ width: '16px', height: '16px', border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> : <Target size={16} />}
+                  {isGeneratingQuiz ? 'Generating...' : 'Generate AI Quiz'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REVIEW QUIZ BATCH MODAL */}
+      {isReviewQuizModalOpen && reviewingQuiz && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ width: '90vw', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">
+                <Target size={18} style={{ marginRight: '8px' }} />
+                Review AI Quiz Batch
+              </h3>
+              <button className="close-btn" onClick={() => { setIsReviewQuizModalOpen(false); setReviewingQuiz(null); }}><X size={20} /></button>
+            </div>
+            <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '20px' }}>
+              <div style={{ marginBottom: '20px', padding: '12px', background: 'var(--card-bg)', borderRadius: '8px', border: '1px solid var(--card-border)' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Target Content</div>
+                <div style={{ fontWeight: 600, color: 'var(--text-title)' }}>{reviewingQuiz.targetName}</div>
+              </div>
+
+              {reviewingQuiz.questions.map((q, index) => (
+                <div key={q.id} style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: index < reviewingQuiz.questions.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
+                  <h4 style={{ color: 'var(--text-title)', marginBottom: '12px', fontSize: '14px' }}>Question {index + 1}</h4>
+                  
+                  <div className="form-group">
+                    <textarea className="form-textarea" value={q.question}
+                      onChange={(e) => {
+                        const newBatch = { ...reviewingQuiz };
+                        newBatch.questions[index].question = e.target.value;
+                        setReviewingQuiz(newBatch);
+                      }} required />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                    {['a', 'b', 'c', 'd'].map((letter, idx) => (
+                      <div className="form-group" key={letter} style={{ marginBottom: 0 }}>
+                        <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: parseInt(q.correct_index) === idx ? 'var(--accent-blue)' : '#E2E8F0', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0, color: parseInt(q.correct_index) === idx ? '#fff' : '#333' }}>
+                            {letter.toUpperCase()}
+                          </span>
+                          Choice {letter.toUpperCase()}
+                          {parseInt(q.correct_index) === idx && <span style={{ fontSize: '10px', color: 'var(--accent-pink)', fontWeight: 700 }}>✓ CORRECT</span>}
+                        </label>
+                        <input type="text" className="form-input" value={q.choices[idx]}
+                          onChange={(e) => {
+                            const newBatch = { ...reviewingQuiz };
+                            newBatch.questions[index].choices[idx] = e.target.value;
+                            setReviewingQuiz(newBatch);
+                          }} required />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div className="form-group">
+                      <label className="form-label">Correct Answer</label>
+                      <select className="form-select" value={q.correct_index}
+                        onChange={(e) => {
+                          const newBatch = { ...reviewingQuiz };
+                          newBatch.questions[index].correct_index = e.target.value;
+                          setReviewingQuiz(newBatch);
+                        }}>
+                        <option value="0">A — {q.choices[0] || '(empty)'}</option>
+                        <option value="1">B — {q.choices[1] || '(empty)'}</option>
+                        <option value="2">C — {q.choices[2] || '(empty)'}</option>
+                        <option value="3">D — {q.choices[3] || '(empty)'}</option>
+                      </select>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label className="form-label">Explanation (shown to user)</label>
+                      <textarea className="form-textarea" style={{ minHeight: '60px' }} value={q.explanation}
+                        onChange={(e) => {
+                          const newBatch = { ...reviewingQuiz };
+                          newBatch.questions[index].explanation = e.target.value;
+                          setReviewingQuiz(newBatch);
+                        }} />
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                    <button type="button" className="btn btn-secondary" onClick={() => handleSingleReviewAction('reject', q.id)} style={{ background: '#FEE2E2', color: '#DC2626', borderColor: '#FCA5A5', padding: '6px 12px', fontSize: '13px' }}>
+                      <X size={14} style={{ marginRight: '4px' }} /> Reject
+                    </button>
+                    <button type="button" className="btn btn-primary" onClick={() => handleSingleReviewAction('approve', q.id)} style={{ background: '#10B981', borderColor: '#10B981', padding: '6px 12px', fontSize: '13px' }}>
+                      <Target size={14} style={{ marginRight: '4px' }} /> Approve
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -3288,7 +3683,7 @@ function App() {
             </div>
           </div>
         </div>
-      )]}
+      )}
 
       {/* ── Global Error Modal ─────────────────────────────────────────── */}
       <ErrorModal

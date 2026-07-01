@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,42 +27,52 @@ import MapScreen from '../screens/MapScreen';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-const TAB_ICON = {
-  Explore: { active: 'compass', inactive: 'compass-outline', label: 'Explore' },
-  Badges:  { active: 'ribbon',  inactive: 'ribbon-outline',  label: 'Badges' },
-  Profile: { active: 'person',  inactive: 'person-outline',  label: 'Profile' },
-};
-
-function TabIcon({ name, focused }) {
-  const cfg = TAB_ICON[name];
-  const iconName = focused ? cfg.active : cfg.inactive;
-  const iconColor = focused ? COLORS.accent : 'rgba(255,255,255,0.55)';
-  return (
-    <View style={[tabStyles.iconWrap, focused && tabStyles.iconWrapActive]}>
-      <Ionicons name={iconName} size={22} color={iconColor} />
-      {focused && <View style={tabStyles.activeDot} />}
-    </View>
-  );
-}
+const TABS = [
+  { name: 'Explore', label: 'Explore' },
+  { name: 'Badges',  label: 'Badges'  },
+  { name: 'Profile', label: 'Profile' },
+];
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarShowLabel: true,
-        tabBarStyle: tabStyles.tabBar,
+        tabBarShowLabel: false,
+        tabBarStyle: [
+          tabStyles.tabBar,
+          { 
+            height: 70 + insets.bottom,
+            paddingBottom: insets.bottom,
+          }
+        ],
         tabBarBackground: () => (
           <View style={{ flex: 1, backgroundColor: COLORS.navy }}>
             <VintaStripe height={3} />
           </View>
         ),
-        tabBarLabel: ({ focused }) => (
-          <Text style={[tabStyles.tabLabel, focused && tabStyles.tabLabelActive]}>
-            {TAB_ICON[route.name]?.label ?? route.name}
-          </Text>
-        ),
-        tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
+        tabBarIcon: ({ focused }) => {
+          const tab = TABS.find(t => t.name === route.name);
+          return (
+            <View style={[tabStyles.pill, focused && tabStyles.pillActive]}>
+              <Text style={[tabStyles.pillText, focused && tabStyles.pillTextActive]}>
+                {tab?.label ?? route.name}
+              </Text>
+              {focused && <View style={tabStyles.activeDot} />}
+            </View>
+          );
+        },
+        tabBarIconStyle: {
+          height: '100%',
+          width: '100%',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        tabBarItemStyle: {
+          padding: 0,
+          margin: 0,
+        },
       })}
     >
       <Tab.Screen name="Explore" component={HomeScreen} />
@@ -108,40 +119,42 @@ const tabStyles = StyleSheet.create({
   tabBar: {
     backgroundColor: COLORS.navy,
     borderTopWidth: 0,
-    height: 72,
-    paddingBottom: 10,
-    paddingTop: 6,
+    paddingHorizontal: 12,
     elevation: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.30,
     shadowRadius: 12,
   },
-  iconWrap: {
+  pill: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    minWidth: 80,
   },
-  iconWrapActive: {
-    backgroundColor: 'rgba(26,86,219,0.22)',
+  pillActive: {
+    backgroundColor: 'rgba(251,191,36,0.15)',
+    borderColor: 'rgba(251,191,36,0.40)',
+  },
+  pillText: {
+    fontSize: 13,
+    fontFamily: FONTS.semiBold,
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+  },
+  pillTextActive: {
+    color: '#FBBF24',
+    fontFamily: FONTS.bold,
   },
   activeDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.accent,
-    marginTop: 3,
-  },
-  tabLabel: {
-    fontSize: 10,
-    fontFamily: FONTS.medium,
-    color: 'rgba(255,255,255,0.55)',
-    marginTop: 1,
-  },
-  tabLabelActive: {
-    color: '#FFFFFF',
-    fontFamily: FONTS.semiBold,
+    backgroundColor: '#FBBF24',
+    marginTop: 4,
   },
 });

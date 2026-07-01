@@ -51,22 +51,33 @@ class QRScanSerializer(serializers.ModelSerializer):
 
 
 class TriviaQuestionSerializer(serializers.ModelSerializer):
-    """Safe for clients — correct_index is never exposed."""
+    """Mobile trivia serializer."""
     class Meta:
         model = TriviaQuestion
-        fields = ('id', 'question', 'choices')
+        fields = ('id', 'question', 'choices', 'correct_index', 'explanation')
 
 
 class TriviaQuestionAdminSerializer(serializers.ModelSerializer):
-    """Admin-only — includes correct_index for create/update."""
+    """Admin/Guide-only — includes correct_index and workflow fields."""
     spot_id = serializers.PrimaryKeyRelatedField(
-        queryset=CulturalSpot.objects.all(), source='spot', write_only=True
+        queryset=CulturalSpot.objects.all(), source='spot', write_only=True, required=False, allow_null=True
     )
     spot_name = serializers.CharField(source='spot.name', read_only=True)
+    icon_id = serializers.PrimaryKeyRelatedField(
+        queryset=CulturalIcon.objects.all(), source='icon', write_only=True, required=False, allow_null=True
+    )
+    icon_name = serializers.CharField(source='icon.name', read_only=True)
+    generated_by_name = serializers.CharField(source='generated_by.full_name', read_only=True)
+    reviewed_by_name = serializers.CharField(source='reviewed_by.full_name', read_only=True)
 
     class Meta:
         model = TriviaQuestion
-        fields = ('id', 'spot_id', 'spot_name', 'question', 'choices', 'correct_index')
+        fields = (
+            'id', 'spot_id', 'spot_name', 'icon_id', 'icon_name', 
+            'question', 'choices', 'correct_index', 'explanation',
+            'status', 'generated_by', 'generated_by_name', 
+            'reviewed_by', 'reviewed_by_name', 'review_date', 'updated_at'
+        )
 
 
 class TriviaAttemptSerializer(serializers.ModelSerializer):

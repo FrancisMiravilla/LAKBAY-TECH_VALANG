@@ -13,7 +13,7 @@ class CustomUserCreateSerializer(DjoserUserCreateSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'email', 'full_name', 'in_game_name', 'chosen_character', 'profile_photo', 'auth_provider', 'date_joined', 'is_active', 'is_staff', 'xp',)
+        fields = ('id', 'email', 'full_name', 'in_game_name', 'chosen_character', 'profile_photo', 'auth_provider', 'date_joined', 'is_active', 'is_staff', 'xp', 'role',)
         read_only_fields = ('id', 'email', 'auth_provider', 'date_joined', 'is_active', 'is_staff', 'xp',)
 
 
@@ -27,7 +27,7 @@ class AdminUserSerializer(serializers.ModelSerializer):
         model = User
         fields = ('id', 'name', 'email', 'in_game_name', 'chosen_character',
                   'auth_provider', 'date_joined', 'is_active', 'is_staff',
-                  'spots_visited', 'badges_earned', 'status')
+                  'spots_visited', 'badges_earned', 'status', 'role')
 
     def get_name(self, obj):
         return obj.full_name or obj.email
