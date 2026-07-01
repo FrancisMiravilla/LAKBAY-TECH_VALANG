@@ -87,6 +87,9 @@ class ValidateQRView(APIView):
 
         if created:
             QRMarker.objects.filter(pk=marker.pk).update(scan_count=F('scan_count') + 1)
+            # Award 50 XP for scanning a new QR code
+            request.user.__class__.objects.filter(pk=request.user.pk).update(xp=F('xp') + 50)
+            request.user.refresh_from_db(fields=['xp'])
 
         spot = marker.spot
         image_url = request.build_absolute_uri(spot.image.url) if spot.image else None

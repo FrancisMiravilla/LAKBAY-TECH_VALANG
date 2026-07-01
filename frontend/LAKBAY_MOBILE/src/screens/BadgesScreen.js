@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
 import VintaStripe from '../components/VintaStripe';
 import { authService } from '../api/authService';
@@ -52,8 +53,9 @@ export default function BadgesScreen() {
   const xp = profile?.xp || 0;
   // Level calculation: 100 XP per level
   const level = Math.floor(xp / 100) + 1;
-  const nextLevelXp = level * 100;
-  
+  const currentLevelXp = xp % 100; // XP inside current level (e.g. 50/100)
+  const progressPct = currentLevelXp / 100;
+
   const scansCount = scans.length;
   // Assume AR done if unlock_type is AR or if we eventually track it. 
   // For now, let's just count how many scans have 'ar' unlock type if applicable, or default to 0.
@@ -82,6 +84,14 @@ export default function BadgesScreen() {
     );
   }
 
+  // Circular Progress Math
+  const size = 140;
+  const strokeWidth = 12;
+  const center = size / 2;
+  const radius = center - strokeWidth / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (progressPct * circumference);
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.navy} />
@@ -93,6 +103,46 @@ export default function BadgesScreen() {
       <VintaStripe height={4} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+        <View style={styles.mainProgressWrapper}>
+          <View style={styles.progressCircleContainer}>
+            <Svg width={size} height={size}>
+              <Defs>
+                <LinearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+                  <Stop offset="0" stopColor={COLORS.gold} stopOpacity="1" />
+                  <Stop offset="1" stopColor="#F59E0B" stopOpacity="1" />
+                </LinearGradient>
+              </Defs>
+              <Circle
+                cx={center}
+                cy={center}
+                r={radius}
+                stroke={COLORS.border}
+                strokeWidth={strokeWidth}
+                fill="transparent"
+              />
+              <Circle
+                cx={center}
+                cy={center}
+                r={radius}
+                stroke="url(#grad)"
+                strokeWidth={strokeWidth}
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                fill="transparent"
+                rotation="-90"
+                originX={center}
+                originY={center}
+              />
+            </Svg>
+            <View style={styles.progressCircleInner}>
+              <Text style={[styles.levelLabel, { color: COLORS.textMuted }]}>LEVEL</Text>
+              <Text style={[styles.levelNumber, { color: COLORS.text }]}>{level}</Text>
+            </View>
+          </View>
+          <Text style={[styles.headerSubtitle, { color: COLORS.textMuted }]}>{currentLevelXp} / 100 XP to Level {level + 1}</Text>
+        </View>
 
         {/* ── Stats Grid (XP etc) ── */}
         <View style={styles.statsRow}>
@@ -184,15 +234,57 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
 
   header: {
-    height: 60,
+    height: 70,
     backgroundColor: COLORS.navy,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   headerTitle: {
     fontFamily: FONTS.bold,
-    fontSize: 18,
-    color: '#FFFFFF',
+    fontSize: 20,
+    color: '#fff',
+    letterSpacing: 1,
+  },
+  mainProgressWrapper: {
+    alignItems: 'center',
+    marginBottom: 30,
+    marginTop: 10,
+  },
+  progressCircleContainer: {
+    width: 140,
+    height: 140,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    marginBottom: 16,
+  },
+  progressCircleInner: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  levelLabel: {
+    fontFamily: FONTS.bold,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 2,
+    marginBottom: -4,
+  },
+  levelNumber: {
+    fontFamily: FONTS.black,
+    fontSize: 48,
+    color: '#fff',
+  },
+  headerSubtitle: {
+    fontFamily: FONTS.medium,
+    fontSize: 14,
+    color: COLORS.gold,
     letterSpacing: 0.5,
   },
 

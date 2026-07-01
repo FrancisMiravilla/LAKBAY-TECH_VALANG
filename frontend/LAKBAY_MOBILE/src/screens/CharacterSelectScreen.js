@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import {
   SafeAreaView, StyleSheet, Text, View, TextInput,
   TouchableOpacity, FlatList, StatusBar,
-  ActivityIndicator, Dimensions, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Dimensions, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
@@ -16,47 +16,43 @@ const CHARACTERS = [
     id: 'mando',
     name: 'Kuya Mando',
     title: 'The Trailblazer',
-    emoji: '🧑‍🎒',
+    image: require('../assets/characters/lila.jpg'), // Male with yellow suitcase
     color: COLORS.accent,
     desc: 'Bold & fearless',
+    zoom: 1.15,
   },
   {
     id: 'bela',
     name: 'Ate Bela',
     title: 'The Wanderer',
-    emoji: '👩‍🎒',
+    image: require('../assets/characters/new.jpg'), // New provided character image
     color: '#FBBF24',
     desc: 'Curious & free',
-  },
-  {
-    id: 'ricky',
-    name: 'Kuya Ricky',
-    title: 'The Scout',
-    emoji: '🧔‍♂️',
-    color: '#FB923C',
-    desc: 'Sharp & swift',
+    zoom: 1.15,
   },
   {
     id: 'lila',
     name: 'Ate Lila',
     title: 'The Navigator',
-    emoji: '🧕',
+    image: require('../assets/characters/ricky.jpg'), // Female with pink hair
     color: '#A78BFA',
     desc: 'Wise & precise',
+    zoom: 1.4,
   },
   {
     id: 'dante',
     name: 'Bossing Dante',
     title: 'The Adventurer',
-    emoji: '👴',
+    image: require('../assets/characters/dante.jpg'), // Male in blue shirt
     color: '#38BDF8',
     desc: 'Leader & brave',
+    zoom: 1.4,
   },
   {
     id: 'sonya',
     name: 'Ate Sonya',
     title: 'The Discoverer',
-    emoji: '👩‍🦱',
+    image: require('../assets/characters/sonya.jpg'), // Female in hijab
     color: COLORS.teal,
     desc: 'Creative & bold',
   },
@@ -102,8 +98,16 @@ export default function CharacterSelectScreen({ navigation }) {
       <View style={[styles.charCard, { borderColor: item.color + '55' }]}>
         <View style={[styles.cardGlow, { backgroundColor: item.color + '10' }]} />
 
-        <View style={[styles.avatarRing, { borderColor: item.color, backgroundColor: item.color + '20' }]}>
-          <Text style={styles.charEmoji}>{item.emoji}</Text>
+        <View style={[styles.avatarRing, { borderColor: item.color, backgroundColor: item.color + '20', overflow: 'hidden' }]}>
+          <Image 
+            source={item.image} 
+            style={{ 
+              width: '100%', 
+              height: '100%',
+              transform: [{ scale: item.zoom || 1 }]
+            }} 
+            resizeMode="cover" 
+          />
         </View>
 
         <Text style={[styles.charName, { color: item.color }]}>{item.name}</Text>
@@ -280,13 +284,13 @@ const styles = StyleSheet.create({
 
   // ── Carousel ────────────────────────────────────────────────────────
   carouselWrap: {
-    height: 300,
+    height: 380,
     position: 'relative',
     marginTop: 20,
   },
   slide: {
     width: SCREEN_W,
-    height: 300,
+    height: 380,
     paddingHorizontal: 28,
     justifyContent: 'center',
   },
@@ -308,9 +312,9 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
   },
   avatarRing: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
     borderWidth: 2.5,
     justifyContent: 'center',
     alignItems: 'center',

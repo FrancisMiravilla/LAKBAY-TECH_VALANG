@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator, Alert, Image } from 'react-native';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
@@ -69,11 +69,12 @@ const handleLogout = () => {
 
   const getCharacterDetails = (charId) => {
     switch(charId) {
-      case 'ricky': return { name: 'Kuya Ricky', emoji: '🧔‍♂️' };
-      case 'lila': return { name: 'Ate Lila', emoji: '🧕' };
-      case 'dante': return { name: 'Bossing Dante', emoji: '👴' };
-      case 'sonya': return { name: 'Ate Sonya', emoji: '👩‍🦱' };
-      default: return { name: 'Kuya Ricky', emoji: '🧔‍♂️' };
+      case 'mando': return { name: 'Kuya Mando', image: require('../assets/characters/lila.jpg'), zoom: 1.15 };
+      case 'bela': return { name: 'Ate Bela', image: require('../assets/characters/new.jpg'), zoom: 1.15 };
+      case 'lila': return { name: 'Ate Lila', image: require('../assets/characters/ricky.jpg'), zoom: 1.4 };
+      case 'dante': return { name: 'Bossing Dante', image: require('../assets/characters/dante.jpg'), zoom: 1.4 };
+      case 'sonya': return { name: 'Ate Sonya', image: require('../assets/characters/sonya.jpg'), zoom: 1 };
+      default: return { name: 'Kuya Mando', image: require('../assets/characters/lila.jpg'), zoom: 1.15 };
     }
   };
 
@@ -100,8 +101,16 @@ const handleLogout = () => {
         <View style={styles.avatarSection}>
           <View style={styles.avatarRingOuter}>
             <View style={styles.avatarRingInner}>
-              <View style={styles.avatarBg}>
-                <Text style={styles.avatarEmoji}>{charDetails.emoji}</Text>
+              <View style={[styles.avatarBg, { overflow: 'hidden' }]}>
+                <Image 
+                  source={charDetails.image} 
+                  style={{ 
+                    width: '100%', 
+                    height: '100%',
+                    transform: [{ scale: charDetails.zoom || 1 }]
+                  }} 
+                  resizeMode="cover" 
+                />
               </View>
             </View>
           </View>
@@ -127,7 +136,10 @@ const handleLogout = () => {
               key={opt.id} 
               style={styles.settingItem} 
               activeOpacity={0.7}
-              onPress={opt.id === 'logout' ? handleLogout : undefined}
+              onPress={() => {
+                if (opt.id === 'logout') handleLogout();
+                else if (opt.id === 'edit') navigation.navigate('EditProfile');
+              }}
             >
               <View style={styles.settingIconWrap}>
                 <Text style={styles.settingIcon}>{opt.icon}</Text>
@@ -180,9 +192,9 @@ const styles = StyleSheet.create({
   /* ── Avatar ── */
   avatarSection: { alignItems: 'center', paddingVertical: 28 },
   avatarRingOuter: {
-    width: 116,
-    height: 116,
-    borderRadius: 58,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     borderWidth: 2,
     borderColor: COLORS.accent,
     justifyContent: 'center',
@@ -195,9 +207,9 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   avatarRingInner: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
+    width: 128,
+    height: 128,
+    borderRadius: 64,
     borderWidth: 1,
     borderColor: COLORS.accentBorder,
     backgroundColor: COLORS.bgSurface,
@@ -205,9 +217,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarBg: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 116,
+    height: 116,
+    borderRadius: 58,
     backgroundColor: COLORS.bgCard,
     justifyContent: 'center',
     alignItems: 'center',

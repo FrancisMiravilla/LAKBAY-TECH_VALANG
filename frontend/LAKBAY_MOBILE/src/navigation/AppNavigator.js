@@ -23,6 +23,7 @@ import CharacterSelectScreen from '../screens/CharacterSelectScreen';
 import CatchDetailsScreen from '../screens/CatchDetailsScreen';
 import QuizScreen from '../screens/QuizScreen';
 import MapScreen from '../screens/MapScreen'; 
+import EditProfileScreen from '../screens/EditProfileScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -109,6 +110,7 @@ export default function AppNavigator() {
       <Stack.Screen name="CatchDetails"  component={CatchDetailsScreen} />
       <Stack.Screen name="QuizScreen"    component={QuizScreen} />
       <Stack.Screen name="Map"           component={MapScreen} />
+      <Stack.Screen name="EditProfile"   component={EditProfileScreen} />
       
       {/* REMOVED: Profile and Badges aliases because they are in MainTabs */}
     </Stack.Navigator>
