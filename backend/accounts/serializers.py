@@ -8,13 +8,20 @@ User = get_user_model()
 class CustomUserCreateSerializer(DjoserUserCreateSerializer):
     class Meta(DjoserUserCreateSerializer.Meta):
         model = User
-        fields = ('id', 'email', 'password', 'full_name', 'in_game_name', 'chosen_character', 'is_staff','is_superuser',)
+        fields = ('id', 'email', 'password', 'full_name', 'in_game_name', 'chosen_character', 'location', 'is_staff','is_superuser',)
+
+    def create(self, validated_data):
+        # Derive local/tourist from the location supplied at sign-up.
+        validated_data['visitor_type'] = User.classify_visitor_type(
+            validated_data.get('location', '')
+        )
+        return super().create(validated_data)
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'email', 'full_name', 'in_game_name', 'chosen_character', 'profile_photo', 'auth_provider', 'date_joined', 'is_active', 'is_staff', 'xp', 'role',)
-        read_only_fields = ('id', 'email', 'auth_provider', 'date_joined', 'is_active', 'is_staff', 'xp',)
+        fields = ('id', 'email', 'full_name', 'in_game_name', 'chosen_character', 'profile_photo', 'auth_provider', 'date_joined', 'is_active', 'is_staff', 'xp', 'role', 'location', 'visitor_type',)
+        read_only_fields = ('id', 'email', 'auth_provider', 'date_joined', 'is_active', 'is_staff', 'xp', 'visitor_type',)
 
 
 class AdminUserSerializer(serializers.ModelSerializer):
@@ -27,7 +34,8 @@ class AdminUserSerializer(serializers.ModelSerializer):
         model = User
         fields = ('id', 'name', 'email', 'in_game_name', 'chosen_character',
                   'auth_provider', 'date_joined', 'is_active', 'is_staff',
-                  'spots_visited', 'badges_earned', 'status', 'role')
+                  'spots_visited', 'badges_earned', 'status', 'role',
+                  'location', 'visitor_type')
 
     def get_name(self, obj):
         return obj.full_name or obj.email

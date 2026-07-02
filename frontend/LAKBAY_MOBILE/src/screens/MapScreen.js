@@ -26,7 +26,7 @@ function buildLeafletHTML(spots) {
       location_name: s.location_name || '',
       description: s.description || '',
       feature_types: s.feature_types || [],
-      model_3d: s.model_3d || null,
+      model_3d: s.model_3d ? String(s.model_3d).replace(/^http:\/\//, 'https://') : null,
     }));
 
   return `<!DOCTYPE html>
@@ -37,24 +37,37 @@ function buildLeafletHTML(spots) {
   <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     html,body{width:100%;height:100%;background:#EEF3FF;overflow:hidden;}
     #map{width:100%;height:100%;}
     .leaflet-container{background:#EEF3FF;}
     .pin{
-      width:18px;height:18px;border-radius:50%;
-      border:2.5px solid rgba(255,255,255,0.85);
+      position:relative;
       cursor:pointer;
-      transition:transform 0.15s;
+      transition:width 0.15s,height 0.15s;
     }
-    .pin-qr   { background:#1A56DB; box-shadow:0 0 10px rgba(26,86,219,0.7),0 0 0 4px rgba(26,86,219,0.2); }
-    .pin-ar   { background:#10B981; box-shadow:0 0 10px rgba(16,185,129,0.7),0 0 0 4px rgba(16,185,129,0.2); }
-    .pin-catch{ background:#FBBF24; box-shadow:0 0 10px rgba(251,191,36,0.7),0 0 0 4px rgba(251,191,36,0.2); }
-    .pin.selected{
-      background:#fff!important;
-      box-shadow:0 0 18px rgba(255,255,255,0.6),0 0 0 6px rgba(255,255,255,0.15)!important;
-      transform:scale(1.35);
+    .pin-circle{
+      width:100%;height:100%;border-radius:50%;overflow:hidden;
+      border:2.5px solid rgba(255,255,255,0.9);
+      display:flex;align-items:center;justify-content:center;
+      transition:transform 0.15s,box-shadow 0.15s;
+    }
+    .pin-circle svg{ width:58%;height:58%; }
+    .pin-qr    .pin-circle{ background:#1A56DB; box-shadow:0 0 10px rgba(26,86,219,0.7),0 0 0 4px rgba(26,86,219,0.2); }
+    .pin-ar    .pin-circle{ background:#10B981; box-shadow:0 0 10px rgba(16,185,129,0.7),0 0 0 4px rgba(16,185,129,0.2); }
+    .pin-catch .pin-circle{ background:#FBBF24; box-shadow:0 0 10px rgba(251,191,36,0.7),0 0 0 4px rgba(251,191,36,0.2); }
+    .pin-catch model-viewer{ width:100%;height:100%;background:transparent;pointer-events:none; --poster-color:transparent; }
+    .pin.selected .pin-circle{
+      border-color:#fff;
+      box-shadow:0 0 18px rgba(255,255,255,0.7),0 0 0 6px rgba(255,255,255,0.18)!important;
+      transform:scale(1.18);
+    }
+    .pin-label{
+      position:absolute; top:100%; left:50%; transform:translateX(-50%); margin-top:4px;
+      font-family:sans-serif; font-size:7px; font-weight:800; letter-spacing:0.5px;
+      color:#fff; padding:1px 5px; border-radius:5px; white-space:nowrap; pointer-events:none;
     }
     /* user location pulse */
     .user-dot{
@@ -98,13 +111,49 @@ function buildLeafletHTML(spots) {
     subdomains:'abcd',maxZoom:20,
   }).addTo(map);
 
+  var TYPE_COLOR={qr:'#1A56DB',ar:'#10B981',catch:'#FBBF24'};
+  var TYPE_LABEL={qr:'QR',ar:'AR',catch:'CATCH'};
+  var ICON_SVG={
+    ar:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5"/><path d="M12 12v10"/></svg>',
+    qr:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="3" height="3" fill="#fff" stroke="none"/><rect x="18" y="18" width="3" height="3" fill="#fff" stroke="none"/><rect x="14" y="18" width="3" height="3" fill="#fff" stroke="none"/></svg>',
+    catch:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 5H4a1 1 0 0 0-1 1 5 5 0 0 0 4 4.9M17 5h3a1 1 0 0 1 1 1 5 5 0 0 1-4 4.9"/></svg>',
+  };
+
   spots.forEach(function(spot){
     var primaryType=(spot.feature_types&&spot.feature_types[0])||'qr';
+    var hasModel=primaryType==='catch'&&!!spot.model_3d;
+    var baseSize=hasModel?46:36;
+
     var el=document.createElement('div');
     el.className='pin pin-'+primaryType;
+    el.style.width=baseSize+'px';
+    el.style.height=baseSize+'px';
     pinEls[spot.id]=el;
 
-    var icon=L.divIcon({html:el,className:'',iconSize:[18,18],iconAnchor:[9,9],popupAnchor:[0,-14]});
+    var circle=document.createElement('div');
+    circle.className='pin-circle';
+    el.appendChild(circle);
+
+    if(hasModel){
+      var mv=document.createElement('model-viewer');
+      mv.setAttribute('src',spot.model_3d);
+      mv.setAttribute('auto-rotate','');
+      mv.setAttribute('rotation-per-second','28deg');
+      mv.setAttribute('disable-zoom','');
+      mv.setAttribute('interaction-prompt','none');
+      mv.setAttribute('exposure','1.1');
+      circle.appendChild(mv);
+    } else {
+      circle.innerHTML=ICON_SVG[primaryType]||ICON_SVG.qr;
+    }
+
+    var label=document.createElement('div');
+    label.className='pin-label';
+    label.innerText=TYPE_LABEL[primaryType]||'QR';
+    label.style.background=TYPE_COLOR[primaryType]||TYPE_COLOR.qr;
+    el.appendChild(label);
+
+    var icon=L.divIcon({html:el,className:'',iconSize:[baseSize,baseSize],iconAnchor:[baseSize/2,baseSize/2],popupAnchor:[0,-(baseSize/2+8)]});
 
     L.marker([spot.latitude,spot.longitude],{icon:icon})
       .addTo(map)
@@ -382,7 +431,7 @@ export default function MapScreen({ navigation, route }) {
   const getBadgeConfig = (type) => {
     const configs = {
       ar:    { label: 'AR EXHIBIT',  icon: 'cube-outline',  color: '#10B981', bg: '#ECFDF5', border: '#6EE7B7' },
-      catch: { label: 'CATCH ZONE',  icon: 'fish-outline',  color: '#D97706', bg: '#FFFBEB', border: '#FCD34D' },
+      catch: { label: 'CATCH ZONE',  icon: 'trophy-outline',color: '#D97706', bg: '#FFFBEB', border: '#FCD34D' },
       qr:    { label: 'QR SPOT',     icon: 'scan-outline',  color: COLORS.accent, bg: COLORS.accentSoft, border: COLORS.accentBorder },
     };
     return configs[type] || configs['qr'];
@@ -425,12 +474,14 @@ export default function MapScreen({ navigation, route }) {
         {!loading && !error && (
           <View style={styles.legend}>
             {[
-              { color: '#1A56DB', label: 'QR Scan' },
-              { color: '#10B981', label: 'AR Exhibit' },
-              { color: '#FBBF24', label: 'Catch Zone' },
+              { color: '#1A56DB', label: 'QR Scan', icon: 'qr-code-outline' },
+              { color: '#10B981', label: 'AR Exhibit', icon: 'cube-outline' },
+              { color: '#FBBF24', label: 'Catch Zone', icon: 'trophy-outline' },
             ].map(item => (
               <View key={item.label} style={styles.legendRow}>
-                <View style={[styles.legendDot, { backgroundColor: item.color, shadowColor: item.color, shadowOpacity: 0.8, shadowRadius: 4, elevation: 3 }]} />
+                <View style={[styles.legendIconDot, { backgroundColor: item.color, shadowColor: item.color, shadowOpacity: 0.8, shadowRadius: 4, elevation: 3 }]}>
+                  <Ionicons name={item.icon} size={9} color="#fff" />
+                </View>
                 <Text style={styles.legendText}>{item.label}</Text>
               </View>
             ))}
@@ -592,7 +643,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.10, shadowRadius: 6, elevation: 4,
   },
   legendRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  legendDot: { width: 10, height: 10, borderRadius: 5, marginRight: 7 },
+  legendIconDot: { width: 16, height: 16, borderRadius: 8, marginRight: 7, justifyContent: 'center', alignItems: 'center' },
   legendText: { fontFamily: FONTS.medium, fontSize: 11, color: '#1E293B' },
   legendCount: { fontFamily: FONTS.regular, fontSize: 10, color: '#64748B', marginTop: 2, textAlign: 'right' },
   legendDivider: { height: 1, backgroundColor: '#C3D8FF', marginVertical: 6 },

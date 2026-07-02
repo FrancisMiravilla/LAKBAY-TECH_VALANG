@@ -4,11 +4,13 @@ from .models import CustomUser
 
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
-    list_display = ['email', 'full_name', 'in_game_name', 'chosen_character', 'auth_provider']
+    list_display = ['email', 'full_name', 'in_game_name', 'chosen_character', 'visitor_type', 'auth_provider']
+    list_filter = ['visitor_type', 'auth_provider', 'is_active', 'is_staff']
     ordering = ['email']
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
         ('Personal Info', {'fields': ('full_name', 'in_game_name', 'chosen_character', 'profile_photo')}),
+        ('Location', {'fields': ('location', 'visitor_type')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
         ('Authentication', {'fields': ('auth_provider',)}),

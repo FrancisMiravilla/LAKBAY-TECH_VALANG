@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  SafeAreaView, StyleSheet, Text, View, TextInput,
+  SafeAreaView, StyleSheet, Text, View, TextInput, Image,
   TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -70,9 +70,11 @@ export default function LoginScreen({ navigation }) {
 
           <View style={styles.heroContent}>
             <Text style={styles.heroEyebrow}>✦  CITY OF COLORS  ✦</Text>
-            <View style={styles.logoRing}>
-              <Text style={styles.logoIcon}>⛵</Text>
-            </View>
+            <Image
+              source={require('../assets/lakbay_icon_glyph.png')}
+              resizeMode="contain"
+              style={styles.logoImg}
+            />
             <Text style={styles.logoTitle}>LAKBAY</Text>
             <Text style={styles.logoSub}>ZAMBOANGA CITY</Text>
             <View style={styles.pills}>
@@ -238,14 +240,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2.5,
     marginBottom: 16,
   },
-  logoRing: {
-    width: 76, height: 76, borderRadius: 38,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.35)',
-    justifyContent: 'center', alignItems: 'center',
-    marginBottom: 14,
-  },
-  logoIcon:  { fontSize: 34 },
+  logoImg: { width: 96, height: 96, marginBottom: 8 },
   logoTitle: {
     fontFamily: FONTS.pixel, fontSize: 16, color: '#fff',
     letterSpacing: 3, marginBottom: 4,

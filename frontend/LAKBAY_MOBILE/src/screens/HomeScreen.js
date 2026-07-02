@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Animated, Alert } from 'react-native';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import CustomModal from '../components/CustomModal';
 import VintaStripe from '../components/VintaStripe';
+import OnboardingTour from '../components/OnboardingTour';
 import { WebView } from 'react-native-webview';
 
 import { getSpots, ORIGIN } from '../api/qrService';
@@ -124,13 +125,66 @@ const QA_CARDS = [
   { emoji: '🏆', badge: 'CATCH', title: 'Collect & Win',     color: COLORS.gold,   shadow: SHADOW.gold,   route: 'Catch', icon: 'trophy', message: "This only works 4 symbols to catch which are the curacha, vinta, weave, and the lantaka" },
 ];
 
-export default function HomeScreen({ navigation }) {
+const TOUR_STEPS = [
+  {
+    key: 'notif',
+    icon: 'notifications-outline',
+    color: COLORS.gold,
+    title: 'Stay In The Loop',
+    text: 'Tap the bell anytime to see trip alerts, XP rewards, and badge unlocks.',
+    refKey: 'bellRef',
+  },
+  {
+    key: 'map',
+    icon: 'map-outline',
+    color: COLORS.accent,
+    title: 'Explore The Map',
+    text: "This live map shows every heritage site in Zamboanga City. Tap it to open the full interactive map and start planning your route.",
+    refKey: 'mapCardRef',
+  },
+  {
+    key: 'quick',
+    icon: 'flash-outline',
+    color: COLORS.teal,
+    title: 'Quick Access Quests',
+    text: 'Scan QR codes at tourist spots, catch hidden cultural symbols, and unlock AR exhibits at the museum — every action earns you XP!',
+    refKey: 'qaRowRef',
+  },
+  {
+    key: 'tabs',
+    icon: 'trophy-outline',
+    color: COLORS.gold,
+    title: 'Track Your Journey',
+    text: "Visit the Badges tab to see what you've unlocked, or Profile to check your level, XP bar, and explorer identity.",
+    getRect: (insets, w, h) => {
+      const tabBarHeight = 70 + insets.bottom;
+      return { x: 8, y: h - tabBarHeight + 4, width: w - 16, height: tabBarHeight - 8 };
+    },
+  },
+  {
+    key: 'done',
+    icon: 'rocket-outline',
+    color: COLORS.accent,
+    title: "You're All Set!",
+    text: 'Time to start exploring Zamboanga City. Good luck, explorer!',
+    ctaLabel: "Let's Go!",
+  },
+];
+
+export default function HomeScreen({ navigation, route }) {
   const [heroFade]  = useState(() => new Animated.Value(0));
   const [heroSlide] = useState(() => new Animated.Value(20));
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedQa, setSelectedQa] = useState(null);
   const [spots, setSpots] = useState([]); // used for map
   const [featuredPlaces, setFeaturedPlaces] = useState([]); // used for places to experience
+  const [showTour, setShowTour] = useState(false);
+
+  const bellRef    = useRef(null);
+  const mapCardRef = useRef(null);
+  const qaRowRef   = useRef(null);
+  const refs = { bellRef, mapCardRef, qaRowRef };
+  const tourSteps = TOUR_STEPS.map((s) => (s.refKey ? { ...s, targetRef: refs[s.refKey] } : s));
 
   useEffect(() => {
     getSpots().then(data => {
@@ -145,6 +199,16 @@ export default function HomeScreen({ navigation }) {
       Animated.timing(heroFade,  { toValue: 1, duration: 700, useNativeDriver: true }),
       Animated.timing(heroSlide, { toValue: 0, duration: 700, useNativeDriver: true }),
     ]).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // New accounts land here straight from Character Select — greet them with
+  // a feature-by-feature walkthrough of the app.
+  useEffect(() => {
+    if (route?.params?.showOnboarding) {
+      const t = setTimeout(() => setShowTour(true), 400);
+      return () => clearTimeout(t);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -163,6 +227,7 @@ export default function HomeScreen({ navigation }) {
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity
+            ref={bellRef}
             style={styles.headerBtn}
             onPress={() => navigation.navigate('Notifications')}
           >
@@ -216,7 +281,7 @@ export default function HomeScreen({ navigation }) {
           </View>
 
           {/* Map Card */}
-          <View style={styles.mapCard}>
+          <View ref={mapCardRef} style={styles.mapCard}>
             <WebView
               source={{ html: buildMiniMapHTML(spots), baseUrl: 'https://localhost' }}
               style={styles.map}
@@ -334,7 +399,7 @@ export default function HomeScreen({ navigation }) {
             <View style={styles.accentBar} />
             <Text style={styles.sectionTitle}>Quick Access</Text>
           </View>
-          <View style={styles.qaRow}>
+          <View ref={qaRowRef} style={styles.qaRow}>
             {QA_CARDS.map((qa) => (
               <TouchableOpacity
                 key={qa.badge}
@@ -386,6 +451,12 @@ export default function HomeScreen({ navigation }) {
             navigation.navigate(selectedQa.route);
           }
         }}
+      />
+
+      <OnboardingTour
+        visible={showTour}
+        steps={tourSteps}
+        onFinish={() => setShowTour(false)}
       />
 
     </SafeAreaView>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  SafeAreaView, StyleSheet, Text, View, TextInput,
+  SafeAreaView, StyleSheet, Text, View, TextInput, Image,
   TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import VintaStripe from '../components/VintaStripe';
 
 export default function CreateAccountScreen({ navigation }) {
   const [fullName, setFullName]       = useState('');
+  const [location, setLocation]       = useState('');
   const [email, setEmail]             = useState('');
   const [password, setPassword]       = useState('');
   const [confirmPass, setConfirmPass] = useState('');
@@ -35,8 +36,12 @@ export default function CreateAccountScreen({ navigation }) {
   const passwordHint = password.length > 0 && (password.length < 8 || !/\d/.test(password) || !/[^a-zA-Z0-9]/.test(password));
   const passwordMatch = confirmPass.length > 0 && password !== confirmPass;
 
+  // Mirrors the backend rule: anyone inside Zamboanga City is a "Local".
+  const isLocal = location.trim().toLowerCase().includes('zamboanga');
+  const visitorType = isLocal ? 'Local' : 'Tourist';
+
   const handleCreate = async () => {
-    if (!fullName || !email || !password || !confirmPass) {
+    if (!fullName || !location || !email || !password || !confirmPass) {
       showErr('Missing Fields', 'Please fill in all fields.');
       return;
     }
@@ -52,7 +57,7 @@ export default function CreateAccountScreen({ navigation }) {
     setLoading(true);
     try {
       const tempInGameName = `Explorer_${Date.now()}`;
-      await authService.register(email, password, fullName, tempInGameName, 'DefaultCharacter');
+      await authService.register(email, password, fullName, tempInGameName, 'DefaultCharacter', location);
       await SecureStore.setItemAsync('offline_fullName', fullName);
       setLoading(false);
       navigation.replace('CharacterSelect');
@@ -87,9 +92,11 @@ export default function CreateAccountScreen({ navigation }) {
 
           <View style={styles.heroContent}>
             <Text style={styles.heroEyebrow}>✦  START YOUR JOURNEY  ✦</Text>
-            <View style={styles.logoRing}>
-              <Text style={styles.logoIcon}>⛵</Text>
-            </View>
+            <Image
+              source={require('../assets/lakbay_icon_glyph.png')}
+              resizeMode="contain"
+              style={styles.logoImg}
+            />
             <Text style={styles.logoTitle}>LAKBAY</Text>
             <Text style={styles.logoSub}>ZAMBOANGA CITY</Text>
             <View style={styles.pills}>
@@ -124,6 +131,35 @@ export default function CreateAccountScreen({ navigation }) {
               onChangeText={setFullName}
             />
           </View>
+
+          {/* Location */}
+          <Text style={styles.label}>Location</Text>
+          <View style={styles.inputWrap}>
+            <Ionicons name="location-outline" size={16} color={COLORS.textMuted} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="City / Municipality (e.g. Zamboanga City)"
+              placeholderTextColor={COLORS.textMuted}
+              autoCapitalize="words"
+              value={location}
+              onChangeText={setLocation}
+            />
+          </View>
+
+          {location.trim().length > 0 && (
+            <View style={[styles.visitorBadge, isLocal ? styles.visitorLocal : styles.visitorTourist]}>
+              <Ionicons
+                name={isLocal ? 'home' : 'airplane'}
+                size={14}
+                color={isLocal ? COLORS.teal : COLORS.accent}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.visitorText}>
+                You'll join as a <Text style={styles.visitorTextBold}>{visitorType}</Text>
+                {isLocal ? ' — welcome home, Zamboangueño!' : ' — enjoy exploring Zamboanga!'}
+              </Text>
+            </View>
+          )}
 
           {/* Email */}
           <Text style={styles.label}>Email Address</Text>
@@ -287,14 +323,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2.5,
     marginBottom: 16,
   },
-  logoRing: {
-    width: 76, height: 76, borderRadius: 38,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.35)',
-    justifyContent: 'center', alignItems: 'center',
-    marginBottom: 14,
-  },
-  logoIcon:  { fontSize: 34 },
+  logoImg: { width: 96, height: 96, marginBottom: 8 },
   logoTitle: {
     fontFamily: FONTS.pixel, fontSize: 16, color: '#fff',
     letterSpacing: 3, marginBottom: 4,
@@ -368,6 +397,20 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   eyeBtn: { padding: 4 },
+
+  visitorBadge: {
+    flexDirection: 'row', alignItems: 'center',
+    borderRadius: RADIUS.sm, borderWidth: 1,
+    paddingHorizontal: 12, paddingVertical: 10,
+    marginTop: -8, marginBottom: 16,
+  },
+  visitorLocal:   { backgroundColor: COLORS.tealSoft, borderColor: COLORS.teal + '55' },
+  visitorTourist: { backgroundColor: COLORS.accentSoft, borderColor: COLORS.accentBorder },
+  visitorText: {
+    flex: 1, fontFamily: FONTS.regular, fontSize: 12,
+    color: COLORS.textSub, lineHeight: 16,
+  },
+  visitorTextBold: { fontFamily: FONTS.bold, color: COLORS.text },
 
   hintBox: {
     flexDirection: 'row', alignItems: 'flex-start',

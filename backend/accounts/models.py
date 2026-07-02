@@ -12,6 +12,10 @@ class CustomUser(AbstractUser):
         ('admin', 'Administrator'),
         ('tourist_guide', 'Tourist Guide'),
     )
+    VISITOR_TYPE_CHOICES = (
+        ('local', 'Local'),
+        ('tourist', 'Tourist'),
+    )
 
     username = None
     email = models.EmailField(unique=True)
@@ -23,10 +27,25 @@ class CustomUser(AbstractUser):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='tourist')
     xp = models.IntegerField(default=0)
 
+    # Location the user provides at sign-up, and the classification derived
+    # from it: users inside Zamboanga City are "local", everyone else "tourist".
+    location = models.CharField(max_length=255, null=True, blank=True)
+    visitor_type = models.CharField(
+        max_length=10, choices=VISITOR_TYPE_CHOICES, default='tourist'
+    )
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['full_name']
 
     objects = CustomUserManager()
+
+    @staticmethod
+    def classify_visitor_type(location):
+        """Return 'local' when the given location is within Zamboanga City,
+        otherwise 'tourist'. Matching is case-insensitive on the city name."""
+        if location and 'zamboanga' in location.strip().lower():
+            return 'local'
+        return 'tourist'
 
     def __str__(self):
         return self.email

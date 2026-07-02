@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import lakbayLogo from './assets/lakbay_icon_glyph.png'
 import {
   LayoutDashboard,
   MapPin,
@@ -6,7 +7,6 @@ import {
   HelpCircle,
   Sparkles,
   Landmark,
-  Anchor,
   Users as UsersIcon,
   Award,
   FileText,
@@ -110,6 +110,13 @@ const PIN_TYPE_CONFIG = {
   catch: { color: '#FBBF24', glow: 'rgba(251,191,36,0.55)', label: 'Catch Zone' },
 };
 
+// Inline SVG glyphs for map marker pins (mirrors the mobile app's markers)
+const PIN_ICON_SVG = {
+  ar: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5"/><path d="M12 12v10"/></svg>',
+  qr: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="3" height="3" fill="#fff" stroke="none"/><rect x="18" y="18" width="3" height="3" fill="#fff" stroke="none"/><rect x="14" y="18" width="3" height="3" fill="#fff" stroke="none"/></svg>',
+  catch: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 5H4a1 1 0 0 0-1 1 5 5 0 0 0 4 4.9M17 5h3a1 1 0 0 1 1 1 5 5 0 0 1-4 4.9"/></svg>',
+};
+
 // Initial QR Codes Mock Data
 const INITIAL_QRCODES = [
   { id: 1, exhibitName: 'Great Santa Cruz Island', scanCount: 1450, status: 'Active', hook: 'A pink sand paradise!', historicalBackground: 'Used as an outpost during the colonial period.', culturalSignificance: 'A preserved natural treasure for the locals.', funFact: 'The pink sand comes from crushed red organ pipe corals.' },
@@ -186,6 +193,7 @@ const normalizeSpot = (s) => ({
   cultural_significance: s.cultural_significance,
   fun_fact: s.fun_fact,
   feature_types: s.feature_types || [],
+  model_3d: s.model_3d || null,
   images: [s.image, s.image2, s.image3].filter(img => img).map(img => {
     if (img.startsWith('/media')) return `http://localhost:8000${img}`;
     return img;
@@ -272,7 +280,7 @@ function App() {
   // Map Refs
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
-  const markerElemsRef = useRef({}); // { pinId: { el, iconEl, badgeEl, cfg } }
+  const markerElemsRef = useRef({}); // { pinId: { el, circle, badgeEl, cfg, baseSize, selSize } }
 
   // Modal mini-map refs
   const modalMapContainerRef = useRef(null);
@@ -309,38 +317,53 @@ function App() {
       const primaryType = pin.feature_types && pin.feature_types.length > 0 ? pin.feature_types[0] : 'qr';
       const cfg = PIN_TYPE_CONFIG[primaryType] || PIN_TYPE_CONFIG.qr;
       const isSelected = selectedMapPinId === pin.id;
+      const hasModel = primaryType === 'catch' && !!pin.model_3d;
+      const baseSize = hasModel ? 46 : 34;
+      const selSize = hasModel ? 54 : 42;
+      const size = isSelected ? selSize : baseSize;
 
-      // Outer marker element
+      // Outer positioning wrapper (kept overflow-visible so the badge below isn't clipped)
       const el = document.createElement('div');
       el.className = 'custom-map-marker';
       el.title = pin.name;
-      el.style.cssText = `
-        width: ${isSelected ? '22px' : '18px'};
-        height: ${isSelected ? '22px' : '18px'};
-        border-radius: 50%;
-        background-color: ${isSelected ? '#fff' : cfg.color};
-        border: 2.5px solid ${isSelected ? cfg.color : 'rgba(255,255,255,0.85)'};
-        cursor: pointer;
-        box-shadow: 0 0 ${isSelected ? 18 : 10}px ${cfg.glow}, 0 0 0 ${isSelected ? '5px' : '0px'} ${cfg.glow};
-        display: flex; align-items: center; justify-content: center;
-        transition: all 0.2s ease;
-        position: relative;
-      `;
+      el.style.cssText = `width: ${size}px; height: ${size}px; position: relative; cursor: pointer;`;
 
-      // Inner icon
-      const iconEl = document.createElement('div');
-      iconEl.className = 'pin-icon';
-      iconEl.style.cssText = `width: 9px; height: 9px; border-radius: 50%; background: ${isSelected ? cfg.color : 'rgba(255,255,255,0.9)'};`;
-      if (primaryType === 'ar') { iconEl.style.borderRadius = '0 50% 0 50%'; iconEl.style.transform = 'rotate(45deg)'; }
-      else if (primaryType === 'catch') { iconEl.style.width = '7px'; iconEl.style.height = '7px'; iconEl.style.boxShadow = `0 0 4px ${isSelected ? cfg.color : '#fff'}`; }
-      el.appendChild(iconEl);
+      // Clipped, colored circle holding either the type icon or a live 3D model
+      const circle = document.createElement('div');
+      circle.className = 'pin-circle';
+      circle.style.cssText = `
+        width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
+        background-color: ${cfg.color};
+        border: 3px solid ${isSelected ? '#fff' : 'rgba(255,255,255,0.85)'};
+        box-shadow: 0 0 ${isSelected ? 20 : 10}px ${cfg.glow}, 0 0 0 ${isSelected ? '5px' : '0px'} ${cfg.glow};
+        display: flex; align-items: center; justify-content: center;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      `;
+      el.appendChild(circle);
+
+      if (hasModel) {
+        const mv = document.createElement('model-viewer');
+        mv.setAttribute('src', qrService.getMediaUrl(pin.model_3d));
+        mv.setAttribute('auto-rotate', '');
+        mv.setAttribute('rotation-per-second', '28deg');
+        mv.setAttribute('disable-zoom', '');
+        mv.setAttribute('interaction-prompt', 'none');
+        mv.setAttribute('exposure', '1.1');
+        mv.style.cssText = 'width:100%;height:100%;background:transparent;pointer-events:none;';
+        circle.appendChild(mv);
+      } else {
+        const iconWrap = document.createElement('div');
+        iconWrap.innerHTML = PIN_ICON_SVG[primaryType] || PIN_ICON_SVG.qr;
+        iconWrap.style.cssText = 'width:58%;height:58%;display:flex;align-items:center;justify-content:center;pointer-events:none;';
+        circle.appendChild(iconWrap);
+      }
 
       // Type badge below marker
       const badgeEl = document.createElement('div');
       badgeEl.className = 'pin-badge';
       badgeEl.innerText = primaryType.toUpperCase();
       badgeEl.style.cssText = `
-        position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 3px;
+        position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px;
         background: ${cfg.color}; color: #fff; font-size: 7px; font-weight: 800;
         letter-spacing: 0.5px; padding: 1px 4px; border-radius: 3px;
         white-space: nowrap; pointer-events: none; opacity: ${isSelected ? 1 : 0.85};
@@ -348,7 +371,7 @@ function App() {
       el.appendChild(badgeEl);
 
       // Store refs for highlight updates
-      markerElemsRef.current[pin.id] = { el, iconEl, badgeEl, cfg, primaryType };
+      markerElemsRef.current[pin.id] = { el, circle, badgeEl, cfg, baseSize, selSize };
 
       el.addEventListener('click', () => setSelectedMapPinId(pin.id));
 
@@ -365,9 +388,9 @@ function App() {
       const divIcon = L.divIcon({
         html: el,
         className: '',
-        iconSize: [22, 30],
-        iconAnchor: [11, 11],
-        popupAnchor: [0, -14],
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+        popupAnchor: [0, -(size / 2 + 8)],
       });
       const coord = [parseFloat(pin.latitude) || 0, parseFloat(pin.longitude) || 0];
       const marker = L.marker(coord, {
@@ -383,15 +406,14 @@ function App() {
 
   // Update marker highlight styles WITHOUT rebuilding the map
   useEffect(() => {
-    Object.entries(markerElemsRef.current).forEach(([idStr, { el, iconEl, badgeEl, cfg, primaryType }]) => {
+    Object.entries(markerElemsRef.current).forEach(([idStr, { el, circle, badgeEl, cfg, baseSize, selSize }]) => {
       const isSelected = parseInt(idStr) === selectedMapPinId;
-      el.style.width = isSelected ? '22px' : '18px';
-      el.style.height = isSelected ? '22px' : '18px';
-      el.style.backgroundColor = isSelected ? '#fff' : cfg.color;
-      el.style.border = `2.5px solid ${isSelected ? cfg.color : 'rgba(255,255,255,0.85)'}`;
-      el.style.boxShadow = `0 0 ${isSelected ? 18 : 10}px ${cfg.glow}, 0 0 0 ${isSelected ? '5px' : '0px'} ${cfg.glow}`;
-      iconEl.style.background = isSelected ? cfg.color : 'rgba(255,255,255,0.9)';
-      if (primaryType === 'catch') iconEl.style.boxShadow = `0 0 4px ${isSelected ? cfg.color : '#fff'}`;
+      const size = isSelected ? selSize : baseSize;
+      el.style.width = `${size}px`;
+      el.style.height = `${size}px`;
+      el.style.zIndex = isSelected ? 1000 : 1;
+      circle.style.border = `3px solid ${isSelected ? '#fff' : 'rgba(255,255,255,0.85)'}`;
+      circle.style.boxShadow = `0 0 ${isSelected ? 20 : 10}px ${cfg.glow}, 0 0 0 ${isSelected ? '5px' : '0px'} ${cfg.glow}`;
       badgeEl.style.opacity = isSelected ? '1' : '0.85';
     });
   }, [selectedMapPinId]);
@@ -1192,8 +1214,8 @@ function App() {
         <div className="login-container">
           <div className="login-card">
             <div className="login-header">
-              <div className="sidebar-logo-container" style={{ margin: '0 auto 16px', width: '48px', height: '48px' }}>
-                <Anchor className="sidebar-logo-icon" size={24} />
+              <div className="sidebar-logo-container" style={{ margin: '0 auto 16px', width: '56px', height: '56px', background: 'transparent' }}>
+                <img src={lakbayLogo} alt="LAKBAY" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
               <h1 className="brand-text" style={{ fontSize: '28px', justifyContent: 'center' }}>
                 LAKBAY
@@ -1254,8 +1276,8 @@ function App() {
       {/* SIDEBAR NAVIGATION */}
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <div className="sidebar-logo-container">
-            <Anchor className="sidebar-logo-icon" size={20} />
+          <div className="sidebar-logo-container" style={{ background: 'transparent' }}>
+            <img src={lakbayLogo} alt="LAKBAY" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <div className="brand-text">
             LAKBAY
@@ -1846,6 +1868,8 @@ function App() {
                       <th>Email</th>
                       <th>Explorer Name</th>
                       <th>Character</th>
+                      <th>Location</th>
+                      <th>Type</th>
                       <th>XP</th>
                       <th>Joined</th>
                       <th>Status</th>
@@ -1855,7 +1879,7 @@ function App() {
                   <tbody>
                     {filteredUsers.length === 0 ? (
                       <tr>
-                        <td colSpan="8" style={{textAlign: 'center', padding: '32px 0', color: 'var(--text-secondary)'}}>
+                        <td colSpan="10" style={{textAlign: 'center', padding: '32px 0', color: 'var(--text-secondary)'}}>
                           {users.length === 0 ? 'Loading users...' : 'No users match the search.'}
                         </td>
                       </tr>
@@ -1866,6 +1890,21 @@ function App() {
                           <td style={{color: 'var(--text-secondary)'}}>{user.email}</td>
                           <td style={{color: 'var(--text-secondary)'}}>{user.in_game_name || '—'}</td>
                           <td style={{color: 'var(--text-secondary)', textTransform: 'capitalize'}}>{user.chosen_character || '—'}</td>
+                          <td style={{color: 'var(--text-secondary)'}}>{user.location || '—'}</td>
+                          <td>
+                            <span
+                              className="badge"
+                              style={{
+                                textTransform: 'capitalize',
+                                fontWeight: 700,
+                                color: user.visitor_type === 'local' ? '#0E7C5A' : '#1A56DB',
+                                background: user.visitor_type === 'local' ? 'rgba(16,185,129,0.12)' : 'rgba(26,86,219,0.12)',
+                                border: `1px solid ${user.visitor_type === 'local' ? 'rgba(16,185,129,0.35)' : 'rgba(26,86,219,0.35)'}`,
+                              }}
+                            >
+                              {user.visitor_type === 'local' ? 'Local' : 'Tourist'}
+                            </span>
+                          </td>
                           <td style={{textAlign: 'center', fontWeight: 600, color: 'var(--accent-gold)'}}>{user.xp}</td>
                           <td style={{color: 'var(--text-secondary)', fontSize: '12px'}}>{user.date_joined}</td>
                           <td>

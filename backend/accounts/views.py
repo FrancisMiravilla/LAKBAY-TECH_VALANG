@@ -110,6 +110,8 @@ class UserListView(APIView):
                 'chosen_character': u.chosen_character or '',
                 'xp':               u.xp,
                 'is_active':        u.is_active,
+                'location':         u.location or '',
+                'visitor_type':     u.visitor_type,
                 'date_joined':      u.date_joined.strftime('%Y-%m-%d'),
             }
             for u in users

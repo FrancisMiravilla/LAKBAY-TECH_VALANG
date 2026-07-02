@@ -17,6 +17,7 @@ import ARScannedScreen from '../screens/ARScannedScreen';
 import QRScannedScreen from '../screens/QRScannedScreen';
 import NotificationScreen from '../screens/NotificationScreen';
 import BadgesScreen from '../screens/BadgesScreen';
+import WelcomeScreen from '../screens/WelcomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import CreateAccountScreen from '../screens/CreateAccountScreen';
 import CharacterSelectScreen from '../screens/CharacterSelectScreen';
@@ -34,8 +35,9 @@ const TABS = [
   { name: 'Profile', label: 'Profile' },
 ];
 
-function MainTabs() {
+function MainTabs({ route }) {
   const insets = useSafeAreaInsets();
+  const showOnboarding = route?.params?.showOnboarding;
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -76,7 +78,11 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Explore" component={HomeScreen} />
+      <Tab.Screen
+        name="Explore"
+        component={HomeScreen}
+        initialParams={{ showOnboarding }}
+      />
       <Tab.Screen name="Badges"  component={BadgesScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
@@ -86,12 +92,14 @@ function MainTabs() {
 export default function AppNavigator() {
   return (
     <Stack.Navigator
+      initialRouteName="Welcome"
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: COLORS.bg },
       }}
     >
 {/* ── Auth ── */}
+      <Stack.Screen name="Welcome"         component={WelcomeScreen} />
       <Stack.Screen name="Login"           component={LoginScreen} />
       <Stack.Screen name="CreateAccount"   component={CreateAccountScreen} />
       <Stack.Screen name="CharacterSelect" component={CharacterSelectScreen} />

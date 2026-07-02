@@ -82,7 +82,7 @@ export default function CharacterSelectScreen({ navigation }) {
     setLoading(true);
     try {
       await authService.characterSetup(selected.id, explorerName.trim());
-      navigation.replace('MainTabs');
+      navigation.replace('MainTabs', { showOnboarding: true });
     } catch (error) {
       const errorData = error.response?.data || error;
       let msg = 'Something went wrong.';
