@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { COLORS, FONTS, RADIUS, SPACING } from '../constants/theme';
+import { useApp } from '../context/AppContext';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -38,6 +39,7 @@ export default function ARScannedScreen({ navigation, route }) {
 
   // Camera
   const [permission, requestPermission] = useCameraPermissions();
+  const { addNotification } = useApp();
 
   // Scan-line animation (still running in bg for immersion)
   const scanAnim = useRef(new Animated.Value(0)).current;
@@ -54,6 +56,12 @@ export default function ARScannedScreen({ navigation, route }) {
 
   useEffect(() => {
     requestPermission();
+    addNotification({
+      type: 'scan',
+      icon: '✨',
+      title: 'AR Scanned!',
+      sub: `You discovered ${exhibit.name} in AR!`,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

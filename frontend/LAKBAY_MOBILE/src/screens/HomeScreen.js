@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Animated, Alert } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Animated, Alert, Image } from 'react-native';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import CustomModal from '../components/CustomModal';
 import VintaStripe from '../components/VintaStripe';
 import OnboardingTour from '../components/OnboardingTour';
 import { WebView } from 'react-native-webview';
+import { useApp } from '../context/AppContext';
 
 import { getSpots, ORIGIN } from '../api/qrService';
 
@@ -20,13 +21,22 @@ const formatImageUrl = (img) => {
 };
 
 function buildMiniMapHTML(spots) {
-  const coords = spots
+  const markers = spots
     .filter(s => s.latitude && s.longitude)
-    .map(s => [s.latitude, s.longitude]);
+    .map(s => ({
+      lat: s.latitude,
+      lng: s.longitude,
+      type: (s.feature_types && s.feature_types[0]) || 'qr',
+    }));
 
   // Fallback coords if backend has no spots
-  if (coords.length === 0) {
-    coords.push([6.8653, 122.0625], [6.9039, 122.0761], [6.9015, 122.0805], [6.9452, 122.0298]);
+  if (markers.length === 0) {
+    markers.push(
+      { lat: 6.8653, lng: 122.0625, type: 'qr' },
+      { lat: 6.9039, lng: 122.0761, type: 'ar' },
+      { lat: 6.9015, lng: 122.0805, type: 'catch' },
+      { lat: 6.9452, lng: 122.0298, type: 'qr' },
+    );
   }
 
   return `<!DOCTYPE html>
@@ -38,12 +48,16 @@ function buildMiniMapHTML(spots) {
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     html,body{width:100%;height:100%;background:#EEF3FF;overflow:hidden;}
-    #map{width:100%;height:100%;}
+    #map{width:100%;height:100%;filter:saturate(1.15);}
     .leaflet-container{background:#EEF3FF;}
     .leaflet-control-container{display:none;}
-    .pin{width:12px;height:12px;border-radius:50%;background:#1A56DB;
-      border:2px solid rgba(255,255,255,0.9);
-      box-shadow:0 0 8px rgba(26,86,219,0.6),0 0 0 3px rgba(26,86,219,0.2);}
+    .pin{width:16px;height:16px;border-radius:50%;
+      border:2px solid rgba(255,255,255,0.95);
+      display:flex;align-items:center;justify-content:center;}
+    .pin::after{content:'';width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.95);}
+    .pin-qr{background:#1A56DB;box-shadow:0 0 10px rgba(26,86,219,0.7),0 0 0 4px rgba(26,86,219,0.18);}
+    .pin-ar{background:#10B981;box-shadow:0 0 10px rgba(16,185,129,0.7),0 0 0 4px rgba(16,185,129,0.18);}
+    .pin-catch{background:#FBBF24;box-shadow:0 0 10px rgba(251,191,36,0.7),0 0 0 4px rgba(251,191,36,0.18);}
   </style>
 </head>
 <body>
@@ -54,10 +68,10 @@ var map=L.map('map',{center:[6.885,122.07],zoom:11,zoomControl:false,
   scrollWheelZoom:false,boxZoom:false,keyboard:false,tap:false});
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
   {attribution:'',subdomains:'abcd',maxZoom:20}).addTo(map);
-var coords = ${JSON.stringify(coords)};
-coords.forEach(function(c){
-  var el=document.createElement('div');el.className='pin';
-  L.marker(c,{icon:L.divIcon({html:el,className:'',iconSize:[12,12],iconAnchor:[6,6]})}).addTo(map);
+var markers = ${JSON.stringify(markers)};
+markers.forEach(function(m){
+  var el=document.createElement('div');el.className='pin pin-'+m.type;
+  L.marker([m.lat,m.lng],{icon:L.divIcon({html:el,className:'',iconSize:[16,16],iconAnchor:[8,8]})}).addTo(map);
 });
 </script>
 </body>
@@ -120,7 +134,7 @@ const DESTINATIONS = [
 ];
 
 const QA_CARDS = [
-  { emoji: '📷', badge: 'AR',    title: 'Augmented Reality', color: COLORS.accent, shadow: SHADOW.accent, route: 'AR', icon: 'camera', message: "This feature works only in Zamboanga City's museum" },
+  { emoji: '📷', badge: 'AR',    title: 'Augmented Reality', color: COLORS.accent, shadow: SHADOW.accent, route: 'MindAR', icon: 'camera', message: "This feature works only in Zamboanga City's museum" },
   { emoji: '🔍', badge: 'QR',    title: 'Scan & Discover',   color: COLORS.teal,   shadow: SHADOW.card,   route: 'QR', icon: 'scan', message: "This feature works only on tourist spots" },
   { emoji: '🏆', badge: 'CATCH', title: 'Collect & Win',     color: COLORS.gold,   shadow: SHADOW.gold,   route: 'Catch', icon: 'trophy', message: "This only works 4 symbols to catch which are the curacha, vinta, weave, and the lantaka" },
 ];
@@ -179,6 +193,8 @@ export default function HomeScreen({ navigation, route }) {
   const [spots, setSpots] = useState([]); // used for map
   const [featuredPlaces, setFeaturedPlaces] = useState([]); // used for places to experience
   const [showTour, setShowTour] = useState(false);
+  const { notifs, addNotification } = useApp();
+  const prevSpotCountRef = useRef(0);
 
   const bellRef    = useRef(null);
   const mapCardRef = useRef(null);
@@ -187,11 +203,27 @@ export default function HomeScreen({ navigation, route }) {
   const tourSteps = TOUR_STEPS.map((s) => (s.refKey ? { ...s, targetRef: refs[s.refKey] } : s));
 
   useEffect(() => {
-    getSpots().then(data => {
-      const allSpots = Array.isArray(data) ? data : (data.results || []);
-      setSpots(allSpots);
-      setFeaturedPlaces(allSpots.filter(s => s.is_featured));
-    }).catch(e => console.log('Home spots error', e));
+    const fetchSpots = () => {
+      getSpots().then(data => {
+        const allSpots = Array.isArray(data) ? data : (data.results || []);
+        setSpots(allSpots);
+        setFeaturedPlaces(allSpots.filter(s => s.is_featured));
+        
+        if (prevSpotCountRef.current > 0 && allSpots.length > prevSpotCountRef.current) {
+          addNotification({
+            type: 'admin',
+            icon: '📍',
+            title: 'New Place Added!',
+            sub: 'The admin just posted a new place to experience. Check it out on the map!',
+          });
+        }
+        prevSpotCountRef.current = allSpots.length;
+      }).catch(e => console.log('Home spots error', e));
+    };
+
+    fetchSpots();
+    const interval = setInterval(fetchSpots, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -232,6 +264,7 @@ export default function HomeScreen({ navigation, route }) {
             onPress={() => navigation.navigate('Notifications')}
           >
             <Ionicons name="notifications-outline" size={20} color="#FFF" />
+            {notifs.some(n => !n.read) && <View style={styles.unreadBadge} />}
           </TouchableOpacity>
         </View>
       </View>
@@ -281,7 +314,12 @@ export default function HomeScreen({ navigation, route }) {
           </View>
 
           {/* Map Card */}
-          <View ref={mapCardRef} style={styles.mapCard}>
+          <TouchableOpacity
+            ref={mapCardRef}
+            style={styles.mapCard}
+            activeOpacity={0.92}
+            onPress={() => navigation.navigate('Map')}
+          >
             <WebView
               source={{ html: buildMiniMapHTML(spots), baseUrl: 'https://localhost' }}
               style={styles.map}
@@ -290,22 +328,47 @@ export default function HomeScreen({ navigation, route }) {
               originWhitelist={['*']}
               scrollEnabled={false}
               mixedContentMode="always"
+              pointerEvents="none"
             />
-                <View style={styles.mapCompass}>
-                  <Text style={styles.mapCompassLabel}>N</Text>
-                  <Text style={styles.mapCompassArrow}>↑</Text>
-                </View>
-                <Text style={styles.mapScaleLabel}>📏 10 km</Text>
 
-            {/* Tap overlay */}
-            <TouchableOpacity
-              style={styles.mapTapOverlay}
-              onPress={() => navigation.navigate('Map')}
-            >
-              <Text style={styles.mapTapIcon}>🗺️</Text>
+            {/* Top fade + location badge */}
+            <View style={styles.mapTopFade} pointerEvents="none" />
+            <View style={styles.mapLocationBadge} pointerEvents="none">
+              <Ionicons name="location" size={12} color={COLORS.accent} />
+              <Text style={styles.mapLocationBadgeText}>Zamboanga City</Text>
+            </View>
+
+            <View style={styles.mapCompass} pointerEvents="none">
+              <Text style={styles.mapCompassLabel}>N</Text>
+              <Text style={styles.mapCompassArrow}>↑</Text>
+            </View>
+
+            {/* Legend */}
+            <View style={styles.mapLegend} pointerEvents="none">
+              <View style={styles.mapLegendRow}>
+                <View style={[styles.mapLegendDot, { backgroundColor: COLORS.accent }]} />
+                <Text style={styles.mapLegendText}>QR</Text>
+              </View>
+              <View style={styles.mapLegendRow}>
+                <View style={[styles.mapLegendDot, { backgroundColor: COLORS.teal }]} />
+                <Text style={styles.mapLegendText}>AR</Text>
+              </View>
+              <View style={styles.mapLegendRow}>
+                <View style={[styles.mapLegendDot, { backgroundColor: COLORS.gold }]} />
+                <Text style={styles.mapLegendText}>Catch</Text>
+              </View>
+            </View>
+
+            <Text style={styles.mapScaleLabel}>📏 10 km</Text>
+
+            {/* Bottom fade + floating CTA */}
+            <View style={styles.mapBottomFade} pointerEvents="none" />
+            <View style={styles.mapTapPill} pointerEvents="none">
+              <Ionicons name="map" size={14} color="#FFF" />
               <Text style={styles.mapTapText}>Tap to Explore Interactive Map</Text>
-            </TouchableOpacity>
-          </View>
+              <Ionicons name="arrow-forward" size={14} color="#FFF" />
+            </View>
+          </TouchableOpacity>
 
           {/* ── Welcome Zamboanga Promo ──────────────────────────── */}
           <View style={styles.promoSection}>
@@ -358,31 +421,23 @@ export default function HomeScreen({ navigation, route }) {
                 <TouchableOpacity
                   key={d.id}
                   style={styles.destinationCard}
-                  activeOpacity={0.85}
+                  activeOpacity={0.9}
                   onPress={() => {
                     const combinedImages = [d.image, d.image2, d.image3].filter(img => img).map(formatImageUrl);
                     navigation.navigate('Details', { destination: { title: d.name, location: d.location_name, description: d.description, historical_background: d.historical_background, cultural_significance: d.cultural_significance, fun_fact: d.fun_fact, image: formatImageUrl(d.image), images: combinedImages } });
                   }}
                 >
-                  {/* Left color stripe */}
-                  <View style={[styles.destStripe, { backgroundColor: color }]} />
+                  <View style={styles.destImageContainer}>
+                    <Image source={{ uri: formatImageUrl(d.image) }} style={styles.destImage} resizeMode="cover" />
+                    <View style={[styles.destTagBadge, { backgroundColor: 'rgba(0,0,0,0.6)', borderColor: color, position: 'absolute', top: 12, left: 12 }]}>
+                      <Text style={[styles.destTagText, { color: color }]}>{tag}</Text>
+                    </View>
+                  </View>
 
                   <View style={styles.destBody}>
-                    {/* Top row: emoji + tag badge */}
-                    <View style={styles.destTopRow}>
-                      <Text style={styles.destEmoji}>{emoji}</Text>
-                      <View style={[styles.destTagBadge, { backgroundColor: color + '22', borderColor: color + '55' }]}>
-                        <Text style={[styles.destTagText, { color: color }]}>{tag}</Text>
-                      </View>
-                    </View>
-
-                    {/* Name */}
                     <Text style={styles.destName}>{d.name}</Text>
-
-                    {/* Description */}
                     <Text style={styles.destDesc} numberOfLines={2}>{d.description}</Text>
 
-                    {/* Footer CTA */}
                     <View style={styles.destFooter}>
                       <Text style={[styles.destCta, { color: color }]}>Explore →</Text>
                     </View>
@@ -639,17 +694,79 @@ const styles = StyleSheet.create({
 
   // ── Map ───────────────────────────────────────────────────────────
   mapCard: {
-    height: 220,
+    height: 240,
     backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.lg,
     borderWidth: 1.5,
-    borderColor: COLORS.accentDark,
+    borderColor: COLORS.accentBorder,
     overflow: 'hidden',
     marginBottom: 20,
+    position: 'relative',
     ...SHADOW.accent,
   },
   map: {
     flex: 1,
+    backgroundColor: COLORS.bg,
+  },
+  mapTopFade: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    height: 56,
+    backgroundColor: 'rgba(12,36,97,0.16)',
+  },
+  mapBottomFade: {
+    position: 'absolute',
+    bottom: 0, left: 0, right: 0,
+    height: 70,
+    backgroundColor: 'rgba(12,36,97,0.10)',
+  },
+  mapLocationBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: COLORS.accentBorder,
+    ...SHADOW.card,
+  },
+  mapLocationBadgeText: {
+    fontFamily: FONTS.bold,
+    fontSize: 11,
+    color: COLORS.text,
+  },
+  mapLegend: {
+    position: 'absolute',
+    top: 12,
+    right: 48,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.accentBorder,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    gap: 4,
+    ...SHADOW.card,
+  },
+  mapLegendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  mapLegendDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  mapLegendText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 9,
+    color: COLORS.textSub,
   },
   mapGridMock: {
     flex: 1,
@@ -675,7 +792,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.accent,
+    borderWidth: 1,
+    borderColor: COLORS.navy,
+  },
+  nodeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.gold,
+    marginRight: 5,
   },
   nodePulse: {
     width: 8,
@@ -700,47 +835,56 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 12,
     top: 12,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderWidth: 1,
+    borderColor: COLORS.accentBorder,
     justifyContent: 'center',
     alignItems: 'center',
+    ...SHADOW.card,
   },
   mapCompassLabel: {
     fontFamily: FONTS.bold,
-    color: '#FFF',
+    color: COLORS.text,
     fontSize: 8,
   },
   mapCompassArrow: {
     color: COLORS.accent,
-    fontSize: 10,
+    fontSize: 11,
     marginTop: -2,
   },
   mapScaleLabel: {
     position: 'absolute',
-    bottom: 10,
+    bottom: 58,
     left: 12,
-    color: 'rgba(255,255,255,0.55)',
+    color: '#FFF',
     fontSize: 9,
-    fontFamily: FONTS.regular,
+    fontFamily: FONTS.semiBold,
+    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
-  mapTapOverlay: {
-    height: 44,
-    backgroundColor: 'rgba(233,30,140,0.88)',
+  mapTapPill: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 12,
+    height: 42,
+    borderRadius: RADIUS.pill,
+    backgroundColor: COLORS.accent,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-  },
-  mapTapIcon: {
-    fontSize: 16,
+    ...SHADOW.accent,
   },
   mapTapText: {
     fontFamily: FONTS.bold,
     color: '#FFF',
     fontSize: 12,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
 
   // ── Welcome Zamboanga Promo ───────────────────────────────────────
@@ -839,30 +983,27 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   destinationCard: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.md,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: COLORS.border,
     overflow: 'hidden',
-    marginBottom: 12,
+    marginBottom: 16,
     ...SHADOW.card,
   },
-  destStripe: {
-    width: 4,
+  destImageContainer: {
+    width: '100%',
+    height: 160,
+    position: 'relative',
+  },
+  destImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   destBody: {
-    flex: 1,
-    padding: 14,
-  },
-  destTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  destEmoji: {
-    fontSize: 26,
+    padding: 16,
   },
   destTagBadge: {
     borderRadius: RADIUS.pill,
@@ -877,7 +1018,7 @@ const styles = StyleSheet.create({
   },
   destName: {
     fontFamily: FONTS.bold,
-    fontSize: 15,
+    fontSize: 16,
     color: COLORS.text,
     marginBottom: 6,
   },

@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { ORIGIN } from '../api/qrService';
+import { useApp } from '../context/AppContext';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -58,6 +59,7 @@ const CARD_SECTIONS = [
 export default function QRScannedScreen({ navigation, route }) {
   const spot = route?.params?.spot;
   const already_scanned = route?.params?.already_scanned ?? false;
+  const { addNotification } = useApp();
 
   const combinedImages = spot
     ? [spot.image, spot.image2, spot.image3].filter(Boolean).map(formatImageUrl)
@@ -78,6 +80,15 @@ export default function QRScannedScreen({ navigation, route }) {
   const btnOpacity    = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (spot && !already_scanned) {
+      addNotification({
+        type: 'scan',
+        icon: '📷',
+        title: 'QR Scanned!',
+        sub: `You unlocked ${spot.name} — +50 XP`,
+      });
+    }
+
     const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
     Animated.loop(

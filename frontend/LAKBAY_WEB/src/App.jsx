@@ -34,7 +34,8 @@ import {
   Compass,
   Shield,
   LogOut,
-  ArrowLeft
+  ArrowLeft,
+  Image as ImageIcon
 } from 'lucide-react'
 
 import './App.css'
@@ -788,6 +789,12 @@ function App() {
 
 
   const [isAddCatchIconModalOpen, setIsAddCatchIconModalOpen] = useState(false);
+  const [isAddARTargetModalOpen, setIsAddARTargetModalOpen] = useState(false);
+  const [arTargets, setArTargets] = useState([
+    { id: 1, name: 'Yakan Weaving Artwork', description: 'Interactive AR layer explaining the geometric patterns.', image: null },
+    { id: 2, name: 'Vinta Sail Painting', description: 'Shows a 3D animation of a vinta sailing when scanned.', image: null }
+  ]);
+  const [newARTarget, setNewARTarget] = useState({ name: '', description: '', image: null });
   const [isEditCatchIconModalOpen, setIsEditCatchIconModalOpen] = useState(false);
   const [editingCatchIcon, setEditingCatchIcon] = useState(null);
   const [selectedCatchForView, setSelectedCatchForView] = useState(null);
@@ -1049,7 +1056,15 @@ function App() {
       ]);
       setNewCatchIcon({ name: '', emoji: '👾', tagline: '', type_name: 'Catch Model', color: '#38BDF8', about: '', significance: '', facts: [], model_3d: '' });
       setIsAddCatchIconModalOpen(false);
-    } catch (err) { console.error(err); }
+    } catch (e) { console.error(e); }
+  };
+
+  const handleAddARTarget = (e) => {
+    e.preventDefault();
+    const newTarget = { ...newARTarget, id: Date.now() };
+    setArTargets([...arTargets, newTarget]);
+    setNewARTarget({ name: '', description: '', image: null });
+    setIsAddARTargetModalOpen(false);
   };
 
   const handleCatchEditSubmit = async (e) => {
@@ -2346,41 +2361,32 @@ function App() {
                   </div>
                 </div>
 
-                {/* Table Card */}
-                <div className="content-card">
-                  <div className="content-card-header">
+                {/* AR Targets Section */}
+                <div className="content-card" style={{ gridColumn: '1 / -1' }}>
+                  <div className="content-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 className="card-title">
-                      <Eye className="card-title-icon" size={18} />
-                      Exhibit Details
+                      <ImageIcon className="card-title-icon" size={18} />
+                      MindAR Targets (Museum Paintings)
                     </h3>
+                    <button className="btn btn-primary" onClick={() => setIsAddARTargetModalOpen(true)}>
+                      <Plus size={14} /> Add Painting
+                    </button>
                   </div>
-                  <div className="table-wrapper" style={{marginTop: '16px', border: 'none', background: 'transparent'}}>
-                    <table className="custom-table">
-                      <thead>
-                        <tr>
-                          <th>Exhibit</th>
-                          <th>Visits</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td>Fort Pilar Main Shrine</td>
-                          <td>4,215</td>
-                          <td><span className="badge active">Highly Active</span></td>
-                        </tr>
-                        <tr>
-                          <td>Yakan Weaving Gallery</td>
-                          <td>2,840</td>
-                          <td><span className="badge active">Moderate</span></td>
-                        </tr>
-                        <tr>
-                          <td>Vinta History Room</td>
-                          <td>1,887</td>
-                          <td><span className="badge active">Growing</span></td>
-                        </tr>
-                      </tbody>
-                    </table>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px', marginTop: '20px' }}>
+                    {arTargets.map(target => (
+                      <div key={target.id} style={{ border: '1px solid var(--card-border)', borderRadius: '12px', padding: '16px', backgroundColor: 'var(--body-bg)' }}>
+                        <div style={{ height: '140px', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                          {target.image ? (
+                            <img src={URL.createObjectURL(target.image)} alt={target.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <ImageIcon size={32} color="var(--text-muted)" />
+                          )}
+                        </div>
+                        <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', color: 'var(--text-title)' }}>{target.name}</h4>
+                        <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>{target.description}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </section>
@@ -2708,7 +2714,58 @@ function App() {
         </div>
       </main>
 
-      {/* Add Catch Icon Modal */}
+      {/* MODAL: ADD AR TARGET */}
+      {isAddARTargetModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3 className="modal-title">Add AR Painting (MindAR)</h3>
+              <button className="close-btn" onClick={() => setIsAddARTargetModalOpen(false)}><X size={20}/></button>
+            </div>
+            <form onSubmit={handleAddARTarget}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Painting Name</label>
+                  <input type="text" className="form-input" required 
+                    value={newARTarget.name} onChange={e => setNewARTarget({...newARTarget, name: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Description / Info to Display</label>
+                  <textarea className="form-textarea" required
+                    value={newARTarget.description} onChange={e => setNewARTarget({...newARTarget, description: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Upload Target Image (For MindAR Compilation)</label>
+                  <label style={{
+                    position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    height: '140px', border: newARTarget.image ? '2px solid var(--accent-color)' : '2px dashed var(--card-border)', borderRadius: '10px',
+                    backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', marginTop: '8px'
+                  }}>
+                    <input type="file" accept="image/*" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+                      onChange={e => setNewARTarget({...newARTarget, image: e.target.files[0]})} required={!newARTarget.image} />
+                    {newARTarget.image ? (
+                      <>
+                        <img src={URL.createObjectURL(newARTarget.image)} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0, opacity: 0.4 }} alt="" />
+                        <span style={{ position: 'relative', zIndex: 5, color: '#fff', fontSize: '14px', fontWeight: 'bold', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>Change Image</span>
+                      </>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '0 10px' }}>
+                        Drag and drop target image here<br/>or click to browse
+                      </span>
+                    )}
+                  </label>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setIsAddARTargetModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Target</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ADD CATCH ICON */}
       {isAddCatchIconModalOpen && (
         <div className="modal-overlay">
           <div className="modal-card" style={{width: '90vw', maxWidth: '1000px', maxHeight: '90vh', display: 'flex', flexDirection: 'column'}}>

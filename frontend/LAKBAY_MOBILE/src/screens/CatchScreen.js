@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
+import { useApp } from '../context/AppContext';
 import { getCatchIcons, getSpots, ORIGIN } from '../api/qrService';
 import ErrorModal from '../components/ErrorModal';
 
@@ -701,6 +702,7 @@ function ProximitySheet({ spot, icon, distanceM, onCatch, onDismiss }) {
 export default function CatchScreen({ navigation }) {
   const [icons, setIcons] = useState([]);
   const [catchSpots, setCatchSpots] = useState([]);
+  const { notifs, addNotification } = useApp();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [errorModal, setErrorModal] = useState({ visible: false, type: 'error', title: '', message: '' });
@@ -825,9 +827,15 @@ export default function CatchScreen({ navigation }) {
   const handleARContinue = useCallback(() => {
     setArVisible(false);
     if (arIcon) {
+      addNotification({
+        type: 'catch',
+        icon: '✨',
+        title: 'Catch Complete!',
+        sub: `${arIcon.name} captured successfully — +80 XP`,
+      });
       navigation.navigate('CatchDetails', { icon: arIcon });
     }
-  }, [arIcon, navigation]);
+  }, [arIcon, navigation, addNotification]);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -845,6 +853,7 @@ export default function CatchScreen({ navigation }) {
         </View>
         <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('Notifications')}>
           <Ionicons name="notifications-outline" size={20} color="#FFF" />
+          {notifs.some(n => !n.read) && <View style={styles.unreadBadge} />}
         </TouchableOpacity>
       </View>
 
@@ -941,7 +950,7 @@ export default function CatchScreen({ navigation }) {
               <Text style={styles.progressLabel}>Collection Progress</Text>
               <Text style={styles.progressValue}>
                 <Text style={styles.progressCaught}>0</Text>
-                {' '}/ {icons.length}
+                {' '}/ {icons.filter(icon => icon.name.toLowerCase() !== 'curacha').length}
               </Text>
             </View>
             <View style={styles.progressBarBg}>
@@ -952,42 +961,50 @@ export default function CatchScreen({ navigation }) {
           {/* Section heading */}
           <View style={styles.sectionRow}>
             <View style={styles.accentBar} />
-            <Text style={styles.sectionTitle}>Cultural Icons</Text>
+            <Text style={styles.sectionTitle}>How to Catch</Text>
           </View>
           <Text style={styles.sectionSub}>
-            Visit catch zones to unlock AR experiences and learn about these icons.
+            Follow these steps to build your collection of Zamboanga's cultural heritage.
           </Text>
 
-          {/* 2×2 Icon Grid */}
-          {icons.length === 0 ? (
-            <View style={styles.emptyBox}>
-              <Ionicons name="images-outline" size={36} color={COLORS.textMuted} />
-              <Text style={styles.emptyText}>No cultural icons available yet.</Text>
-            </View>
-          ) : (
-            <View style={styles.grid}>
-              {icons.map(icon => (
-                <TouchableOpacity
-                  key={icon.id}
-                  style={[styles.iconCard, { borderColor: icon.color + '55' }]}
-                  activeOpacity={0.82}
-                  onPress={() => navigation.navigate('CatchDetails', { icon })}
-                >
-                  <View style={[styles.cardGlow, { backgroundColor: icon.glow }]} />
-                  <View style={[styles.modelRing, { borderColor: icon.color + '88', backgroundColor: icon.color + '18' }]}>
-                    {icon.model_3d
-                      ? <Ionicons name="cube-outline" size={28} color={icon.color} />
-                      : <Ionicons name="fish-outline" size={28} color={icon.color} />}
-                  </View>
-                  <Text style={[styles.iconName, { color: icon.color }]}>{icon.name}</Text>
-                  <Text style={styles.iconTagline} numberOfLines={2}>{icon.tagline}</Text>
-                  <View style={[styles.arrowBtn, { backgroundColor: icon.color + '22', borderColor: icon.color + '44' }]}>
-                    <Ionicons name="arrow-forward" size={14} color={icon.color} />
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+          {/* Guide Steps */}
+          <View style={{ marginTop: 10, gap: 12, marginBottom: 20 }}>
+            {[
+              { icon: 'map-outline', title: '1. Find Catch Zones', desc: 'Explore the map to discover areas where cultural icons spawn.' },
+              { icon: 'walk-outline', title: '2. Get Close', desc: 'Walk to the location until you are within catching range (30 meters).' },
+              { icon: 'camera-outline', title: '3. Capture in AR', desc: 'Tap the prompt to open your camera and capture the icon in Augmented Reality!' },
+              { icon: 'library-outline', title: '4. Collect & Learn', desc: 'Build your collection and learn the history and significance of each icon.' },
+            ].map((step, idx) => (
+              <View key={idx} style={{
+                flexDirection: 'row',
+                backgroundColor: COLORS.bgCard,
+                borderRadius: RADIUS.md,
+                padding: 16,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                alignItems: 'center',
+                gap: 16,
+                ...SHADOW.card
+              }}>
+                <View style={{
+                  width: 48, height: 48,
+                  borderRadius: 24,
+                  backgroundColor: COLORS.accent + '15',
+                  justifyContent: 'center', alignItems: 'center'
+                }}>
+                  <Ionicons name={step.icon} size={24} color={COLORS.accent} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: FONTS.bold, fontSize: 15, color: COLORS.text, marginBottom: 4 }}>
+                    {step.title}
+                  </Text>
+                  <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textSub, lineHeight: 18 }}>
+                    {step.desc}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
         </ScrollView>
       )}
 
@@ -1043,6 +1060,17 @@ const styles = StyleSheet.create({
   headerBtn: {
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center',
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.accent,
+    borderWidth: 1,
+    borderColor: COLORS.navy,
   },
 
   subHeader: {

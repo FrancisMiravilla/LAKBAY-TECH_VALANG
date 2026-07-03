@@ -8,6 +8,7 @@ import * as Font from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
 import AppNavigator from './src/navigation/AppNavigator';
 import { COLORS } from './src/constants/theme';
+import { AppProvider } from './src/context/AppContext';
 
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -33,10 +34,12 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <StatusBar style="light" backgroundColor={COLORS.accentDark} />
-        <AppNavigator />
-      </NavigationContainer>
+      <AppProvider>
+        <NavigationContainer>
+          <StatusBar style="light" backgroundColor={COLORS.accentDark} />
+          <AppNavigator />
+        </NavigationContainer>
+      </AppProvider>
     </SafeAreaProvider>
   );
 }

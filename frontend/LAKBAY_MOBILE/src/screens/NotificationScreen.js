@@ -3,20 +3,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet, Text, View, TouchableOpacity, StatusBar, ScrollView } from 'react-native';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 
-const INITIAL_NOTIFS = [
-  { id: 1, type: 'scan',  icon: '📷', title: 'QR Scanned!',            sub: 'You unlocked Fort Pilar spot — +50 XP',             time: '2m ago',  read: false },
-  { id: 2, type: 'badge', icon: '🏅', title: 'Badge Unlocked!',        sub: 'You earned the \'City Explorer\' badge',             time: '1h ago',  read: false },
-  { id: 3, type: 'catch', icon: '🦀', title: 'Catch Complete!',        sub: 'Curacha captured at Fort Pilar Museum — +80 XP',    time: '3h ago',  read: true  },
-  { id: 4, type: 'scan',  icon: '🗺️', title: 'New Hotspot Nearby!',   sub: 'Santa Cruz Island is 2km from your location',       time: '1d ago',  read: true  },
-  { id: 5, type: 'badge', icon: '✨', title: 'Milestone Reached!',     sub: 'You\'ve visited 5 cultural spots in Zamboanga City', time: '2d ago',  read: true  },
-];
+const TYPE_COLOR = { scan: COLORS.accent, badge: COLORS.gold, catch: COLORS.teal, admin: COLORS.gold };
 
-const TYPE_COLOR = { scan: COLORS.accent, badge: COLORS.gold, catch: COLORS.teal };
+import { useApp } from '../context/AppContext';
 
 export default function NotificationScreen({ navigation }) {
-  const [notifs, setNotifs] = useState(INITIAL_NOTIFS);
+  const { notifs, clearNotifications, markNotificationRead } = useApp();
 
-  const clearAll = () => setNotifs([]);
+  const clearAll = () => clearNotifications();
   const unreadCount = notifs.filter(n => !n.read).length;
 
   return (
@@ -63,11 +57,7 @@ export default function NotificationScreen({ navigation }) {
                   key={n.id}
                   style={[styles.notifCard, !n.read && styles.notifCardUnread]}
                   activeOpacity={0.85}
-                  onPress={() =>
-                    setNotifs(prev =>
-                      prev.map(x => x.id === n.id ? { ...x, read: true } : x)
-                    )
-                  }
+                  onPress={() => markNotificationRead(n.id)}
                 >
                   {/* Left accent line */}
                   <View style={[styles.accentLine, { backgroundColor: color }]} />
