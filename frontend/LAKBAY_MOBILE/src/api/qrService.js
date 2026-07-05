@@ -38,3 +38,6 @@ export const getSpotTrivia = (spotId) =>
 
 export const awardSpotBadge = (spotId) =>
   qrClient.post(`/api/qr/spots/${spotId}/award-badge/`).then((r) => r.data);
+
+export const getARTargets = () =>
+  qrClient.get('/api/qr/ar-targets/').then((r) => r.data);

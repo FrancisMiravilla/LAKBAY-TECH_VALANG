@@ -2,8 +2,7 @@ import base64
 import uuid
 from django.core.files.base import ContentFile
 from rest_framework import serializers
-from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, TriviaAttempt, CulturalIcon
-
+from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, TriviaAttempt, CulturalIcon, ARTarget
 class Base64ImageField(serializers.ImageField):
     def to_internal_value(self, data):
         if isinstance(data, str) and data.startswith('data:image'):
@@ -94,4 +93,12 @@ class CulturalIconSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CulturalIcon
+        fields = '__all__'
+
+
+class ARTargetSerializer(serializers.ModelSerializer):
+    image = Base64ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model = ARTarget
         fields = '__all__'

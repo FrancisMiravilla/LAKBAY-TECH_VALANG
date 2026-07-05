@@ -60,6 +60,7 @@ function NoModel({ color }) {
 
 export default function CatchDetailsScreen({ route, navigation }) {
   const { icon } = route.params;
+  const iconColor = icon.color || COLORS.primary;
 
   const viewerHTML = useMemo(
     () => icon.model_3d ? build3DViewerHTML(icon.model_3d) : null,
@@ -68,10 +69,10 @@ export default function CatchDetailsScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={icon.color} />
+      <StatusBar barStyle="light-content" backgroundColor={iconColor} />
 
       {/* Coloured header */}
-      <View style={[styles.headerBg, { backgroundColor: icon.color }]}>
+      <View style={[styles.headerBg, { backgroundColor: iconColor }]}>
         <View style={styles.headerTop}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
             <Ionicons name="arrow-back" size={20} color="#FFF" />
@@ -86,7 +87,7 @@ export default function CatchDetailsScreen({ route, navigation }) {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
         {/* ── 3D Model ── */}
-        <View style={[styles.modelCard, { borderColor: icon.color + '44' }]}>
+        <View style={[styles.modelCard, { borderColor: iconColor + '44' }]}>
           {viewerHTML ? (
             <WebView
               source={{ html: viewerHTML }}
@@ -97,7 +98,7 @@ export default function CatchDetailsScreen({ route, navigation }) {
               scrollEnabled={false}
             />
           ) : (
-            <NoModel color={icon.color} />
+            <NoModel color={iconColor} />
           )}
         </View>
 
@@ -106,10 +107,10 @@ export default function CatchDetailsScreen({ route, navigation }) {
         {!!icon.tagline && <Text style={styles.iconTagline}>{icon.tagline}</Text>}
 
         {/* ── Content card ── */}
-        <View style={[styles.infoCard, { borderColor: icon.color + '44' }]}>
+        <View style={[styles.infoCard, { borderColor: iconColor + '44' }]}>
 
           {/* About */}
-          <Text style={[styles.sectionLabel, { color: icon.color }]}>ABOUT</Text>
+          <Text style={[styles.sectionLabel, { color: iconColor }]}>ABOUT</Text>
           <Text style={styles.bodyText}>
             {icon.about || 'No description available.'}
           </Text>
@@ -117,7 +118,7 @@ export default function CatchDetailsScreen({ route, navigation }) {
           <View style={styles.divider} />
 
           {/* Cultural Significance */}
-          <Text style={[styles.sectionLabel, { color: icon.color }]}>CULTURAL SIGNIFICANCE</Text>
+          <Text style={[styles.sectionLabel, { color: iconColor }]}>CULTURAL SIGNIFICANCE</Text>
           <Text style={styles.bodyText}>
             {icon.significance || 'No cultural significance noted.'}
           </Text>
@@ -129,7 +130,7 @@ export default function CatchDetailsScreen({ route, navigation }) {
       {/* Bottom CTA */}
       <View style={styles.bottomNav}>
         <TouchableOpacity
-          style={[styles.continueBtn, { backgroundColor: icon.color }]}
+          style={[styles.continueBtn, { backgroundColor: iconColor }]}
           onPress={() => navigation.navigate('QuizScreen', { icon })}
         >
           <Text style={styles.continueBtnText}>Continue to Quiz</Text>

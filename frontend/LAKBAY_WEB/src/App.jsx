@@ -768,6 +768,11 @@ function App() {
       setTriviaQuestions(items);
     }).catch(console.error);
 
+    qrService.getARTargets().then(({ data }) => {
+      const items = Array.isArray(data) ? data : (data.results || []);
+      setArTargets(items);
+    }).catch(console.error);
+
     // Fetch pending quizzes for Review Module
     if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'tourist_guide')) {
       qrService.getPendingQuizzes().then(({ data }) => {
@@ -790,10 +795,7 @@ function App() {
 
   const [isAddCatchIconModalOpen, setIsAddCatchIconModalOpen] = useState(false);
   const [isAddARTargetModalOpen, setIsAddARTargetModalOpen] = useState(false);
-  const [arTargets, setArTargets] = useState([
-    { id: 1, name: 'Yakan Weaving Artwork', description: 'Interactive AR layer explaining the geometric patterns.', image: null },
-    { id: 2, name: 'Vinta Sail Painting', description: 'Shows a 3D animation of a vinta sailing when scanned.', image: null }
-  ]);
+  const [arTargets, setArTargets] = useState([]);
   const [newARTarget, setNewARTarget] = useState({ name: '', description: '', image: null });
   const [isEditCatchIconModalOpen, setIsEditCatchIconModalOpen] = useState(false);
   const [editingCatchIcon, setEditingCatchIcon] = useState(null);
@@ -887,6 +889,17 @@ function App() {
     };
     reader.readAsDataURL(file);
   };
+
+  const handleARTargetImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setNewARTarget(prev => ({ ...prev, image: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
 
   // Handlers
   const handleAddSpot = async (e) => {
@@ -1059,12 +1072,21 @@ function App() {
     } catch (e) { console.error(e); }
   };
 
-  const handleAddARTarget = (e) => {
+  const handleAddARTarget = async (e) => {
     e.preventDefault();
-    const newTarget = { ...newARTarget, id: Date.now() };
-    setArTargets([...arTargets, newTarget]);
-    setNewARTarget({ name: '', description: '', image: null });
-    setIsAddARTargetModalOpen(false);
+    try {
+      const res = await qrService.createARTarget(newARTarget);
+      setArTargets([...arTargets, res.data]);
+      setNotifications(prev => [
+        { id: generateNotificationId(), text: `AR Target "${newARTarget.name}" added.`, time: 'Just now' },
+        ...prev,
+      ]);
+      setNewARTarget({ name: '', description: '', image: null });
+      setIsAddARTargetModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      showError('Failed to add AR Target. Please try again.', 'Error', 'error');
+    }
   };
 
   const handleCatchEditSubmit = async (e) => {
@@ -2378,7 +2400,7 @@ function App() {
                       <div key={target.id} style={{ border: '1px solid var(--card-border)', borderRadius: '12px', padding: '16px', backgroundColor: 'var(--body-bg)' }}>
                         <div style={{ height: '140px', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                           {target.image ? (
-                            <img src={URL.createObjectURL(target.image)} alt={target.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={typeof target.image === 'string' ? target.image : URL.createObjectURL(target.image)} alt={target.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
                             <ImageIcon size={32} color="var(--text-muted)" />
                           )}
@@ -2742,10 +2764,10 @@ function App() {
                     backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', marginTop: '8px'
                   }}>
                     <input type="file" accept="image/*" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
-                      onChange={e => setNewARTarget({...newARTarget, image: e.target.files[0]})} required={!newARTarget.image} />
+                      onChange={handleARTargetImageChange} required={!newARTarget.image} />
                     {newARTarget.image ? (
                       <>
-                        <img src={URL.createObjectURL(newARTarget.image)} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0, opacity: 0.4 }} alt="" />
+                        <img src={typeof newARTarget.image === 'string' ? newARTarget.image : URL.createObjectURL(newARTarget.image)} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0, opacity: 0.4 }} alt="" />
                         <span style={{ position: 'relative', zIndex: 5, color: '#fff', fontSize: '14px', fontWeight: 'bold', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>Change Image</span>
                       </>
                     ) : (
