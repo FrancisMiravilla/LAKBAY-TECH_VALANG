@@ -16,22 +16,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
 
+import { getARTargets } from '../api/qrService';
+
 // =========================================================================
-// 1. REGISTER YOUR MUSEUM PAINTINGS (IMAGE TARGETS) HERE
+// 1. DYNAMIC AR TARGETS LOGIC
 // =========================================================================
-ViroARTrackingTargets.createTargets({
-  "painting_yakan": {
-    // You can use a local file, or a URI from your web admin!
-    source: { uri: "https://lakbay.app/placeholder-yakan.jpg" }, 
-    orientation: "Up",
-    physicalWidth: 0.5, // The real-world width of the painting in meters (50cm)
-  },
-  "painting_vinta": {
-    source: { uri: "https://lakbay.app/placeholder-vinta.jpg" },
-    orientation: "Up",
-    physicalWidth: 0.5,
-  }
-});
+// Targets will be registered dynamically via API call in the main component.
 
 // =========================================================================
 // 2. DEFINE THE 3D AR SCENE (WHAT HAPPENS WHEN PAINTING IS DETECTED)
@@ -43,30 +33,20 @@ const MuseumARScene = (props) => {
       <ViroAmbientLight color="#FFFFFF" intensity={100} />
       <ViroSpotLight innerAngle={5} outerAngle={90} direction={[0, -1, -.2]} position={[0, 3, 1]} color="#ffffff" castsShadow={true} />
 
-      {/* TRACKER: Yakan Painting */}
-      <ViroARImageMarker 
-        target={"painting_yakan"} 
-        onAnchorFound={() => props.sceneNavigator.viroAppProps.onTargetFound('Yakan Weaving Artwork')}
-        onAnchorRemoved={() => props.sceneNavigator.viroAppProps.onTargetLost()}
-      >
-        <ViroNode position={[0, 0, 0]}>
-           {/* Replace this ViroText/ViroBox with an actual 3D model (Viro3DObject) later! */}
-           <ViroText text="Yakan Weaving Detected!" scale={[0.1, 0.1, 0.1]} position={[0, 0.15, 0]} style={{color: '#FFFFFF'}} />
-           <ViroBox scale={[0.1, 0.1, 0.1]} materials={["grid"]} animation={{name: "rotate", run: true, loop: true}} />
-        </ViroNode>
-      </ViroARImageMarker>
-
-      {/* TRACKER: Vinta Painting */}
-      <ViroARImageMarker 
-        target={"painting_vinta"} 
-        onAnchorFound={() => props.sceneNavigator.viroAppProps.onTargetFound('Vinta Sail Painting')}
-        onAnchorRemoved={() => props.sceneNavigator.viroAppProps.onTargetLost()}
-      >
-        <ViroNode position={[0, 0, 0]}>
-           <ViroText text="Vinta Painting Detected!" scale={[0.1, 0.1, 0.1]} position={[0, 0.15, 0]} style={{color: '#FFFFFF'}} />
-           <ViroBox scale={[0.1, 0.1, 0.1]} materials={["grid"]} animation={{name: "rotate", run: true, loop: true}} />
-        </ViroNode>
-      </ViroARImageMarker>
+      {/* DYNAMIC TRACKERS */}
+      {(props.sceneNavigator.viroAppProps.arTargets || []).map(target => (
+        <ViroARImageMarker 
+          key={target.id}
+          target={`target_${target.id}`} 
+          onAnchorFound={() => props.sceneNavigator.viroAppProps.onTargetFound(target)}
+          onAnchorRemoved={() => props.sceneNavigator.viroAppProps.onTargetLost()}
+        >
+          <ViroNode position={[0, 0, 0]}>
+             <ViroText text={`${target.name} Detected!`} scale={[0.1, 0.1, 0.1]} position={[0, 0.15, 0]} style={{color: '#FFFFFF'}} />
+             <ViroBox scale={[0.1, 0.1, 0.1]} materials={["grid"]} animation={{name: "rotate", run: true, loop: true}} />
+          </ViroNode>
+        </ViroARImageMarker>
+      ))}
 
     </ViroARScene>
   );
@@ -87,14 +67,41 @@ ViroAnimations.registerAnimations({
 // =========================================================================
 export default function ViroARScanner({ navigation }) {
   const [detectedSpot, setDetectedSpot] = useState(null);
+  const [arTargets, setArTargets] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    getARTargets().then(data => {
+      const targets = Array.isArray(data) ? data : (data.results || []);
+      const targetMap = {};
+      targets.forEach(t => {
+        if (t.image) {
+          targetMap[`target_${t.id}`] = {
+            source: { uri: t.image },
+            orientation: "Up",
+            physicalWidth: 0.5,
+          };
+        }
+      });
+      if (Object.keys(targetMap).length > 0) {
+        ViroARTrackingTargets.createTargets(targetMap);
+      }
+      setArTargets(targets.filter(t => t.image));
+      setLoading(false);
+    }).catch(err => {
+      console.error(err);
+      setLoading(false);
+    });
+  }, []);
 
   // Called natively when ViroARImageMarker sees a painting
-  const handleTargetFound = (name) => {
+  const handleTargetFound = (target) => {
     setDetectedSpot({
-      name: name,
-      description: "You've uncovered a hidden AR experience inside the museum! Point your camera to see it."
+      name: target.name,
+      description: target.description || "You've uncovered a hidden AR experience inside the museum! Point your camera to see it."
     });
   };
+
 
   // Called when the painting leaves the camera view
   const handleTargetLost = () => {
@@ -117,15 +124,20 @@ export default function ViroARScanner({ navigation }) {
 
       {/* Viro React AR Camera View */}
       <View style={styles.cameraContainer}>
-        <ViroARSceneNavigator
-          initialScene={{ scene: MuseumARScene }}
-          viroAppProps={{
-            onTargetFound: handleTargetFound,
-            onTargetLost: handleTargetLost
-          }}
-          style={{ flex: 1 }}
-          autofocus={true}
-        />
+        {loading ? (
+          <ActivityIndicator size="large" color="#FFF" style={{ marginTop: '50%' }} />
+        ) : (
+          <ViroARSceneNavigator
+            initialScene={{ scene: MuseumARScene }}
+            viroAppProps={{
+              arTargets: arTargets,
+              onTargetFound: handleTargetFound,
+              onTargetLost: handleTargetLost
+            }}
+            style={{ flex: 1 }}
+            autofocus={true}
+          />
+        )}
       </View>
 
       {/* React Native UI Overlay (Pops up when painting is detected) */}
@@ -139,7 +151,7 @@ export default function ViroARScanner({ navigation }) {
             <Text style={styles.title}>{detectedSpot.name}</Text>
             <Text style={styles.desc}>{detectedSpot.description}</Text>
             
-            <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate('CatchDetails', { icon: { name: detectedSpot.name }})}>
+            <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate('CatchDetails', { icon: { name: detectedSpot.name, about: detectedSpot.description }})}>
               <Text style={styles.btnText}>View Full Details</Text>
             </TouchableOpacity>
           </View>

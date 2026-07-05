@@ -9,11 +9,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions, viewsets
 from groq import Groq
-from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, SpotBadge, TriviaAttempt, CulturalIcon
+from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, SpotBadge, TriviaAttempt, CulturalIcon, ARTarget
 from .serializers import (
     CulturalSpotSerializer, QRMarkerSerializer,
     TriviaQuestionSerializer, TriviaQuestionAdminSerializer,
-    CulturalIconSerializer
+    CulturalIconSerializer, ARTargetSerializer
 )
 
 XP_PER_QUIZ = 50
@@ -23,6 +23,16 @@ PASS_THRESHOLD = 0.6  # 60% correct to pass
 class CulturalIconViewSet(viewsets.ModelViewSet):
     queryset = CulturalIcon.objects.all().order_by('name')
     serializer_class = CulturalIconSerializer
+    
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAdminUser()]
+
+
+class ARTargetViewSet(viewsets.ModelViewSet):
+    queryset = ARTarget.objects.all().order_by('-created_at')
+    serializer_class = ARTargetSerializer
     
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
