@@ -59,12 +59,15 @@ function NoModel({ color }) {
 }
 
 export default function CatchDetailsScreen({ route, navigation }) {
-  const { icon } = route.params;
+  const { icon, spot } = route.params;
   const iconColor = icon.color || COLORS.primary;
 
+  // Prioritize the spot's 3D model if available, fallback to the icon's model
+  const activeModel = spot?.model_3d || icon.model_3d;
+  
   const viewerHTML = useMemo(
-    () => icon.model_3d ? build3DViewerHTML(icon.model_3d) : null,
-    [icon.model_3d],
+    () => activeModel ? build3DViewerHTML(activeModel) : null,
+    [activeModel],
   );
 
   return (
@@ -109,19 +112,56 @@ export default function CatchDetailsScreen({ route, navigation }) {
         {/* ── Content card ── */}
         <View style={[styles.infoCard, { borderColor: iconColor + '44' }]}>
 
-          {/* About */}
-          <Text style={[styles.sectionLabel, { color: iconColor }]}>ABOUT</Text>
-          <Text style={styles.bodyText}>
-            {icon.about || 'No description available.'}
-          </Text>
+          {spot ? (
+            <>
+              {/* Description */}
+              <Text style={[styles.sectionLabel, { color: iconColor }]}>DESCRIPTION</Text>
+              <Text style={styles.bodyText}>
+                {spot.description || 'No description available.'}
+              </Text>
 
-          <View style={styles.divider} />
+              <View style={styles.divider} />
 
-          {/* Cultural Significance */}
-          <Text style={[styles.sectionLabel, { color: iconColor }]}>CULTURAL SIGNIFICANCE</Text>
-          <Text style={styles.bodyText}>
-            {icon.significance || 'No cultural significance noted.'}
-          </Text>
+              {/* Historical Background */}
+              <Text style={[styles.sectionLabel, { color: iconColor }]}>HISTORICAL BACKGROUND</Text>
+              <Text style={styles.bodyText}>
+                {spot.historical_background || 'No historical background available.'}
+              </Text>
+
+              <View style={styles.divider} />
+
+              {/* Cultural Significance */}
+              <Text style={[styles.sectionLabel, { color: iconColor }]}>CULTURAL SIGNIFICANCE</Text>
+              <Text style={styles.bodyText}>
+                {spot.cultural_significance || 'No cultural significance noted.'}
+              </Text>
+
+              {spot.fun_fact ? (
+                <>
+                  <View style={styles.divider} />
+                  {/* Fun Fact */}
+                  <Text style={[styles.sectionLabel, { color: iconColor }]}>FUN FACT</Text>
+                  <Text style={styles.bodyText}>
+                    {spot.fun_fact}
+                  </Text>
+                </>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <Text style={[styles.sectionLabel, { color: iconColor }]}>ABOUT</Text>
+              <Text style={styles.bodyText}>
+                {icon.about || 'No information available.'}
+              </Text>
+              {icon.significance ? (
+                <>
+                  <View style={styles.divider} />
+                  <Text style={[styles.sectionLabel, { color: iconColor }]}>CULTURAL SIGNIFICANCE</Text>
+                  <Text style={styles.bodyText}>{icon.significance}</Text>
+                </>
+              ) : null}
+            </>
+          )}
 
         </View>
 

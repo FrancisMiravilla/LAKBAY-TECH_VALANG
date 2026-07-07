@@ -419,6 +419,10 @@ function DirectionArrow({ relativeBearing, distanceM, color, deviceHeading, targ
 
 // ─── AR Camera Overlay ───────────────────────────────────────────────────────
 function ARCatchOverlay({ icon, spot, userLocation, onContinue, onClose }) {
+  const activeModel = (spot && spot.model_3d) 
+    ? (spot.model_3d.startsWith('http') || spot.model_3d.startsWith('data:') ? spot.model_3d : `${ORIGIN}${spot.model_3d}`) 
+    : icon.model_3d;
+
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -540,9 +544,9 @@ function ARCatchOverlay({ icon, spot, userLocation, onContinue, onClose }) {
       {/* ── Floating 3D model — only show when user is at spot (≤ 5m) ── */}
       {!showArrow && (
         <Animated.View style={[arStyles.modelWrap, { transform: [{ translateY: floatAnim }] }]}>
-          {icon.model_3d ? (
+          {activeModel ? (
             <WebView
-              source={{ html: buildARViewerHTML(icon.model_3d) }}
+              source={{ html: buildARViewerHTML(activeModel) }}
               style={arStyles.modelWebview}
               javaScriptEnabled
               originWhitelist={['*']}
@@ -592,6 +596,10 @@ function ARCatchOverlay({ icon, spot, userLocation, onContinue, onClose }) {
 
 // ─── Proximity Alert Sheet ────────────────────────────────────────────────────
 function ProximitySheet({ spot, icon, distanceM, onCatch, onDismiss }) {
+  const activeModel = (spot && spot.model_3d) 
+    ? (spot.model_3d.startsWith('http') || spot.model_3d.startsWith('data:') ? spot.model_3d : `${ORIGIN}${spot.model_3d}`) 
+    : icon.model_3d;
+
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(300)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
@@ -639,10 +647,10 @@ function ProximitySheet({ spot, icon, distanceM, onCatch, onDismiss }) {
             },
           ]}
         >
-          {icon.model_3d ? (
+          {activeModel ? (
             /* Show mini spinning 3D model */
             <WebView
-              source={{ html: buildMiniViewerHTML(icon.model_3d, icon.color) }}
+              source={{ html: buildMiniViewerHTML(activeModel, icon.color) }}
               style={proximityStyles.miniWebview}
               javaScriptEnabled
               originWhitelist={['*']}

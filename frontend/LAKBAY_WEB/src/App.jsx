@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import lakbayLogo from './assets/lakbay_icon_glyph.png'
+import zcBg from './assets/zc2.webp'
 import {
   LayoutDashboard,
   MapPin,
@@ -434,30 +435,21 @@ function App() {
 
 
   const toggleNewSpotType = (type) => {
-    setNewSpot(prev => {
-      const has = prev.featureTypes.includes(type);
-      if (has && prev.featureTypes.length === 1) return prev; // keep at least one
-      return {
-        ...prev,
-        featureTypes: has
-          ? prev.featureTypes.filter(t => t !== type)
-          : [...prev.featureTypes, type],
-      };
-    });
+    setNewSpot(prev => ({
+      ...prev,
+      featureTypes: [type], // single-select only
+      // Clear model if switching away from catch
+      model_3d: type === 'catch' ? prev.model_3d : null,
+    }));
   };
 
   const toggleEditingSpotType = (type) => {
-    setEditingSpot(prev => {
-      const types = prev.feature_types || [];
-      const has = types.includes(type);
-      if (has && types.length === 1) return prev; // keep at least one
-      return {
-        ...prev,
-        feature_types: has
-          ? types.filter(t => t !== type)
-          : [...types, type],
-      };
-    });
+    setEditingSpot(prev => ({
+      ...prev,
+      feature_types: [type], // single-select only
+      // Clear model if switching away from catch
+      model_3d: type === 'catch' ? prev.model_3d : null,
+    }));
   };
 
   // Handle map resize when fullscreen changes
@@ -502,7 +494,7 @@ function App() {
         maxZoom: 20,
       }).addTo(map);
 
-      map.on('click', (e) => {
+      map.on('click', async (e) => {
         const { lat, lng } = e.latlng;
         setNewSpot(prev => ({ ...prev, latitude: lat.toFixed(6), longitude: lng.toFixed(6) }));
 
@@ -514,6 +506,17 @@ function App() {
           fillOpacity: 0.9,
           weight: 2,
         }).addTo(map);
+
+        // Fetch location name automatically
+        try {
+          const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+          const data = await response.json();
+          if (data && data.display_name) {
+             setNewSpot(prev => ({ ...prev, location_name: data.display_name }));
+          }
+        } catch (error) {
+          console.error("Error fetching location name:", error);
+        }
       });
 
       modalMapRef.current = map;
@@ -569,7 +572,7 @@ function App() {
         }).addTo(map);
       }
 
-      map.on('click', (e) => {
+      map.on('click', async (e) => {
         const { lat, lng } = e.latlng;
         setEditingSpot(prev => ({ ...prev, latitude: lat.toFixed(6), longitude: lng.toFixed(6) }));
 
@@ -581,6 +584,17 @@ function App() {
           fillOpacity: 0.9,
           weight: 2,
         }).addTo(map);
+
+        // Fetch location name automatically
+        try {
+          const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+          const data = await response.json();
+          if (data && data.display_name) {
+             setEditingSpot(prev => ({ ...prev, location: data.display_name, location_name: data.display_name }));
+          }
+        } catch (error) {
+          console.error("Error fetching location name:", error);
+        }
       });
 
       editModalMapRef.current = map;
@@ -589,8 +603,10 @@ function App() {
     return () => clearTimeout(timer);
   }, [isEditSpotModalOpen, theme]);
 
-  const handleModalSearch = async () => {
-    if (!modalSearchQuery.trim() || !modalMapRef.current) return;
+  const handleModalSearch = async (isEdit = false) => {
+    if (!modalSearchQuery.trim()) return;
+    const mapRef = isEdit ? editModalMapRef.current : modalMapRef.current;
+    if (!mapRef) return;
     setModalSearching(true);
     try {
       const res = await fetch(
@@ -599,19 +615,25 @@ function App() {
       );
       const results = await res.json();
       if (results.length > 0) {
-        const { lat, lon } = results[0];
+        const { lat, lon, display_name } = results[0];
         const parsedLat = parseFloat(lat);
         const parsedLon = parseFloat(lon);
-        modalMapRef.current.flyTo([parsedLat, parsedLon], 15);
-        setNewSpot(prev => ({ ...prev, latitude: parsedLat.toFixed(6), longitude: parsedLon.toFixed(6) }));
-        if (modalMarkerRef.current) modalMarkerRef.current.remove();
-        modalMarkerRef.current = L.circleMarker([parsedLat, parsedLon], {
-          radius: 8,
-          color: '#6c63ff',
-          fillColor: '#6c63ff',
-          fillOpacity: 0.9,
-          weight: 2,
-        }).addTo(modalMapRef.current);
+        const locName = display_name.split(',')[0]; // Get the most relevant part of the location name
+        mapRef.flyTo([parsedLat, parsedLon], 15);
+        
+        if (isEdit) {
+          setEditingSpot(prev => ({ ...prev, location_name: prev.location_name || locName, location: prev.location || locName, latitude: parsedLat.toFixed(6), longitude: parsedLon.toFixed(6) }));
+          if (editModalMarkerRef.current) editModalMarkerRef.current.remove();
+          editModalMarkerRef.current = L.circleMarker([parsedLat, parsedLon], {
+            radius: 8, color: '#6c63ff', fillColor: '#6c63ff', fillOpacity: 0.9, weight: 2
+          }).addTo(mapRef);
+        } else {
+          setNewSpot(prev => ({ ...prev, location_name: prev.location_name || locName, latitude: parsedLat.toFixed(6), longitude: parsedLon.toFixed(6) }));
+          if (modalMarkerRef.current) modalMarkerRef.current.remove();
+          modalMarkerRef.current = L.circleMarker([parsedLat, parsedLon], {
+            radius: 8, color: '#6c63ff', fillColor: '#6c63ff', fillOpacity: 0.9, weight: 2
+          }).addTo(mapRef);
+        }
       } else {
         showError('Location not found. Try a different search term.', 'Location Not Found', 'warning');
       }
@@ -631,6 +653,7 @@ function App() {
   const [triviaSpotFilter, setTriviaSpotFilter] = useState('');
   const [isEditTriviaModalOpen, setIsEditTriviaModalOpen] = useState(false);
   const [editingTrivia, setEditingTrivia] = useState(null);
+  const [expandedBatch, setExpandedBatch] = useState(null);
   
   // AI Quiz Generator States
   const [generateQuizCount, setGenerateQuizCount] = useState(5);
@@ -1236,6 +1259,16 @@ function App() {
     ? triviaQuestions.filter(q => q.spot_name === spots.find(s => s.id === parseInt(triviaSpotFilter))?.name)
     : triviaQuestions;
 
+  const groupedTriviaQuestions = useMemo(() => {
+    const groups = {};
+    filteredTriviaQuestions.forEach(q => {
+      const batchName = q.spot_name || q.icon_name || 'General';
+      if (!groups[batchName]) groups[batchName] = [];
+      groups[batchName].push(q);
+    });
+    return groups;
+  }, [filteredTriviaQuestions]);
+
   const toggleUserStatus = async (id) => {
     try {
       const { data } = await qrService.toggleUserStatus(id);
@@ -1249,50 +1282,74 @@ function App() {
     return (
       <>
         <div className="login-container">
-          <div className="login-card">
-            <div className="login-header">
-              <div className="sidebar-logo-container" style={{ margin: '0 auto 16px', width: '56px', height: '56px', background: 'transparent' }}>
-                <img src={lakbayLogo} alt="LAKBAY" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          {/* Left hero panel */}
+          <div className="login-hero">
+            <img src={zcBg} alt="Zamboanga City" className="login-hero-bg" />
+            <div className="login-hero-overlay" />
+            <div className="login-hero-content">
+              <div className="login-hero-badge">Est. 1635</div>
+              <h2 className="login-hero-title">DISCOVER THE BEAUTY OF ZAMBOANGA</h2>
+              <p className="login-hero-slogan">
+                "Asia's Latin City — Where Culture, Heritage &amp; Nature Converge"
+              </p>
+              <div className="login-hero-tags">
+                <span className="login-hero-tag">🏖️ Pink Sand Beaches</span>
+                <span className="login-hero-tag">🕌 Historic Forts</span>
+                <span className="login-hero-tag">🎨 Yakan Culture</span>
+                <span className="login-hero-tag">⛵ Vinta Boats</span>
               </div>
-              <h1 className="brand-text" style={{ fontSize: '28px', justifyContent: 'center' }}>
-                LAKBAY
-                <span className="brand-subtitle">
-                  {!isAuthenticated ? 'PORTAL' : currentUser?.role === 'tourist_guide' ? 'GUIDE PANEL' : 'ADMIN PANEL'}
-                </span>
-              </h1>
-              <p className="login-subtitle">Sign in to manage the Zamboanga Cultural System</p>
             </div>
-            
-            <form onSubmit={handleLogin} className="login-form">
-              
-              <div className="form-group">
-                <label className="form-label">Email</label>
-                <input 
-                  type="email" 
-                  className="form-input" 
-                  placeholder="Enter your email"
-                  value={loginCredentials.email}
-                  onChange={(e) => setLoginCredentials({...loginCredentials, email: e.target.value})}
-                  required 
-                />
+          </div>
+
+          {/* Right login panel */}
+          <div className="login-panel">
+            <div className="login-card">
+              <div className="login-header">
+                <div className="sidebar-logo-container" style={{ margin: '0 auto 16px', width: '56px', height: '56px', background: 'transparent' }}>
+                  <img src={lakbayLogo} alt="LAKBAY" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                </div>
+                <h1 className="brand-text" style={{ fontSize: '28px', justifyContent: 'center' }}>
+                  LAKBAY
+                  <span className="brand-subtitle">PORTAL</span>
+                </h1>
+                <p className="login-subtitle">Sign in to manage the Zamboanga Cultural System</p>
               </div>
               
-              <div className="form-group">
-                <label className="form-label">Password</label>
-                <input 
-                  type="password" 
-                  className="form-input" 
-                  placeholder="Enter your password"
-                  value={loginCredentials.password}
-                  onChange={(e) => setLoginCredentials({...loginCredentials, password: e.target.value})}
-                  required 
-                />
-              </div>
-              
-              <button type="submit" className="btn btn-primary login-btn" disabled={isLoggingIn}>
-                {isLoggingIn ? 'Authenticating...' : 'Authenticate'}
-              </button>
-            </form>
+              <form onSubmit={handleLogin} className="login-form">
+                
+                <div className="form-group">
+                  <label className="form-label">Email</label>
+                  <input 
+                    type="email" 
+                    className="form-input" 
+                    placeholder="Enter your email"
+                    value={loginCredentials.email}
+                    onChange={(e) => setLoginCredentials({...loginCredentials, email: e.target.value})}
+                    required 
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Password</label>
+                  <input 
+                    type="password" 
+                    className="form-input" 
+                    placeholder="Enter your password"
+                    value={loginCredentials.password}
+                    onChange={(e) => setLoginCredentials({...loginCredentials, password: e.target.value})}
+                    required 
+                  />
+                </div>
+                
+                <button type="submit" className="btn btn-primary login-btn" disabled={isLoggingIn}>
+                  {isLoggingIn ? 'Authenticating...' : 'Authenticate'}
+                </button>
+              </form>
+
+              <p className="login-footer-note">
+                🌊 Powered by LAKBAY — Zamboanga Cultural Tourism Platform
+              </p>
+            </div>
           </div>
         </div>
 
@@ -2445,19 +2502,23 @@ function App() {
 
                     {/* 3D Model centred */}
                     <div style={{ width: '100%', height: '360px', backgroundColor: 'var(--body-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                      {selectedCatchForView.model_3d ? (
-                        <model-viewer
-                          src={qrService.getMediaUrl(selectedCatchForView.model_3d)}
-                          auto-rotate camera-controls
-                          style={{ width: '100%', height: '100%' }}
-                          exposure="1"
-                        />
-                      ) : (
+                      {(() => {
+                        const matchingSpot = spots.find(s => s.name?.toLowerCase().includes(selectedCatchForView.name.toLowerCase()) || selectedCatchForView.name.toLowerCase().includes(s.name?.toLowerCase()));
+                        const activeModel = matchingSpot?.model_3d || selectedCatchForView.model_3d;
+                        return activeModel ? (
+                          <model-viewer
+                            src={qrService.getMediaUrl(activeModel)}
+                            auto-rotate camera-controls
+                            style={{ width: '100%', height: '100%' }}
+                            exposure="1"
+                          />
+                        ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                           <Target size={52} color="var(--text-muted)" />
                           <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No 3D model uploaded</span>
                         </div>
-                      )}
+                        );
+                      })()}
                     </div>
 
                     <div style={{ padding: '28px 32px 32px' }}>
@@ -2470,20 +2531,6 @@ function App() {
                       </p>
 
                       <div style={{ height: '1px', background: 'var(--card-border)', marginBottom: '24px' }} />
-
-                      {/* About */}
-                      <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent-blue)', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '10px' }}>About</p>
-                      <p style={{ fontSize: '14px', color: 'var(--text-primary)', lineHeight: 1.75, marginBottom: '28px' }}>
-                        {selectedCatchForView.about || <span style={{ color: 'var(--text-muted)' }}>No description provided.</span>}
-                      </p>
-
-                      <div style={{ height: '1px', background: 'var(--card-border)', marginBottom: '24px' }} />
-
-                      {/* Cultural Significance */}
-                      <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent-blue)', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '10px' }}>Cultural Significance</p>
-                      <p style={{ fontSize: '14px', color: 'var(--text-primary)', lineHeight: 1.75 }}>
-                        {selectedCatchForView.significance || <span style={{ color: 'var(--text-muted)' }}>No significance noted.</span>}
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -2514,19 +2561,23 @@ function App() {
 
                           {/* 3D preview or colour placeholder */}
                           <div style={{ height: '190px', backgroundColor: 'var(--body-bg)', overflow: 'hidden', position: 'relative' }}>
-                            {icon.model_3d ? (
-                              <model-viewer
-                                src={qrService.getMediaUrl(icon.model_3d)}
-                                auto-rotate
-                                style={{ width: '100%', height: '100%' }}
-                                exposure="1"
-                              />
-                            ) : (
-                              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                background: `linear-gradient(135deg, ${icon.color || '#1A56DB'}22, ${icon.color || '#1A56DB'}55)` }}>
-                                <Target size={44} color={icon.color || 'var(--accent-blue)'} style={{ opacity: 0.7 }} />
-                              </div>
-                            )}
+                            {(() => {
+                              const matchingSpot = spots.find(s => s.name?.toLowerCase().includes(icon.name.toLowerCase()) || icon.name.toLowerCase().includes(s.name?.toLowerCase()));
+                              const activeModel = matchingSpot?.model_3d || icon.model_3d;
+                              return activeModel ? (
+                                <model-viewer
+                                  src={qrService.getMediaUrl(activeModel)}
+                                  auto-rotate
+                                  style={{ width: '100%', height: '100%' }}
+                                  exposure="1"
+                                />
+                              ) : (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  background: `linear-gradient(135deg, ${icon.color || '#1A56DB'}22, ${icon.color || '#1A56DB'}55)` }}>
+                                  <Target size={44} color={icon.color || 'var(--accent-blue)'} style={{ opacity: 0.7 }} />
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           {/* Name + tagline + actions */}
@@ -2586,51 +2637,99 @@ function App() {
                 <table className="custom-table">
                   <thead>
                     <tr>
-                      <th style={{ width: '160px' }}>Spot</th>
-                      <th>Question</th>
-                      <th style={{ width: '90px' }}>Choices</th>
-                      <th>Correct Answer</th>
-                      <th style={{ width: '100px' }}>Actions</th>
+                      <th style={{ width: '40%' }}>Spot / Target Batch</th>
+                      <th>Total Questions</th>
+                      <th style={{ width: '220px', textAlign: 'center' }}>Actions</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {filteredTriviaQuestions.length === 0 ? (
+                  {Object.keys(groupedTriviaQuestions).length === 0 ? (
+                    <tbody>
                       <tr>
-                        <td colSpan="5" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)' }}>
+                        <td colSpan="3" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)' }}>
                           {triviaSpotFilter ? 'No questions for this spot yet. Add one!' : 'No trivia questions yet. Add some to get started.'}
                         </td>
                       </tr>
-                    ) : (
-                      filteredTriviaQuestions.map(q => (
-                        <tr key={q.id}>
-                          <td>
-                            <span className="badge active-status" style={{ fontSize: '10px' }}>{q.spot_name}</span>
+                    </tbody>
+                  ) : (
+                    Object.entries(groupedTriviaQuestions).map(([batchName, questions]) => (
+                      <tbody key={batchName}>
+                        <tr style={{ backgroundColor: expandedBatch === batchName ? 'var(--bg-secondary)' : 'transparent' }}>
+                          <td style={{ fontWeight: 600, color: 'var(--text-title)' }}>
+                            {batchName}
                           </td>
-                          <td style={{ fontWeight: 500, color: 'var(--text-title)', maxWidth: '300px' }}>
-                            <span title={q.question}>
-                              {q.question.length > 80 ? q.question.slice(0, 80) + '…' : q.question}
+                          <td>
+                            <span className="badge" style={{ backgroundColor: 'var(--card-border)', color: 'var(--text-primary)' }}>
+                              {questions.length} questions
                             </span>
                           </td>
-                          <td style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '12px' }}>
-                            {q.choices?.length || 0} options
-                          </td>
-                          <td style={{ color: 'var(--accent-gold)', fontWeight: 600, fontSize: '12px' }}>
-                            {['A', 'B', 'C', 'D'][q.correct_index]} — {q.choices?.[q.correct_index]?.slice(0, 40)}{q.choices?.[q.correct_index]?.length > 40 ? '…' : ''}
-                          </td>
                           <td>
-                            <div className="action-buttons">
-                              <button className="icon-action-btn" title="Edit" onClick={() => openEditTrivia(q)}>
-                                <Edit size={14} />
-                              </button>
-                              <button className="icon-action-btn delete" title="Delete" onClick={() => handleDeleteTrivia(q.id)}>
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
+                            <button 
+                              className="btn btn-secondary" 
+                              style={{ fontSize: '12px', padding: '6px 12px', width: '100%', justifyContent: 'center' }} 
+                              onClick={() => setExpandedBatch(expandedBatch === batchName ? null : batchName)}
+                            >
+                              {expandedBatch === batchName ? 'Hide Questions' : 'View Batch Questions'}
+                            </button>
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
+                        {expandedBatch === batchName && (
+                          <tr>
+                            <td colSpan="3" style={{ padding: 0, borderBottom: '2px solid var(--border-color)' }}>
+                              <div style={{ padding: '16px 24px', backgroundColor: 'var(--bg-card)' }}>
+                                <table className="custom-table" style={{ margin: 0, background: 'var(--bg-secondary)', borderRadius: '8px', overflow: 'hidden' }}>
+                                  <thead>
+                                    <tr>
+                                      <th>Question</th>
+                                      <th style={{ width: '90px' }}>Choices</th>
+                                      <th>Correct Answer</th>
+                                      <th style={{ width: '80px', textAlign: 'center' }}>Status</th>
+                                      <th style={{ width: '100px' }}>Actions</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {questions.map(q => (
+                                      <tr key={q.id}>
+                                        <td style={{ fontWeight: 500, color: 'var(--text-title)', maxWidth: '300px' }}>
+                                          <span title={q.question}>
+                                            {q.question.length > 80 ? q.question.slice(0, 80) + '…' : q.question}
+                                          </span>
+                                        </td>
+                                        <td style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '12px' }}>
+                                          {q.choices?.length || 0} options
+                                        </td>
+                                        <td style={{ color: 'var(--accent-gold)', fontWeight: 600, fontSize: '12px' }}>
+                                          {['A', 'B', 'C', 'D'][q.correct_index]} — {q.choices?.[q.correct_index]?.slice(0, 40)}{q.choices?.[q.correct_index]?.length > 40 ? '…' : ''}
+                                        </td>
+                                        <td style={{ textAlign: 'center' }}>
+                                          {(!q.status || q.status === 'pending') ? (
+                                            <span className="badge" style={{ backgroundColor: 'var(--accent-gold)', color: '#fff', fontSize: '10px', padding: '4px 6px' }}>Pending</span>
+                                          ) : q.status === 'approved' ? (
+                                            <span className="badge" style={{ backgroundColor: '#10B981', color: '#fff', fontSize: '10px', padding: '4px 6px' }}>Approved</span>
+                                          ) : (
+                                            <span className="badge" style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', fontSize: '10px', padding: '4px 6px' }}>Rejected</span>
+                                          )}
+                                        </td>
+                                        <td>
+                                          <div className="action-buttons">
+                                            <button className="icon-action-btn" title="Edit" onClick={() => openEditTrivia(q)}>
+                                              <Edit size={14} />
+                                            </button>
+                                            <button className="icon-action-btn delete" title="Delete" onClick={() => handleDeleteTrivia(q.id)}>
+                                              <Trash2 size={14} />
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    ))
+                  )}
                 </table>
               </div>
 
@@ -2832,7 +2931,7 @@ function App() {
                 </div>
 
                 {/* Right Side - Input Fields */}
-                <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '24px', justifyContent: 'center'}}>
                   <div className="form-group" style={{marginBottom: 0}}>
                     <label className="form-label">Name</label>
                     <input type="text" className="form-input" value={newCatchIcon.name} onChange={e => setNewCatchIcon({...newCatchIcon, name: e.target.value})} required />
@@ -2840,14 +2939,6 @@ function App() {
                   <div className="form-group" style={{marginBottom: 0}}>
                     <label className="form-label">Tagline</label>
                     <input type="text" className="form-input" value={newCatchIcon.tagline} onChange={e => setNewCatchIcon({...newCatchIcon, tagline: e.target.value})} required />
-                  </div>
-                  <div className="form-group" style={{marginBottom: 0}}>
-                    <label className="form-label">About</label>
-                    <textarea className="form-input" rows="4" value={newCatchIcon.about} onChange={e => setNewCatchIcon({...newCatchIcon, about: e.target.value})} required style={{resize: 'vertical', minHeight: '100px'}}></textarea>
-                  </div>
-                  <div className="form-group" style={{marginBottom: 0}}>
-                    <label className="form-label">Cultural Significance</label>
-                    <textarea className="form-input" rows="4" value={newCatchIcon.significance} onChange={e => setNewCatchIcon({...newCatchIcon, significance: e.target.value})} required style={{resize: 'vertical', minHeight: '100px'}}></textarea>
                   </div>
                 </div>
               </div>
@@ -2882,10 +2973,16 @@ function App() {
                     <input type="file" accept=".glb,.gltf" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
                       onChange={(e) => handleCatchFileChange(e, true)} />
                     
-                    {editingCatchIcon.model_3d ? (
+                    {(() => {
+                      const matchingSpot = spots.find(s => s.name?.toLowerCase().includes(editingCatchIcon.name.toLowerCase()) || editingCatchIcon.name.toLowerCase().includes(s.name?.toLowerCase()));
+                      const activeModel = editingCatchIcon.model_3d?.startsWith('data:') 
+                        ? editingCatchIcon.model_3d 
+                        : (matchingSpot?.model_3d || editingCatchIcon.model_3d);
+                      
+                      return activeModel ? (
                       <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5}}>
                         <model-viewer 
-                          src={editingCatchIcon.model_3d.startsWith('data:') ? editingCatchIcon.model_3d : qrService.getMediaUrl(editingCatchIcon.model_3d)}
+                          src={activeModel.startsWith('data:') ? activeModel : qrService.getMediaUrl(activeModel)}
                           auto-rotate 
                           camera-controls 
                           bounds="tight"
@@ -2901,12 +2998,13 @@ function App() {
                         <Target size={32} color="var(--text-muted)" />
                         <span style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center', fontWeight: 600 }}>Drag and drop .glb file<br/>or click to upload</span>
                       </div>
-                    )}
+                    );
+                    })()}
                   </label>
                 </div>
 
                 {/* Right Side - Input Fields */}
-                <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '24px', justifyContent: 'center'}}>
                   <div className="form-group" style={{marginBottom: 0}}>
                     <label className="form-label">Name</label>
                     <input type="text" className="form-input" value={editingCatchIcon.name} onChange={e => setEditingCatchIcon({...editingCatchIcon, name: e.target.value})} required />
@@ -2914,14 +3012,6 @@ function App() {
                   <div className="form-group" style={{marginBottom: 0}}>
                     <label className="form-label">Tagline</label>
                     <input type="text" className="form-input" value={editingCatchIcon.tagline} onChange={e => setEditingCatchIcon({...editingCatchIcon, tagline: e.target.value})} required />
-                  </div>
-                  <div className="form-group" style={{marginBottom: 0}}>
-                    <label className="form-label">About</label>
-                    <textarea className="form-input" rows="4" value={editingCatchIcon.about} onChange={e => setEditingCatchIcon({...editingCatchIcon, about: e.target.value})} required style={{resize: 'vertical', minHeight: '100px'}}></textarea>
-                  </div>
-                  <div className="form-group" style={{marginBottom: 0}}>
-                    <label className="form-label">Cultural Significance</label>
-                    <textarea className="form-input" rows="4" value={editingCatchIcon.significance} onChange={e => setEditingCatchIcon({...editingCatchIcon, significance: e.target.value})} required style={{resize: 'vertical', minHeight: '100px'}}></textarea>
                   </div>
                 </div>
               </div>
@@ -2953,9 +3043,9 @@ function App() {
                     <div style={{ position: 'relative', flex: 1 }}>
                       <MapPin size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
                       <input type="text" className="form-input" style={{ paddingLeft: '38px' }} placeholder="Search e.g. Zamboanga City Hall"
-                        value={modalSearchQuery} onChange={(e) => setModalSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleModalSearch())} />
+                        value={modalSearchQuery} onChange={(e) => setModalSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleModalSearch(false))} />
                     </div>
-                    <button type="button" className="btn btn-secondary" onClick={handleModalSearch} disabled={modalSearching} style={{ minWidth: '80px', display: 'flex', justifyContent: 'center' }}>
+                    <button type="button" className="btn btn-secondary" onClick={() => handleModalSearch(false)} disabled={modalSearching} style={{ minWidth: '80px', display: 'flex', justifyContent: 'center' }}>
                       {modalSearching ? <div className="spinner" style={{ width: '16px', height: '16px', border: '2px solid var(--text-primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> : 'Search'}
                     </button>
                   </div>
@@ -3046,7 +3136,7 @@ function App() {
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                   <div className="form-group">
-                    <label className="form-label">Feature Type(s) <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(select at least one)</span></label>
+                    <label className="form-label">Feature Type <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(select one)</span></label>
                     <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
                       {Object.entries(PIN_TYPE_CONFIG).map(([type, cfg]) => {
                         const checked = newSpot.featureTypes?.includes(type);
@@ -3071,20 +3161,35 @@ function App() {
                   </div>
 
                   {newSpot.featureTypes?.includes('catch') && (
-                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gridColumn: '1 / -1' }}>
                       <label className="form-label" style={{ color: PIN_TYPE_CONFIG.catch.color }}>3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb only)</span></label>
                       <label style={{
                         position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                        height: '100%', minHeight: '60px', marginTop: '8px',
+                        height: '260px', marginTop: '8px',
                         border: newSpot.model_3d ? `2px solid ${PIN_TYPE_CONFIG.catch.color}` : '2px dashed var(--card-border)',
                         borderRadius: '10px', backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden'
                       }}>
                         <input type="file" accept=".glb" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
                           onChange={(e) => handleModelFileChange(e, false)} />
                         {newSpot.model_3d ? (
-                          <span style={{ color: PIN_TYPE_CONFIG.catch.color, fontSize: '13px', fontWeight: 'bold' }}>Model Selected ✓</span>
+                          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
+                            <model-viewer
+                              src={newSpot.model_3d}
+                              auto-rotate
+                              camera-controls
+                              bounds="tight"
+                              exposure="1"
+                              style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
+                            ></model-viewer>
+                            <div style={{ position: 'absolute', bottom: '10px', left: 0, width: '100%', textAlign: 'center' }}>
+                              <span style={{ backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 12px', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>Click to Change Model</span>
+                            </div>
+                          </div>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Click to upload</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', pointerEvents: 'none' }}>
+                            <Target size={32} color="var(--text-muted)" />
+                            <span style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 600, textAlign: 'center' }}>Drag and drop .glb file<br/>or click to upload</span>
+                          </div>
                         )}
                       </label>
                     </div>
@@ -3135,6 +3240,16 @@ function App() {
               <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '24px' }}>
                 <div style={{ marginBottom: '20px' }}>
                   <label className="form-label">Update Location on Map</label>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <MapPin size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                      <input type="text" className="form-input" style={{ paddingLeft: '38px' }} placeholder="Search e.g. Zamboanga City Hall"
+                        value={modalSearchQuery} onChange={(e) => setModalSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleModalSearch(true))} />
+                    </div>
+                    <button type="button" className="btn btn-secondary" onClick={() => handleModalSearch(true)} disabled={modalSearching} style={{ minWidth: '80px', display: 'flex', justifyContent: 'center' }}>
+                      {modalSearching ? <div className="spinner" style={{ width: '16px', height: '16px', border: '2px solid var(--text-primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> : 'Search'}
+                    </button>
+                  </div>
                   <div style={{ width: '100%', height: '220px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--card-border)', position: 'relative', zIndex: 1 }}>
                     <div ref={editModalMapContainerRef} style={{ width: '100%', height: '100%' }} />
                     <div style={{ position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'rgba(26,26,46,0.85)', backdropFilter: 'blur(4px)', padding: '6px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, color: '#fff', zIndex: 1000, pointerEvents: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
@@ -3251,20 +3366,35 @@ function App() {
                   </div>
 
                   {editingSpot.feature_types?.includes('catch') && (
-                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gridColumn: '1 / -1' }}>
                       <label className="form-label" style={{ color: PIN_TYPE_CONFIG.catch.color }}>3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb only)</span></label>
                       <label style={{
                         position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                        height: '100%', minHeight: '60px', marginTop: '8px',
+                        height: '260px', marginTop: '8px',
                         border: editingSpot.model_3d ? `2px solid ${PIN_TYPE_CONFIG.catch.color}` : '2px dashed var(--card-border)',
                         borderRadius: '10px', backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden'
                       }}>
                         <input type="file" accept=".glb" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
                           onChange={(e) => handleModelFileChange(e, true)} />
                         {editingSpot.model_3d ? (
-                          <span style={{ color: PIN_TYPE_CONFIG.catch.color, fontSize: '13px', fontWeight: 'bold' }}>Model Selected ✓</span>
+                          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
+                            <model-viewer
+                              src={editingSpot.model_3d?.startsWith('data:') ? editingSpot.model_3d : qrService.getMediaUrl(editingSpot.model_3d)}
+                              auto-rotate
+                              camera-controls
+                              bounds="tight"
+                              exposure="1"
+                              style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
+                            ></model-viewer>
+                            <div style={{ position: 'absolute', bottom: '10px', left: 0, width: '100%', textAlign: 'center' }}>
+                              <span style={{ backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 12px', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>Click to Change Model</span>
+                            </div>
+                          </div>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Click to upload</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', pointerEvents: 'none' }}>
+                            <Target size={32} color="var(--text-muted)" />
+                            <span style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 600, textAlign: 'center' }}>Drag and drop .glb file<br/>or click to change</span>
+                          </div>
                         )}
                       </label>
                     </div>

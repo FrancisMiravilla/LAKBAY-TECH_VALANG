@@ -1,0 +1,1010 @@
+Republic of the PhilippinesWestern Mindanao State UniversityCollege of Computing StudiesDEPARTMENT OF INFORMATION TECHNOLOGYZamboanga CityRepublic of the PhilippinesWestern Mindanao State UniversityCollege of Computing StudiesDEPARTMENT OF INFORMATION TECHNOLOGYZamboanga City
+Republic of the Philippines
+Western Mindanao State University
+College of Computing Studies
+DEPARTMENT OF INFORMATION TECHNOLOGY
+Zamboanga City
+Republic of the Philippines
+Western Mindanao State University
+College of Computing Studies
+DEPARTMENT OF INFORMATION TECHNOLOGY
+Zamboanga City
+LAKBAY: A Gamified Location-Based Mobile Application Integrating QR Code Scanning and Augmented Reality for Cultural Discovery and Tourism Promotion in Zamboanga City
+A CAPSTONE PROJECT
+Presented to the Faculty of the
+College of Computing Studies
+Western Mindanao State University
+In Partial Fulfillment
+of the Requirements for the Degree
+Bachelor of Science in Information Technology
+GALBAN, MIKHAIL IVAN DANTE R.
+IMAR, AR-RAUF J. 
+MIRAVILLA, FRANCIS JOHN D.
+Researchers
+Adviser
+July, 2027
+   WESTERN MINDANAO STATE UNIVERSITY
+   Zamboanga City, 7000 Philippines
+    ________________________________________
+   College of Computing Studies
+   Information Technology Department
+ 
+ 
+ CERTIFICATE OF PANEL APPROVAL
+ 
+   The Capstone Project, attached hereto, entitled “LAKBAY: A Gamified Location-Based Mobile Application Integrating QR Code Scanning and Augmented Reality for Cultural Discovery and Tourism Promotion in Zamboanga City”, prepared and submitted by GALBAN, MIKHAIL IVAN DANTE R., IMAR, AR-RAUF J., MIRAVILLA, FRANCIS JOHN D. in partial fulfillment of the requirements for the degree BACHELOR OF SCIENCE IN INFORMATION TECHNOLOGY, is hereby recommended for approval.
+ 
+MR. / MS. / MRS. CHAIRPERSON C. ONE
+Chairperson
+___________
+Date
+         
+MR. / MS. / MRS. PANEL M. ONE
+Member
+___________
+Date
+                    
+ 
+MR. / MS. / MRS. PANEL M. TWO
+Member
+___________
+Date
+ 
+                                                      
+MR. / MS. / MRS. ADVISER D. ONE
+Adviser
+_________
+Date
+        
+       This Capstone Project is approved in partial fulfillment of the requirements for the degree BACHELOR OF SCIENCE IN INFORMATION TECHNOLOGY
+ 
+  MR. JASON A. CATADMAN, MIT                               ENGR. MARK L. FLORES, PhD
+                 Department Head, IT                                                Dean, CCS
+                      _________                                                                               _________
+                          Date                                                                                            Date
+EXECUTIVE SUMMARY   
+DEDICATION
+  
+ACKNOWLEDGEMENT
+ABSTRACT
+TABLE OF CONTENTS
+TITLE ……………………………………………………………………………….……………      i
+APPROVAL SHEET …………………………………………………………………………….      ii
+EXECUTIVE SUMMARY ………………………………………………………………...…...      iii
+DEDICATION ………………………………………………………………………...…...…...       iv
+ACKNOWLEDGEMENT ……………………………………………………………………......   v
+ABSTRACT………………………………………………………………………...…...…......       vi
+LIST OF TABLES ………………………………………………………………...…….……...      vii
+LIST OF FIGURES …………………………………………………………………….………      viii
+LIST OF APPENDICES ………………………………………………………….…………....     ix
+LIST OF ABBREVIATIONS …………………………………………………………………      x
+Chapter      Page    
+1 INTRODUCTION2
+1.1 Project Context2
+1.2 Statement of the Problem3
+1.3 Purpose and Description4
+1.4 Objectives5
+1.4.1 Specific Objectives5
+1.5 Scope and Limitation6
+1.6 Significance of Study7
+1.7 Definition of Terms8
+2 REVIEW OF RELATED LITERATURE AND SYSTEMS12
+2.1 Introduction12
+2.1.1 RRL 1: Location-Based Augmented Reality (AR) Games and Tourism Spatial Behaviors12
+2.1.2 RRL 2: Gamification, Value Co-Creation, and Destination Brand Loyalty13
+2.1.3 RRL 3: Augmented Reality, QR Code Scanning, and Proximity-Based Navigation14
+2.1.4 RRL 4: Mobile AR Development Technologies and Frameworks15
+Addressed in Literature?16
+2.2 Summary16
+2.3 Synthesis17
+3 TECHNICAL BACKGROUND18
+3.1 Conceptual Framework18
+3.1.1. Presentation Layer19
+3.1.2. Application and Logic Layer21
+3.1.3 Database Layer22
+3.2 Technology Requirements22
+3.2.1 Software Requirements22
+3.2.2. Hardware Requirements24
+4 DESIGN AND METHODOLOGY25
+4.1 Research Design25
+4.2 Developmental Methodology27
+4.3 System Architecture27
+4.4 Data Collection Methods28
+4.4.1 Data Source28
+4.4.2 Data Gathering Instrument28
+4.4.3 Data Gathering Technique and Procedures28
+4.5 Data Analysis28
+4.5.1 Context Diagram28
+4.5.2 Data Flow Diagram29
+4.5.3 Flowchart29
+4.5.4 Use Case29
+4.6 Requirement Specification31
+4.6.1 Functional Requirements31
+4.6.2 Non-Functional Requirements32
+4.7 System Design33
+4.7.1 Database Design33
+4.7.2 Entity Relationship Diagram33
+4.7.3 Database Fields34
+4.8 Tools and Technology35
+4.9 Evaluation and Testing35
+REFERENCES37
+APPENDICES41
+CURRICULUM VITAE42
+LIST OF TABLES
+Table        Page
+2.3Synthesis11
+6.1Number of Respondents    36
+LIST OF FIGURES
+Figure        Page
+3.1 Conceptual Framework 14
+4.1Software Development Life Cycle           17 
+4.2Flowchart           18
+4.3Use Case           19
+4.4 Context Diagram           23
+4.5Data Flow Diagram23
+LIST OF APPENDIXES
+Appendix          Page
+Appendix A: Data Gathering 53
+Appendix B:Testing54
+Appendix C: Evaluation Form            55
+Appendix D: Gantt Chart                                                                                          60
+Appendix E: Use Case           61
+Appendix F: Plagiarism Certificate           64
+CHAPTER 1
+INTRODUCTION
+Project Context
+With Zamboanga City's varied history of being colonized by a string of colonial powers in the past, and a rich mosaic of native cultures, languages, and customs as a result of different historical trajectories and ethnicity within the archipelago, Zamboanga City (which has historically been a key port on the western Mindanao coast) is blessed with a unique character not seen in any other city in the Philippines. Being a major cultural crossroads for the rich traditions of the Yakan and Tausug ethnic groups, its Spanish colonial architecture, world-famous culinary scene, local textiles woven on looms by the natives, and many other attributes are now being vividly expressed through iconic symbols of local lore such as its colorful outrigger boats, the Vinta; the Lantaka cannons; the traditional Yakan weaver; and a local cuisine favorite, the Curacha crab. 
+One anchor is the Fort Pilar, a Spanish built military stronghold, set up in the 17th century with dates set from 1635 on [25]. Located within the confines of the fort are three renovated exhibition houses which are a satellite museum and also a local government managed branch of the National Museum of the Philippines. It also features a freestanding shrine just off of the eastern part of Fort Pilar wall called Our Lady of the Pillar shrine not linked with museum although it's located on same fort [25]. Declared as a National Cultural Treasure of the Philippines by presidential decree in 1973 and includes exhibit sections focusing on the ethnographic collections demonstrating the traditional material cultures of local groups like the Subanun and Yakan tribes [25].
+This burgeoning status is beginning to be demonstrated in the city’s actual travel. According to city travel statistics for the year 2024, there were 721,699 tourist arrivals to Zamboanga City which is over the targeted figures of 683,744 – more than a sixteen percent increase compared to last year for the same time frame, therefore leading the Department of Tourism to confer this award as the topmost tourist destination in the Zamboanga Peninsula [23], [24].Increased tourist arrival means that people are hungry to travel in the city, but most of the tourism infrastructure discussed below were not developed in pace to support them. These burgeoning numbers, along with the wealth of cultural resources at our disposal, has thus been the foundation of this study’s central question – the disjunction between burgeoning visitor interest and our minimal means for providing visitors a way to connect deeply with what the city has to offer.
+Statement of the Problem
+Despite these indicators of positive progress for tourist arrivals [12], [14], this positive momentum had yet to lead to significant development of smart, technology-based tourist facilities in Zamboanga City. At the national level of the Philippines, the country managed 5.94 million foreign tourists[22], a marginal rise to levels previously achieved, still not keeping pace with other regional destinations that enjoy comparable and even inferior ecological and historical advantages to the Philippines. The reasons for this relative gap are, according to recent work, lagging behind other comparable countries in the deployment of next-generation interactive mobile digital and location-aware travel technology in The Philippines[21].
+The gap in the national economy is more or less reflected and magnified at the local level. The increased visitor count of the City of Zamboanga in recent times and its status as top destination for Zamboanga Peninsula do not seem to warrant the development of vibrant and systematic digital direction that can leverage visitors along the totality of its history, culture, and intangible cultural heritage. Emerging literature in emerging economy countries indicates that failure to provide such direction is inimical to engagement by both visitors and local digital tourism economies where visit numbers are positive. [21]
+What Zamboanga City is offering its visitors in terms of tourist media is predominantly static: Guidebooks (print), informational signs placed on specific points of cultural attractions, such as the information sign on the walls of Fort Pilar, and plain information portals run by the local tourism office. They are non-responsive, information is single, fixed in time, and provide no opportunities for the user to engage, to adapt information received, or to even stay to investigate for longer. Previous research, which compares static displays of tourism information to location-interactive equivalents, have uniformly determined that they do not adequately capture the visitors' attention and interest to increase their time at a destination and reinforce their knowledge [2], [3], [10]. Since travellers have become increasingly conditioned to anticipate and expect dynamic, responsive interactions with technology while travelling, the current situation provides the gap for this study.
+Purpose and Description
+Now that we have both mobile-capable devices that can connect globally and location services are omnipresent, there exists many new opportunities to alter cultural tourism and place based education, as is perhaps most saliently illustrated by the Pokemon Go global location based enhanced reality experience whose real world physical outcomes have been validated to increase physical activity and mobility amongst an inclusive range of global age groups [1]. The Pokemon Go augmented reality games not only foster real world mobility but encourage exploration of new, often physically absent places than traditional paper guided tourist visits and have led to increased time in places and on streets than guide-book-like tourism experiences [2].
+This research draws inspiration from the aforementioned model and builds upon it through LAKBAY, an interactive AR location-aware application aiming at redefining tourism and cultural learning in Zamboanga City from passive observation into an immersive and actively engaging educational experience. LAKBAY consists of a dual-platform setup: the Unity 3D application using AR Foundation that constitutes the AR game engine of the client as detailed below and, at the backend, a React Native Web and mobile application that enables administrative tools, manages user accounts, serves as the tourist information hub to which tourists gain access through their Zamboanga Explorer profiles, and the content administration and monitoring module of the entire system as typically found in administrative advisory and information systems which employ a discrete client tool set to accompany the primary administrative interface, which may be a mobile or web interface.
+Overlay of the existing tourist ecosystem of Zamboanga City LAKBAY, forces the user to walk between physically separated realworld geographic spots to locate, engage with, and gather augmented interactive animated low-poly 3D copies of the four central cultural iconography of Zamboanga City – Vinta, Curacha, Yakan Weaver, and Lantaka [2]. In order to mitigate hardware barriers for physical travel and for providing context in space-based storytelling, interactive static QR code markers are placed at twelve selected outdoor tourist spots across Zamboanga City, which provide locale-specific trivia as well as historical narratives derived from validated historical data [25]. A gamified quest that augmented the items on the screen and was also server driven was included in an AR overlay module – as was previously defined as out of scope of this proposal to more than two pilot exhibits in a manner that approximates the scope of Dept. Of Tourism's own Experience Philippines app [26]. This AR overlay module was then deployed in the 3 exhibition buildings of the National Museum of the Philippines, Zamboanga located in Fort Pilar [25] and not including the Marian Shrine of Our Lady of the Pillar (which is maintained separately to the museum).
+Objectives
+This study aims to design and develop LAKBAY, a gamified, location-based mobile augmented reality application to support the people and visitors of Zamboanga City in discovering, understanding, and preserving the city's tangible and intangible cultural heritage. The system is composed of two integrated components developed for this purpose: a Unity 3D and AR Foundation-based mobile game client used directly by tourists for on-site discovery, and a React Native web and mobile companion platform used by tourists for profile and progress management and by administrators for content and trivia management.
+Specific Objectives
+Implement a Location-Based Geospatial Tracking system that will correspond real-time mobile GPS to real-world coordinates for promoting physical exploration among selected tourist sites in Zamboanga City.
+Design interactive, on-site discovery modules within the Unity 3D game client — including cultural trivia and QR code scanning — that allow tourists to freely explore the city's twelve cultural landmarks and four collectible cultural icons in any order, supported by real-time current-location display and a destination search function that lets tourists look up and navigate toward specific points of interest.
+Implement a gamification and achievement system that manages user profiles, calculates and awards reward badges, and generates a digital Zamboanga Explorer Certificate upon completion of all site milestones.
+Build a React Native web dashboard that allows administrators to manage cultural content, trivia questions, and platform analytics — including a live count of registered tourist and Zamboangueño users — supported by a secure backend architecture for data storage and processing.
+Develop a multi-language interface for the Unity 3D game client, supporting English, Filipino, and Bisaya, to accommodate the linguistic diversity of both local Zamboangueño residents and visiting tourists.
+Evaluate the system's usability, learnability, and user acceptance through field testing, using pre- and post-visit questionnaires measured against the System Usability Scale (SUS).
+Scope and Limitation
+The Geographic and Functional Reach of this research is confined to a defined set of landmarks in Zamboanga City. The Location-Based “Catch” was launched by the Unity 3D game client and tied to one of four specified outdoor sites in the city - each fixed as an anchor to one of the four culture-specific 3D models: The Curacha, Lantaka, Vinta and Yakan Weaver. QR-code scanning is once again managed by the game client, but is only able to access specific placards mounted in tourist-heavy locations of the city that would instantaneously bring up location trivia. Finally, the AR Overlay was confined solely to the internal display halls and galleries of artifacts in the National Museum of the Philippines, Zamboanga – inside Fort Pilar, with the user camera being able to render additional overlay on top of museum-specific text content, 3D objects, or brief interactive mini-games.
+The Unity 3D game client deals with the live proximity alerts, live GPS-based City Discovery Map, curated theme trails, real-time QR based micro-story at the location, and dynamic trivia generation. Remaining part is covered by the React Native platform on two different sides: on the mobile part catering the tourist where it deals with Zamboanga Explorer profile, dashboard, and digital certification, on the admin side (web-based) to Manage cultural content, curate trivia and the overall system performance analytics.
+Incoming tourists, locals and student users are identified as the system’s primary target and shall all be granted the default Zamboanga Explorer profile upon registration which is continuously monitored for the user’s status, level, achievements and earned milestone levels and awarded certification.
+The coverage of the system content will have 12 QR Code Markers to be distributed in the top tourist spots around the city, 4 Real World Spawn points tied with cultural icons - the Curacha on Alavar Seafood Restaurant, the Vinta on RT Lim Blvd., Lantaka on Paseo del Mar, Yakan Weaver on Yakan Weaving Village, Upper Calarian and a total of 20 Trivia Questions (with 5 Qs for each icon that will be randomly generated for each user, so repeated or predictability are avoided). The indoor AR museum module, in the scope of this proposal, is still only to have two trial exhibits the National Museum of the Philippines, Zamboanga. Tourists do not need to follow a specific pathway; they are given a full choice as to which QR markers and real-world cultural icons that they wish to discover.
+For user-facing displays to tourists, the interface design was done by referencing the Department of Tourism's official brand style guide, the "Love the Philippines," which gives instructions on what color palette, fonts, and images to use in presenting a coherent brand image as a travel destination nationwide [30]. Further, to cater to the linguistic complexity of Zamboanga City and its visitors, the Unity 3D game client provides language options, which include: English, Filipino, and Bisaya.
+On the development platform side, the Unity 3D game client uses the AR Foundation for AR rendering based on cross-platform AR cameras, including some custom low-poly 3D objects with idle animations created in Blender. On the React Native companion platform, the platform can deliver both the mobile experience (for travelers) and the web-facing interface (for site administrators) based on the same source code base, thus shortening the development cost and ensuring differentiated experience for travelers.
+When it came to data, I avoided third party cloud hosted databases and took a self-hosted server approach using the Django REST Framework (DRF). All backend operations such as user authorization, QR code validation, checking trivia answers, certifying users for badges, and issuing certificates are computed here. Data such as geolocation coordinates, user profile information, details of all culturally relevant resources in the database, trivia information, as well as logging records of user progress, is stored in one centrally indexed PostgreSQL database.
+Several assumptions and limitations of this system are considered within the scope of this study. The React Native mobile application will be distributed as an Android Package (.apk) targeting mid-range Android devices; iOS support is outside the scope of this study. An active internet connection is required at all times, as the React Native mobile application depends on continuous communication with the Django REST Framework backend for GPS validation, QR code verification, quiz evaluation, XP calculation, and progress synchronization; real-time features including GPS tracking, QR validation, and live trivia will not function while the device is offline. All 3D cultural icon models used in the application are restricted to low-poly models with basic idle animation, and the system does not include any behavior-based artificial intelligence. Accuracy of QR code marker recognition remains subject to environmental variables such as outdoor lighting conditions and the physical wear of printed placards over time.
+Significance of Study
+The impact of the study is multidisciplinary and stakeholder-based and will result in the following applicable contributions for all parties and: • for tourists, there is the direct usefulness to visit local historical sites with information provided.
+For Tourists and Visitors. LAKBAY directly addresses the rigidity inherent to static conventional tourism media such as printed brochures. By offering a context-sensitive digital companion through the React Native mobile application, the system reduces spatial navigation friction and increases visitors' willingness to actively seek out and explore local cultural heritage, shifting tourists from passive spectators to active participants in the co-creation of their own travel experience [4], [10], [17].
+For the Local Economy and Tourism Industry. This study directly addresses the documented deficiency in locally available innovative digital tourism infrastructure within the country [21]. Through the React Native platform's administrative tools and the gamified tourist experience, LAKBAY presents a functional, secure system intended to enhance place recall, extend visitor dwell time, and strengthen long-term destination loyalty among tourists [6], [9] — an outcome made more attainable given Zamboanga City's recent recognition as the Zamboanga Peninsula's top tourist destination [23].
+For Cultural Custodians and Historians. The system gives Zamboanga's tangible heritage sites, such as Fort Pilar [25], renewed visibility through an interactive medium, while also providing a platform to catalogue and celebrate intangible heritage elements (including Yakan weaving traditions, regional cuisine, and the Chavacano dialect that often remain underrepresented in conventional tourism materials [7], [11]).
+For the Academic Community and Future Researchers. This study addresses an identified gap in computer science literature concerning the application of gamified, context-aware mobile AR systems to developing regions and digitally underserved local tourism industries [7], [11]. The React Native-based single-stack architecture developed in this study provides a technical reference point for future work in mobile-based experiential outdoor learning and location-aware software engineering [20].
+Definition of Terms
+Table 1: Definition of Terms
+Term
+Definition
+Augmented Reality (AR)
+Mobile Visualization superimposed a real-world live camera stream with animated 3D models, virtual objects and stimuli, adding immersion to the user [10], [11], [13].
+Gamification
+Systematic introduction of structural game components into a non-game environment: applying points, progress system, challenges, narrative and reward to motivate the engagement of users in a cultural tourism application. [6], [7], [9]
+Location-Based Game (LBG)
+Real-world time Geo-spatial Information enabled Mobile Game App Model Based on Loops of Software Whereby the mobile player must attend to real-world geographically co-located places in order to gain the software's goals, software objectives, or achieve software-related benefits [1], [2], [4].
+Intangible Cultural Heritage
+The material culture (physical aspects) comprises of spoken language like Chavacano dialects, skills of weaving, food and cuisine, oral folklore and historical accounts of folk stories, legends and folktales that were carried by each successive generation of a community and oral accounts of local histories [7], [11], [20].
+Tangible Cultural Heritage
+Historical buildings and historical urban and physical environments in a community such as historical places and historical city/urban sites [10], [11], [13], and military posts (Fort Pilar)[13].
+QR Code (Quick Response Code)
+A two-dimensional matrix barcode functioning as an embedded and location-based tracing artifact, captured by a portable camera to enable rugged fetching of located digital media with minimal infrastructure. [14], [15]
+Global Positioning System (GPS)
+This paper presents a satellite-based wireless spatial telemetry network to embed in mobile hardware to realize high accurate position determination for mobile users and dynamic coupling events to the application program based on the context [1], [16], [17].
+Proximity Notification 
+System Alert that using the real world location (GPS) triggers a game notification when the real world space user is within the “trigger zone radius” around a virtual location [17].
+React Native
+A cross-platform framework used in this study to build the tourist-facing mobile application and the administrator and tour guide web dashboard from a single shared codebase, supporting camera-based AR, GPS tracking, QR scanning, and multi-language functionality.
+Expo
+A React Native toolchain and platform used for project scaffolding, build management, and device testing of the LAKBAY mobile application across Android devices.
+Django REST Framework (DRF) 
+Web toolkit written in Python Used to construct and deploy the secured and scalable RESTful Web API, the application layer for all the communication, requests and validation between the Unity client app and the server.
+PostgreSQL
+A powerful, open-source object relational database management system (ORDBMS), employed for the secure hosting, querying and managing relational data tables in terms of the long term storage of users, arrays of cultural metadata, and pools of trivia items and progress.
+Zamboanga Explorer Profile 
+Layouts for client-side interface such as configuration of initial configuration files, storage of monitoring data, view tracking level of progress and list collected digital certificates.
+Discovery Exploration
+A free-form, self-directed tourism experience in which tourists may visit all twelve QR code locations and four cultural icon catch points across Zamboanga City in any order, without a fixed route or enforced sequence.
+System Usability Scale (SUS) 
+Standardized 10 items likert scale metric tool which will be used to mathematically quantify, assessment and validation of technical usability and learnability, stakeholders’ acceptance of the software application.
+Zamboanga Explorer Certificate 
+A digitally-created, auto-generated document made available to a tourist upon completing all designated cultural discovery milestones within the LAKBAY mobile application, generated server-side and available for download through the tourist's progress dashboard.
+XP (Experience Points)
+A numerical reward currency awarded to tourists upon correctly completing quizzes tied to AR exhibit scans, QR code location scans, and cultural icon catch attempts, contributing toward the tourist's level progression within the system.
+Tour Guide
+A system user role in LAKBAY's web dashboard that shares the same content management and analytics access as an administrator, with the additional function of submitting structured human evaluations of the cultural information and content accuracy delivered by the system.
+Profile Picture
+A customizable image selected by the tourist during account registration and displayed on their Zamboanga Explorer Profile within the LAKBAY mobile application.
+Three.js
+A JavaScript-based 3D rendering library integrated within a React Native WebView component in the LAKBAY mobile application, responsible for rendering low-poly 3D cultural icon models and augmented reality overlays within the live camera view.
+CHAPTER 2
+REVIEW OF RELATED LITERATURE AND SYSTEMS
+Introduction
+The review of literature and systems for LAKBAY, thus, gives the team a bird’s eye view on the current location-based, augmented reality, gamified tourism apps, its capabilities, and recent advancements that had transformed this research area. The review helps researchers identify essential functionalities, mechanisms and approaches applied in similar applications and recognize their merits and disadvantages. After reviewing studies done in the field and learning about its features and functionalities, researchers were better acquainted with the current state of cultural AR tourism apps and the room for improvement, and innovations available for applications on Zamboanga City.
+In the past few decades, the location-based and gamified AR tourist applications development and usage have drastically been developing and enhancing from merely placing information overlays to entirely comprehensive systems such as using GPS directions with a museum related application content on an Android OS that uses and has built-in gamification features that enable users to easily locate, obtain information, be entertained in such a way that only traditional books and pamphlets may not provide. Its objective, for the system designers, is on the aspect of interactivity and the quantity of information concerning a specific cultural site, to provide its potential visitors on site a meaningful, engaging, informative, accurate, and memorable experience.
+The following systems exhibit comparable structures and thematic relevance to LAKBAY:
+RRL 1: Experience Philippines: An Augmented Reality Application for Heritage Tourism in Intramuros
+Experience Philippines is a mobile AR mobile app that was created in partnership with the Philippine Department of Tourism (DOT) and iACADEMY, to enrich tourist experience in the walled heritage district of Intramuros, Manila [26]. By simply placing the camera in front of certain landmarks the user could, via the AR rendering, visualize the location as it used to look. The core features of the application include the following:
+AR-triggered historical visualization activated by scanning the DOT logo or specific heritage sites, including the Gallery of Presidents, Fort Santiago Gate, the Ayuntamiento, Manila Cathedral, and San Agustin Church.
+A treasure-chest style content library housing visuals and historical information about Intramuros.
+A compact, app-based version of the DOT's official tourism website, allowing tourists to browse additional travel information.
+"With the Experience Philippines app, tourists can relive the past of Intramuros with just a tap on their mobile phone screens," noting according to our Tourism Secretary Bernadette Romulo-Puyat as well, the department plans to roll out an AR feature that would enhance the other tourist destination’s cultural value, which includes heritage areas such as the Banaue Rice Terraces and Corregidor (Philippine Star, 2020) [26].
+ 
+RRL 2: iJuanderer: An Augmented Reality-Based Gamified Local Tourism and Cultural Heritage Promotion and Preservation Application
+IJuanderer is a gamified mobile AR application aiming to revitalize local tourism and culture preservation initiatives in Tarlac province in the Philippines. In the exploration stage, the application will showcase the provincial museum “Diwa ng Tarlac.” Users will scan objects/artifacts inside the museum and place makers to reveal an AR content while being social with its own reward system driven by discovery. The core features of the application include the following:
+AR scanning of markers and artifacts within the partner museum, unlocking supplementary historical and cultural information.
+A quest-based reward system in which visitors accumulate points for each artifact or marker discovered, redeemable for discounts at partner merchants.
+A companion website extending the museum experience to remote, non-on-site visitors.
+General tourism information covering dining, accommodation, heritage sites, and natural attractions in the region.
+Through External User Acceptance Test performed at Diwa ng Tarlac Museum, an average user acceptance of 4.23 on Likert scale over all of the application screen proved that AR gamified model was favorable enough by users in promoting heritage [27].
+RRL 3: ManilaQuest: An Augmented Reality Gamified Navigation and Tourism Experience
+ManilaQuest is a Unity 3D-based mobile application for tourists visiting the well-known tourist sites in Manila. This app assists tourists in exploring sites and interacting culturally using real time geolocalization and AR technology [28]. The system uses Niantic Lightship AR Development Kit (ARDK) to show the AR navigation system, Google Maps API and OpenStreetMap to render geolocations of points, A* algorithm to compute the route, and SQLite for storing localized data. The core features of the application include the following:
+Real-time GPS-based navigation between major tourist spots in Manila, with selectable modes of transportation such as walking, public transport, or private vehicle.
+An AI voice informant named "Emy" that accompanies users throughout their journey, presenting historical and cultural facts about each destination.
+Mini-games and point-based challenges tied to specific tourist locations, with tokens awarded upon challenge completion that can be redeemed to unlock additional content.
+System Evaluation results have revealed that the users found ManilaQuest a very innovative tool that enhances the tourist experience with the presence of its game mechanisms: quests, challenges, and rewards that help them to explore sites more engagingly and enthusiastically, even with the issues with the users' devices, battery drainage, and the few cases of inaccuracy of GPS services [28].
+RRL 4: e-Tracer: A Gamified Augmented Reality Application for Digital Heritage and Tourism
+E-Tracer application is an Augmented Reality-learning tool developed for thepermanent collection of the Silversmithing Museumof Ioannina (managed by the Piraeus Bank Group Cultural Foundation [29]), based on a well-developed AR framework usingUnity engine and ARCoreby Google. The application is intended to facilitate the museum visitor in exploring and learning about permanent exhibitions by using their personal mobile phone device while inside the museum.
+Marker-based artifact detection, in which a printed image of the artifact itself (rather than a QR code) triggers a short description or an animated 3D model overlay when scanned by the device camera.
+An AR-based quiz game in which visitors are prompted to physically revisit specific exhibits, locate an artifact matching a given description, and scan it with their device camera to register a correct answer.
+A point-based reward system with a leaderboard ranking the top ten participating visitors.
+Multilingual content support, currently available in English and Greek.
+Based on the analysis of a 4 member expert group the use of a heuristic quiz was identified to have prompted users to come back to exhibits, spend more time viewing exhibits in the museums, and one evaluators quote the use of it, "pushed visitors to meditate on the application and thus...recall the information contained there, and see whether it is similar to information learned before" [29].
+Table 2.0 Review of Related Works and System Comparison Table
+Features
+Experience Philippines [26]
+iJuanderer [27]
+ManilaQuest [28]
+e-Tracer [29]
+Proposed Study (LAKBAY)
+GPS / Location-Based Navigation
+✓
+✓
+Camera-Based AR Overlay
+✓
+✓
+✓
+✓
+✓
+QR Code Scanning
+✓
+Gamification (points, rewards, badges)
+✓
+✓
+✓
+✓
+Quiz / Trivia Mechanic
+✓
+✓
+Digital Certificate / Achievement Output
+✓
+Indoor Museum AR Module
+✓
+✓
+✓
+Outdoor Heritage Site Coverage
+✓
+✓
+✓
+✓
+Philippine Locale
+✓
+✓
+✓
+✓
+Mobile Application Client
+✓
+✓
+✓
+Table indicates that the reviewed applications mostly have some components common with LAKBAY (e.g., camera based AR Overlay and gamified rewards); however, none integrate together GPS outdoor learning/exploration, QR Code scanning, indoor museum based AR overlay, Trivia based learning and Automated Digital Certification in a single application. Moreover, the surveyed applications do not focus on the cultural exploration of Zamboanga City and its four major cultural icons (Vinta, Lantaka, Yakan Weaver, Curacha).
+Summary
+Experience Philippines shows similar AR for heritage tourism as undertaken by the Philippine government itself; their systems focus on the historical, and rely on a camera to bring static images of the past to life in the historic walled city of Intramuros, though there was no gaming layer nor GPS guidance [26]. IJuanderer adds a prize-awarding quest system and the ability to scan items on display in museum exhibitions, reaching significant success when tried in a museum test, i.e. The Diwa ng Tarlac museum [27]. ManilaQuest establishes the technical viability of augmenting tours with Unity 3D, a GPS navigation system, and AIdriven gamification for exploring several Manila locations, also noting the real-world technical constraints that are encountered in building such systems, such as battery and GPS accuracy [28]. ETracer provides an example of using quiz elements within an indoor museum context, promoting user re-engagement, via an expert heuristric evaluation approach rather than broader end user testing [29]. Taken together, the reviewed research indicates that AR, gamification and location-based approaches have been individually successfully implemented for cultural tourism, but seldom combined in a single, integrated tourism environment.
+Synthesis
+The review of existing similar technologies showed that AR-based applications, whether foreign or local, applied for Cultural Tourism has successfully addressed the aspects of increased engagement, knowledge retention and intention to visit. As exemplified by the 2007 and 2008 implementations of Experience Philippines and iJuanderer respectively, local audiences react positively to the AR-based display of heritage and its accompanying narrative. Furthermore, the 2011 development of ManilaQuest illustrated that GPS-enabled navigation of heritage tours is a technically sound application and could significantly incentivize tour participation, and the e-Tracer demonstrated the utility of AR-driven quizzes to further lengthen dwell-time for patrons inside a museum environment. All applications reviewed, however, fail to offer support to an entire tourist discovery trajectory from beginning to end. 
+Experience Philippines offers the visualization only; iJuanderer and e-Tracer provide some level of gamification, but only as a context specific to their indoor exhibit/setting. ManilaQuest provide the GPS-based outdoors discovery and gamification, but without the mechanism of micro-story-telling and without an AR display for indoor environments. Moreover, none were developed with the specific cultural values of Zamboanga and its four icons, neither have they presented the feature of generating automatic certificates for completed cultural discovery for tourist participation. LAKBAY filled this void by integrating all mentioned feature set to include aGPS for discovering outdoor heritage, QRCodes to access a wealth of micro-stories, an AR interface in museums, a set of quiz-driven challenges and a certificate-generating module for tourist in a one singular Zamboanga-themed platform.
+CHAPTER 3
+TECHNICAL BACKGROUND
+Conceptual Framework
+LAKBAY is composed of a three-tier architecture namely the Presentation Layer, the Application and Logic Layer, and the Database Layer. The architectural pattern of the application was selected specifically to enforce a strict segregation of concern throughout the system; presentation layer responsible only for displaying data and handling user input, application layer responsible for implementing business logic and data validation, and database layer only for data storage. The fact that layers communicate through established interfaces ensures that layers can be independently managed and expanded, without impacting their function. 
+All interactions between presentation and application layer communicate using RESTful API over HTTP, hence allowing processing and logic related to content validations and computation of games’ state remain on the backend of the system, and not dispersed on each client devices.  It does not matter if the user plays via any of LAKBAY clients, the entire workflow will remain consistent.
+The underlying architecture is designed to be consistent and centralized by utilizing one technological stack in totality: one client-side development framework, React Native; one server-side framework, Django REST Framework; and one relational database, PostgreSQL. This structure serves to prevent the architectural issues commonly caused by employing various disparate technologies to develop different user interfaces. The system team would, otherwise have to consider several independent code bases, with numerous specific and diverging dependencies. Instead, the development team currently works with one single back end that is accessible equally to all client-side interfaces, and one single database responsible for holding all user data, all of the game's states and scores, and the full library of cultural material and user evaluations. None of the applications include its own separate, independent local storage. One coherent system generates the two separate interfaces delivered to their corresponding users; one mobile application for tourists (delivered to any capable android device) that enables them to embark on the full cultural experience, and one browser delivered web dashboard to the system administrators and tour guides in order for them to utilize management tools and content evaluation. Despite these two interfaces looking drastically different, and possessing wildly different functionalities and user base, they share the same back end and connect to the same data.
+The LAKBAY system consists of three user categories-each with its own roles and limitations. First are the tourists who act as end-users and utilize a React Native mobile application to delve into Zamboanga City’s culture using a tripartite of interaction mechanics namely: the AR exhibit scanning module located in National Museum of the Philippines, Zamboanga, the QR code scanning module distributed in twelve outdoor tourist sites around the city, and the GPS based cultural icon catching mechanic in four fixed real-world locations. The administrators interact using the web dashboard alone where their primary function involves maintaining the cultural assets of the platform, the set of trivia questions, media assets, as well as track usage metrics for the whole platform via analytics. 
+Lastly are the tour guides whose interaction falls on the same web dashboard as their admin peers, wherein they share content management and analytics functionality. However, they have an added layer of engagement wherein they are task to provide structured human assessment on the delivery of the cultural content, serving as a form of quality assessment that acts as a complement to automated usage metrics.
+Table 3.0 Conceptual Framework
+3.1.1. Presentation Layer 
+React Native Mobile Application (Tourist Facing) - The Main Tourist Application consists of a React Native application using Expo framework, to achieve a multi-platform android native experience. We chose Expo as it enables us to embed an Augmented Reality layer using Three.js (via embedded WebView component), live GPS location and also provides barcode scanning (within the same single application, and within a single code base. The application is consisted of the modules:
+Authentication and Account Creation Module - Handles entire tourist onboarding process such as account registration including essential details of tourists, choosing of profile image displayed in the tourist's Zamboanga Explorer Profile, assignment of a custom display name in-game and login process with storage of the session token to identify and connect the session with tourist's Zamboanga Explorer profile.
+Augmented Reality (AR Exhibit) Module - Gives camera-enabled AR to just inside of the exhibition building of the National Museum of the Philippines, Zamboanga (at Fort Pilar) [25] to, at this proposal, two pilot exhibit modules. The tourist targets the specific artwork or statue with their device camera; the app identifies the exhibit and displays Three.js renderings inside an embedded WebView with additional 3D content related to the history and culture of the object. After viewing the exhibit content, the tourist is given a quiz about the scanned exhibit. When correct, this gains XP towards the tourist's levels.
+QR Scan Module - Allows tourist to scan QR code placards at the 12 most popular tourist locations in Zamboanga City. A successful scan would reveal the details of the location together with photos of the place. The tourist would then be presented a quiz about the place and once successful, they get to earn XP points.
+Cultural Icon Catch Module - The Main outdoor gamification feature. The user's location tracking runs constantly in the background. Whenever the tourist enters the radius of the geofenced boundary of the designated 4 fixed cultural icon locations - the Curacha of Alavar Seafood Restaurant, the Vinta of R.T. Lim Boulevard, the Lantaka of Paseo del Mar and the Yakan Weaver of the Yakan Weaving Village in Upper Calarian, an icon will be detected by the application and will inform the tourist that an icon is available to catch. When the tourist taps "Catch," their device camera will open in AR mode and the associated low-poly 3D representation of the cultural icon will appear on their live camera feed through Three.js integrated in a WebView component of the app. To finally claim the catch, the tourist must answer one of a pool of five randomized quiz questions that are associated with the culture of each icon (a total of 20 quiz questions for 4 cultural icons) correctly to acquire the icon and gain XP.
+Map Module - View an interactive city map with routing directions/routes highlighting the location of all AR exhibition points, QR scan points and Cultural icon catch points, allowing the tourist to plan a convenient route around them. Any visit any location in any order - there is no forced path for any discovery by the tourist.
+Progress Dashboard Module - This is a real time progress screen of the tourist's touring activity, consisting of their current score (culture items collected, achievement badges earned, and number of QR sites discovered), the tourist's current accumulated XP score and their level in the game’s Level 1-100 structure.
+Certificate Module - Enable tourists to download and display their own digital Zamboanga Explorer Certificate after meeting the minimum requirements per landmark that has already been reached.
+Localization Module - Responsible for application's multilingual interface which gives tourists a chance to toggle between three (3) languages for all application text, trivia, and historical narrations: Filipino, Bisaya (Cebuano) and English (using existing pre-trained Bisaya model as custom-trained was too costly and would be a hinderance to the development of the application itself).
+React Native Web Dashboard (Administrator and Tour Guide-Facing) - A Second Interface served on the very same React Native codebase and accessible via web for authorized personnel. Both administrators and Tour Guides will have access to the following modules:
+Content Management Module - Permits authorized personnel to generate, amend, and maintain digital content for each of the fifteen AR exhibits, twelve QR visitor attractions and four Cultural Figures including, digital meta data, file paths, quiz/trivia content and associated photography.
+Analytics Module - Shows global platform engagement metrics in real-time: live count of logged in registered users by category (local Zamboangueño residents vs tourists), count of answered quiz per day/week/month, icon catch rates, and total user engagement.
+Content evaluation (Tour guide only) - This section will enable Tour guides to enter a qualitative, human-based, validation layer on cultural info and accuracy of the information output by the platform based on structured inputs (to support automated metrics).
+3.1.2. Application and Logic Layer 
+The entire core processing is managed by a self-hosted Django REST Framework (DRF) backend and serves as the entry point for any request from tourist app as well as from admin and guide web dash board. This layer is constantly validating the request and validates over 3 key functions:
+Authentication and Security Logic - Validates all incoming requests through a securely generated access token to secure all API endpoints from any unwanted access, while role-based authentication ensure tourist, admin, or tour guides access the system functionality they are allowed based on role assignment.
+Geospatial Tracking Logic - Takes a live stream of GPS coordinates from the mobile application in React Native, and queries against stored records in the database to ascertain proximity to defined cultural icon spawn points, returning notifications if they're close to one of those areas. The application does two types of checks to detect attempts at GPS spoofing; client side: The React Native app checks the native mock-location flag in Android before storing any reading, and refuses anything that claims to have been obtained via a mock or test location provider, and server side: The backend validates each received coordinate by inferring travel time between coordinate readings to confirm that travel is physically possible between them, discarding readings suggesting otherwise.
+Gamification Engine - Takes in attempted AR quiz answers and validating them for AR exhibits, QR locations and icon catch attempts. Validates scanned QR code tokens to see if it matches the expected hashes. Takes in attempted icon catch questions; it has a pooled set of five (for each of the five (5) icons - twenty (20) total), and picks a random question from that pool at every attempt; thereby discouraging predictability of repeated questions. Grants XPs upon passing the quiz, tracks the tourist through levels (max Level 100), validates if the current XPs have crossed the XP threshold and unlock level-based badge if yes, validates if a specific milestone is passed and unlocks corresponding milestone-based badge if yes, and generates the Zamboanga Explorer Certificate through a server-side PDF generation library once the tourist have finished all milestones.
+3.1.3 Database Layer
+The system accesses a single, centrally managed PostgreSQL database. The following core tables maintain the system's data integrity through a relational schema:
+User Accounts Table – Information regarding logged-in users containing login credentials with password hash and session tokens, personal profile information, choice of profile photo, unique custom display names to appear inside the game, designation type of user (Tourist, Admin or Tour Guide), and language choice (English, Bisaya or Filipino).
+Cultural Content Table - Maps the digital metadata, file names, photo images, and quiz content related to each of the AR exhibitions, the 12 tourist QR locations, and each of the 4 cultural landmarks (Curacha, Lantaka, Yakan Weaver, Vinta).
+Trivia Questions Table - Stores the pooled questions (5 x per cultural figure icon - 20 total) used by the Gamification Engine for a single randomly generated question selection per catch.
+The Progress Records, XP, and Badges Table - A look at a specific tourist’s current progress in discovery, his or her current XP points, level, the corresponding scale from level 1-100 (the system level that the user currently ranks in the world), and whether or not any milestones are currently achieved for level specific achievements, or progress achievements, etc.
+Content Evaluation Table - This table contains structured human submitted entries of content evaluation made by tour guides. An entry typically includes the content item being evaluated, an evaluation score or rating, textual feedback for the evaluation, and the user ID of the tour guide submitting the evaluation.
+Technology Requirements
+3.2.1 Software Requirements
+1. Operating Systems:
+Server: A Linux-based server operating system, such as Ubuntu Server, used to host the Django REST Framework backend and the PostgreSQL database.
+Client (Tourist — React Native Mobile Application): Android 8.0 (Oreo) or later, required for stable React Native AR and GPS performance.
+Client (Administrator and Tour Guide — Web Dashboard): Any modern web browser (Google Chrome, Mozilla Firefox, or Microsoft Edge).
+2. Development Tools:
+Visual Studio Code, as the primary IDE for React Native frontend development and Django backend development.
+Expo CLI, for React Native project scaffolding, build management, and device testing on Android devices.
+A React Native-compatible AR library for camera-based augmented reality rendering (specific library to be confirmed by the development team during implementation).
+Git and GitHub, for source code management and team collaboration.
+3. Programming Languages and Frameworks:
+JavaScript (React Native + Expo), used for the tourist-facing mobile application and the administrator and tour guide web dashboard.
+Python (Django REST Framework), used for all backend business logic, authentication, role-based access control, and API endpoint handling.
+4. Database Management System:
+PostgreSQL, used as the sole relational database management system for all persistent data storage.
+5. Version Control:
+Git and GitHub, used for source code management and collaboration among the development team.
+3.2.2. Hardware Requirements
+1. Server Hardware:
+A multi-core processor capable of handling concurrent API requests from both the mobile application and the web dashboard simultaneously.
+A minimum of 8GB RAM to support concurrent database transactions and backend processing.
+Solid-state storage with sufficient capacity for cultural content media, quiz data, evaluation records, and user data.
+2. Client Devices (Tourist — React Native Mobile Application):
+A mid-range or higher Android smartphone running Android 8.0 or later, with a functioning rear camera for AR and QR scanning, a GPS module, and sufficient processing capability to run React Native AR rendering smoothly.
+3. Client Devices (Administrator and Tour Guide — Web Dashboard):
+Any desktop, laptop, or tablet with a modern web browser and a stable internet connection.
+4. Networking:
+A stable internet connection — either mobile data or Wi-Fi — is required on the tourist's device at all times, as the React Native mobile application depends on continuous communication with the Django REST Framework backend for GPS validation, QR code verification, quiz evaluation, XP calculation, and progress synchronization.
+CHAPTER 4
+DESIGN AND METHODOLOGY
+Research Design
+The LAKBAY platform adopts an Agile development methodology in building the Lakbay system. Agile was chosen because the project has three connected parts: the Django backend, the web-based CMS, and the mobile application, and each part is needed to be built, tested and improved little by little instead of finishing one huge design before any coding started. This allowed researchers/developers to build a working version early, try it out, and make changes based on what worked and what didn’t, instead of waiting until the whole system was “done” to find out something was wrong. The development process was done in small cycles or iterations. In each cycle, a specific feature was planned, coded and tested before moving to the next one. For example, the QR code scanning feature was developed and tested first, followed by the trivia and the badge system, and then the AR “catch” feature. This step-by-step process made it easier to spot bugs early and adjust features based on feedback, which fits the nature of a system that has a lot of moving parts working together (map, camera, database, and external APIs).
+One of the more advanced components integrated into the system is the AI-assisted trivia generation feature, which uses a large language model (LLM) through the Groq API, specifically the Llama 3.1 8B Instant model. Instead of manually typing out trivia questions for every cultural spot, the system sends a prompt to the AI containing the spot’s name, location, description, historical background, and cultural significance, and asks it to generate five multiple-choice questions in a strict JSON format (question, four choices, and the correct answer). The backend then reads this JSON response, checks that it is properly formatted, and passes the questions to the mobile app for the user to answer. Since the AI generates a new set of questions every time the endpoint is called, each user is likely to get a unique set of trivia even for the same cultural spot. Making the quiz engaging and less repetitive. This was implemented as a REST API endpoint (/spots/<id>/ai-trivia/) that the mobile app calls after a successful QR scan, so the AI generation step is fully integrated into the existing scan-to-quiz flow rather than being a separate, disconnected feature.
+For the requirement-gatherings side, the researchers relied on a combination of direct consultation and iterative validation instead of a single one-time requirements document. Initial requirements were based on discussions on what a cultural tourism app for Zamboanga City should be able to do (letting tourists explore real cultural spots, learn their history, and be rewarded for visiting them, while giving an admin/tourism side an easy way to manage and update that content without needing to touch code. These initial ideas were then broken down into smaller testable requirements (e.g., “admin can add a spot with a location pin,” “user can scan a QR code and get a badge”) so that each one could be matched directly to a specific screen or API endpoint. As the prototype was tested and used, requirements were adjusted. For instance, adding a hidden gem game and AR unlock type, or auto-generating trivia through AI, came out of trying to make the reward loop more engaging. This approach ensured that the final deliverables: the mobile app, the web CMS, and the backend API) stayed aligned with the main goal of the project: giving travelers a fun, gamified experience to engage in Zamboanga City’s cultural heritage, while giving the tourism office an easy tool to manage content.
+Developmental Methodology
+This project used the Agile Software Development Methodology for the design and implementation of the LAKBAY system. Agile for its emphasis on iterative development, continuous integration, and adaptive planning, characteristics that are especially beneficial for a project composed of several interconnected technical components such as augmented reality rendering. QR-based delivery of cultural content, real-time GPS-based creature spawning, and a cross-platform architecture combining a React Native mobile application and a Django REST Framework Backend. The Agile methodology enabled the team to break the system into discrete, manageable chunks of work called sprints, each addressing a specific functional module. The first sprint was dedicated to establishing the backend infrastructure, including user authentication via Django REST Framework and SimpleJWT, database schema design with PostgresSQL, and the development of the Django Admin panel for content management.  Subsequent sprints gradually incorporated the QR scanning and validation module, the interactive city discovery map, the AR creature rendering pipeline using Three.js and MindAR, and the progression and certification system.
+Throughout each sprint, functional prototypes were tested on physical Android devices and measured against the system’s predefined success criteria, which included a QR scan success rate of at least 95%, AR creature detection and rendering within an acceptable latency range, and a System Usability Scale (SUS) target score of 68 or above. Feedback obtained from these tests influenced the modifications introduced in subsequent sprints, ensuring the system evolved in line with both technical demands and the practical usability for the target users—tourists, students, and heritage advocates exploring Zamboanga City. The iterative nature of Agile also facilitated effective management of technical challenges development such as backend-frontend integration complexities, network configurations across diverse development environments and AR framework compatibility issues—without jeopardizing the overall project timeline. Each challenge was isolated, tackled within its corresponding sprint and validated before progressing to the next stage.
+System Architecture
+Presentation Layer
+The presentation layer is comprised of two distinct clients which serve different target users:
+The web application client, which was built in React, acts as an Administrative Content Management System (CMS) tool allowing administrators to create and update tourist spot data, manage data and other media. It employs Leaflet and Mapbox GL for rendering interactive maps with route paths and uses the @google/model-viewer library for presenting the 3D heritage models as interactive preview models.
+The mobile application client, which was built in React Native and Expo.js, is designed as interface for the users/tourists. Expo-location is used to track the mobile device’s GPS coordinates and evaluate these against predefined geographic areas associated with tourist spots, powering the application’s geofencing feature. The Expo camera API is used to scan QRs in the physical world. Native rendering within the mobile app displays 3D models and route displayed in the web client, utilizing react-native –web view to render the @google/model-viewer in the mobile application. Both clients communicate with the Application layer exclusively via REST API calls made using axios and authenticate with an exchange of JSON Web Tokens which are stored in the secure store for the mobile client (expo-secure-store).
+Application Layer
+The application layer is developed in Django and uses Django REST Framework (DRF) to expose the system’s functionalities as RESTful APIs, which are then utilized both client applications. This layer handles application logic, validation of incoming requests, and facilitates the communication flow between the Presentation Layer and the Data Layer. Authentication and authorization are handles by djoser and django-rest-framework –simplejwt which handle JWT-based session authentication and social login using django all auth and social –auth-app-django. Media like the images and 3D models are stored on Cloudinary instead of the Application Layer to allow for easy horizontal scalability and to keep the server stateless. Beyond standard CRUD operations, the Application Layer also functions as the system’s inference engine: it integrates with the Groq API to run the llama-3.1-8b-instant large langauge model, which dynamically generates cultural trivia questions on demand for each tourist spot and cultural icon. Rather than relying on a static, pre-written question bank, the backend constructs a prompt from a spot’s or icon’s stored metadata (description, historical background, cultural significance) and passes it to the model at request time, returning a freshly generated, structured set of multiple-choice questions to the requesting client. This allows the gamification and storytelling features to remain content-driven and scalable as new spots are added, without requiring manual trivia authoring for each one. 
+Data Layer
+The data layer is responsible for the persistent storage and integrity of the system’s structured data and is implemented using a PostgresSQL relational database. It is accessed exclusively through the Django ORM within the Application Layer, meaning neither client application queries the database directly; all the data operations are mediated by the REST API. This layer maintains the system’s core relational data, including user accounts and profiles (accounts), tourist spots and cultural icon records, QR code mapping and scans logs, and gamification data such as the quiz results, earned badges, and accumulated experience points (quiz, qr_scan). Binary media assets such as images and 3D models are deliberately excluded from this layer and offloaded to Cloudinary, keeping the relational database lightweight and focused on structured, quarriable records
+Data Collection Methods
+For the development of the gamification in cultural tourism in Zamboanga City. The primary data collection method that will be used will be qualitative—interviews with the stake holders responsible in tourism promotions and heritage sites development. This method was chosen to ensure that objective of the game, content, verification requirement was aligned in terms of international needs and practical knowledge from the office responsible of verifying in the system.
+Data Source
+The primary data source for this study is the National Museum of the Philippines: the stake-holder responsible for managing the Fort Pilar branch in Zamboanga City.
+Data Gathering Instrument
+To gather the different types of data needed by the study, four distinct instruments will be used, each corresponding to a specific data need identified in the Methodology.
+Interview Guide. A researcher-developed, semi-structured interview guide will be used to gather cultural content and the system requirements from the National Museum of the Philippines, Zamboanga City Tourism Office and other relevant cultural organizations in the city. The guide will consist of open-ended questions covering the historical background, cultural significance, and notable facts of each candidate heritage site and cultural icon, as well as the current gaps and requirements for official tourism promotion. Responses gathered through this instrument will directly populate the content records (historical background, cultural significance, fun facts) associated with each cultural spot and icon in the system.
+System Usability Scale (SUS) Questionnaire. The standardized 10-item SUS will be administered to tourist and student end users following their experiences of the LAKBAY system during field testing.  Each item is rated on a 5-point Likert Scale (Strongly Disagree to Strongly Agree) and will be scored using the standard SUS scoring formula to produce a single usability score out of 100, allowing the system's usability to be benchmarked against established industry norms. 
+Likert-Scale Survey Questionnaire: A separate, researcher-developed survey questionnaire using a 5-point Likert Scale will be administered to the same group of tourist and student respondents to assess dimensions not covered by the SUS—specifically, cultural appropriateness, gameplay engagement, perceived educational value and overall satisfaction with the LAKBAY experience. Responses will be interpreted through the computation of weighted means per item and per construct.
+Expert Evaluation Rubric. A researcher-developed scoring rubric will be used by the panel of 10–15 evaluators — composed of a Zamboanga City tourism officer, cultural heritage experts, and/or local historians — to assess the accuracy and appropriateness of the system's cultural content (historical background, cultural significance, trivia questions, and 3D model representation) against a defined rating scale. This instrument ensures that the cultural information disseminated through the system is validated by subject-matter authorities prior to and during field deployment.
+Data Gathering Technique and Procedures
+Data for this study will be gathered in stages, each one tied to the instruments described in Section 4.4.2.
+The process begins with the content-gathering interviews. The researchers will meet with Officers from the National Museum of the Philippines / Zamboanga City Tourism Office along with representatives from relevant cultural organizations. Following the researcher-developed interview guide. These interviews will take place face-to-face at the respective offices and response will be gathered through notes, and where the interviewee consents, audio recording. Once transcribed and organized, this information covering the historical background, cultural significance, and notable facts tied to each candidate heritage site and cultural icon—will be used to populate the corresponding content records in the system's database ahead of field testing. With the content in place, the next stage is field deployment. QR markers linked to the finalized cultural spot and icon records will be printed and installed at the GPS-anchored pilot locations identified for the study. Before opening testing to outside participants, the researchers will run the system through an internal check to make sure GPS geofencing, QR scanning, 3D model rendering and AI-generated trivia are all functioning properly at each site.
+Once the system is confirmed ready, respondent recruitment follows. The study aims to bring in 5-10 tourists and students as end-user testers. End users will first be walked through how the LAKBAY mobile app works, after which they are free to pilot locations at their own pace: scanning QR markers, viewing the 3D cultural models and answering the AI-generated trivia questions within their session. Throughout this process, the researchers will be observing and logging any technical hiccups that come up—failed scans, GPS inaccuracies, rendering delays and the like. Right after each session, respondents move into the post-test survey stage. Each tester will fill out the SUS questionnaire as well as a separate Likert Scale survey, either on paper or through a digital format. To keep responses honest and independent, participants will complete these on their own, without copying or comparing notes with other respondents. While that’s happening, the expert evaluators carry out their own assessment. Working from the evaluation rubric, they’ll review the system’s cultural content, trivia accuracy, and 3D model representation—either by walking through the apps themselves or examining the underlying content records directly—and submit both numeric ratings and written feedback. Finally, everything gets pulled together in the data consolidation stage. SUS scores, Likert ratings, expert rubric scores, and system-logged technical metrics such as QR scan success rate and geofencing accuracy will all be compiled into a single dataset.
+Data Analysis
+The QR scanning accuracy will be quantified by success rate on 5 light environments, 2 sizes of printouts. This will be reported as a percentage relative to the 95% target threshold. The tourist interactivity statistics (session duration, number of creatures caught, number of trails completed and return usage) will be interpreted descriptively regarding gameplay effectiveness. User data collected from Likert scale questionnaire will be interpreted through calculation of weighted means. The accuracy of the cultural content will be measured via scoring from the expert review. Finally, analysis of these results will lead to the interpretation of total technical feasibility, cultural appropriateness, gameplay interaction and user acceptances of LAKBAY among target users and Zamboanga City tourism officials.
+Context Diagram
+Figure 4.1Figure 4.1
+Figure 4.1
+Figure 4.1
+LAKBAY system serves as the central coordinator between the tourists’s device, Django backend and seven external services. The tourist interacts directly with the mobile app, which communicates with Django via REST. Django then orchestrates calls to external services as needed. Google for authentication, Cloudinary for media, Groq and Gemini for AI-generated cultural contents, OSRM for routing and Leaflet / Mapbox for map tiles. PostgresSQL persists all data. This architecture keeps the Django backend thin and focused on the business logic while delegating specialized tasks to purpose built external services. 
+Tourist — the primary user of the system. They send credentials for authentication, GPS coordinates for location-based spawning QR scan data and profile and badges information to the system. They receive AR creatures, cultural content, badges and certificates in return. 
+Admin — the content manager. Sends content management instructions, user management commands, and confirmation actions to the system. Receives reports and system analytics in return.
+Google OAuth — external authentication service. The system sends authentication requests to google and receives verified auth tokens back, enabling tousists to login using their google accounts without needing to create a separate password.
+Cloudinary — external media storage service. This offloads heavy file storage from Django server.
+Open-Source Routing Machine (OSRM) — external routing service. The system sends route requests containing origin and destination coordinates and OSRM returns calculated navigation routes used in the city discovery map.
+PostgresSQL — primary database. 
+Device GPS (Expo Location) — the tourists phone GPS Sends real-time coordinates to the system, which uses them to trigger creature spawns when the tourist is within range of a cultural spot.
+Leaflet / Mapbox GL — map tile service. The system sends map tile requests and receives rendered map data displayed in the city discovery map.
+Groq API — AI service for Icon trivia. The system sends trivia content requests to groq and receives AI-generated questions and content used in the creature-catching mini-game.
+Gemini API — Google’s AI service for quiz generation. The system sends quiz requests to Gemini and receives generated questions used in the cultural learning module.
+Data Flow Diagram
+Figure 4.2Figure 4.2
+Figure 4.2
+Figure 4.2
+Entity
+Role
+Data flow (in / out)
+Tourist 
+Human actor (End user)
+Credentials, GPS, scans → / ← profile and badge data
+Admin
+Human actor
+Manage content, users → / ← Reports and confirmations
+Google OAuth
+Auth Provider
+Auth token
+Gemini API
+External AI service
+Trivia request → / ← Generated questions
+Cloudinary
+External Storage Service
+Upload images/models → / ← Generated content
+Groq API
+External AI Service
+Icon trivia request → / ← Generated content 
+OSRM
+External routing engine 
+Route request → / ← Calculated route 
+Leaflet / Mapbox GL
+Mapping/rendering layer
+Map tile request → / ← rendered map data
+ Device GPS / Expo Location
+Client device sensor
+Real time coordinates
+PostgreSQL
+Data Store
+Read/Write data
+Flowchart
+Part 1 Content Management Flowchart
+This part is the data foundation for the entire app. Nothing a traveler sees in Part 2 onward (spots on the map, QR unlocks, trivia, 3D creatures) exists until it is authored here. The off-page connector at the end (‘API data feed’) represents this dependency.
+Figure 4.3.1Figure 4.3.1
+Figure 4.3.1
+Figure 4.3.1
+Part 2 Onboarding Discovery
+This part enforces that content unlocking is gated. A traveler can’t scan or unlock a spot’s content remotely, which is the mechanic that ties the app to the real-world visitation. The geofence-pass condition (T9 → Yes) is the single fate into Part 3.
+Figure 4.3.2Figure 4.3.2
+Figure 4.3.2
+Figure 4.3.2
+Part 3 QR Scan Unlock
+This is the app’s core gamification hook. A single physical action like scanning a QR code triggers three different content experience depending on how the admin configured that marker in Part 1 and simultaneously produces the scan-count data that the admin later reviews in part 5.
+Figure 4.3.3Figure 4.3.3
+Figure 4.3.3
+Figure 4.3.3
+Part 4 Quiz Rewards
+This is the app’s core reward loop. It’s what converts a scan into a tangible progression (badges, XP) and it’s the gate that keeps the trivia content (authored back in Part 1) meaningfully tied to whether a traveler actually engages with it rather than just scanning and moving on. The retry loop also means a failed attempt never blocks progress; it just delays the reward.
+Figure 4.3.4Figure 4.3.4
+Figure 4.3.4
+Figure 4.3.4
+Part 5 Profile Analytics
+This part is what makes LAKBAY a closed system rather than a linear one-shot flow; travelers are pulled to revisit and explore more spots, and admins get a feedback signal via analytics to decide what content to add or to adjust next, which flows right back into Part 1.
+Use Case
+Part 1 Admin (Web CMS)
+Every use case here corresponds one-to-one with a real CMS tab, so the diagram doubles as a functional spec of the admin side.
+Figure 4.4.1Figure 4.4.1
+Figure 4.4.1
+Figure 4.4.1
+Part 2 Traveler (Mobile App)
+It’s basically the full tourist/traveler journey; log in, find a spot, scan it, unlock contents, engage in fun trivias, get rewards, and check progress.
+Figure 4.4.2Figure 4.4.2
+Figure 4.4.2
+Figure 4.4.2
+Requirement Specification
+This part will define all the conditions or specifications that the system of LAKBAY has to have so that the LAKBAY project is realized. All of these can be categorized to (what the system does) and (how it does) which were as follows: This part will define all the conditions or specifications that the system of LAKBAY has to have so that the LAKBAY project is realized. All of these can be categorized to (what the system does) and (how it does) which were as follows: This part will define all the conditions or specifications that the system of LAKBAY has to have so that the LAKBAY project is realized. All of these can be categorized to (what the system does) and (how it does) which were as follows:
+Functional Requirements
+Admin (Web CMS)
+ID
+Requirements
+FR1
+The System shall allow the admin to login to the CMS using valid credentials.
+FR2
+The System shall allow the admin to creat, edit, delete Cultural spots records (name, description, historical background, cultural significance, GPS coordinates, images, 3D model).
+FR3
+The System shall allow the admin to create and manage QR markers linked to a spot, each configured with an unlock type; Cultural story, AR Creature, or Hidden Game Content.
+FR4
+The System shall automatically generate a scannable QR code image for each QR marker.
+FR5
+The System shall allow the admin to create and manage Cultural icons (collectible creatures).
+FR6
+The System shall allow the admin to view all registered users and activate or suspend user accounts. 
+FR7
+The System shall allow the admin to define badges and their unlock requirements e.g number of QR scans, AR completion. 
+FR8
+The System shall display a dashboard summarizing visit counts, scan counts, and recent traveler activity.
+FR9
+The System shall generate reports/analytics on content engagement across all spots
+Software Functionality
+(Provide a high-level summary of the key functions the product must perform or enable the user to perform. Detailed descriptions will be given in the following sections, so a brief overview is sufficient here.)
+User Characteristics
+LAKBAY is used by two distinct types of users:
+Admin – have basic content management competence, operating on web dashboard.
+Traveler (Tourist) – ordinary tourists with no technical background.
+User Role
+User name
+Priorities
+Features
+Key user
+Administartor
+Highest priority
+Manages all cultural spot content, QR markers, cultural icons, and badge requirements; moderate user accounts; views the analytics dashboard and reports via the Web CMS.
+Primary user
+Traveler 
+Highest priority
+The core end user the system is built for; registers/logs in, explores spots via map, scans QR codes, unlocks AR gem contents, engage in trivia questions, and earns badges XP via Mobile Application.
+Non-Functional Requirements 
+(Discuss the content of this chapter.)
+Technical Requirements
+Backend environment
+Django 6.0.6 with Django REST Framewor, served over HTTP(S), using JWT (djangorestframework-simplejwt) for stateless authentication.
+PostgreSQL as the relational database (psycopg2-binary), configured via environment variables (DB_NAME, DB_HOST) for portablility across dev/production.
+Cloudinary as external cloud storage for media assets (spot images, 3D model files); offloads large binary storage from the app server.
+Google OAuth support via django-all auth and social-auth-app-django for the “Login via Google” use case.
+Web CMS environment:
+React 19 + Vite as the build/runtime framework; deployable to any static-hosting or Node-capable environment.
+Leaflet for interactive map rendering; @google/model-viewer for in-browser 3D model preview of cultural spots/icons.
+Requires a modern desktop browser with WebGL support (for 3D model preview) and JavaScript enabled
+Mobile app environment:
+Expo (~SDK 54) with React Native 0.81 and React 19, targeting Android devices.
+Expo-location for GPS-based geofencing and expo-camera for QR scanning – both require the OS to grant location and camera permissions at runtime.
+Requires a physical device with GPS and camera hardware; AR 3D model viewing requires a device capable of rendering 3D content at acceptable frame rates
+Performance Requirements
+ID
+Requirement
+Rationale
+PR1
+The Explorer Home map/list shall load spot data within 2-3 seconds on a stable 4G/5G/Wi-Fi connection.
+Tourists are often on mobile data at outdoor sites
+PR2
+QR code scan validation shall complete within 1-2 seconds.
+The scan-to-unlock moment is the core gamification; noticeable lag breaks the “instant reward” gimmick.
+PR3
+GPS geofence checks shall re-evaluate the user’s position at a reasonable polling interval (e.g., every 5-10 seconds) rather than continuously, to balance accuracy against battery drain.
+Continuous GPS polling on mobile devices significantly reduces battery life during a walking tour.
+PR4
+3D model assets shall be reasonably sized/optimized so they load within 3-5 seconds on typical mobile device. 
+Cloudinary hosted. glb/3D files must not stall the AR experience; large unoptimized models degrade usability.
+PR5
+The JWT access token shall remain valid for 60 minutes, with refresh tokens valid for 1 day and rotated on use. 
+Balances session conveniences against exposure window if a token is compromised. 
+Assumptions and Dependencies 
+Assumptions:
+Travelers have smartphone with an active internet connection (mobile data or Wi-Fi) and location services enabled while on-site; the app is not designed for fully offline use.
+Physical QR markers are printed and installed correctly at each cultural spot’s real world GPS coordinates before travelers arrive.
+Admins have basic familiarity with web-based content management.
+GPS accuracy in outdoor tourist areas is sufficient (typically 5-15 meters) for geofence radius checks to work reliably; dense urban structures near a spot could reduce accuracy
+Dependencies:
+Cloudinary for storing and serving spot images and 3D model files; an outage or quota limit on this service directly affects content availability.
+Google OAuth via django-allauth/social-auth-app-django as an external identity provider for social login; requires valid API credentials and is subject to Google’s service availa-bility and policy changes.
+PostgresSQL as the database engine; assumes a managed or self-hosted Postgres in-stance is available in the deployment environment.
+Expo managed workflow; mobile builds the OTA updates and depend on Expo’s build/deployment infrastructure.
+Security Requirements 
+Authentication: All API access requiring identity shall use JWT bearer tokens (djan-gorestframework-simplejwt); refresh tokens are rotated and blacklisted after use to re-play risk.
+Password handling: User passwords shall be hashed using Django’s built-in password hashers; plaintext passwords shall never be stored or logged.
+Data Integrity: The system shall enforce a unique constraint on (user, QR marker) scans (QRScan.unique_together) to prevent duplicate scan exploitation of badge/XP rewards.
+Trivia answer protection: Correct answers shall never be sent to the client/mobile app; grading occurs server-side only.
+Account moderation: Administrators shall be able to suspend a user account to revoke access in case of abuse.
+Data privacy: Personally identifiable information shall only be used for app functionality and not exposed to other users.
+Transport security: All client-server communication should occur over HTTPS in pro-duction to protect credentials and tokens in transit.
+CORS configuration note: The backend currently sets CORS_ALLOW_ALL_ORIGINS = True for development convenience; this should be restricted to the specific web CMS and mobile app origins before production deployment, since an open CORS policy al-lows any origin to call API with a valid token.
+System Design
+The same incremental, prototype-centric design was applied to the database: first a sample database schema was laid down to implement the main content management and QR-unlock logic, and then incrementally enriched to accommodate quiz scoring, the award of badge and XP and “Catch” AR content in the latter iterations. Each database entity was normalized to avoid duplicating data and the imposition of database constraints (like unique keying or cascaded deletes) as far as possible of in-application logic
+Database Design
+Figure 4.5.1Figure 4.5.1
+Figure 4.5.1
+Figure 4.5.1
+LAKBAY’s single source of truth is a relational database (PostgresSQL), storing all of its structured data (user accounts, cultural spot contents, QR markers, scans, trivia, badges etc.). All large binary assets (3D models, spot images) are intentionally kept out of the database, stored externally on Cloudinary and only referenced via URL/path. This keeps the database lean and prevents large binary data from inflating row size. The database schema is designed around eight logical entities, grouped into two areas:
+Identity — Custom User: A single database table for all users, whether web-based (admin users) or app-based (traveler users); the role/permission is defined as an enum on this table instead of creating separate admin/user tables.
+Content & Gameplay — Cultural spot, QR Marker, QR Scan, Trivia Question, Trivia Attempt, Spot Badge, Cultural Icon: Modeling the progression of scanning cultural spot markers for trivia, in order to collect badges.
+Foreign keys are used for referential integrity, with cascading delete so removing a Cultural Spot will remove all associated markers, questions, scans, and badges. Composite unique constraints are implemented for two conditions that would prevent duplicate gameplay actions: a user may only record one QR scan for a given QR Marker, and a user may only collect one Spot Badge for a given Cultural Spot. Non-atomic, small variable-length lists like multiple-choice trivia answers, spot image galleries, or tags are represented as JSON columns within a parent row to avoid further normalization where the entire list is read/written together.
+Entity Relationship Diagram
+Figure 4.5.2Figure 4.5.2
+Figure 4.5.2
+Figure 4.5.2
+It contains eight entities: Custom User, Cultural Spot, QR Marker, QR Scan, Trivia Question, Trivia Attempt, Spot Badge and Cultural Icon.
+Custom User table stores the account information of both admins and travelers (tourists), since the system uses just one user table for both types of users. This table is connected to QR Scan, Trivia Attempt, and Spot Badge because a single user can scan many QR codes, take many trivia quizzes and earn many badges.
+Cultural Spot table is the center of the diagram since most of the other tables depend on it.  Each cultural spot can have many markers, many trivia questions, many trivia attempt and many badges connected to it, which is why the relationship between Cultural Spot and these tables is one-to-many.
+QR Marker is connected to Cultural Spot (one spot can have many QR markers) and to QR Scan (one marker can be scanned by many users). The QR Scan tables also has a rule that a user cannot scan the same marker twice, which is shown through the unique constraint placed in the note below the diagram.
+Trivia Question and Trivia Attempt tables are both related to the Cultural Spot trivia questions are made per spot, and every attempt is also recorded per spot. Once a user passes a trivia attempt, this is what leads to the spot badge being given, showing that these tables work together to form the reward system of the app.
+Lastly, the Cultural Icon table stands alone and is not connected to any other entity. This is intentional since the cultural icons are used only for the AR “catch” feature and are not tied to a specific cultural spot.
+Database Fields 
+TABLE tblCustomUser 
+Attribute Name
+Data Type
+Max Length
+Key Type
+Null
+id
+INTEGER
+11
+Primary Key
+No
+email
+VARCHAR
+254
+Unique
+No
+full_name
+VARCHAR
+255
+No
+in_game_name
+VARCHAR
+100
+Unique
+Yes
+chosen_character
+VARCHAR
+100
+Yes
+profile_photo
+VARCHAR
+100
+Yes
+auth_provider
+VARCHAR
+50
+No
+xp
+INTEGER
+11
+No
+password
+VARCHAR
+128
+No
+is_active
+BOOLEAN
+1
+No
+date_joined
+DATETIME
+—
+No
+TABLE tblCulturalSpot 
+Attribute Name
+Data Type
+Max Length
+Key Type
+Null
+id
+INTEGER
+11
+Primary Key
+No
+name
+VARCHAR
+200
+No
+description
+TEXT
+—
+No
+historical_background
+TEXT
+—
+No
+cultural_significance
+TEXT
+—
+No
+fun_fact
+TEXT
+—
+Yes
+hook
+VARCHAR
+300
+Yes
+image
+VARCHAR
+100
+Yes
+image2
+VARCHAR
+100
+Yes
+image3
+VARCHAR
+100
+Yes
+images
+JSON
+—
+Yes
+location_name
+VARCHAR
+200
+No
+latitude
+FLOAT
+—
+No
+longitude
+FLOAT
+—
+No
+feature_types
+JSON
+—
+No
+model_3d
+VARCHAR
+500
+Yes
+is_featured
+BOOLEAN
+1
+No
+created_at
+DATETIME
+—
+No
+TABLE tblQRMarker 
+Attribute Name
+Data Type
+Max Length
+Key Type
+Null
+id
+INTEGER
+11
+Primary Key
+No
+spot_id
+INTEGER
+11
+Foreign Key (CulturalSpot)
+No
+qr_code_string
+VARCHAR
+500
+Unique
+No
+is_active
+BOOLEAN
+1
+No
+bonus_creature
+VARCHAR
+100
+Yes
+unlock_type
+VARCHAR
+50
+No
+scan_count
+INTEGER
+11
+No
+created_at
+DATETIME
+—
+No
+TABLE tblQRScan 
+Attribute Name
+Data Type
+Max Length
+Key Type
+Null
+id
+INTEGER
+11
+Primary Key
+No
+user_id
+INTEGER
+11
+Foreign Key (CustomUser)
+No
+qr_marker_id
+INTEGER
+11
+Foreign Key (QRMarker)
+No
+scanned_at
+DATETIME
+—
+No
+TABLE tblTriviaQuestion 
+Attribute Name
+Data Type
+Max Length
+Key Type
+Null
+id
+INTEGER
+11
+Primary Key
+No
+spot_id
+INTEGER
+11
+Foreign Key (CulturalSpot)
+No
+question
+VARCHAR
+300
+No
+choices
+JSON
+—
+No
+correct_index
+INTEGER
+11
+No
+TABLE tblTriviaAttempt 
+Attribute Name
+Data Type
+Max Length
+Key Type
+Null
+id
+INTEGER
+11
+Primary Key
+No
+user_id
+INTEGER
+11
+Foreign Key (CustomUser)
+No
+spot_id
+INTEGER
+11
+Foreign Key (CulturalSpot)
+No
+score
+INTEGER
+11
+No
+total
+INTEGER
+11
+No
+passed
+BOOLEAN
+1
+No
+attempted_at
+DATETIME
+—
+No
+TABLE tblSpotBadge 
+Attribute Name
+Data Type
+Max Length
+Key Type
+Null
+id
+INTEGER
+11
+Primary Key
+No
+user_id
+INTEGER
+11
+Foreign Key (CustomUser)
+No
+spot_id
+INTEGER
+11
+Foreign Key (CulturalSpot)
+No
+awarded_at
+DATETIME
+—
+No
+TABLE tblCulturalIcon 
+Attribute Name
+Data Type
+Max Length
+Key Type
+Null
+id
+INTEGER
+11
+Primary Key
+No
+name
+VARCHAR
+100
+No
+emoji
+VARCHAR
+10
+No
+tagline
+VARCHAR
+200
+No
+type_name
+VARCHAR
+100
+No
+color
+VARCHAR
+20
+No
+about
+TEXT
+—
+No
+significance
+TEXT
+—
+No
+facts
+JSON
+—
+Yes
+model_3d
+VARCHAR
+500
+Yes
+created_at
+DATETIME
+—
+No
+Tools and Technology
+The selection of these technologies was determined by their support and compatibility for the project needs, level of usability, accessibility to documentation, integration potential and scalability.
+Programming language: Python for backend development, along with Django & Django REST Framework. It offers a safe and reliable framework to build a RESTful API for the system. 
+Database: PostgresSQL. The application’s data was stored in a relational database using PostgresSQL.
+Frontend Technologies (Web): React (bundled with vite) was used to build responsive, component based administrative Content Management System (CMS), with Leaflet and Mapbox GL for interactive mapping, @google/model-viewer for previewing 3D assets and Recharts for data visualization.
+Mobile Application: React Native, developed using the Expo Framework, was used to build the cross-platform application with libraries such as Expo Camera, Expo Location, and Expo Secure Store enabling QR scanning, GPS geofencing and secure local storage respectively.
+Authentication: JSON Web Tokens (JWT), implemented through Djoser, dj-rest-auth, and django-allauth were used to handle secure user registration, login and session management, including social account authentication.
+Media and Asset Storage: Cloudinary was used as a cloud-based storage solution for managing and serving media files: images and 3D model assets used throughout the application.
+Version Control: Github was used for collaboration and source code management.
+Development Environment: Local development server. Django’s built-in server for the backend, Vite’s development server for the Web CMS, and Expo’s development client for the mobile application were used for testing during development. 
+Others: Axios was integrated to handle asynchronous HTTP requests between the frontend application and the backend API, improving responsiveness, and Google drive was used to manage and store project documentation files
+Evaluation and Testing
+The goal was to ensure the system meets user requirements and operates reliably in real-world conditions
+Unit Testing: To verify expected behavior, individual components and modules were isolately tested. On backend, pytest with pytest-django was used to test model creation and core Django logic such as user account creation. On the web CMS and mobile application, Jest and React testing library (@testing-library/react / @testing-library/react-native) were used to test header rendering, screen navigation triggers, and interactive elements (e.g., the AR scan, QR scan and the catch collection screens).
+Integration Testing: Using Thunder Client to manually test every established backend API endpoint for the system. This was combined with testing of the interaction between the mobile /web clients and the Django REST API to confirm proper data flow across frontend and backend. 
+User Acceptance Testing (UAT): Selected users including peers and designated evaluators tested the web CMS and mobile application in a controlled environment to confirm that the system features (map exploration, AR/Qr unlocking, trivia questions, and badge/XP progression) aligned with their expectations.
+Performance Testing: The system was evaluated for API response time, mobile responsiveness and stability. Tested by emulating typical usage conditions such as repeated scans and navigation between screens. 
+Functional Accuracy and Reliability: Since the system depends on rule-based logic rather than an inference engine, correctness was verified by cross-checking gameplay logic against expected outcomes.
+REFERENCES
+[1] T. Althoff, R. W. White, and J. Leskovec, "Influence of Pokémon GO on physical activity: Study and implications," Journal of Medical Internet Research, vol. 18, no. 12, Dec. 2016, doi: 10.2196/jmir.6759. [Online]. Available: https://www.jmir.org/2016/12/e315
+[2] A. Colley et al., "The geography of Pokémon GO: Beneficial and problematic effects on places and movement," in Proc. ACM CHI Conf. Human Factors Comput. Syst., Denver, CO, USA, 2017, pp. 1179–1192, doi: 10.1145/3025453.3025495. [Online]. Available: https://dl.acm.org/doi/10.1145/3025453.3025495
+[3] J. Guo and Y. Pan, "What factors impact visitors' intentions to use location-based AR games? An empirical study from Chinese cultural heritage sites," Sustainability, vol. 15, no. 19, p. 14328, Sep. 2023, doi: 10.3390/su151914328. [Online]. Available: https://www.mdpi.com/2071-1050/15/19/14328
+[4] Y. Chen, J. Guo, and Y. Pan, "How do location-based AR games enhance value co-creation experiences at cultural heritage sites? A process perspective analysis," Applied Sciences, vol. 14, no. 15, p. 6812, Aug. 2024, doi: 10.3390/app14156812. [Online]. Available: https://www.mdpi.com/2076-3417/14/15/6812
+[5] K. Vassilakis, O. Charalampakos, G. Glykokokalos, P. Kontokalou, M. Kalogiannakis, and N. Vidakis, "Can location-based augmented reality support cultural-heritage experience in real-world settings? Age-related engagement patterns and a field-based evaluation," Informatics, vol. 13, no. 1, p. 12, Jan. 2026, doi: 10.3390/informatics13010012. [Online]. Available: https://www.mdpi.com/2227-9709/13/1/12
+[6] N. Kaur, M. Jamwal, P. Singh, and A. Rana, "Game on: Exploring the impact of gamified features on travel app continuance intention," Multidisciplinary Science Journal, vol. 7, no. 1, p. 2025056, 2024, doi: 10.31893/multiscience.2025056. [Online]. Available: https://malque.pub/ojs/index.php/msj/article/view/2725
+[7] F. Xu, J. Weber, and B. W. Ritchie, "Gamification and the tourist experience: A systematic literature review," Tourism Management Perspectives, vol. 44, p. 101040, Oct. 2022, doi: 10.1016/j.tmp.2022.101040. [Online]. Available: https://www.sciencedirect.com/science/article/pii/S2211973622000757
+[8] P. Srdanović, T. Skala, and M. Maričević, "InHeritage—A gamified mobile application with AR and VR for cultural heritage preservation in the metaverse," Applied Sciences, vol. 15, no. 1, p. 257, Dec. 2024, doi: 10.3390/app15010257. [Online]. Available: https://www.mdpi.com/2076-3417/15/1/257
+[9] M. Abou-Shouk and M. Soliman, "The impact of gamification adoption intention on brand awareness and loyalty in tourism: The mediating effect of customer engagement," Journal of Destination Marketing & Management, vol. 20, p. 100559, Jun. 2021, doi: 10.1016/j.jdmm.2021.100559. [Online]. Available: https://www.sciencedirect.com/science/article/pii/S2212571X21000226
+[10] M. Hincapié, A. Caponio, H. Rios, and E. G. Mendívil, "Augmented reality mobile apps for cultural heritage reactivation," Computers and Electrical Engineering, vol. 93, p. 107281, Jul. 2021, doi: 10.1016/j.compeleceng.2021.107281. [Online]. Available: https://www.sciencedirect.com/science/article/pii/S0045790621002202
+[11] R. G. Boboc, E. Băutu, F. Gîrbacia, N. Popovici, and D. M. Popovici, "Augmented reality in cultural heritage: An overview of its applications and implications for research," Heritage, vol. 5, no. 3, pp. 1729–1756, 2022, doi: 10.3390/heritage5030090. [Online]. Available: https://www.mdpi.com/2571-9408/5/3/90
+[12] A. Ioannou and C. Vasiliou, "Augmented reality in cultural heritage: A narrative review of design, development and evaluation approaches," Heritage, vol. 8, no. 10, p. 421, Oct. 2024, doi: 10.3390/heritage8100421. [Online]. Available: https://www.mdpi.com/2571-9408/8/10/421
+[13] G. Çelik and Y. Çelik, "Augmented reality and wearable technology for cultural heritage preservation," Sustainability, vol. 16, no. 10, p. 4007, May 2024, doi: 10.3390/su16104007. [Online]. Available: https://www.mdpi.com/2071-1050/16/10/4007
+[14] M. Lal, S. Dash, J. K., B. V. Kumar, G. Ali, and V. K. Shukla, "Augmented heritage: AR and QR code integration for interactive cultural storytelling in the UAE," in Proc. 2025 Int. Conf. Intelligent and Secure Engineering Solutions (CISES), 2025, pp. 893–897, doi: 10.1109/CISES66934.2025.11265649. [Online]. Available: https://ieeexplore.ieee.org/document/11265649
+[15] L. Savio and M. Morena, "QR codes in cultural heritage tourism: New communications technologies and future prospects in Naples and Warsaw," ResearchGate, 2017. [Online]. Available: https://www.researchgate.net/publication/317904328. [Accessed: Jun. 11, 2026].
+[16] A. Rahim and N. A. Naqvi, "GNSS and GIS based android integration of mobile based virtual guide application ExpLahore for walled city Lahore, Pakistan," ResearchGate, 2021. [Online]. Available: https://www.researchgate.net/publication/354637307. [Accessed: Jun. 11, 2026].
+[17] S. Kaur et al., "Handheld tourist guidance system using GPS," Materials Today: Proceedings, vol. 49, pp. 1–5, 2021, doi: 10.1016/j.matpr.2021.04.538. [Online]. Available: https://www.sciencedirect.com/science/article/abs/pii/S2214785321034866
+[18] R. Paucher and M. Turk, "Using Unity 3D to facilitate mobile augmented reality game development," ResearchGate, 2014. [Online]. Available: https://www.researchgate.net/publication/271462295. [Accessed: Jun. 11, 2026].
+[19] M. Ali and A. Al-Nuaimi, "Leveraging Unity 3D and Vuforia Engine for augmented reality application development," in Proc. IEEE Conf., 2024, doi: 10.1109/10390072. [Online]. Available: https://ieeexplore.ieee.org/document/10390072
+[20] X. Wang and H. Li, "Mobile-enhanced outdoor education for Tang Sancai heritage tourism: An interactive experiential learning approach," Education Sciences, vol. 15, no. 6, p. 743, Jun. 2025, doi: 10.3390/educsci15060743. [Online]. Available: https://www.mdpi.com/2227-7102/15/6/743
+[21] A. R. Busalla, "Opportunities and challenges in the tourism industry of the Philippines," International Research Journal of Engineering, Management and Sciences, vol. 4, no. 1, pp. 207–211, 2025. [Online]. Available: https://irjems.org/Volume-4-Issue-1/IRJEMS-V4I1P120.pdf
+[22] Philippine News Agency, "PH hits record-high tourism revenue of P760-B in 2024," Jan. 6, 2025. [Online]. Available: https://www.pna.gov.ph/index.php/articles/1241179. 
+[23] City Government of Zamboanga, "Tourism promotions board explores Zambo City," Zamboanga City Official Website, Jan. 2025. [Online]. Available: https://zamboangacity.gov.ph/tourism-promotions-board-explores-zambo-city/. 
+[24] "Zamboanga City records 16% increase in tourist arrivals," MindaNews, Dec. 6, 2024. [Online]. Available: https://mindanews.com/top-stories/2024/12/zamboanga-city-records-16-increase-in-tourist-arrivals/
+[25] "The Fort Pilar Shrine: A Historical Landmark in Zamboanga City," Out of Town Blog, Feb. 22, 2024. [Online]. Available: https://outoftownblog.com/fort-pilar-shrine/. 
+[26] Philippine Star, "Augmented reality app lets you relive Intramuros history via mobile phone," Philstar.com, Feb. 3, 2020. [Online]. Available: https://www.philstar.com/headlines/2020/02/03/1990157/augmented-reality-app-lets-you-relive-intramuros-history-mobile-phone
+[27] J. T. Bautista, A. J. H. Vizmanos, R. A. Sta. Maria, and J. T. Mercado Jr., "iJuanderer: An augmented reality-based gamified local tourism and cultural heritage promotion and preservation," IOER International Multidisciplinary Research Journal, vol. 4, no. 2, pp. 73–84, Jun. 2022. [Online]. Available: https://www.ioer-imrj.com/wp-content/uploads/2022/05/iJuanderer-An-Augmented-Reality-Based-Gamified-Local-Tourism-and-Cultural-Heritage-Promotion-and-Preservation.pdf
+[28] "ManilaQuest: An augmented reality gamified navigation and tourism experience," International Journal of Engineering Trends and Research Methodologies, Oct. 2025. [Online]. Available: https://ijetrm.com/issues/files/Oct-2025-05-1759674257-OCT13.pdf
+[29] I. Paliokas et al., "A gamified augmented reality application for digital heritage and tourism," Applied Sciences, vol. 10, no. 21, p. 7868, Nov. 2020, doi: 10.3390/app10217868. [Online]. Available: https://www.mdpi.com/2076-3417/10/21/7868
+APPENDICES
+CURRICULUM VITAE
