@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar } from 'react-native';
-import { 
-  ViroARSceneNavigator, 
-  ViroARScene, 
-  ViroARImageMarker, 
-  ViroARTrackingTargets, 
-  ViroBox, 
-  ViroText, 
-  ViroNode, 
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar, InteractionManager } from 'react-native';
+import {
+  ViroARSceneNavigator,
+  ViroARScene,
+  ViroARImageMarker,
+  ViroARTrackingTargets,
+  ViroBox,
+  ViroText,
+  ViroNode,
   ViroAnimations,
   ViroAmbientLight,
-  ViroSpotLight
+  ViroSpotLight,
+  isARSupportedOnDevice,
+  requestRequiredPermissions,
 } from '@reactvision/react-viro';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -69,6 +71,44 @@ export default function ViroARScanner({ navigation }) {
   const [detectedSpot, setDetectedSpot] = useState(null);
   const [arTargets, setArTargets] = useState([]);
   const [loading, setLoading] = useState(true);
+  // 'checking' | 'ready' | 'unsupported' | 'permission-denied'
+  const [arStatus, setArStatus] = useState('checking');
+  // Defer mounting the AR GL surface until the screen transition + layout
+  // have settled. Mounting ViroARSceneNavigator too early races the native
+  // GL surface setup and shows a black camera on some devices (e.g. Samsung).
+  const [sceneMountReady, setSceneMountReady] = useState(false);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const permissions = await requestRequiredPermissions(['camera']);
+        if (!permissions.camera) {
+          setArStatus('permission-denied');
+          return;
+        }
+        const support = await isARSupportedOnDevice();
+        setArStatus(support.isARSupported ? 'ready' : 'unsupported');
+      } catch (err) {
+        console.error(err);
+        setArStatus('unsupported');
+      }
+    })();
+  }, []);
+
+  // Once AR is confirmed ready, wait for the navigation transition and any
+  // pending interactions to finish, then a short settle delay, before mounting
+  // the AR scene. This avoids the black-camera GL race on some Android devices.
+  React.useEffect(() => {
+    if (arStatus !== 'ready' || loading) return;
+    let timer;
+    const task = InteractionManager.runAfterInteractions(() => {
+      timer = setTimeout(() => setSceneMountReady(true), 350);
+    });
+    return () => {
+      task.cancel?.();
+      if (timer) clearTimeout(timer);
+    };
+  }, [arStatus, loading]);
 
   React.useEffect(() => {
     getARTargets().then(data => {
@@ -124,8 +164,18 @@ export default function ViroARScanner({ navigation }) {
 
       {/* Viro React AR Camera View */}
       <View style={styles.cameraContainer}>
-        {loading ? (
+        {arStatus === 'checking' || (arStatus === 'ready' && (loading || !sceneMountReady)) ? (
           <ActivityIndicator size="large" color="#FFF" style={{ marginTop: '50%' }} />
+        ) : arStatus === 'permission-denied' ? (
+          <View style={styles.fallbackContainer}>
+            <Ionicons name="camera-outline" size={40} color="rgba(255,255,255,0.6)" />
+            <Text style={styles.fallbackText}>Camera access is required for AR scanning. Please enable it in your device settings.</Text>
+          </View>
+        ) : arStatus === 'unsupported' ? (
+          <View style={styles.fallbackContainer}>
+            <Ionicons name="alert-circle-outline" size={40} color="rgba(255,255,255,0.6)" />
+            <Text style={styles.fallbackText}>AR scanning isn't supported on this device. Try updating Google Play Services for AR, or use the QR scan feature instead.</Text>
+          </View>
         ) : (
           <ViroARSceneNavigator
             initialScene={{ scene: MuseumARScene }}
@@ -189,9 +239,23 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
-  cameraContainer: { 
-    flex: 1, 
-    backgroundColor: '#000' 
+  cameraContainer: {
+    flex: 1,
+    backgroundColor: '#000'
+  },
+  fallbackContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+    gap: 12,
+  },
+  fallbackText: {
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   overlayUI: {
     position: 'absolute',

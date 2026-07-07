@@ -1,0 +1,837 @@
+{
+  "backend/accounts/__init__.py": {
+    "mtime": 1783327357.8610506,
+    "ast_hash": "1878e61be0d69230b7eb8d2c29ff9786",
+    "semantic_hash": "1878e61be0d69230b7eb8d2c29ff9786"
+  },
+  "backend/accounts/admin.py": {
+    "mtime": 1783327357.8611665,
+    "ast_hash": "4b6710f4586a8560410bcc9958f33661",
+    "semantic_hash": "4b6710f4586a8560410bcc9958f33661"
+  },
+  "backend/accounts/apps.py": {
+    "mtime": 1783327357.8611665,
+    "ast_hash": "1cf9e6c0daba1c33193efa663565b581",
+    "semantic_hash": "1cf9e6c0daba1c33193efa663565b581"
+  },
+  "backend/accounts/managers.py": {
+    "mtime": 1783327357.8611665,
+    "ast_hash": "d25075b1ae838a286e3e4adfff92865e",
+    "semantic_hash": "d25075b1ae838a286e3e4adfff92865e"
+  },
+  "backend/accounts/migrations/0001_initial.py": {
+    "mtime": 1783327357.8611665,
+    "ast_hash": "809e3556e7279e8b49ec4cc3e33e6f68",
+    "semantic_hash": "809e3556e7279e8b49ec4cc3e33e6f68"
+  },
+  "backend/accounts/migrations/0002_customuser_xp.py": {
+    "mtime": 1783327357.8614156,
+    "ast_hash": "81f77ebfdee1ae18a7b031edb423b5c0",
+    "semantic_hash": "81f77ebfdee1ae18a7b031edb423b5c0"
+  },
+  "backend/accounts/migrations/0003_customuser_role.py": {
+    "mtime": 1783327357.8614156,
+    "ast_hash": "99b9e043917fa90623b77ca5a9c39b2c",
+    "semantic_hash": "99b9e043917fa90623b77ca5a9c39b2c"
+  },
+  "backend/accounts/migrations/0004_customuser_location_customuser_visitor_type.py": {
+    "mtime": 1783327357.8614156,
+    "ast_hash": "9f1bb27d26b228a001ed0164ce9e769b",
+    "semantic_hash": "9f1bb27d26b228a001ed0164ce9e769b"
+  },
+  "backend/accounts/migrations/__init__.py": {
+    "mtime": 1783327357.8614156,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "backend/accounts/models.py": {
+    "mtime": 1783327357.8614156,
+    "ast_hash": "dd445df16d0f58cc7b35c8d7a873bd5d",
+    "semantic_hash": "dd445df16d0f58cc7b35c8d7a873bd5d"
+  },
+  "backend/accounts/serializers.py": {
+    "mtime": 1783327357.8614156,
+    "ast_hash": "207edacc2da32c74ec0318fbf0707030",
+    "semantic_hash": "207edacc2da32c74ec0318fbf0707030"
+  },
+  "backend/accounts/urls.py": {
+    "mtime": 1783327357.8614156,
+    "ast_hash": "f00aec2f7b7ddc6e7741d526a48fe291",
+    "semantic_hash": "f00aec2f7b7ddc6e7741d526a48fe291"
+  },
+  "backend/accounts/views.py": {
+    "mtime": 1783327357.8614156,
+    "ast_hash": "15a248ada02444627f7718290fc40a49",
+    "semantic_hash": "15a248ada02444627f7718290fc40a49"
+  },
+  "backend/config/__init__.py": {
+    "mtime": 1783327357.8614156,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "backend/config/asgi.py": {
+    "mtime": 1783327357.8619363,
+    "ast_hash": "78fe6e88b19d8ca033189a680d5e750b",
+    "semantic_hash": "78fe6e88b19d8ca033189a680d5e750b"
+  },
+  "backend/config/settings.py": {
+    "mtime": 1783327357.8619363,
+    "ast_hash": "5e1db0407f5d727b474accba146ec926",
+    "semantic_hash": "5e1db0407f5d727b474accba146ec926"
+  },
+  "backend/config/urls.py": {
+    "mtime": 1783327357.8619363,
+    "ast_hash": "f633249e1871f6c23fdfe2c0fb3010c6",
+    "semantic_hash": "f633249e1871f6c23fdfe2c0fb3010c6"
+  },
+  "backend/config/wsgi.py": {
+    "mtime": 1783327357.8619363,
+    "ast_hash": "3bee9cf44f47c208ef0a914c8cb85899",
+    "semantic_hash": "3bee9cf44f47c208ef0a914c8cb85899"
+  },
+  "backend/manage.py": {
+    "mtime": 1783327357.8619363,
+    "ast_hash": "09ce28f22db4398409f377833475117f",
+    "semantic_hash": "09ce28f22db4398409f377833475117f"
+  },
+  "backend/qr_scan/__init__.py": {
+    "mtime": 1783327357.8777087,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "backend/qr_scan/admin.py": {
+    "mtime": 1783327357.8782604,
+    "ast_hash": "4d20884859623c6d59dfe81d04e59417",
+    "semantic_hash": "4d20884859623c6d59dfe81d04e59417"
+  },
+  "backend/qr_scan/apps.py": {
+    "mtime": 1783327357.8782604,
+    "ast_hash": "ed271f513caecf3ea075916d721dca89",
+    "semantic_hash": "ed271f513caecf3ea075916d721dca89"
+  },
+  "backend/qr_scan/cloudinary_storage.py": {
+    "mtime": 1783327357.8782604,
+    "ast_hash": "d2deefe4a93173cd1a67bfcefb3d1a78",
+    "semantic_hash": "d2deefe4a93173cd1a67bfcefb3d1a78"
+  },
+  "backend/qr_scan/migrations/0001_initial.py": {
+    "mtime": 1783327357.8782604,
+    "ast_hash": "b60e7631f7bdda99a62465510f0df3c8",
+    "semantic_hash": "b60e7631f7bdda99a62465510f0df3c8"
+  },
+  "backend/qr_scan/migrations/0002_culturalspot_hook_culturalspot_image.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "d447e2a16ce7e2f815553d3618ad7ce6",
+    "semantic_hash": "d447e2a16ce7e2f815553d3618ad7ce6"
+  },
+  "backend/qr_scan/migrations/0003_add_trivia_attempt.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "fb71d3f4002bc799356f0d4b7e638628",
+    "semantic_hash": "fb71d3f4002bc799356f0d4b7e638628"
+  },
+  "backend/qr_scan/migrations/0004_interactivemappin_alter_triviaattempt_options.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "992f40c153705b82935b58fc8f6142f1",
+    "semantic_hash": "992f40c153705b82935b58fc8f6142f1"
+  },
+  "backend/qr_scan/migrations/0005_culturalspot_feature_types.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "72956fa1e07158e33a29febea539f2b2",
+    "semantic_hash": "72956fa1e07158e33a29febea539f2b2"
+  },
+  "backend/qr_scan/migrations/0006_delete_interactivemappin_culturalspot_is_featured.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "b59ec515ad213c7ae2c6eeabab3ecadd",
+    "semantic_hash": "b59ec515ad213c7ae2c6eeabab3ecadd"
+  },
+  "backend/qr_scan/migrations/0007_culturalspot_images.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "593bcc4ee0e86738641dac224af943f1",
+    "semantic_hash": "593bcc4ee0e86738641dac224af943f1"
+  },
+  "backend/qr_scan/migrations/0008_culturalspot_image2_culturalspot_image3.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "844a69c90d2e2f7377c5f7e835091346",
+    "semantic_hash": "844a69c90d2e2f7377c5f7e835091346"
+  },
+  "backend/qr_scan/migrations/0009_culturalicon.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "fe6f6cb72e78d14933c82d3f4f7b24d6",
+    "semantic_hash": "fe6f6cb72e78d14933c82d3f4f7b24d6"
+  },
+  "backend/qr_scan/migrations/0010_alter_culturalicon_model_3d.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "c67c886e31a2770f7912c382c1824de6",
+    "semantic_hash": "c67c886e31a2770f7912c382c1824de6"
+  },
+  "backend/qr_scan/migrations/0011_alter_culturalicon_model_3d.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "4eeea7d87de868561df9dbb6497f2108",
+    "semantic_hash": "4eeea7d87de868561df9dbb6497f2108"
+  },
+  "backend/qr_scan/migrations/0012_culturalspot_model_3d.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "4dd1f9f222f60996fea76b402de1ab7c",
+    "semantic_hash": "4dd1f9f222f60996fea76b402de1ab7c"
+  },
+  "backend/qr_scan/migrations/0013_triviaquestion_explanation_and_more.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "60dd8588aa14cc1abaf7c0619301721f",
+    "semantic_hash": "60dd8588aa14cc1abaf7c0619301721f"
+  },
+  "backend/qr_scan/migrations/0014_artarget.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "7e8f5b7c01162fcd358d56583ed8bbd5",
+    "semantic_hash": "7e8f5b7c01162fcd358d56583ed8bbd5"
+  },
+  "backend/qr_scan/migrations/__init__.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "backend/qr_scan/models.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "aca4c3138035a2ae279c8a0ca4211ff7",
+    "semantic_hash": "aca4c3138035a2ae279c8a0ca4211ff7"
+  },
+  "backend/qr_scan/serializers.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "f692292701ce0f69dd2aa784a32911a1",
+    "semantic_hash": "f692292701ce0f69dd2aa784a32911a1"
+  },
+  "backend/qr_scan/tests.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "465b7e9f69bfd158c850cdfbc7306818",
+    "semantic_hash": "465b7e9f69bfd158c850cdfbc7306818"
+  },
+  "backend/qr_scan/urls.py": {
+    "mtime": 1783327357.8784204,
+    "ast_hash": "99324d42a0114f497928caf5ca54142f",
+    "semantic_hash": "99324d42a0114f497928caf5ca54142f"
+  },
+  "backend/qr_scan/views.py": {
+    "mtime": 1783327357.8787086,
+    "ast_hash": "1ed2c6747be6246b333b366847b1100f",
+    "semantic_hash": "1ed2c6747be6246b333b366847b1100f"
+  },
+  "backend/quiz/__init__.py": {
+    "mtime": 1783327357.8787086,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "backend/quiz/admin.py": {
+    "mtime": 1783327357.8791835,
+    "ast_hash": "e3dc717de887db03a015667a5fec59d8",
+    "semantic_hash": "e3dc717de887db03a015667a5fec59d8"
+  },
+  "backend/quiz/apps.py": {
+    "mtime": 1783327357.8791835,
+    "ast_hash": "dc4b7cced1d917fa4e2426e0d8daef4c",
+    "semantic_hash": "dc4b7cced1d917fa4e2426e0d8daef4c"
+  },
+  "backend/quiz/migrations/__init__.py": {
+    "mtime": 1783327357.8791835,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "backend/quiz/models.py": {
+    "mtime": 1783327357.8791835,
+    "ast_hash": "8c4eb991c6dca757bdd77f539092e29b",
+    "semantic_hash": "8c4eb991c6dca757bdd77f539092e29b"
+  },
+  "backend/quiz/tests.py": {
+    "mtime": 1783327357.8791835,
+    "ast_hash": "465b7e9f69bfd158c850cdfbc7306818",
+    "semantic_hash": "465b7e9f69bfd158c850cdfbc7306818"
+  },
+  "backend/quiz/urls.py": {
+    "mtime": 1783327357.8791835,
+    "ast_hash": "b062c2f88de9b99af24458a34d336f7c",
+    "semantic_hash": "b062c2f88de9b99af24458a34d336f7c"
+  },
+  "backend/quiz/views.py": {
+    "mtime": 1783327357.8791835,
+    "ast_hash": "2ff27306b3c9e4a085b6e313bd900b89",
+    "semantic_hash": "2ff27306b3c9e4a085b6e313bd900b89"
+  },
+  "backend/spots.json": {
+    "mtime": 1783327357.8791835,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "backend/test_basic.py": {
+    "mtime": 1783327357.8791835,
+    "ast_hash": "29569b67f87f95cca6b8c650479857c8",
+    "semantic_hash": "29569b67f87f95cca6b8c650479857c8"
+  },
+  "backend/test_groq.py": {
+    "mtime": 1783327357.8791835,
+    "ast_hash": "90fa155f122af0963eea605342c5724d",
+    "semantic_hash": "90fa155f122af0963eea605342c5724d"
+  },
+  "backend/test_models.py": {
+    "mtime": 1783327357.8791835,
+    "ast_hash": "8f481dfbd33ad60ff479e7c98581c0c7",
+    "semantic_hash": "8f481dfbd33ad60ff479e7c98581c0c7"
+  },
+  "frontend/LAKBAY_MOBILE/App.js": {
+    "mtime": 1783327357.8795452,
+    "ast_hash": "95000fc6e01eb30237eb046a293331d8",
+    "semantic_hash": "95000fc6e01eb30237eb046a293331d8"
+  },
+  "frontend/LAKBAY_MOBILE/app.json": {
+    "mtime": 1783327357.8795452,
+    "ast_hash": "56bef0253e23420d7708593bcbec3239",
+    "semantic_hash": "56bef0253e23420d7708593bcbec3239"
+  },
+  "frontend/LAKBAY_MOBILE/eas.json": {
+    "mtime": 1783327357.8927078,
+    "ast_hash": "53ed3d0ef84b9f86b397e06d7d98abfa",
+    "semantic_hash": "53ed3d0ef84b9f86b397e06d7d98abfa"
+  },
+  "frontend/LAKBAY_MOBILE/eslint.config.js": {
+    "mtime": 1783327357.8927078,
+    "ast_hash": "fb41b3be199cda239f4848438a6b2709",
+    "semantic_hash": "fb41b3be199cda239f4848438a6b2709"
+  },
+  "frontend/LAKBAY_MOBILE/fix_safearea.js": {
+    "mtime": 1783327357.8927078,
+    "ast_hash": "dbdebe333bf8533a3be91e9687e72cc4",
+    "semantic_hash": "dbdebe333bf8533a3be91e9687e72cc4"
+  },
+  "frontend/LAKBAY_MOBILE/index.js": {
+    "mtime": 1783327357.8927078,
+    "ast_hash": "33caa6d28d87fc7e637c033d0d7124b1",
+    "semantic_hash": "33caa6d28d87fc7e637c033d0d7124b1"
+  },
+  "frontend/LAKBAY_MOBILE/package.json": {
+    "mtime": 1783327357.8977077,
+    "ast_hash": "f6802c56737cada8c39f1cb31b59bb58",
+    "semantic_hash": "f6802c56737cada8c39f1cb31b59bb58"
+  },
+  "frontend/LAKBAY_MOBILE/src/api/api.js": {
+    "mtime": 1783327357.929706,
+    "ast_hash": "2e0061c45942dc19b7d36aa74ac6dc5f",
+    "semantic_hash": "2e0061c45942dc19b7d36aa74ac6dc5f"
+  },
+  "frontend/LAKBAY_MOBILE/src/api/authService.js": {
+    "mtime": 1783327357.930767,
+    "ast_hash": "2e97b04810a8263bcb33d8b4f292d430",
+    "semantic_hash": "2e97b04810a8263bcb33d8b4f292d430"
+  },
+  "frontend/LAKBAY_MOBILE/src/api/qrService.js": {
+    "mtime": 1783327357.930767,
+    "ast_hash": "ae7d29f6fbf56fbff216a6224186c745",
+    "semantic_hash": "ae7d29f6fbf56fbff216a6224186c745"
+  },
+  "frontend/LAKBAY_MOBILE/src/components/CustomButton.js": {
+    "mtime": 1783327357.972704,
+    "ast_hash": "659d2c2f457d533c2df140116e063b81",
+    "semantic_hash": "659d2c2f457d533c2df140116e063b81"
+  },
+  "frontend/LAKBAY_MOBILE/src/components/CustomModal.js": {
+    "mtime": 1783327357.9732332,
+    "ast_hash": "aa00bc92fa8dfe5b1c08664e0e38b208",
+    "semantic_hash": "aa00bc92fa8dfe5b1c08664e0e38b208"
+  },
+  "frontend/LAKBAY_MOBILE/src/components/ErrorModal.js": {
+    "mtime": 1783327357.9732332,
+    "ast_hash": "dab4c19e8375b08cc1a00e749c56cc61",
+    "semantic_hash": "dab4c19e8375b08cc1a00e749c56cc61"
+  },
+  "frontend/LAKBAY_MOBILE/src/components/GlassCard.js": {
+    "mtime": 1783327357.9732332,
+    "ast_hash": "86f69e6dc9fb7c97c5af2e2bdbeed47a",
+    "semantic_hash": "86f69e6dc9fb7c97c5af2e2bdbeed47a"
+  },
+  "frontend/LAKBAY_MOBILE/src/components/OnboardingTour.js": {
+    "mtime": 1783327357.9732332,
+    "ast_hash": "3ca9e0dc9606af54a2895fd4d21cd872",
+    "semantic_hash": "3ca9e0dc9606af54a2895fd4d21cd872"
+  },
+  "frontend/LAKBAY_MOBILE/src/components/TravelCard.js": {
+    "mtime": 1783327357.9732332,
+    "ast_hash": "6b13a31a40017c362daa3288cd04eb11",
+    "semantic_hash": "6b13a31a40017c362daa3288cd04eb11"
+  },
+  "frontend/LAKBAY_MOBILE/src/components/VintaStripe.js": {
+    "mtime": 1783327357.9732332,
+    "ast_hash": "642b823ad1a50db6b91c8df0e600b4aa",
+    "semantic_hash": "642b823ad1a50db6b91c8df0e600b4aa"
+  },
+  "frontend/LAKBAY_MOBILE/src/constants/theme.js": {
+    "mtime": 1783327357.9732332,
+    "ast_hash": "f3fa7d36da489a8e9b30fc11b507e29d",
+    "semantic_hash": "f3fa7d36da489a8e9b30fc11b507e29d"
+  },
+  "frontend/LAKBAY_MOBILE/src/context/AppContext.js": {
+    "mtime": 1783327357.9732332,
+    "ast_hash": "6f3c5caa98baf5e3156ea22ee68ba035",
+    "semantic_hash": "6f3c5caa98baf5e3156ea22ee68ba035"
+  },
+  "frontend/LAKBAY_MOBILE/src/draft_to_convert/Ar.jsx": {
+    "mtime": 1783327357.9757037,
+    "ast_hash": "74fb90121ba5f14a9fe941d0305f936f",
+    "semantic_hash": "74fb90121ba5f14a9fe941d0305f936f"
+  },
+  "frontend/LAKBAY_MOBILE/src/draft_to_convert/CATCH.jsx": {
+    "mtime": 1783327357.9757037,
+    "ast_hash": "28dc26c76d3327babf1a19a9720269d2",
+    "semantic_hash": "28dc26c76d3327babf1a19a9720269d2"
+  },
+  "frontend/LAKBAY_MOBILE/src/draft_to_convert/QR.jsx": {
+    "mtime": 1783327357.9757037,
+    "ast_hash": "ba962ae5f9bab9cfdce7046df75538f6",
+    "semantic_hash": "ba962ae5f9bab9cfdce7046df75538f6"
+  },
+  "frontend/LAKBAY_MOBILE/src/draft_to_convert/homepage.jsx": {
+    "mtime": 1783327357.9757037,
+    "ast_hash": "3adfe1ab92d75d89ad43da3c4ee6885f",
+    "semantic_hash": "3adfe1ab92d75d89ad43da3c4ee6885f"
+  },
+  "frontend/LAKBAY_MOBILE/src/draft_to_convert/profile.jsx": {
+    "mtime": 1783327357.9757037,
+    "ast_hash": "1cb16ef6dce2a9ab9a5d23b6313a5525",
+    "semantic_hash": "1cb16ef6dce2a9ab9a5d23b6313a5525"
+  },
+  "frontend/LAKBAY_MOBILE/src/navigation/AppNavigator.js": {
+    "mtime": 1783327357.9757037,
+    "ast_hash": "3f4e22e447c7b587356d47cc7c2ad4d8",
+    "semantic_hash": "3f4e22e447c7b587356d47cc7c2ad4d8"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/ARScannedScreen.js": {
+    "mtime": 1783327357.9757037,
+    "ast_hash": "8e29254ed29a68f0c91ade8d145586b2",
+    "semantic_hash": "8e29254ed29a68f0c91ade8d145586b2"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/ARScreen.js": {
+    "mtime": 1783327357.977088,
+    "ast_hash": "e897b12e5ebac784ca96b554cece6263",
+    "semantic_hash": "e897b12e5ebac784ca96b554cece6263"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/BadgesScreen.js": {
+    "mtime": 1783327357.977088,
+    "ast_hash": "dfc41f1fa2375978d887d3e5e53849a5",
+    "semantic_hash": "dfc41f1fa2375978d887d3e5e53849a5"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/CatchDetailsScreen.js": {
+    "mtime": 1783327357.977088,
+    "ast_hash": "c4b8fc3dda0a18b13485b77451f053f7",
+    "semantic_hash": "c4b8fc3dda0a18b13485b77451f053f7"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/CatchScreen.js": {
+    "mtime": 1783327357.977088,
+    "ast_hash": "0fc481db27d797cd89b0e3f2f7f26035",
+    "semantic_hash": "0fc481db27d797cd89b0e3f2f7f26035"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/CharacterSelectScreen.js": {
+    "mtime": 1783327357.977088,
+    "ast_hash": "7eca9e2ed8a982f659f2d79ccd302e48",
+    "semantic_hash": "7eca9e2ed8a982f659f2d79ccd302e48"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/CreateAccountScreen.js": {
+    "mtime": 1783327357.9777036,
+    "ast_hash": "8835b55a674d78116c56fd60965cdf01",
+    "semantic_hash": "8835b55a674d78116c56fd60965cdf01"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/DetailsScreen.js": {
+    "mtime": 1783327357.9777036,
+    "ast_hash": "833140e50a1e9b2f860943f433dcb372",
+    "semantic_hash": "833140e50a1e9b2f860943f433dcb372"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/EditProfileScreen.js": {
+    "mtime": 1783327357.9777036,
+    "ast_hash": "122b59f448de143ab2dfe38b759a24cc",
+    "semantic_hash": "122b59f448de143ab2dfe38b759a24cc"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/HomeScreen.js": {
+    "mtime": 1783327357.9777036,
+    "ast_hash": "f9a16ac1e0c7810f2fc19932bcaa78e6",
+    "semantic_hash": "f9a16ac1e0c7810f2fc19932bcaa78e6"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/LoginScreen.js": {
+    "mtime": 1783327357.9777036,
+    "ast_hash": "e264dd2883b64af9acec5f2cc9bc6703",
+    "semantic_hash": "e264dd2883b64af9acec5f2cc9bc6703"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/MapScreen.js": {
+    "mtime": 1783327357.9777036,
+    "ast_hash": "a1fbd83383e0d41594ddec4fa2ce133b",
+    "semantic_hash": "a1fbd83383e0d41594ddec4fa2ce133b"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/NotificationScreen.js": {
+    "mtime": 1783327357.9777036,
+    "ast_hash": "88476475739ed5f6c3521bea9587a5e1",
+    "semantic_hash": "88476475739ed5f6c3521bea9587a5e1"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/ProfileScreen.js": {
+    "mtime": 1783327357.9777036,
+    "ast_hash": "c47d674e2a2f303eeca4c860b7bbfa84",
+    "semantic_hash": "c47d674e2a2f303eeca4c860b7bbfa84"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/QRScannedScreen.js": {
+    "mtime": 1783327357.9787035,
+    "ast_hash": "da211b244954a1eeb9db1271ce94b16a",
+    "semantic_hash": "da211b244954a1eeb9db1271ce94b16a"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/QRScreen.js": {
+    "mtime": 1783327357.9787035,
+    "ast_hash": "e0a17b2a71373490e006e06fa54f7fed",
+    "semantic_hash": "e0a17b2a71373490e006e06fa54f7fed"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/QuizScreen.js": {
+    "mtime": 1783327357.9787035,
+    "ast_hash": "186499c0adc1868a517d6e49a1064bbc",
+    "semantic_hash": "186499c0adc1868a517d6e49a1064bbc"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/ViroARScanner.js": {
+    "mtime": 1783327357.9787035,
+    "ast_hash": "5229414a89a0d368b17c495c74ddc6ad",
+    "semantic_hash": "5229414a89a0d368b17c495c74ddc6ad"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/WelcomeScreen.js": {
+    "mtime": 1783327357.9787035,
+    "ast_hash": "913da21a16d8f79b39c306a060db7763",
+    "semantic_hash": "913da21a16d8f79b39c306a060db7763"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/__tests__/HomeScreen.test.js": {
+    "mtime": 1783327357.9787035,
+    "ast_hash": "7e7b85b6a67081c362f1b6ee399f5769",
+    "semantic_hash": "7e7b85b6a67081c362f1b6ee399f5769"
+  },
+  "frontend/LAKBAY_MOBILE/src/screens/__tests__/NewScreens.test.js": {
+    "mtime": 1783327357.979742,
+    "ast_hash": "29c1e7e0e5d0173445955eb534ff58dd",
+    "semantic_hash": "29c1e7e0e5d0173445955eb534ff58dd"
+  },
+  "frontend/LAKBAY_WEB/eslint.config.js": {
+    "mtime": 1783327357.979833,
+    "ast_hash": "263a2fdac4e3a50d1fcf517fb979b1af",
+    "semantic_hash": "263a2fdac4e3a50d1fcf517fb979b1af"
+  },
+  "frontend/LAKBAY_WEB/package.json": {
+    "mtime": 1783327357.9807036,
+    "ast_hash": "4ffa1ed6e16a3f1e32819c9da54839dd",
+    "semantic_hash": "4ffa1ed6e16a3f1e32819c9da54839dd"
+  },
+  "frontend/LAKBAY_WEB/src/App.jsx": {
+    "mtime": 1783327357.9827034,
+    "ast_hash": "e9b175cdb330806c16f009310c48a714",
+    "semantic_hash": "e9b175cdb330806c16f009310c48a714"
+  },
+  "frontend/LAKBAY_WEB/src/ErrorModal.jsx": {
+    "mtime": 1783327357.9827034,
+    "ast_hash": "a60f368580e148caeec1ce83f3e53719",
+    "semantic_hash": "a60f368580e148caeec1ce83f3e53719"
+  },
+  "frontend/LAKBAY_WEB/src/api/api.js": {
+    "mtime": 1783327357.9827034,
+    "ast_hash": "d2f56f5a8d15c7d61d028e6ccbd6320c",
+    "semantic_hash": "d2f56f5a8d15c7d61d028e6ccbd6320c"
+  },
+  "frontend/LAKBAY_WEB/src/api/authService.js": {
+    "mtime": 1783327357.983561,
+    "ast_hash": "e51d72d8ffe8fa03ac60d50b142e80f6",
+    "semantic_hash": "e51d72d8ffe8fa03ac60d50b142e80f6"
+  },
+  "frontend/LAKBAY_WEB/src/api/qrService.js": {
+    "mtime": 1783327357.983561,
+    "ast_hash": "be610cfb312ba33bbc5f4e89512488ed",
+    "semantic_hash": "be610cfb312ba33bbc5f4e89512488ed"
+  },
+  "frontend/LAKBAY_WEB/src/main.jsx": {
+    "mtime": 1783327357.9997025,
+    "ast_hash": "e13723e2574429d9a6d849727e3ff695",
+    "semantic_hash": "e13723e2574429d9a6d849727e3ff695"
+  },
+  "frontend/LAKBAY_WEB/src/setup.test.js": {
+    "mtime": 1783327357.9997025,
+    "ast_hash": "170bb32d4cd124e2512db602b07edcf4",
+    "semantic_hash": "170bb32d4cd124e2512db602b07edcf4"
+  },
+  "frontend/LAKBAY_WEB/vite.config.js": {
+    "mtime": 1783327357.9997025,
+    "ast_hash": "ccddbe7cd04d100452f52a7a43c9f476",
+    "semantic_hash": "ccddbe7cd04d100452f52a7a43c9f476"
+  },
+  "skills-lock.json": {
+    "mtime": 1783327357.9997025,
+    "ast_hash": "c2b2d35cc9c40822c5c6b57c89f15eef",
+    "semantic_hash": "c2b2d35cc9c40822c5c6b57c89f15eef"
+  },
+  "temp_old_create.js": {
+    "mtime": 1783327357.9997025,
+    "ast_hash": "9023f2b495658e2af1e5e1d70f5a2284",
+    "semantic_hash": "9023f2b495658e2af1e5e1d70f5a2284"
+  },
+  "backend/requirements.txt": {
+    "mtime": 1783328119.593852,
+    "ast_hash": "f8fc9c21ce1bd5b337938d9c0127fffe",
+    "semantic_hash": "f8fc9c21ce1bd5b337938d9c0127fffe"
+  },
+  "frontend/LAKBAY_WEB/README.md": {
+    "mtime": 1783327357.979833,
+    "ast_hash": "a28dc4cb878325f3e9e5649f3e1469ac",
+    "semantic_hash": "a28dc4cb878325f3e9e5649f3e1469ac"
+  },
+  "frontend/LAKBAY_WEB/index.html": {
+    "mtime": 1783327357.979833,
+    "ast_hash": "eba829849535715ee76b9dbb60ed5bad",
+    "semantic_hash": "eba829849535715ee76b9dbb60ed5bad"
+  },
+  "backend/media/ar_targets/86109294446e4a6c9be863420069eef1.jpeg": {
+    "mtime": 1783327357.8627095,
+    "ast_hash": "f419841523511a963fa5ed59b8661bbc",
+    "semantic_hash": "f419841523511a963fa5ed59b8661bbc"
+  },
+  "backend/media/spot_images/0967be4bb1334e51a33699702b111902.png": {
+    "mtime": 1783327357.8627095,
+    "ast_hash": "efe9d8720bea71abfb23c271fe581668",
+    "semantic_hash": "efe9d8720bea71abfb23c271fe581668"
+  },
+  "backend/media/spot_images/1e7dc02726a94b6a8226ec1b63643e44.jpeg": {
+    "mtime": 1783327357.8637094,
+    "ast_hash": "0c05dbab22d98797a5adcf4136ccc104",
+    "semantic_hash": "0c05dbab22d98797a5adcf4136ccc104"
+  },
+  "backend/media/spot_images/224fd6682aa14145bab49b53362630a0.jpeg": {
+    "mtime": 1783327357.868709,
+    "ast_hash": "85dbf2c98a6596bdbc0daf8c5d1b5fc8",
+    "semantic_hash": "85dbf2c98a6596bdbc0daf8c5d1b5fc8"
+  },
+  "backend/media/spot_images/2bcb4307d8d043f1a3a1b0d69476215b.png": {
+    "mtime": 1783327357.868709,
+    "ast_hash": "efe9d8720bea71abfb23c271fe581668",
+    "semantic_hash": "efe9d8720bea71abfb23c271fe581668"
+  },
+  "backend/media/spot_images/422f10616f9842358bcd9e51b5de1c4b.jpeg": {
+    "mtime": 1783327357.870709,
+    "ast_hash": "df799b24c97dcd956d9babff4e9c7532",
+    "semantic_hash": "df799b24c97dcd956d9babff4e9c7532"
+  },
+  "backend/media/spot_images/49d6b6ccf1f1418284d92065a7e5f8d5.jpeg": {
+    "mtime": 1783327357.870709,
+    "ast_hash": "a210e9a1b6c6632df2efcae2cd9fe1ea",
+    "semantic_hash": "a210e9a1b6c6632df2efcae2cd9fe1ea"
+  },
+  "backend/media/spot_images/520912d4c6d24ea5aabb2c1b44254fff.png": {
+    "mtime": 1783327357.870709,
+    "ast_hash": "6f560ad3d834b966b734fb61db05269c",
+    "semantic_hash": "6f560ad3d834b966b734fb61db05269c"
+  },
+  "backend/media/spot_images/96afba1268d849fb87c15a8a59851e9a.png": {
+    "mtime": 1783327357.870709,
+    "ast_hash": "e61746d311d5eafbd83b0ce98254e0ad",
+    "semantic_hash": "e61746d311d5eafbd83b0ce98254e0ad"
+  },
+  "backend/media/spot_images/a141dfd492bd4a49a5ad2dcc0ad101cb.jpeg": {
+    "mtime": 1783327357.8717089,
+    "ast_hash": "94e3c4313eb72b810cfb42045675d57c",
+    "semantic_hash": "94e3c4313eb72b810cfb42045675d57c"
+  },
+  "backend/media/spot_images/aaed2855752f4d1a85872c490323a6b2.jpeg": {
+    "mtime": 1783327357.873709,
+    "ast_hash": "71761578b42fb7bb7eeae3efe258806d",
+    "semantic_hash": "71761578b42fb7bb7eeae3efe258806d"
+  },
+  "backend/media/spot_images/ab350ac58e4f48d2ba53ad3b6cda2534.png": {
+    "mtime": 1783327357.873709,
+    "ast_hash": "efe9d8720bea71abfb23c271fe581668",
+    "semantic_hash": "efe9d8720bea71abfb23c271fe581668"
+  },
+  "backend/media/spot_images/b02f044be22c47b5bfeb03772432914d.jpeg": {
+    "mtime": 1783327357.8757088,
+    "ast_hash": "0c05dbab22d98797a5adcf4136ccc104",
+    "semantic_hash": "0c05dbab22d98797a5adcf4136ccc104"
+  },
+  "backend/media/spot_images/ca196c14a23b4b35a3068c972761d798.jpeg": {
+    "mtime": 1783327357.8767087,
+    "ast_hash": "0c05dbab22d98797a5adcf4136ccc104",
+    "semantic_hash": "0c05dbab22d98797a5adcf4136ccc104"
+  },
+  "backend/media/spot_images/f1fb0a6d34af4d6e9f99414ca49aff25.jpeg": {
+    "mtime": 1783327357.8767087,
+    "ast_hash": "49f721f259b29e3d1b014783c662c0f8",
+    "semantic_hash": "49f721f259b29e3d1b014783c662c0f8"
+  },
+  "backend/media/spot_images/f4c2dd9cd7e74b1ab6bc76d111a6b902.jpeg": {
+    "mtime": 1783327357.8777087,
+    "ast_hash": "a53b5ecde047977bdc60505f4ce8dda6",
+    "semantic_hash": "a53b5ecde047977bdc60505f4ce8dda6"
+  },
+  "frontend/LAKBAY_MOBILE/assets/android-icon-background.png": {
+    "mtime": 1783327357.8797085,
+    "ast_hash": "f4ce7f34525d94b45d8e48c3d1a54200",
+    "semantic_hash": "f4ce7f34525d94b45d8e48c3d1a54200"
+  },
+  "frontend/LAKBAY_MOBILE/assets/android-icon-foreground.png": {
+    "mtime": 1783327357.8827083,
+    "ast_hash": "bd2bf53fa2a15cb1296185dee7a5116e",
+    "semantic_hash": "bd2bf53fa2a15cb1296185dee7a5116e"
+  },
+  "frontend/LAKBAY_MOBILE/assets/android-icon-monochrome.png": {
+    "mtime": 1783327357.8827083,
+    "ast_hash": "1e097dab989759fc0b69440092ca22cd",
+    "semantic_hash": "1e097dab989759fc0b69440092ca22cd"
+  },
+  "frontend/LAKBAY_MOBILE/assets/favicon.png": {
+    "mtime": 1783327357.8827083,
+    "ast_hash": "3b9fc2532c815a33175f5eefa1cfeed4",
+    "semantic_hash": "3b9fc2532c815a33175f5eefa1cfeed4"
+  },
+  "frontend/LAKBAY_MOBILE/assets/icon.png": {
+    "mtime": 1783327357.8877082,
+    "ast_hash": "66b8ab9a567ef729a301bd5d51f97a09",
+    "semantic_hash": "66b8ab9a567ef729a301bd5d51f97a09"
+  },
+  "frontend/LAKBAY_MOBILE/assets/splash-icon.png": {
+    "mtime": 1783327357.8927078,
+    "ast_hash": "47fb81a7e1817f1b13ec369fd52f3022",
+    "semantic_hash": "47fb81a7e1817f1b13ec369fd52f3022"
+  },
+  "frontend/LAKBAY_MOBILE/reference/ar_scanned.png": {
+    "mtime": 1783327357.9007075,
+    "ast_hash": "91c9e77681639d402fc7c41b8edabdec",
+    "semantic_hash": "91c9e77681639d402fc7c41b8edabdec"
+  },
+  "frontend/LAKBAY_MOBILE/reference/catch.png": {
+    "mtime": 1783327357.9027073,
+    "ast_hash": "b1768f612138e5d5678f4bb37c640ec6",
+    "semantic_hash": "b1768f612138e5d5678f4bb37c640ec6"
+  },
+  "frontend/LAKBAY_MOBILE/reference/catch1.png": {
+    "mtime": 1783327357.9127069,
+    "ast_hash": "5ccb62cc80836b044d2fdc4cd72d103e",
+    "semantic_hash": "5ccb62cc80836b044d2fdc4cd72d103e"
+  },
+  "frontend/LAKBAY_MOBILE/reference/character.png": {
+    "mtime": 1783327357.9157069,
+    "ast_hash": "e009caf8666b725babcf70ef58066a36",
+    "semantic_hash": "e009caf8666b725babcf70ef58066a36"
+  },
+  "frontend/LAKBAY_MOBILE/reference/create_account.png": {
+    "mtime": 1783327357.9177067,
+    "ast_hash": "25f0c7b79dc3d5ab14f12d5831a90c3a",
+    "semantic_hash": "25f0c7b79dc3d5ab14f12d5831a90c3a"
+  },
+  "frontend/LAKBAY_MOBILE/reference/error_.png": {
+    "mtime": 1783327357.9217064,
+    "ast_hash": "5ba5d0c981dff5f617755950cabc3778",
+    "semantic_hash": "5ba5d0c981dff5f617755950cabc3778"
+  },
+  "frontend/LAKBAY_MOBILE/reference/login.png": {
+    "mtime": 1783327357.9247062,
+    "ast_hash": "c57fcd9ce7a7c4421c59aeef0d48528b",
+    "semantic_hash": "c57fcd9ce7a7c4421c59aeef0d48528b"
+  },
+  "frontend/LAKBAY_MOBILE/reference/nav.png": {
+    "mtime": 1783327357.9247062,
+    "ast_hash": "325f50959febc72e4dc0d4ccf5bde616",
+    "semantic_hash": "325f50959febc72e4dc0d4ccf5bde616"
+  },
+  "frontend/LAKBAY_MOBILE/reference/nav2.png": {
+    "mtime": 1783327357.9257061,
+    "ast_hash": "c590abd877e1bfabdabb11da52265962",
+    "semantic_hash": "c590abd877e1bfabdabb11da52265962"
+  },
+  "frontend/LAKBAY_MOBILE/reference/qr_scanned.png": {
+    "mtime": 1783327357.9287062,
+    "ast_hash": "e8488043dfde27cce4d3acdf4ed9b389",
+    "semantic_hash": "e8488043dfde27cce4d3acdf4ed9b389"
+  },
+  "frontend/LAKBAY_MOBILE/reference/zamboanga.jpg": {
+    "mtime": 1783327357.9287062,
+    "ast_hash": "f758eac64d9c92e4bee1ccd2ed6bc9bf",
+    "semantic_hash": "f758eac64d9c92e4bee1ccd2ed6bc9bf"
+  },
+  "frontend/LAKBAY_MOBILE/src/assets/characters/dante.jpg": {
+    "mtime": 1783327357.9308848,
+    "ast_hash": "0821c589e406f3a1e0b7a3247b496311",
+    "semantic_hash": "0821c589e406f3a1e0b7a3247b496311"
+  },
+  "frontend/LAKBAY_MOBILE/src/assets/characters/lila.jpg": {
+    "mtime": 1783327357.931706,
+    "ast_hash": "33d637eb30791aad37652a135be7dd93",
+    "semantic_hash": "33d637eb30791aad37652a135be7dd93"
+  },
+  "frontend/LAKBAY_MOBILE/src/assets/characters/mando.jpg": {
+    "mtime": 1783327357.931706,
+    "ast_hash": "a54faa579bb65691ad91a1c61cfc009d",
+    "semantic_hash": "a54faa579bb65691ad91a1c61cfc009d"
+  },
+  "frontend/LAKBAY_MOBILE/src/assets/characters/new.jpg": {
+    "mtime": 1783327357.9367058,
+    "ast_hash": "954d3dfbf7c8ed385974e9946ae9ba1a",
+    "semantic_hash": "954d3dfbf7c8ed385974e9946ae9ba1a"
+  },
+  "frontend/LAKBAY_MOBILE/src/assets/characters/ricky.jpg": {
+    "mtime": 1783327357.9367058,
+    "ast_hash": "03602925b833d2fb778cc8b20bd575b2",
+    "semantic_hash": "03602925b833d2fb778cc8b20bd575b2"
+  },
+  "frontend/LAKBAY_MOBILE/src/assets/characters/sonya.jpg": {
+    "mtime": 1783327357.9377058,
+    "ast_hash": "8ad74306945a18f7432c7f737642c166",
+    "semantic_hash": "8ad74306945a18f7432c7f737642c166"
+  },
+  "frontend/LAKBAY_MOBILE/src/assets/lakbay_icon_glyph.png": {
+    "mtime": 1783327357.9497051,
+    "ast_hash": "40ea7987fe587d97400586d0c86f0acc",
+    "semantic_hash": "40ea7987fe587d97400586d0c86f0acc"
+  },
+  "frontend/LAKBAY_MOBILE/src/assets/lakbay_vinta_zamboanga_icon.png": {
+    "mtime": 1783327357.971704,
+    "ast_hash": "e3f507d76d2ddc23ddb505afd86e215c",
+    "semantic_hash": "e3f507d76d2ddc23ddb505afd86e215c"
+  },
+  "frontend/LAKBAY_MOBILE/src/assets/zamboanga.jpg": {
+    "mtime": 1783327357.972704,
+    "ast_hash": "f758eac64d9c92e4bee1ccd2ed6bc9bf",
+    "semantic_hash": "f758eac64d9c92e4bee1ccd2ed6bc9bf"
+  },
+  "frontend/LAKBAY_WEB/public/favicon.png": {
+    "mtime": 1783327357.9817035,
+    "ast_hash": "2d3081b64624d799163683ba79e0f40c",
+    "semantic_hash": "2d3081b64624d799163683ba79e0f40c"
+  },
+  "frontend/LAKBAY_WEB/public/favicon.svg": {
+    "mtime": 1783327357.9817035,
+    "ast_hash": "7e840862161341271697daa99a40d76b",
+    "semantic_hash": "7e840862161341271697daa99a40d76b"
+  },
+  "frontend/LAKBAY_WEB/public/icons.svg": {
+    "mtime": 1783327357.9817035,
+    "ast_hash": "3b4fcfcf393eca4d264dca4a4663bc37",
+    "semantic_hash": "3b4fcfcf393eca4d264dca4a4663bc37"
+  },
+  "frontend/LAKBAY_WEB/src/assets/hero.png": {
+    "mtime": 1783327357.983561,
+    "ast_hash": "aead493361b27e7510691c5d7072dfc1",
+    "semantic_hash": "aead493361b27e7510691c5d7072dfc1"
+  },
+  "frontend/LAKBAY_WEB/src/assets/lakbay_icon_glyph.png": {
+    "mtime": 1783327357.9836774,
+    "ast_hash": "2d3081b64624d799163683ba79e0f40c",
+    "semantic_hash": "2d3081b64624d799163683ba79e0f40c"
+  },
+  "frontend/LAKBAY_WEB/src/assets/lakbay_logo_full.png": {
+    "mtime": 1783327357.9957027,
+    "ast_hash": "dc22ded23d38139ffa2dcd62570e5758",
+    "semantic_hash": "dc22ded23d38139ffa2dcd62570e5758"
+  },
+  "frontend/LAKBAY_WEB/src/assets/react.svg": {
+    "mtime": 1783327357.9957027,
+    "ast_hash": "f0402b67b6ce880f65666bb49e841696",
+    "semantic_hash": "f0402b67b6ce880f65666bb49e841696"
+  },
+  "frontend/LAKBAY_WEB/src/assets/vinta_illustration.jpg": {
+    "mtime": 1783327357.9997025,
+    "ast_hash": "0eca4f1fd2fd8b5fba11c7f9e29d0b87",
+    "semantic_hash": "0eca4f1fd2fd8b5fba11c7f9e29d0b87"
+  },
+  "frontend/LAKBAY_WEB/src/assets/vite.svg": {
+    "mtime": 1783327357.9997025,
+    "ast_hash": "9960a24288958394ac50e57ff638b036",
+    "semantic_hash": "9960a24288958394ac50e57ff638b036"
+  }
+}

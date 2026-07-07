@@ -198,9 +198,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: {
     height: 60,
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.navy,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.accentBorder,
+    borderBottomColor: COLORS.navyMid,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -214,9 +214,9 @@ const styles = StyleSheet.create({
   headerSpacer: { width: 40 },
   scrollContent: { paddingHorizontal: 20, paddingVertical: 24 },
   introSection: { marginBottom: 20 },
-  introText: { color: '#FFF', fontSize: 14, fontFamily: FONTS.regular, lineHeight: 22, textAlign: 'center' },
+  introText: { color: COLORS.text, fontSize: 14, fontFamily: FONTS.regular, lineHeight: 22, textAlign: 'center' },
   highlightText: { color: COLORS.accentDark, fontFamily: FONTS.bold, fontWeight: '700' },
-  highlightTextYellow: { color: COLORS.gold, fontFamily: FONTS.bold, fontWeight: '700' },
+  highlightTextYellow: { color: '#B45309', fontFamily: FONTS.bold, fontWeight: '700' },
   qrViewportContainer: { alignItems: 'center', marginBottom: 24 },
   qrViewport: {
     width: '100%',

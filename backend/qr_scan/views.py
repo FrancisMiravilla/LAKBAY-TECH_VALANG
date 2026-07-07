@@ -158,17 +158,15 @@ class UserQRScansView(APIView):
 class SpotTriviaView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    QUESTIONS_PER_QUIZ = 5
-
     def get(self, request, spot_id):
         spot = get_object_or_404(CulturalSpot, pk=spot_id)
         all_questions = list(TriviaQuestion.objects.filter(spot=spot, status='approved'))
-        
+
         if not all_questions:
             return Response({'error': 'Quiz is currently unavailable. Please try again later.'}, status=status.HTTP_404_NOT_FOUND)
-            
-        sample = random.sample(all_questions, min(self.QUESTIONS_PER_QUIZ, len(all_questions)))
-        serializer = TriviaQuestionSerializer(sample, many=True)
+
+        random.shuffle(all_questions)
+        serializer = TriviaQuestionSerializer(all_questions, many=True)
         return Response({
             'spot_id': spot.id,
             'spot_name': spot.name,
@@ -607,17 +605,16 @@ from django.utils import timezone
 class IconTriviaView(APIView):
     """Mobile endpoint to fetch approved trivia for a Catch icon"""
     permission_classes = [permissions.IsAuthenticated]
-    QUESTIONS_PER_QUIZ = 5
 
     def get(self, request, icon_id):
         icon = get_object_or_404(CulturalIcon, pk=icon_id)
         all_questions = list(TriviaQuestion.objects.filter(icon=icon, status='approved'))
-        
+
         if not all_questions:
             return Response({'error': 'Quiz is currently unavailable. Please try again later.'}, status=status.HTTP_404_NOT_FOUND)
-            
-        sample = random.sample(all_questions, min(self.QUESTIONS_PER_QUIZ, len(all_questions)))
-        serializer = TriviaQuestionSerializer(sample, many=True)
+
+        random.shuffle(all_questions)
+        serializer = TriviaQuestionSerializer(all_questions, many=True)
         return Response({
             'icon_id': icon.id,
             'icon_name': icon.name,
