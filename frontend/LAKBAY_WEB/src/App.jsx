@@ -36,6 +36,7 @@ import {
   Shield,
   LogOut,
   ArrowLeft,
+  Box,
   Image as ImageIcon
 } from 'lucide-react'
 
@@ -194,6 +195,7 @@ const normalizeSpot = (s) => ({
   historical_background: s.historical_background,
   cultural_significance: s.cultural_significance,
   fun_fact: s.fun_fact,
+  hook: s.hook || '',
   feature_types: s.feature_types || [],
   model_3d: s.model_3d || null,
   images: [s.image, s.image2, s.image3].filter(img => img).map(img => {
@@ -202,7 +204,7 @@ const normalizeSpot = (s) => ({
   }),
   is_featured: s.is_featured,
   trivia: s.fun_fact,
-  status: 'QR',
+  status: PIN_TYPE_CONFIG[(s.feature_types && s.feature_types[0]) || 'qr']?.label || 'QR Scan',
   category: 'cultural',
   rating: 5.0,
   visits: 0,
@@ -258,10 +260,10 @@ function App() {
     historical_background: '',
     cultural_significance: '',
     fun_fact: '',
+    hook: '',
     featureTypes: ['qr'],
     images: ['', '', ''],
     model_3d: null,
-    images: ['', '', ''],
     is_featured: false,
   });
 
@@ -819,7 +821,9 @@ function App() {
   const [isAddCatchIconModalOpen, setIsAddCatchIconModalOpen] = useState(false);
   const [isAddARTargetModalOpen, setIsAddARTargetModalOpen] = useState(false);
   const [arTargets, setArTargets] = useState([]);
-  const [newARTarget, setNewARTarget] = useState({ name: '', description: '', image: null });
+  const [newARTarget, setNewARTarget] = useState({ name: '', description: '', image: null, model_3d: null });
+  const [selectedARTarget, setSelectedARTarget] = useState(null);
+  const [editingARTarget, setEditingARTarget] = useState(null);
   const [isEditCatchIconModalOpen, setIsEditCatchIconModalOpen] = useState(false);
   const [editingCatchIcon, setEditingCatchIcon] = useState(null);
   const [selectedCatchForView, setSelectedCatchForView] = useState(null);
@@ -923,6 +927,16 @@ function App() {
     reader.readAsDataURL(file);
   };
 
+  const handleARTargetModelChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setNewARTarget(prev => ({ ...prev, model_3d: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
 
   // Handlers
   const handleAddSpot = async (e) => {
@@ -938,6 +952,7 @@ function App() {
         historical_background: newSpot.historical_background,
         cultural_significance: newSpot.cultural_significance,
         fun_fact: newSpot.fun_fact,
+        hook: newSpot.featureTypes?.includes('catch') ? newSpot.hook : '',
         feature_types: newSpot.featureTypes,
         image: newSpot.images[0] || null,
         image2: newSpot.images[1] || null,
@@ -947,7 +962,7 @@ function App() {
       });
       setSpots(prev => [...prev, normalizeSpot(data)]);
       setIsAddSpotModalOpen(false);
-      setNewSpot({ name: '', location_name: '', latitude: '', longitude: '', description: '', historical_background: '', cultural_significance: '', fun_fact: '', featureTypes: ['qr'], images: ['', '', ''], model_3d: null, is_featured: false });
+      setNewSpot({ name: '', location_name: '', latitude: '', longitude: '', description: '', historical_background: '', cultural_significance: '', fun_fact: '', hook: '', featureTypes: ['qr'], images: ['', '', ''], model_3d: null, is_featured: false });
       setNotifications(prev => [{ id: Date.now(), text: `Spot "${data.name}" created.`, time: 'Just now' }, ...prev]);
     } catch (err) {
       console.error(err);
@@ -967,6 +982,7 @@ function App() {
         historical_background: editingSpot.historical_background || '',
         cultural_significance: editingSpot.cultural_significance || '',
         fun_fact: editingSpot.fun_fact || '',
+        hook: (editingSpot.feature_types || []).includes('catch') ? (editingSpot.hook || '') : '',
         feature_types: editingSpot.feature_types || [],
         ...(editingSpot.images?.[0]?.startsWith('data:') && { image: editingSpot.images[0] }),
         ...(editingSpot.images?.[1]?.startsWith('data:') && { image2: editingSpot.images[1] }),
@@ -1104,11 +1120,70 @@ function App() {
         { id: generateNotificationId(), text: `AR Target "${newARTarget.name}" added.`, time: 'Just now' },
         ...prev,
       ]);
-      setNewARTarget({ name: '', description: '', image: null });
+      setNewARTarget({ name: '', description: '', image: null, model_3d: null });
       setIsAddARTargetModalOpen(false);
     } catch (err) {
       console.error(err);
       showError('Failed to add AR Target. Please try again.', 'Error', 'error');
+    }
+  };
+
+  const handleEditARTargetImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => setEditingARTarget(prev => ({ ...prev, image: reader.result }));
+    reader.readAsDataURL(file);
+  };
+
+  const handleEditARTargetModelChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => setEditingARTarget(prev => ({ ...prev, model_3d: reader.result }));
+    reader.readAsDataURL(file);
+  };
+
+  const handleEditARTargetSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingARTarget?.name) return;
+    try {
+      const payload = {
+        name: editingARTarget.name,
+        description: editingARTarget.description || '',
+        // Only send media when the admin picked a new file (data: URL); an
+        // existing URL string must be omitted so the backend keeps the file.
+        ...(typeof editingARTarget.image === 'string' && editingARTarget.image.startsWith('data:') && { image: editingARTarget.image }),
+        ...(typeof editingARTarget.model_3d === 'string' && editingARTarget.model_3d.startsWith('data:') && { model_3d: editingARTarget.model_3d }),
+      };
+      const res = await qrService.updateARTarget(editingARTarget.id, payload);
+      setArTargets(prev => prev.map(t => t.id === res.data.id ? res.data : t));
+      setNotifications(prev => [
+        { id: generateNotificationId(), text: `AR Target "${res.data.name}" updated.`, time: 'Just now' },
+        ...prev,
+      ]);
+      setEditingARTarget(null);
+    } catch (err) {
+      console.error(err);
+      showError('Failed to update AR Target. Please try again.', 'Error', 'error');
+    }
+  };
+
+  const handleDeleteARTarget = async (id) => {
+    const target = arTargets.find(t => t.id === id);
+    if (!confirm(`Delete AR target "${target?.name}"? This cannot be undone.`)) return;
+    try {
+      await qrService.deleteARTarget(id);
+      setArTargets(prev => prev.filter(t => t.id !== id));
+      setSelectedARTarget(null);
+      setEditingARTarget(null);
+      setNotifications(prev => [
+        { id: generateNotificationId(), text: `AR Target "${target?.name}" removed.`, time: 'Just now' },
+        ...prev,
+      ]);
+    } catch (err) {
+      console.error(err);
+      showError('Failed to delete AR Target. Please try again.', 'Error', 'error');
     }
   };
 
@@ -1123,19 +1198,6 @@ function App() {
       ]);
       setEditingCatchIcon(null);
       setIsEditCatchIconModalOpen(false);
-    } catch (err) { console.error(err); }
-  };
-
-  const handleDeleteCatch = async (id) => {
-    const iconToDelete = catchIcons.find(c => c.id === id);
-    if (!confirm(`Delete "${iconToDelete?.name}"?`)) return;
-    try {
-      await qrService.deleteCatchIcon(id);
-      setCatchIcons(prev => prev.filter(c => c.id !== id));
-      setNotifications(prev => [
-        { id: generateNotificationId(), text: `Catch Icon "${iconToDelete?.name}" removed.`, time: 'Just now' },
-        ...prev,
-      ]);
     } catch (err) { console.error(err); }
   };
 
@@ -1798,9 +1860,14 @@ function App() {
                           <td style={{fontWeight: 700, color: 'var(--text-title)'}}>{spot.name}</td>
                           <td>{spot.location}</td>
                           <td>
-                            <span className="badge active-status">
-                              {spot.status}
-                            </span>
+                            {(() => {
+                              const cfg = PIN_TYPE_CONFIG[(spot.feature_types && spot.feature_types[0]) || 'qr'] || PIN_TYPE_CONFIG.qr;
+                              return (
+                                <span className="badge" style={{ backgroundColor: cfg.color, color: '#fff' }}>
+                                  {spot.status}
+                                </span>
+                              );
+                            })()}
                           </td>
                           <td>
                             <div className="action-buttons">
@@ -2398,75 +2465,67 @@ function App() {
 
               {/* Dashboard Grid for AR */}
               <section className="dashboard-grid" style={{marginTop: '20px'}}>
-                {/* Bar Chart */}
-                <div className="content-card">
-                  <div className="content-card-header">
-                    <h3 className="card-title">
-                      <TrendingUp className="card-title-icon" size={18} />
-                      Top AR Experiences
-                    </h3>
-                  </div>
-                  <div className="chart-wrapper">
-                    <div className="chart-grid-line" style={{bottom: '0%'}}></div>
-                    <div className="chart-grid-line" style={{bottom: '25%'}}></div>
-                    <div className="chart-grid-line" style={{bottom: '50%'}}></div>
-                    <div className="chart-grid-line" style={{bottom: '75%'}}></div>
-                    
-                    {/* Hardcoded AR Bars */}
-                    <div className="chart-bar-item">
-                      <div className="chart-tooltip">4,215 visits</div>
-                      <div className="chart-bar" style={{height: '95%'}}></div>
-                      <span className="chart-bar-label">Fort Pilar</span>
-                    </div>
-                    <div className="chart-bar-item">
-                      <div className="chart-tooltip">2,840 visits</div>
-                      <div className="chart-bar" style={{height: '65%'}}></div>
-                      <span className="chart-bar-label">Yakan</span>
-                    </div>
-                    <div className="chart-bar-item">
-                      <div className="chart-tooltip">1,887 visits</div>
-                      <div className="chart-bar" style={{height: '45%'}}></div>
-                      <span className="chart-bar-label">Vinta</span>
-                    </div>
-                    <div className="chart-bar-item">
-                      <div className="chart-tooltip">1,200 visits</div>
-                      <div className="chart-bar" style={{height: '30%'}}></div>
-                      <span className="chart-bar-label">Weaving</span>
-                    </div>
-                  </div>
-                  <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)'}}>
-                    <span>Visits based on camera interactions</span>
-                    <span>Pink accents represent popular AR views</span>
-                  </div>
-                </div>
-
                 {/* AR Targets Section */}
                 <div className="content-card" style={{ gridColumn: '1 / -1' }}>
                   <div className="content-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 className="card-title">
                       <ImageIcon className="card-title-icon" size={18} />
-                      MindAR Targets (Museum Paintings)
+                      MindAR Targets (Museum Art)
                     </h3>
                     <button className="btn btn-primary" onClick={() => setIsAddARTargetModalOpen(true)}>
-                      <Plus size={14} /> Add Painting
+                      <Plus size={14} /> Add Art
                     </button>
                   </div>
                   
+                  {arTargets.length === 0 ? (
+                    <div style={{ marginTop: '20px', padding: '48px 20px', textAlign: 'center', border: '2px dashed var(--card-border)', borderRadius: '12px', backgroundColor: 'var(--body-bg)' }}>
+                      <ImageIcon size={36} color="var(--text-muted)" style={{ marginBottom: '12px' }} />
+                      <p style={{ margin: '0 0 4px 0', fontSize: '15px', fontWeight: 600, color: 'var(--text-title)' }}>No AR paintings yet</p>
+                      <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>Add a museum painting so tourists can scan it in AR.</p>
+                    </div>
+                  ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px', marginTop: '20px' }}>
-                    {arTargets.map(target => (
-                      <div key={target.id} style={{ border: '1px solid var(--card-border)', borderRadius: '12px', padding: '16px', backgroundColor: 'var(--body-bg)' }}>
-                        <div style={{ height: '140px', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                          {target.image ? (
-                            <img src={typeof target.image === 'string' ? target.image : URL.createObjectURL(target.image)} alt={target.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    {arTargets.map(target => {
+                      const imgSrc = typeof target.image === 'string'
+                        ? qrService.getMediaUrl(target.image)
+                        : (target.image ? URL.createObjectURL(target.image) : null);
+                      return (
+                      <div key={target.id} onClick={() => setSelectedARTarget(target)}
+                        title="Click to view details"
+                        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.15)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)'; }}
+                        style={{ border: '1px solid var(--card-border)', borderRadius: '14px', backgroundColor: 'var(--body-bg)', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}>
+                        <div style={{ position: 'relative', height: '150px', backgroundColor: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                          {imgSrc ? (
+                            <img src={imgSrc} alt={target.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
-                            <ImageIcon size={32} color="var(--text-muted)" />
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', color: 'var(--text-muted)' }}>
+                              <ImageIcon size={30} />
+                              <span style={{ fontSize: '11px' }}>No image</span>
+                            </div>
                           )}
+                          <span style={{ position: 'absolute', top: '10px', left: '10px', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 9px', borderRadius: '999px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase', color: '#fff', backgroundColor: PIN_TYPE_CONFIG.ar.color, boxShadow: '0 2px 6px rgba(0,0,0,0.25)' }}>
+                            <Eye size={11} /> AR Target
+                          </span>
                         </div>
-                        <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', color: 'var(--text-title)' }}>{target.name}</h4>
-                        <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>{target.description}</p>
+                        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-title)' }}>{target.name}</h4>
+                            {target.model_3d && (
+                              <span title="Has a 3D model shown in AR" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '2px 7px', borderRadius: '999px', fontSize: '10px', fontWeight: 700, color: PIN_TYPE_CONFIG.ar.color, backgroundColor: PIN_TYPE_CONFIG.ar.color + '22' }}>
+                                <Box size={10} /> 3D
+                              </span>
+                            )}
+                          </div>
+                          <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: 'var(--text-secondary)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                            {target.description || 'No description provided.'}
+                          </p>
+                        </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
+                  )}
                 </div>
               </section>
             </div>
@@ -2476,25 +2535,20 @@ function App() {
           {activeTab === 'catch' && (
             <div className="tab-content fade-in">
 
-              {selectedCatchForView ? (
-                /* ── Detail View ── */
+              {(() => {
+                const catchSpots = spots.filter(s => (s.feature_types || []).includes('catch'));
+                return selectedCatchForView ? (
+                /* ── Detail Preview (read-only) ── */
                 <div>
                   {/* Toolbar */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
                     <button className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                       onClick={() => setSelectedCatchForView(null)}>
-                      <ArrowLeft size={15} /> Back to Icons
+                      <ArrowLeft size={15} /> Back to Catch Zones
                     </button>
-                    <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-                      <button className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                        onClick={() => { setEditingCatchIcon(selectedCatchForView); setIsEditCatchIconModalOpen(true); }}>
-                        <Edit size={14} /> Edit
-                      </button>
-                      <button className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--danger)', borderColor: 'var(--danger)' }}
-                        onClick={() => { handleDeleteCatch(selectedCatchForView.id); setSelectedCatchForView(null); }}>
-                        <Trash2 size={14} /> Delete
-                      </button>
-                    </div>
+                    <span className="badge" style={{ marginLeft: 'auto', backgroundColor: PIN_TYPE_CONFIG.catch.color, color: '#111' }}>
+                      Preview · Managed from Interactive Map
+                    </span>
                   </div>
 
                   {/* Detail card */}
@@ -2502,23 +2556,19 @@ function App() {
 
                     {/* 3D Model centred */}
                     <div style={{ width: '100%', height: '360px', backgroundColor: 'var(--body-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                      {(() => {
-                        const matchingSpot = spots.find(s => s.name?.toLowerCase().includes(selectedCatchForView.name.toLowerCase()) || selectedCatchForView.name.toLowerCase().includes(s.name?.toLowerCase()));
-                        const activeModel = matchingSpot?.model_3d || selectedCatchForView.model_3d;
-                        return activeModel ? (
-                          <model-viewer
-                            src={qrService.getMediaUrl(activeModel)}
-                            auto-rotate camera-controls
-                            style={{ width: '100%', height: '100%' }}
-                            exposure="1"
-                          />
-                        ) : (
+                      {selectedCatchForView.model_3d ? (
+                        <model-viewer
+                          src={qrService.getMediaUrl(selectedCatchForView.model_3d)}
+                          auto-rotate camera-controls
+                          style={{ width: '100%', height: '100%' }}
+                          exposure="1"
+                        />
+                      ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                           <Target size={52} color="var(--text-muted)" />
                           <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No 3D model uploaded</span>
                         </div>
-                        );
-                      })()}
+                      )}
                     </div>
 
                     <div style={{ padding: '28px 32px 32px' }}>
@@ -2526,82 +2576,66 @@ function App() {
                       <h2 style={{ textAlign: 'center', fontFamily: 'var(--font-heading)', fontSize: '28px', fontWeight: 800, color: 'var(--text-title)', marginBottom: '6px', letterSpacing: '-0.5px' }}>
                         {selectedCatchForView.name}
                       </h2>
-                      <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '28px' }}>
-                        {selectedCatchForView.tagline}
+                      <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '0' }}>
+                        {selectedCatchForView.hook || 'No tagline set.'}
                       </p>
-
-                      <div style={{ height: '1px', background: 'var(--card-border)', marginBottom: '24px' }} />
                     </div>
                   </div>
                 </div>
 
               ) : (
-                /* ── Card Grid View ── */
+                /* ── Card Grid View (read-only preview) ── */
                 <>
                   <div className="section-header">
-                    <h2>Catch Models (Cultural Icons)</h2>
-                    <button className="btn btn-primary" onClick={() => setIsAddCatchIconModalOpen(true)}>
-                      <Plus size={16} /> Add Catch Icon
-                    </button>
+                    <h2>Catch Zones</h2>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', maxWidth: '420px', textAlign: 'right' }}>
+                      A preview of catch zones added in the Interactive Map. To add or edit one, set a spot's feature type to <strong style={{ color: PIN_TYPE_CONFIG.catch.color }}>Catch Zone</strong>.
+                    </span>
                   </div>
 
-                  {catchIcons.length === 0 ? (
+                  {catchSpots.length === 0 ? (
                     <div className="content-card" style={{ alignItems: 'center', padding: '60px 20px', textAlign: 'center', marginTop: '20px' }}>
                       <Target size={48} color="var(--text-muted)" style={{ marginBottom: '12px' }} />
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>No cultural icons yet. Click <strong>Add Catch Icon</strong> to create the first one.</p>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>No catch zones yet. In the <strong>Interactive Map</strong>, add a spot with the <strong>Catch Zone</strong> feature type.</p>
                     </div>
                   ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '20px', marginTop: '20px' }}>
-                      {catchIcons.map(icon => (
-                        <div key={icon.id} className="content-card"
+                      {catchSpots.map(spot => (
+                        <div key={spot.id} className="content-card"
                           style={{ padding: 0, gap: 0, overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' }}
-                          onClick={() => setSelectedCatchForView(icon)}
+                          onClick={() => setSelectedCatchForView(spot)}
                           onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = 'var(--shadow-md)'; }}
                           onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
 
                           {/* 3D preview or colour placeholder */}
                           <div style={{ height: '190px', backgroundColor: 'var(--body-bg)', overflow: 'hidden', position: 'relative' }}>
-                            {(() => {
-                              const matchingSpot = spots.find(s => s.name?.toLowerCase().includes(icon.name.toLowerCase()) || icon.name.toLowerCase().includes(s.name?.toLowerCase()));
-                              const activeModel = matchingSpot?.model_3d || icon.model_3d;
-                              return activeModel ? (
-                                <model-viewer
-                                  src={qrService.getMediaUrl(activeModel)}
-                                  auto-rotate
-                                  style={{ width: '100%', height: '100%' }}
-                                  exposure="1"
-                                />
-                              ) : (
-                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  background: `linear-gradient(135deg, ${icon.color || '#1A56DB'}22, ${icon.color || '#1A56DB'}55)` }}>
-                                  <Target size={44} color={icon.color || 'var(--accent-blue)'} style={{ opacity: 0.7 }} />
-                                </div>
-                              );
-                            })()}
+                            {spot.model_3d ? (
+                              <model-viewer
+                                src={qrService.getMediaUrl(spot.model_3d)}
+                                auto-rotate
+                                style={{ width: '100%', height: '100%' }}
+                                exposure="1"
+                              />
+                            ) : (
+                              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                background: `linear-gradient(135deg, ${PIN_TYPE_CONFIG.catch.color}22, ${PIN_TYPE_CONFIG.catch.color}55)` }}>
+                                <Target size={44} color={PIN_TYPE_CONFIG.catch.color} style={{ opacity: 0.7 }} />
+                              </div>
+                            )}
                           </div>
 
-                          {/* Name + tagline + actions */}
-                          <div style={{ padding: '16px 18px 14px' }}>
-                            <p style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '16px', color: 'var(--text-title)', marginBottom: '3px' }}>{icon.name}</p>
-                            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>{icon.tagline}</p>
-                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}
-                              onClick={e => e.stopPropagation()}>
-                              <button className="icon-action-btn" title="Edit"
-                                onClick={() => { setEditingCatchIcon(icon); setIsEditCatchIconModalOpen(true); }}>
-                                <Edit size={13} />
-                              </button>
-                              <button className="icon-action-btn delete" title="Delete"
-                                onClick={() => handleDeleteCatch(icon.id)}>
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
+                          {/* Name + tagline */}
+                          <div style={{ padding: '16px 18px 18px' }}>
+                            <p style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '16px', color: 'var(--text-title)', marginBottom: '3px' }}>{spot.name}</p>
+                            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>{spot.hook || 'No tagline set.'}</p>
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
                 </>
-              )}
+                );
+              })()}
             </div>
           )}
 
@@ -2835,6 +2869,75 @@ function App() {
         </div>
       </main>
 
+      {/* MODAL: VIEW AR TARGET */}
+      {selectedARTarget && (() => {
+        const viewSrc = typeof selectedARTarget.image === 'string'
+          ? qrService.getMediaUrl(selectedARTarget.image)
+          : (selectedARTarget.image ? URL.createObjectURL(selectedARTarget.image) : null);
+        return (
+        <div className="modal-overlay" onClick={() => setSelectedARTarget(null)}>
+          <div className="modal-card" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">{selectedARTarget.name}</h3>
+              <button className="close-btn" onClick={() => setSelectedARTarget(null)}><X size={20}/></button>
+            </div>
+            <div className="modal-body">
+              <div style={{ position: 'relative', width: '100%', height: '260px', borderRadius: '12px', overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '18px' }}>
+                {viewSrc ? (
+                  <img src={viewSrc} alt={selectedARTarget.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', color: 'var(--text-muted)' }}>
+                    <ImageIcon size={36} />
+                    <span style={{ fontSize: '12px' }}>No image</span>
+                  </div>
+                )}
+                <span style={{ position: 'absolute', top: '12px', left: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 9px', borderRadius: '999px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase', color: '#fff', backgroundColor: PIN_TYPE_CONFIG.ar.color, boxShadow: '0 2px 6px rgba(0,0,0,0.25)' }}>
+                  <Eye size={11} /> AR Target
+                </span>
+              </div>
+              <div className="form-group">
+                <label className="form-label">3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(shown over the art in AR)</span></label>
+                {selectedARTarget.model_3d ? (
+                  <div style={{ width: '100%', height: '220px', borderRadius: '12px', overflow: 'hidden', backgroundColor: 'var(--body-bg)', marginTop: '8px' }}>
+                    <model-viewer src={qrService.getMediaUrl(selectedARTarget.model_3d)} auto-rotate camera-controls exposure="1" style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}></model-viewer>
+                  </div>
+                ) : (
+                  <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>No 3D model uploaded — only the info card shows in AR.</p>
+                )}
+              </div>
+              <div className="form-group" style={{ marginTop: '12px' }}>
+                <label className="form-label">Description</label>
+                <p style={{ margin: '4px 0 0 0', fontSize: '14px', lineHeight: 1.6, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
+                  {selectedARTarget.description || 'No description provided.'}
+                </p>
+              </div>
+              {selectedARTarget.created_at && (
+                <div className="form-group" style={{ marginTop: '12px' }}>
+                  <label className="form-label">Added</label>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+                    {new Date(selectedARTarget.created_at).toLocaleString()}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+              <button type="button" className="btn btn-secondary" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                onClick={() => handleDeleteARTarget(selectedARTarget.id)}>
+                <Trash2 size={14} style={{ marginRight: '6px' }} /> Delete
+              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setSelectedARTarget(null)}>Close</button>
+                <button type="button" className="btn btn-primary"
+                  onClick={() => { setEditingARTarget(selectedARTarget); setSelectedARTarget(null); }}>
+                  <Edit size={14} style={{ marginRight: '6px' }} /> Edit
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
+
       {/* MODAL: ADD AR TARGET */}
       {isAddARTargetModalOpen && (
         <div className="modal-overlay">
@@ -2876,6 +2979,29 @@ function App() {
                     )}
                   </label>
                 </div>
+                <div className="form-group">
+                  <label className="form-label">3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb, optional — shown over the art in AR)</span></label>
+                  <label style={{
+                    position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    height: '140px', border: newARTarget.model_3d ? `2px solid ${PIN_TYPE_CONFIG.ar.color}` : '2px dashed var(--card-border)', borderRadius: '10px',
+                    backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', marginTop: '8px'
+                  }}>
+                    <input type="file" accept=".glb" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+                      onChange={handleARTargetModelChange} />
+                    {newARTarget.model_3d ? (
+                      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
+                        <model-viewer src={newARTarget.model_3d} auto-rotate camera-controls exposure="1" style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}></model-viewer>
+                        <div style={{ position: 'absolute', bottom: '10px', left: 0, width: '100%', textAlign: 'center' }}>
+                          <span style={{ backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 12px', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>Click to Change Model</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '0 10px' }}>
+                        Drag and drop a .glb model here<br/>or click to browse
+                      </span>
+                    )}
+                  </label>
+                </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setIsAddARTargetModalOpen(false)}>Cancel</button>
@@ -2885,6 +3011,94 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* MODAL: EDIT AR TARGET */}
+      {editingARTarget && (() => {
+        const editImgSrc = typeof editingARTarget.image === 'string'
+          ? (editingARTarget.image.startsWith('data:') ? editingARTarget.image : qrService.getMediaUrl(editingARTarget.image))
+          : (editingARTarget.image ? URL.createObjectURL(editingARTarget.image) : null);
+        const editModelSrc = typeof editingARTarget.model_3d === 'string'
+          ? (editingARTarget.model_3d.startsWith('data:') ? editingARTarget.model_3d : qrService.getMediaUrl(editingARTarget.model_3d))
+          : null;
+        return (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3 className="modal-title">Edit AR Art</h3>
+              <button className="close-btn" onClick={() => setEditingARTarget(null)}><X size={20}/></button>
+            </div>
+            <form onSubmit={handleEditARTargetSubmit}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Painting Name</label>
+                  <input type="text" className="form-input" required
+                    value={editingARTarget.name} onChange={e => setEditingARTarget({...editingARTarget, name: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Description / Info to Display</label>
+                  <textarea className="form-textarea" required
+                    value={editingARTarget.description} onChange={e => setEditingARTarget({...editingARTarget, description: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Target Image <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(click to replace)</span></label>
+                  <label style={{
+                    position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    height: '140px', border: editImgSrc ? '2px solid var(--accent-color)' : '2px dashed var(--card-border)', borderRadius: '10px',
+                    backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', marginTop: '8px'
+                  }}>
+                    <input type="file" accept="image/*" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+                      onChange={handleEditARTargetImageChange} />
+                    {editImgSrc ? (
+                      <>
+                        <img src={editImgSrc} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0, opacity: 0.4 }} alt="" />
+                        <span style={{ position: 'relative', zIndex: 5, color: '#fff', fontSize: '14px', fontWeight: 'bold', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>Change Image</span>
+                      </>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '0 10px' }}>
+                        Drag and drop target image here<br/>or click to browse
+                      </span>
+                    )}
+                  </label>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb, optional — shown over the art in AR)</span></label>
+                  <label style={{
+                    position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    height: '140px', border: editModelSrc ? `2px solid ${PIN_TYPE_CONFIG.ar.color}` : '2px dashed var(--card-border)', borderRadius: '10px',
+                    backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', marginTop: '8px'
+                  }}>
+                    <input type="file" accept=".glb" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+                      onChange={handleEditARTargetModelChange} />
+                    {editModelSrc ? (
+                      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
+                        <model-viewer src={editModelSrc} auto-rotate camera-controls exposure="1" style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}></model-viewer>
+                        <div style={{ position: 'absolute', bottom: '10px', left: 0, width: '100%', textAlign: 'center' }}>
+                          <span style={{ backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 12px', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>Click to Change Model</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '0 10px' }}>
+                        Drag and drop a .glb model here<br/>or click to browse
+                      </span>
+                    )}
+                  </label>
+                </div>
+              </div>
+              <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+                <button type="button" className="btn btn-secondary" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                  onClick={() => handleDeleteARTarget(editingARTarget.id)}>
+                  <Trash2 size={14} style={{ marginRight: '6px' }} /> Delete
+                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setEditingARTarget(null)}>Cancel</button>
+                  <button type="submit" className="btn btn-primary">Save Changes</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+        );
+      })()}
 
       {/* MODAL: ADD CATCH ICON */}
       {isAddCatchIconModalOpen && (
@@ -3161,6 +3375,12 @@ function App() {
                   </div>
 
                   {newSpot.featureTypes?.includes('catch') && (
+                    <>
+                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                      <label className="form-label" style={{ color: PIN_TYPE_CONFIG.catch.color }}>Tagline <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(shown under the creature name)</span></label>
+                      <input type="text" className="form-input" maxLength={300} placeholder="e.g. Zamboanga's legendary spanner crab spirit"
+                        value={newSpot.hook} onChange={(e) => setNewSpot({ ...newSpot, hook: e.target.value })} />
+                    </div>
                     <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gridColumn: '1 / -1' }}>
                       <label className="form-label" style={{ color: PIN_TYPE_CONFIG.catch.color }}>3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb only)</span></label>
                       <label style={{
@@ -3193,6 +3413,7 @@ function App() {
                         )}
                       </label>
                     </div>
+                    </>
                   )}
 
                   <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gridColumn: newSpot.featureTypes?.includes('catch') ? '1 / -1' : 'auto' }}>
@@ -3366,6 +3587,12 @@ function App() {
                   </div>
 
                   {editingSpot.feature_types?.includes('catch') && (
+                    <>
+                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                      <label className="form-label" style={{ color: PIN_TYPE_CONFIG.catch.color }}>Tagline <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(shown under the creature name)</span></label>
+                      <input type="text" className="form-input" maxLength={300} placeholder="e.g. Zamboanga's legendary spanner crab spirit"
+                        value={editingSpot.hook || ''} onChange={(e) => setEditingSpot({ ...editingSpot, hook: e.target.value })} />
+                    </div>
                     <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gridColumn: '1 / -1' }}>
                       <label className="form-label" style={{ color: PIN_TYPE_CONFIG.catch.color }}>3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb only)</span></label>
                       <label style={{
@@ -3398,6 +3625,7 @@ function App() {
                         )}
                       </label>
                     </div>
+                    </>
                   )}
 
                   <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gridColumn: editingSpot.feature_types?.includes('catch') ? '1 / -1' : 'auto' }}>

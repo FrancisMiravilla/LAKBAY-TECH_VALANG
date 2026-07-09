@@ -2,13 +2,15 @@ import apiClient from './api';
 import * as SecureStore from 'expo-secure-store';
 
 export const authService = {
-  register: async (email, password, fullName, inGameName, chosenCharacter, location) => {
+  register: async (email, password, { firstName, lastName, middleInitial = '' }, inGameName, chosenCharacter, location) => {
     try {
       const response = await apiClient.post('register/', {
         email,
         password,
         re_password : password,
-        full_name: fullName,
+        first_name: firstName,
+        last_name: lastName,
+        middle_initial: middleInitial,
         in_game_name: inGameName,
         chosen_character: chosenCharacter,
         location,

@@ -11,7 +11,9 @@ import ErrorModal from '../components/ErrorModal';
 import VintaStripe from '../components/VintaStripe';
 
 export default function CreateAccountScreen({ navigation }) {
-  const [fullName, setFullName]       = useState('');
+  const [firstName, setFirstName]     = useState('');
+  const [lastName, setLastName]       = useState('');
+  const [middleInitial, setMiddleInitial] = useState('');
   const [location, setLocation]       = useState('');
   const [email, setEmail]             = useState('');
   const [password, setPassword]       = useState('');
@@ -36,13 +38,22 @@ export default function CreateAccountScreen({ navigation }) {
   const passwordHint = password.length > 0 && (password.length < 8 || !/\d/.test(password) || !/[^a-zA-Z0-9]/.test(password));
   const passwordMatch = confirmPass.length > 0 && password !== confirmPass;
 
-  // Mirrors the backend rule: anyone inside Zamboanga City is a "Local".
-  const isLocal = location.trim().toLowerCase().includes('zamboanga');
+  // Mirrors the backend rule: only Zamboanga City counts as "Local". The name
+  // is shared with other places (Zamboanga Sibugay, Zamboanga del Sur/Norte,
+  // the Zamboanga Peninsula) that must classify as Tourist.
+  const classifyLocal = (loc) => {
+    const text = loc.trim().toLowerCase();
+    if (!text.includes('zamboanga')) return false;
+    const nonCity = ['del sur', 'del norte', 'sibugay', 'peninsula'];
+    if (nonCity.some(m => text.includes(m))) return text.includes('zamboanga city');
+    return true;
+  };
+  const isLocal = classifyLocal(location);
   const visitorType = isLocal ? 'Local' : 'Tourist';
 
   const handleCreate = async () => {
-    if (!fullName || !location || !email || !password || !confirmPass) {
-      showErr('Missing Fields', 'Please fill in all fields.');
+    if (!firstName.trim() || !lastName.trim() || !location || !email || !password || !confirmPass) {
+      showErr('Missing Fields', 'Please fill in all required fields.');
       return;
     }
     if (password !== confirmPass) {
@@ -57,7 +68,13 @@ export default function CreateAccountScreen({ navigation }) {
     setLoading(true);
     try {
       const tempInGameName = `Explorer_${Date.now()}`;
-      await authService.register(email, password, fullName, tempInGameName, 'DefaultCharacter', location);
+      const mi = middleInitial.trim().replace(/\.$/, '').toUpperCase();
+      const fullName = [firstName.trim(), mi ? `${mi}.` : '', lastName.trim()].filter(Boolean).join(' ');
+      await authService.register(
+        email, password,
+        { firstName: firstName.trim(), lastName: lastName.trim(), middleInitial: mi },
+        tempInGameName, 'DefaultCharacter', location,
+      );
       await SecureStore.setItemAsync('offline_fullName', fullName);
       setLoading(false);
       navigation.replace('CharacterSelect');
@@ -67,6 +84,8 @@ export default function CreateAccountScreen({ navigation }) {
       let errorMessage = 'An error occurred. Please try again.';
       if (errorData) {
         if (errorData.email) errorMessage = `Email: ${errorData.email[0]}`;
+        else if (errorData.first_name) errorMessage = `First name: ${errorData.first_name[0]}`;
+        else if (errorData.last_name) errorMessage = `Last name: ${errorData.last_name[0]}`;
         else if (errorData.password) errorMessage = `Password: ${errorData.password[0]}`;
         else if (errorData.detail) errorMessage = errorData.detail;
       }
@@ -118,18 +137,50 @@ export default function CreateAccountScreen({ navigation }) {
           <Text style={styles.heading}>Create Your Journey</Text>
           <Text style={styles.subHeading}>Begin Exploring The City Of Flowers With Us</Text>
 
-          {/* Full Name */}
-          <Text style={styles.label}>Full Name</Text>
+          {/* First Name */}
+          <Text style={styles.label}>First Name</Text>
           <View style={styles.inputWrap}>
             <Ionicons name="person-outline" size={16} color={COLORS.textMuted} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Juan dela Cruz"
+              placeholder="Juan"
               placeholderTextColor={COLORS.textMuted}
               autoCapitalize="words"
-              value={fullName}
-              onChangeText={setFullName}
+              value={firstName}
+              onChangeText={setFirstName}
             />
+          </View>
+
+          {/* Last Name + Middle Initial */}
+          <View style={styles.nameRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>Last Name</Text>
+              <View style={styles.inputWrap}>
+                <Ionicons name="person-outline" size={16} color={COLORS.textMuted} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Dela Cruz"
+                  placeholderTextColor={COLORS.textMuted}
+                  autoCapitalize="words"
+                  value={lastName}
+                  onChangeText={setLastName}
+                />
+              </View>
+            </View>
+            <View style={{ width: 96 }}>
+              <Text style={styles.label}>M.I. <Text style={styles.optionalLabel}>(optional)</Text></Text>
+              <View style={styles.inputWrap}>
+                <TextInput
+                  style={[styles.input, { textAlign: 'center' }]}
+                  placeholder="D"
+                  placeholderTextColor={COLORS.textMuted}
+                  autoCapitalize="characters"
+                  maxLength={2}
+                  value={middleInitial}
+                  onChangeText={setMiddleInitial}
+                />
+              </View>
+            </View>
           </View>
 
           {/* Location */}
@@ -382,6 +433,10 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold, fontSize: 13,
     color: COLORS.textSub, marginBottom: 8,
   },
+  optionalLabel: {
+    fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textMuted,
+  },
+  nameRow: { flexDirection: 'row', gap: 12 },
   inputWrap: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: COLORS.bgCard,

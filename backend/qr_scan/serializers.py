@@ -3,6 +3,7 @@ import uuid
 from django.core.files.base import ContentFile
 from rest_framework import serializers
 from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, TriviaAttempt, CulturalIcon, ARTarget
+from .glb_utils import strip_incompatible_extensions
 class Base64ImageField(serializers.ImageField):
     def to_internal_value(self, data):
         if isinstance(data, str) and data.startswith('data:image'):
@@ -15,9 +16,13 @@ class Base64FileField(serializers.FileField):
     def to_internal_value(self, data):
         if isinstance(data, str) and data.startswith('data:'):
             # Format: data:<mime_type>;base64,<data>
-            format, filestr = data.split(';base64,') 
+            format, filestr = data.split(';base64,')
             ext = 'glb'
-            data = ContentFile(base64.b64decode(filestr), name=f"{uuid.uuid4().hex}.{ext}")
+            raw = base64.b64decode(filestr)
+            # Strip glTF material extensions Viro's mobile AR loader can't parse
+            # (e.g. KHR_materials_sheen), otherwise the model is invisible in AR.
+            raw = strip_incompatible_extensions(raw)
+            data = ContentFile(raw, name=f"{uuid.uuid4().hex}.{ext}")
         return super().to_internal_value(data)
 
 
@@ -98,6 +103,7 @@ class CulturalIconSerializer(serializers.ModelSerializer):
 
 class ARTargetSerializer(serializers.ModelSerializer):
     image = Base64ImageField(required=False, allow_null=True)
+    model_3d = Base64FileField(required=False, allow_null=True)
 
     class Meta:
         model = ARTarget

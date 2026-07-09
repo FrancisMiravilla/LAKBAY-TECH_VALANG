@@ -30,7 +30,9 @@ class GoogleLoginView(APIView):
             
             email = idinfo.get('email')
             full_name = idinfo.get('name', '')
-            
+            first_name = idinfo.get('given_name', '')
+            last_name = idinfo.get('family_name', '')
+
             # Check if user exists
             user = User.objects.filter(email=email).first()
             if not user:
@@ -38,6 +40,8 @@ class GoogleLoginView(APIView):
                     email=email,
                     password=User.objects.make_random_password(),
                     full_name=full_name,
+                    first_name=first_name,
+                    last_name=last_name,
                     auth_provider='google'
                 )
             

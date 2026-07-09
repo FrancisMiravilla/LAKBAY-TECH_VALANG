@@ -33,6 +33,14 @@ class ARTarget(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField()
     image = models.ImageField(upload_to='ar_targets/', null=True, blank=True)
+    # Optional 3D model (.glb) shown over the painting in the mobile AR view.
+    # When absent, the mobile app shows only the 2D info card.
+    model_3d = models.FileField(
+        upload_to='lakbay/models/',
+        storage=CloudinaryRawStorage(),
+        max_length=500,
+        null=True, blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

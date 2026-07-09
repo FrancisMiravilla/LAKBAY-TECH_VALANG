@@ -6,11 +6,21 @@ from djoser.serializers import UserSerializer as DjoserUserSerializer
 User = get_user_model()
 
 class CustomUserCreateSerializer(DjoserUserCreateSerializer):
+    first_name = serializers.CharField(required=True, allow_blank=False)
+    last_name = serializers.CharField(required=True, allow_blank=False)
+    middle_initial = serializers.CharField(required=False, allow_blank=True, default='')
+
     class Meta(DjoserUserCreateSerializer.Meta):
         model = User
-        fields = ('id', 'email', 'password', 'full_name', 'in_game_name', 'chosen_character', 'location', 'is_staff','is_superuser',)
+        fields = ('id', 'email', 'password', 'first_name', 'last_name', 'middle_initial', 'in_game_name', 'chosen_character', 'location', 'is_staff','is_superuser',)
 
     def create(self, validated_data):
+        # Compose the display name from the individual parts supplied at sign-up.
+        validated_data['full_name'] = User.compose_full_name(
+            validated_data.get('first_name', ''),
+            validated_data.get('last_name', ''),
+            validated_data.get('middle_initial', ''),
+        )
         # Derive local/tourist from the location supplied at sign-up.
         validated_data['visitor_type'] = User.classify_visitor_type(
             validated_data.get('location', '')

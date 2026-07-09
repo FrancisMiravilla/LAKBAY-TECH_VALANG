@@ -5,12 +5,13 @@ import {
   ViroARScene,
   ViroARImageMarker,
   ViroARTrackingTargets,
-  ViroBox,
+  Viro3DObject,
   ViroText,
   ViroNode,
   ViroAnimations,
   ViroAmbientLight,
   ViroSpotLight,
+  ViroDirectionalLight,
   isARSupportedOnDevice,
   requestRequiredPermissions,
 } from '@reactvision/react-viro';
@@ -18,7 +19,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
 
-import { getARTargets } from '../api/qrService';
+import { Asset } from 'expo-asset';
+import { getARTargets, ORIGIN } from '../api/qrService';
+
+// Resolve a model path into an absolute https URL Viro can load.
+const resolveModelUrl = (m) => {
+  if (!m) return null;
+  if (m.startsWith('data:')) return m;
+  if (m.startsWith('http')) return m.replace('http://', 'https://');
+  return `${ORIGIN}${m}`;
+};
 
 // =========================================================================
 // 1. DYNAMIC AR TARGETS LOGIC
@@ -31,22 +41,54 @@ import { getARTargets } from '../api/qrService';
 const MuseumARScene = (props) => {
   return (
     <ViroARScene>
-      {/* Lighting for the 3D models */}
-      <ViroAmbientLight color="#FFFFFF" intensity={100} />
-      <ViroSpotLight innerAngle={5} outerAngle={90} direction={[0, -1, -.2]} position={[0, 3, 1]} color="#ffffff" castsShadow={true} />
+      {/* Lighting for the 3D models. Viro light intensity is in lumens
+          (default ~1000); PBR models render nearly black if under-lit, so keep
+          these bright and add a front directional fill so the model is visible
+          regardless of which way the painting faces. */}
+      <ViroAmbientLight color="#FFFFFF" intensity={1000} />
+      <ViroDirectionalLight color="#FFFFFF" direction={[0, 0, -1]} intensity={1200} />
+      <ViroSpotLight innerAngle={5} outerAngle={90} direction={[0, -1, -.2]} position={[0, 3, 1]} color="#ffffff" intensity={1000} castsShadow={true} />
+
+      {/* DIAGNOSTIC: known-good test model, fixed ~0.6m in front of the start
+          pose. Renders independently of any marker so we can tell whether Viro
+          can load a GLB at all in this build. */}
+      {props.sceneNavigator.viroAppProps.testModelUri ? (
+        <Viro3DObject
+          source={{ uri: props.sceneNavigator.viroAppProps.testModelUri }}
+          type="GLB"
+          scale={[0.15, 0.15, 0.15]}
+          position={[0, 0, -0.6]}
+          animation={{ name: 'rotate', run: true, loop: true }}
+          onLoadEnd={() => props.sceneNavigator.viroAppProps.onTestLoadEnd?.()}
+          onError={(event) => props.sceneNavigator.viroAppProps.onTestError?.(JSON.stringify(event?.nativeEvent))}
+        />
+      ) : null}
 
       {/* DYNAMIC TRACKERS */}
       {(props.sceneNavigator.viroAppProps.arTargets || []).map(target => (
-        <ViroARImageMarker 
+        <ViroARImageMarker
           key={target.id}
-          target={`target_${target.id}`} 
+          target={`target_${target.id}`}
           onAnchorFound={() => props.sceneNavigator.viroAppProps.onTargetFound(target)}
           onAnchorRemoved={() => props.sceneNavigator.viroAppProps.onTargetLost()}
         >
-          <ViroNode position={[0, 0, 0]}>
-             <ViroText text={`${target.name} Detected!`} scale={[0.1, 0.1, 0.1]} position={[0, 0.15, 0]} style={{color: '#FFFFFF'}} />
-             <ViroBox scale={[0.1, 0.1, 0.1]} materials={["grid"]} animation={{name: "rotate", run: true, loop: true}} />
-          </ViroNode>
+          {/* Show the admin-uploaded 3D model over the art when one exists.
+              Otherwise render nothing here — the 2D info card is the feedback. */}
+          {target.model_3d ? (
+            <ViroNode position={[0, 0, 0]}>
+              <ViroText text={target.name} scale={[0.1, 0.1, 0.1]} position={[0, 0.18, 0]} style={{ color: '#FFFFFF' }} />
+              <Viro3DObject
+                source={{ uri: target.local_model || resolveModelUrl(target.model_3d) }}
+                type="GLB"
+                scale={[0.1, 0.1, 0.1]}
+                position={[0, 0, 0.05]}
+                animation={{ name: 'rotate', run: true, loop: true }}
+                onLoadStart={() => console.log('[AR] model load START:', target.name, target.local_model || resolveModelUrl(target.model_3d))}
+                onLoadEnd={() => { console.log('[AR] model load END (success):', target.name); props.sceneNavigator.viroAppProps.onModelLoadEnd?.(); }}
+                onError={(event) => { const msg = JSON.stringify(event?.nativeEvent); console.log('[AR] model load ERROR:', target.name, msg); props.sceneNavigator.viroAppProps.onModelError?.(msg); }}
+              />
+            </ViroNode>
+          ) : null}
         </ViroARImageMarker>
       ))}
 
@@ -69,6 +111,13 @@ ViroAnimations.registerAnimations({
 // =========================================================================
 export default function ViroARScanner({ navigation }) {
   const [detectedSpot, setDetectedSpot] = useState(null);
+  // On-screen 3D model status so we can see load progress/errors without the
+  // native console: 'none' | 'loading' | 'loaded' | 'error'
+  const [modelStatus, setModelStatus] = useState({ state: 'none', message: '' });
+  // DIAGNOSTIC: a known-good tiny GLB (Khronos Box, no textures/extensions).
+  // If this loads but the real art model doesn't, the art model is the problem;
+  // if even this fails, Viro's GLB loader isn't working in this build.
+  const [testModel, setTestModel] = useState({ uri: null, state: 'idle', message: '' });
   const [arTargets, setArTargets] = useState([]);
   const [loading, setLoading] = useState(true);
   // 'checking' | 'ready' | 'unsupported' | 'permission-denied'
@@ -110,28 +159,65 @@ export default function ViroARScanner({ navigation }) {
     };
   }, [arStatus, loading]);
 
+  // Download a known-good test GLB once so Viro loads it from a local file.
   React.useEffect(() => {
-    getARTargets().then(data => {
-      const targets = Array.isArray(data) ? data : (data.results || []);
-      const targetMap = {};
-      targets.forEach(t => {
-        if (t.image) {
-          targetMap[`target_${t.id}`] = {
-            source: { uri: t.image },
-            orientation: "Up",
-            physicalWidth: 0.5,
-          };
-        }
-      });
-      if (Object.keys(targetMap).length > 0) {
-        ViroARTrackingTargets.createTargets(targetMap);
+    (async () => {
+      try {
+        const asset = Asset.fromURI('https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Box/glTF-Binary/Box.glb');
+        await asset.downloadAsync();
+        const uri = asset.localUri || asset.uri;
+        console.log('[AR-TEST] test model cached:', uri);
+        setTestModel({ uri, state: 'loading', message: '' });
+      } catch (e) {
+        console.log('[AR-TEST] test model download FAILED:', String(e));
+        setTestModel({ uri: null, state: 'error', message: 'download failed: ' + String(e) });
       }
-      setArTargets(targets.filter(t => t.image));
-      setLoading(false);
-    }).catch(err => {
-      console.error(err);
-      setLoading(false);
-    });
+    })();
+  }, []);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const data = await getARTargets();
+        const targets = Array.isArray(data) ? data : (data.results || []);
+        const targetMap = {};
+        targets.forEach(t => {
+          if (t.image) {
+            targetMap[`target_${t.id}`] = {
+              source: { uri: t.image },
+              orientation: "Up",
+              physicalWidth: 0.5,
+            };
+          }
+        });
+        if (Object.keys(targetMap).length > 0) {
+          ViroARTrackingTargets.createTargets(targetMap);
+        }
+        const usable = targets.filter(t => t.image);
+
+        // Viro's Android loader fails on remote model URLs ("Failed to load
+        // model"), so pre-download each .glb to local cache and hand Viro a
+        // file:// path. Falls back to the remote URL if the download fails.
+        await Promise.all(usable.map(async (t) => {
+          if (!t.model_3d) return;
+          try {
+            const asset = Asset.fromURI(resolveModelUrl(t.model_3d));
+            await asset.downloadAsync();
+            t.local_model = asset.localUri || asset.uri;
+            console.log('[AR] model cached locally:', t.name, t.local_model);
+          } catch (e) {
+            console.log('[AR] model download FAILED:', t.name, String(e));
+          }
+        }));
+
+        console.log('[AR] targets loaded:', usable.map(t => ({ name: t.name, hasModel: !!t.model_3d, local: t.local_model || null })));
+        setArTargets(usable);
+        setLoading(false);
+      } catch (err) {
+        console.error(err);
+        setLoading(false);
+      }
+    })();
   }, []);
 
   // Called natively when ViroARImageMarker sees a painting
@@ -140,7 +226,14 @@ export default function ViroARScanner({ navigation }) {
       name: target.name,
       description: target.description || "You've uncovered a hidden AR experience inside the museum! Point your camera to see it."
     });
+    setModelStatus({ state: target.model_3d ? 'loading' : 'none', message: '' });
   };
+
+  const handleModelLoadEnd = () => setModelStatus({ state: 'loaded', message: '' });
+  const handleModelError = (message) => setModelStatus({ state: 'error', message: String(message || 'unknown error') });
+
+  const handleTestLoadEnd = () => { console.log('[AR-TEST] test model LOADED ✓'); setTestModel(prev => ({ ...prev, state: 'loaded' })); };
+  const handleTestError = (message) => { console.log('[AR-TEST] test model ERROR:', message); setTestModel(prev => ({ ...prev, state: 'error', message: String(message || 'error') })); };
 
 
   // Called when the painting leaves the camera view
@@ -160,6 +253,16 @@ export default function ViroARScanner({ navigation }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>AR Scanner</Text>
         <View style={{ width: 24 }} />
+      </View>
+
+      {/* DIAGNOSTIC banner: can Viro load a known-good GLB at all? */}
+      <View style={[styles.testBanner, testModel.state === 'loaded' ? styles.testOk : testModel.state === 'error' ? styles.testErr : styles.testNeutral]}>
+        <Text style={styles.testBannerText} numberOfLines={2}>
+          {testModel.state === 'loaded' ? 'Test model: LOADED ✓ (Viro GLB works — a rotating box should be visible)'
+            : testModel.state === 'error' ? `Test model: FAILED — ${testModel.message}`
+            : testModel.state === 'loading' ? 'Test model: loading…'
+            : 'Test model: preparing…'}
+        </Text>
       </View>
 
       {/* Viro React AR Camera View */}
@@ -182,7 +285,12 @@ export default function ViroARScanner({ navigation }) {
             viroAppProps={{
               arTargets: arTargets,
               onTargetFound: handleTargetFound,
-              onTargetLost: handleTargetLost
+              onTargetLost: handleTargetLost,
+              onModelLoadEnd: handleModelLoadEnd,
+              onModelError: handleModelError,
+              testModelUri: testModel.uri,
+              onTestLoadEnd: handleTestLoadEnd,
+              onTestError: handleTestError
             }}
             style={{ flex: 1 }}
             autofocus={true}
@@ -200,7 +308,23 @@ export default function ViroARScanner({ navigation }) {
             </View>
             <Text style={styles.title}>{detectedSpot.name}</Text>
             <Text style={styles.desc}>{detectedSpot.description}</Text>
-            
+
+            {/* 3D model load status (diagnostic) */}
+            <View style={styles.modelStatusRow}>
+              <Ionicons
+                name={modelStatus.state === 'loaded' ? 'cube' : modelStatus.state === 'loading' ? 'hourglass-outline' : modelStatus.state === 'error' ? 'alert-circle' : 'ellipse-outline'}
+                size={13}
+                color={modelStatus.state === 'loaded' ? COLORS.teal : modelStatus.state === 'error' ? COLORS.danger : COLORS.textMuted}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.modelStatusText}>
+                {modelStatus.state === 'loading' ? '3D model: loading…'
+                  : modelStatus.state === 'loaded' ? '3D model: loaded ✓'
+                  : modelStatus.state === 'error' ? `3D model failed: ${modelStatus.message}`
+                  : 'No 3D model for this art'}
+              </Text>
+            </View>
+
             <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate('CatchDetails', { icon: { name: detectedSpot.name, about: detectedSpot.description }})}>
               <Text style={styles.btnText}>View Full Details</Text>
             </TouchableOpacity>
@@ -298,7 +422,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
     lineHeight: 20,
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  testBanner: {
+    position: 'absolute',
+    top: 92,
+    left: 12,
+    right: 12,
+    zIndex: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  testNeutral: { backgroundColor: 'rgba(0,0,0,0.6)' },
+  testOk: { backgroundColor: 'rgba(16,150,120,0.85)' },
+  testErr: { backgroundColor: 'rgba(200,60,60,0.9)' },
+  testBannerText: { color: '#fff', fontFamily: FONTS.regular, fontSize: 12 },
+  modelStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  modelStatusText: {
+    flex: 1,
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
   },
   btn: {
     backgroundColor: COLORS.accent,

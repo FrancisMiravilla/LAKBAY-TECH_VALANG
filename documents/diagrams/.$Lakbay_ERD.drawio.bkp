@@ -1,0 +1,392 @@
+<mxfile host="Electron">
+  <diagram id="lakbay-erd" name="Entity Relationship Diagram">
+    <mxGraphModel dx="4213" dy="2067" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="e-customuser" parent="1" style="shape=table;whiteSpace=wrap;html=1;rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" value="CustomUser" vertex="1">
+          <mxGeometry height="408" width="240" x="60" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-id" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;b&gt;id&lt;/b&gt; (PK)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;BigAutoField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-password" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;password&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-email" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;email (UQ)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;EmailField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="72" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-full-name" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;full_name&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="94" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-in-game-name" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;in_game_name ?&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="116" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-chosen-character" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;chosen_character ?&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="138" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-profile-photo" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;profile_photo ?&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;ImageField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-auth-provider" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;auth_provider&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="182" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-role" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;role&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="204" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-xp" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;xp&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;IntegerField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="226" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-location" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;location ?&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="248" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-visitor-type" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;visitor_type&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-is-staff" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;is_staff&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;BooleanField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="292" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-is-superuser" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;is_superuser&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;BooleanField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="314" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-last-login" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;last_login ?&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;DateTimeField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="336" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-date-joined" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;date_joined&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;DateTimeField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="358" as="geometry" />
+        </mxCell>
+        <mxCell id="e-customuser-is-active" parent="e-customuser" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;is_active&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;BooleanField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot" parent="1" style="shape=table;whiteSpace=wrap;html=1;rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" value="CulturalSpot" vertex="1">
+          <mxGeometry height="430" width="240" x="420" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-id" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;b&gt;id&lt;/b&gt; (PK)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;BigAutoField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-name" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;name&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-description" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;description&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;TextField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="72" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-historical-background" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;historical_background&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;TextField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="94" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-cultural-significance" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;cultural_significance&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;TextField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="116" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-fun-fact" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;fun_fact ?&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;TextField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="138" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-hook" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;hook ?&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-image" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;image ?&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;ImageField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="182" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-image2" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;image2 ?&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;ImageField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="204" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-image3" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;image3 ?&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;ImageField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="226" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-images" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;images&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;JSONField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="248" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-location-name" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;location_name&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-latitude" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;latitude&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;FloatField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="292" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-longitude" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;longitude&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;FloatField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="314" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-feature-types" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;feature_types&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;JSONField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="336" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-model-3d" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;model_3d&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;FileField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="358" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-is-featured" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;is_featured&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;BooleanField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalspot-created-at" parent="e-culturalspot" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;created_at&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;DateTimeField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="402" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalicon" parent="1" style="shape=table;whiteSpace=wrap;html=1;rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" value="CulturalIcon" vertex="1">
+          <mxGeometry height="276" width="240" x="780" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalicon-id" parent="e-culturalicon" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#9673a6;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;b&gt;id&lt;/b&gt; (PK)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;BigAutoField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalicon-name" parent="e-culturalicon" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#9673a6;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;name&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalicon-emoji" parent="e-culturalicon" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#9673a6;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;emoji&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="72" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalicon-tagline" parent="e-culturalicon" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#9673a6;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;tagline&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="94" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalicon-type-name" parent="e-culturalicon" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#9673a6;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;type_name&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="116" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalicon-color" parent="e-culturalicon" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#9673a6;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;color&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="138" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalicon-about" parent="e-culturalicon" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#9673a6;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;about&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;TextField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalicon-significance" parent="e-culturalicon" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#9673a6;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;significance&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;TextField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="182" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalicon-facts" parent="e-culturalicon" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#9673a6;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;facts&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;JSONField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="204" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalicon-model-3d" parent="e-culturalicon" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#9673a6;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;model_3d&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;FileField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="226" as="geometry" />
+        </mxCell>
+        <mxCell id="e-culturalicon-created-at" parent="e-culturalicon" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#9673a6;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;created_at&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;DateTimeField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="248" as="geometry" />
+        </mxCell>
+        <mxCell id="e-artarget" parent="1" style="shape=table;whiteSpace=wrap;html=1;rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" value="ARTarget" vertex="1">
+          <mxGeometry height="144" width="240" x="1140" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="e-artarget-id" parent="e-artarget" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#d6b656;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;b&gt;id&lt;/b&gt; (PK)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;BigAutoField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e-artarget-name" parent="e-artarget" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#d6b656;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;name&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e-artarget-description" parent="e-artarget" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#d6b656;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;description&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;TextField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="72" as="geometry" />
+        </mxCell>
+        <mxCell id="e-artarget-image" parent="e-artarget" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#d6b656;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;image ?&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;ImageField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="94" as="geometry" />
+        </mxCell>
+        <mxCell id="e-artarget-created-at" parent="e-artarget" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#d6b656;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;created_at&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;DateTimeField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="116" as="geometry" />
+        </mxCell>
+        <mxCell id="e-qrmarker" parent="1" style="shape=table;whiteSpace=wrap;html=1;rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" value="QRMarker" vertex="1">
+          <mxGeometry height="210" width="240" x="60" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="e-qrmarker-id" parent="e-qrmarker" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;b&gt;id&lt;/b&gt; (PK)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;BigAutoField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e-qrmarker-spot" parent="e-qrmarker" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;i&gt;spot&lt;/i&gt; (FK → CulturalSpot)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;ForeignKey&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e-qrmarker-qr-code-string" parent="e-qrmarker" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;qr_code_string (UQ)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="72" as="geometry" />
+        </mxCell>
+        <mxCell id="e-qrmarker-is-active" parent="e-qrmarker" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;is_active&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;BooleanField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="94" as="geometry" />
+        </mxCell>
+        <mxCell id="e-qrmarker-bonus-creature" parent="e-qrmarker" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;bonus_creature ?&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="116" as="geometry" />
+        </mxCell>
+        <mxCell id="e-qrmarker-unlock-type" parent="e-qrmarker" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;unlock_type&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="138" as="geometry" />
+        </mxCell>
+        <mxCell id="e-qrmarker-scan-count" parent="e-qrmarker" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;scan_count&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;IntegerField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="e-qrmarker-created-at" parent="e-qrmarker" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;created_at&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;DateTimeField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="182" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaquestion" parent="1" style="shape=table;whiteSpace=wrap;html=1;rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" value="TriviaQuestion" vertex="1">
+          <mxGeometry height="298" width="270" x="420" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaquestion-id" parent="e-triviaquestion" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;b&gt;id&lt;/b&gt; (PK)&lt;/td&gt;&lt;td width=&#39;100&#39;&gt;BigAutoField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="270" y="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaquestion-spot" parent="e-triviaquestion" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;i&gt;spot&lt;/i&gt; (FK → CulturalSpot *)&lt;/td&gt;&lt;td width=&#39;100&#39;&gt;ForeignKey&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="270" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaquestion-icon" parent="e-triviaquestion" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;i&gt;icon&lt;/i&gt; (FK → CulturalIcon *)&lt;/td&gt;&lt;td width=&#39;100&#39;&gt;ForeignKey&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="270" y="72" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaquestion-question" parent="e-triviaquestion" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;question&lt;/td&gt;&lt;td width=&#39;100&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="270" y="94" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaquestion-choices" parent="e-triviaquestion" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;choices&lt;/td&gt;&lt;td width=&#39;100&#39;&gt;JSONField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="270" y="116" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaquestion-correct-index" parent="e-triviaquestion" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;correct_index&lt;/td&gt;&lt;td width=&#39;100&#39;&gt;IntegerField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="270" y="138" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaquestion-explanation" parent="e-triviaquestion" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;explanation ?&lt;/td&gt;&lt;td width=&#39;100&#39;&gt;TextField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="270" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaquestion-status" parent="e-triviaquestion" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;status&lt;/td&gt;&lt;td width=&#39;100&#39;&gt;CharField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="270" y="182" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaquestion-generated-by" parent="e-triviaquestion" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;i&gt;generated_by&lt;/i&gt; (FK → CustomUser)&lt;/td&gt;&lt;td width=&#39;100&#39;&gt;ForeignKey&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="270" y="204" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaquestion-reviewed-by" parent="e-triviaquestion" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;i&gt;reviewed_by&lt;/i&gt; (FK → CustomUser)&lt;/td&gt;&lt;td width=&#39;100&#39;&gt;ForeignKey&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="270" y="226" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaquestion-review-date" parent="e-triviaquestion" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;review_date ?&lt;/td&gt;&lt;td width=&#39;100&#39;&gt;DateTimeField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="270" y="248" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaquestion-updated-at" parent="e-triviaquestion" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;updated_at&lt;/td&gt;&lt;td width=&#39;100&#39;&gt;DateTimeField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="270" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="e-spotbadge" parent="1" style="shape=table;whiteSpace=wrap;html=1;rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" value="SpotBadge" vertex="1">
+          <mxGeometry height="122" width="240" x="780" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="e-spotbadge-id" parent="e-spotbadge" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#9673a6;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;b&gt;id&lt;/b&gt; (PK)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;BigAutoField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e-spotbadge-user" parent="e-spotbadge" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#9673a6;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;i&gt;user&lt;/i&gt; (FK → CustomUser)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;ForeignKey&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e-spotbadge-spot" parent="e-spotbadge" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#9673a6;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;i&gt;spot&lt;/i&gt; (FK → CulturalSpot)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;ForeignKey&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="72" as="geometry" />
+        </mxCell>
+        <mxCell id="e-spotbadge-awarded-at" parent="e-spotbadge" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#9673a6;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;awarded_at&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;DateTimeField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="94" as="geometry" />
+        </mxCell>
+        <mxCell id="e-qrscan" parent="1" style="shape=table;whiteSpace=wrap;html=1;rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" value="QRScan" vertex="1">
+          <mxGeometry height="122" width="240" x="60" y="780" as="geometry" />
+        </mxCell>
+        <mxCell id="e-qrscan-id" parent="e-qrscan" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;b&gt;id&lt;/b&gt; (PK)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;BigAutoField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e-qrscan-user" parent="e-qrscan" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;i&gt;user&lt;/i&gt; (FK → CustomUser)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;ForeignKey&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e-qrscan-qr-marker" parent="e-qrscan" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;i&gt;qr_marker&lt;/i&gt; (FK → QRMarker)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;ForeignKey&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="72" as="geometry" />
+        </mxCell>
+        <mxCell id="e-qrscan-scanned-at" parent="e-qrscan" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#6c8ebf;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;scanned_at&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;DateTimeField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="94" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaattempt" parent="1" style="shape=table;whiteSpace=wrap;html=1;rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" value="TriviaAttempt" vertex="1">
+          <mxGeometry height="188" width="240" x="420" y="860" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaattempt-id" parent="e-triviaattempt" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;b&gt;id&lt;/b&gt; (PK)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;BigAutoField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="28" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaattempt-user" parent="e-triviaattempt" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;i&gt;user&lt;/i&gt; (FK → CustomUser)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;ForeignKey&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaattempt-spot" parent="e-triviaattempt" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;&lt;i&gt;spot&lt;/i&gt; (FK → CulturalSpot)&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;ForeignKey&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="72" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaattempt-score" parent="e-triviaattempt" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;score&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;IntegerField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="94" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaattempt-total" parent="e-triviaattempt" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;total&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;IntegerField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="116" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaattempt-passed" parent="e-triviaattempt" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;passed&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;BooleanField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="138" as="geometry" />
+        </mxCell>
+        <mxCell id="e-triviaattempt-attempted-at" parent="e-triviaattempt" style="shape=partialRectangle;whiteSpace=wrap;html=1;rounded=0;fillColor=none;strokeColor=#82b366;fontSize=10;align=left;" value="&lt;html&gt;&lt;body&gt;&lt;table&gt;&lt;tr&gt;&lt;td width=&#39;170&#39;&gt;attempted_at&lt;/td&gt;&lt;td width=&#39;70&#39;&gt;DateTimeField&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/body&gt;&lt;/html&gt;" vertex="1">
+          <mxGeometry height="22" width="240" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="r-user-qrscan" edge="1" parent="1" source="e-customuser" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=2;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=10;labelBackgroundColor=#FFFFFF;" target="e-qrscan">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="60" y="480" />
+              <mxPoint x="60" y="810" />
+              <mxPoint x="180" y="810" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="r-user-attempt" edge="1" parent="1" source="e-customuser" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=2;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=10;labelBackgroundColor=#FFFFFF;" target="e-triviaattempt">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="180" y="620" />
+              <mxPoint x="180" y="891" />
+              <mxPoint x="420" y="891" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="r-user-badge" edge="1" parent="1" source="e-customuser" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=2;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=10;labelBackgroundColor=#FFFFFF;" target="e-spotbadge">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-spot-marker" edge="1" parent="1" source="e-culturalspot" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=2;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=10;labelBackgroundColor=#FFFFFF;" target="e-qrmarker">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="540" y="450" />
+              <mxPoint x="300" y="450" />
+              <mxPoint x="300" y="540" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="r-spot-trivia" edge="1" parent="1" source="e-culturalspot" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=10;labelBackgroundColor=#FFFFFF;" target="e-triviaquestion">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="540" y="480" />
+              <mxPoint x="540" y="540" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="r-spot-attempt" edge="1" parent="1" source="e-culturalspot" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=10;labelBackgroundColor=#FFFFFF;" target="e-triviaattempt">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="540" y="500" />
+              <mxPoint x="540" y="860" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="r-spot-badge" edge="1" parent="1" source="e-culturalspot" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#9673a6;strokeWidth=2;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=10;labelBackgroundColor=#FFFFFF;" target="e-spotbadge">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-marker-scan" edge="1" parent="1" source="e-qrmarker" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=2;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=10;labelBackgroundColor=#FFFFFF;" target="e-qrscan">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="r-icon-trivia" edge="1" parent="1" source="e-culturalicon" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#9673a6;strokeWidth=2;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=10;labelBackgroundColor=#FFFFFF;" target="e-triviaquestion">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="900" y="480" />
+              <mxPoint x="690" y="480" />
+              <mxPoint x="690" y="560" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend-bg" parent="1" style="shape=rectangle;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;rounded=1;" value="" vertex="1">
+          <mxGeometry height="80" width="600" x="780" y="930" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-title" parent="1" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=11;fontStyle=1;" value="Legend" vertex="1">
+          <mxGeometry height="20" width="60" x="1050" y="933" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-0-box" parent="1" style="shape=rect;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=9;" value="" vertex="1">
+          <mxGeometry height="10" width="16" x="795" y="956" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-0-txt" parent="1" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=9;" value="Core / User entities" vertex="1">
+          <mxGeometry height="20" width="180" x="815" y="951" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-1-box" parent="1" style="shape=rect;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=9;" value="" vertex="1">
+          <mxGeometry height="10" width="16" x="795" y="972" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-1-txt" parent="1" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=9;" value="Gamification / Trivia entities" vertex="1">
+          <mxGeometry height="20" width="180" x="815" y="967" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-2-box" parent="1" style="shape=rect;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=9;" value="" vertex="1">
+          <mxGeometry height="10" width="16" x="795" y="988" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-2-txt" parent="1" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=9;" value="Cultural / Reward entities" vertex="1">
+          <mxGeometry height="20" width="180" x="815" y="983" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-3-box" parent="1" style="shape=rect;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;" value="" vertex="1">
+          <mxGeometry height="10" width="16" x="795" y="1004" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-3-txt" parent="1" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=9;" value="AR / Museum entities (standalone)" vertex="1">
+          <mxGeometry height="20" width="180" x="815" y="999" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-pk-box" parent="1" style="ellipse;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000;fontSize=9;" value="" vertex="1">
+          <mxGeometry height="10" width="10" x="795" y="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-pk-text" parent="1" style="text;html=1;align=left;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=9;" value="(PK) = Primary Key, (FK) = Foreign Key, (UQ) = Unique,  ? = nullable" vertex="1">
+          <mxGeometry height="20" width="300" x="815" y="995" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

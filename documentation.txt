@@ -612,7 +612,7 @@ Entity Relationship Diagram
 Figure 4.5.2Figure 4.5.2
 Figure 4.5.2
 Figure 4.5.2
-It contains eight entities: Custom User, Cultural Spot, QR Marker, QR Scan, Trivia Question, Trivia Attempt, Spot Badge and Cultural Icon.
+It contains nine entities: Custom User, Cultural Spot, QR Marker, QR Scan, AR Target, Trivia Question, Trivia Attempt, Spot Badge and Cultural Icon.
 Custom User table stores the account information of both admins and travelers (tourists), since the system uses just one user table for both types of users. This table is connected to QR Scan, Trivia Attempt, and Spot Badge because a single user can scan many QR codes, take many trivia quizzes and earn many badges.
 Cultural Spot table is the center of the diagram since most of the other tables depend on it.  Each cultural spot can have many markers, many trivia questions, many trivia attempt and many badges connected to it, which is why the relationship between Cultural Spot and these tables is one-to-many.
 QR Marker is connected to Cultural Spot (one spot can have many QR markers) and to QR Scan (one marker can be scanned by many users). The QR Scan tables also has a rule that a user cannot scan the same marker twice, which is shown through the unique constraint placed in the note below the diagram.
@@ -672,6 +672,36 @@ date_joined
 DATETIME
 —
 No
+role
+VARCHAR
+20
+—
+No
+location
+VARCHAR
+255
+—
+Yes
+visitor_type
+VARCHAR
+10
+—
+No
+is_staff
+BOOLEAN
+1
+—
+No
+is_superuser
+BOOLEAN
+1
+—
+No
+last_login
+DATETIME
+—
+—
+Yes
 TABLE tblCulturalSpot 
 Attribute Name
 Data Type
@@ -832,7 +862,12 @@ spot_id
 INTEGER
 11
 Foreign Key (CulturalSpot)
-No
+Yes
+icon_id
+INTEGER
+11
+Foreign Key (CulturalIcon)
+Yes
 question
 VARCHAR
 300
@@ -844,6 +879,36 @@ No
 correct_index
 INTEGER
 11
+No
+explanation
+TEXT
+—
+—
+Yes
+status
+VARCHAR
+20
+—
+No
+generated_by
+INTEGER
+11
+Foreign Key (CustomUser)
+Yes
+reviewed_by
+INTEGER
+11
+Foreign Key (CustomUser)
+Yes
+review_date
+DATETIME
+—
+—
+Yes
+updated_at
+DATETIME
+—
+—
 No
 TABLE tblTriviaAttempt 
 Attribute Name
@@ -956,6 +1021,37 @@ VARCHAR
 Yes
 created_at
 DATETIME
+—
+No
+TABLE tblARTarget 
+Attribute Name
+Data Type
+Max Length
+Key Type
+Null
+id
+INTEGER
+11
+Primary Key
+No
+name
+VARCHAR
+200
+—
+No
+description
+TEXT
+—
+—
+No
+image
+VARCHAR
+100
+—
+Yes
+created_at
+DATETIME
+—
 —
 No
 Tools and Technology
