@@ -2972,36 +2972,28 @@ function App() {
       {/* MODAL: ADD AR TARGET */}
       {isAddARTargetModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-card">
+          <div className="modal-card" style={{ maxWidth: '1000px', width: '95vw', minHeight: '600px' }}>
             <div className="modal-header">
               <h3 className="modal-title">Add AR Painting (MindAR)</h3>
               <button className="close-btn" onClick={() => setIsAddARTargetModalOpen(false)}><X size={20}/></button>
             </div>
-            <form onSubmit={handleAddARTarget}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">Painting Name</label>
-                  <input type="text" className="form-input" required 
-                    value={newARTarget.name} onChange={e => setNewARTarget({...newARTarget, name: e.target.value})} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Description / Info to Display</label>
-                  <textarea className="form-textarea" required
-                    value={newARTarget.description} onChange={e => setNewARTarget({...newARTarget, description: e.target.value})} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Upload Target Image (For MindAR Compilation)</label>
+            <form onSubmit={handleAddARTarget} style={{ display: 'flex', flex: '1', overflow: 'hidden' }}>
+              <div className="modal-body" style={{ flexDirection: 'row', padding: 0, gap: 0, maxHeight: '80vh', flex: '1' }}>
+                
+                {/* Left Side: Target Image */}
+                <div style={{ flex: '1.2', padding: '26px 32px', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
+                  <label className="form-label" style={{ marginBottom: '8px' }}>Target Image <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(For MindAR Compilation)</span></label>
                   <label style={{
                     position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    height: '140px', border: newARTarget.image ? '2px solid var(--accent-color)' : '2px dashed var(--card-border)', borderRadius: '10px',
-                    backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', marginTop: '8px'
+                    flex: '1', minHeight: '450px', border: newARTarget.image ? '2px solid var(--accent-color)' : '2px dashed var(--card-border)', borderRadius: '12px',
+                    backgroundColor: 'rgba(0,0,0,0.1)', cursor: 'pointer', overflow: 'hidden'
                   }}>
                     <input type="file" accept="image/*" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
                       onChange={handleARTargetImageChange} required={!newARTarget.image} />
                     {newARTarget.image ? (
                       <>
-                        <img src={typeof newARTarget.image === 'string' ? newARTarget.image : URL.createObjectURL(newARTarget.image)} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0, opacity: 0.4 }} alt="" />
-                        <span style={{ position: 'relative', zIndex: 5, color: '#fff', fontSize: '14px', fontWeight: 'bold', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>Change Image</span>
+                        <img src={typeof newARTarget.image === 'string' ? newARTarget.image : URL.createObjectURL(newARTarget.image)} style={{ width: '100%', height: '100%', objectFit: 'contain', position: 'absolute', top: 0, left: 0 }} alt="" />
+                        <span style={{ position: 'relative', zIndex: 5, color: '#fff', fontSize: '14px', fontWeight: 'bold', textShadow: '0 1px 4px rgba(0,0,0,0.8)', backgroundColor: 'rgba(0,0,0,0.5)', padding: '6px 12px', borderRadius: '20px' }}>Change Image</span>
                       </>
                     ) : (
                       <span style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '0 10px' }}>
@@ -3010,33 +3002,51 @@ function App() {
                     )}
                   </label>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb, optional — shown over the art in AR)</span></label>
-                  <label style={{
-                    position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    height: '140px', border: newARTarget.model_3d ? `2px solid ${PIN_TYPE_CONFIG.ar.color}` : '2px dashed var(--card-border)', borderRadius: '10px',
-                    backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', marginTop: '8px'
-                  }}>
-                    <input type="file" accept=".glb" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
-                      onChange={handleARTargetModelChange} />
-                    {newARTarget.model_3d ? (
-                      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
-                        <model-viewer src={newARTarget.model_3d} auto-rotate camera-controls exposure="1" style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}></model-viewer>
-                        <div style={{ position: 'absolute', bottom: '10px', left: 0, width: '100%', textAlign: 'center' }}>
-                          <span style={{ backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 12px', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>Click to Change Model</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '0 10px' }}>
-                        Drag and drop a .glb model here<br/>or click to browse
-                      </span>
-                    )}
-                  </label>
+
+                {/* Right Side: Details and Footer */}
+                <div style={{ flex: '1', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  {/* Scrollable details */}
+                  <div style={{ flex: '1', overflowY: 'auto', padding: '26px 32px 10px 32px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Painting Name</label>
+                      <input type="text" className="form-input" required 
+                        value={newARTarget.name} onChange={e => setNewARTarget({...newARTarget, name: e.target.value})} />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Description / Info to Display</label>
+                      <textarea className="form-textarea" required rows={4}
+                        value={newARTarget.description} onChange={e => setNewARTarget({...newARTarget, description: e.target.value})} />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb, optional)</span></label>
+                      <label style={{
+                        position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        height: '220px', border: newARTarget.model_3d ? `2px solid ${PIN_TYPE_CONFIG.ar.color}` : '2px dashed var(--card-border)', borderRadius: '10px',
+                        backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', marginTop: '8px'
+                      }}>
+                        <input type="file" accept=".glb" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+                          onChange={handleARTargetModelChange} />
+                        {newARTarget.model_3d ? (
+                          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
+                            <model-viewer src={typeof newARTarget.model_3d === 'string' ? newARTarget.model_3d : URL.createObjectURL(newARTarget.model_3d)} auto-rotate camera-controls exposure="1" style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}></model-viewer>
+                            <div style={{ position: 'absolute', bottom: '10px', left: 0, width: '100%', textAlign: 'center' }}>
+                              <span style={{ backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 12px', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>Click to Change Model</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '0 10px' }}>
+                            Drag and drop a .glb model here<br/>or click to browse
+                          </span>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+                  <div className="modal-footer" style={{ borderTop: '1px solid var(--card-border)', padding: '16px 32px' }}>
+                    <button type="button" className="btn btn-secondary" onClick={() => setIsAddARTargetModalOpen(false)}>Cancel</button>
+                    <button type="submit" className="btn btn-primary">Save Target</button>
+                  </div>
                 </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setIsAddARTargetModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Save Target</button>
+
               </div>
             </form>
           </div>
