@@ -37,7 +37,8 @@ import {
   LogOut,
   ArrowLeft,
   Box,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Scan
 } from 'lucide-react'
 
 import './App.css'
@@ -1318,13 +1319,13 @@ function App() {
   };
 
   const filteredTriviaQuestions = triviaSpotFilter
-    ? triviaQuestions.filter(q => q.spot_name === spots.find(s => s.id === parseInt(triviaSpotFilter))?.name)
+    ? triviaQuestions.filter(q => (q.spot_name || q.icon_name || q.ar_target_name || 'General') === triviaSpotFilter)
     : triviaQuestions;
 
   const groupedTriviaQuestions = useMemo(() => {
     const groups = {};
     filteredTriviaQuestions.forEach(q => {
-      const batchName = q.spot_name || q.icon_name || 'General';
+      const batchName = q.spot_name || q.icon_name || q.ar_target_name || 'General';
       if (!groups[batchName]) groups[batchName] = [];
       groups[batchName].push(q);
     });
@@ -2654,11 +2655,28 @@ function App() {
                     value={triviaSpotFilter}
                     onChange={(e) => setTriviaSpotFilter(e.target.value)}
                   >
-                    <option value="">All Spots ({triviaQuestions.length} questions)</option>
-                    {spots.map(s => {
-                      const count = triviaQuestions.filter(q => q.spot_name === s.name).length;
-                      return <option key={s.id} value={s.id}>{s.name} ({count})</option>;
-                    })}
+                    <option value="">All Content ({triviaQuestions.length} questions)</option>
+                    
+                    <optgroup label="QR Spots">
+                      {spots.map(s => {
+                        const count = triviaQuestions.filter(q => q.spot_name === s.name).length;
+                        return count > 0 && <option key={`spot_${s.id}`} value={s.name}>{s.name} ({count})</option>;
+                      })}
+                    </optgroup>
+
+                    <optgroup label="AR Targets">
+                      {arTargets.map(t => {
+                        const count = triviaQuestions.filter(q => q.ar_target_name === t.name).length;
+                        return count > 0 && <option key={`ar_${t.id}`} value={t.name}>{t.name} ({count})</option>;
+                      })}
+                    </optgroup>
+
+                    <optgroup label="Catch Icons">
+                      {catchIcons.map(c => {
+                        const count = triviaQuestions.filter(q => q.icon_name === c.name).length;
+                        return count > 0 && <option key={`icon_${c.id}`} value={c.name}>{c.name} ({count})</option>;
+                      })}
+                    </optgroup>
                   </select>
                   <button className="btn btn-primary" style={{ display: 'flex', gap: '8px', alignItems: 'center' }} onClick={() => setIsGenerateQuizModalOpen(true)}>
                     <Target size={16} />
@@ -2876,61 +2894,74 @@ function App() {
           : (selectedARTarget.image ? URL.createObjectURL(selectedARTarget.image) : null);
         return (
         <div className="modal-overlay" onClick={() => setSelectedARTarget(null)}>
-          <div className="modal-card" onClick={e => e.stopPropagation()}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '1000px', width: '95vw', minHeight: '600px' }}>
             <div className="modal-header">
               <h3 className="modal-title">{selectedARTarget.name}</h3>
               <button className="close-btn" onClick={() => setSelectedARTarget(null)}><X size={20}/></button>
             </div>
-            <div className="modal-body">
-              <div style={{ position: 'relative', width: '100%', height: '260px', borderRadius: '12px', overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '18px' }}>
-                {viewSrc ? (
-                  <img src={viewSrc} alt={selectedARTarget.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', color: 'var(--text-muted)' }}>
-                    <ImageIcon size={36} />
-                    <span style={{ fontSize: '12px' }}>No image</span>
-                  </div>
-                )}
-                <span style={{ position: 'absolute', top: '12px', left: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 9px', borderRadius: '999px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase', color: '#fff', backgroundColor: PIN_TYPE_CONFIG.ar.color, boxShadow: '0 2px 6px rgba(0,0,0,0.25)' }}>
-                  <Eye size={11} /> AR Target
-                </span>
-              </div>
-              <div className="form-group">
-                <label className="form-label">3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(shown over the art in AR)</span></label>
-                {selectedARTarget.model_3d ? (
-                  <div style={{ width: '100%', height: '220px', borderRadius: '12px', overflow: 'hidden', backgroundColor: 'var(--body-bg)', marginTop: '8px' }}>
-                    <model-viewer src={qrService.getMediaUrl(selectedARTarget.model_3d)} auto-rotate camera-controls exposure="1" style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}></model-viewer>
-                  </div>
-                ) : (
-                  <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>No 3D model uploaded — only the info card shows in AR.</p>
-                )}
-              </div>
-              <div className="form-group" style={{ marginTop: '12px' }}>
-                <label className="form-label">Description</label>
-                <p style={{ margin: '4px 0 0 0', fontSize: '14px', lineHeight: 1.6, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
-                  {selectedARTarget.description || 'No description provided.'}
-                </p>
-              </div>
-              {selectedARTarget.created_at && (
-                <div className="form-group" style={{ marginTop: '12px' }}>
-                  <label className="form-label">Added</label>
-                  <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
-                    {new Date(selectedARTarget.created_at).toLocaleString()}
-                  </p>
+            <div className="modal-body" style={{ flexDirection: 'row', padding: 0, gap: 0, maxHeight: '80vh', flex: '1' }}>
+              
+              {/* Left Side: Image */}
+              <div style={{ flex: '1.2', padding: '26px 32px', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ position: 'relative', width: '100%', flex: '1', minHeight: '450px', borderRadius: '12px', overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {viewSrc ? (
+                    <img src={viewSrc} alt={selectedARTarget.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', color: 'var(--text-muted)' }}>
+                      <ImageIcon size={36} />
+                      <span style={{ fontSize: '12px' }}>No image</span>
+                    </div>
+                  )}
+                  <span style={{ position: 'absolute', top: '12px', left: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 9px', borderRadius: '999px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase', color: '#fff', backgroundColor: PIN_TYPE_CONFIG.ar.color, boxShadow: '0 2px 6px rgba(0,0,0,0.25)' }}>
+                    <Eye size={11} /> AR Target
+                  </span>
                 </div>
-              )}
-            </div>
-            <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
-              <button type="button" className="btn btn-secondary" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
-                onClick={() => handleDeleteARTarget(selectedARTarget.id)}>
-                <Trash2 size={14} style={{ marginRight: '6px' }} /> Delete
-              </button>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setSelectedARTarget(null)}>Close</button>
-                <button type="button" className="btn btn-primary"
-                  onClick={() => { setEditingARTarget(selectedARTarget); setSelectedARTarget(null); }}>
-                  <Edit size={14} style={{ marginRight: '6px' }} /> Edit
-                </button>
+              </div>
+
+              {/* Right Side: Details and Footer */}
+              <div style={{ flex: '1', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                {/* Scrollable details */}
+                <div style={{ flex: '1', overflowY: 'auto', padding: '26px 32px 10px 32px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(shown over the art in AR)</span></label>
+                    {selectedARTarget.model_3d ? (
+                      <div style={{ width: '100%', height: '220px', borderRadius: '12px', overflow: 'hidden', backgroundColor: 'var(--body-bg)', marginTop: '8px' }}>
+                        <model-viewer src={qrService.getMediaUrl(selectedARTarget.model_3d)} auto-rotate camera-controls exposure="1" style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}></model-viewer>
+                      </div>
+                    ) : (
+                      <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>No 3D model uploaded — only the info card shows in AR.</p>
+                    )}
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Description</label>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '14px', lineHeight: 1.6, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
+                      {selectedARTarget.description || 'No description provided.'}
+                    </p>
+                  </div>
+                  {selectedARTarget.created_at && (
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Added</label>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+                        {new Date(selectedARTarget.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Fixed footer on the right side */}
+                <div className="modal-footer" style={{ justifyContent: 'space-between', padding: '16px 32px 26px 32px', borderTop: '1px solid var(--border-color)', marginTop: 'auto' }}>
+                  <button type="button" className="btn btn-secondary" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                    onClick={() => handleDeleteARTarget(selectedARTarget.id)}>
+                    <Trash2 size={14} style={{ marginRight: '6px' }} /> Delete
+                  </button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button type="button" className="btn btn-secondary" onClick={() => setSelectedARTarget(null)}>Close</button>
+                    <button type="button" className="btn btn-primary"
+                      onClick={() => { setEditingARTarget(selectedARTarget); setSelectedARTarget(null); }}>
+                      <Edit size={14} style={{ marginRight: '6px' }} /> Edit
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -3022,36 +3053,28 @@ function App() {
           : null;
         return (
         <div className="modal-overlay">
-          <div className="modal-card">
+          <div className="modal-card" style={{ maxWidth: '1000px', width: '95vw', minHeight: '600px' }}>
             <div className="modal-header">
               <h3 className="modal-title">Edit AR Art</h3>
               <button className="close-btn" onClick={() => setEditingARTarget(null)}><X size={20}/></button>
             </div>
-            <form onSubmit={handleEditARTargetSubmit}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">Painting Name</label>
-                  <input type="text" className="form-input" required
-                    value={editingARTarget.name} onChange={e => setEditingARTarget({...editingARTarget, name: e.target.value})} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Description / Info to Display</label>
-                  <textarea className="form-textarea" required
-                    value={editingARTarget.description} onChange={e => setEditingARTarget({...editingARTarget, description: e.target.value})} />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Target Image <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(click to replace)</span></label>
+            <form onSubmit={handleEditARTargetSubmit} style={{ display: 'flex', flex: '1', overflow: 'hidden' }}>
+              <div className="modal-body" style={{ flexDirection: 'row', padding: 0, gap: 0, maxHeight: '80vh', flex: '1' }}>
+                
+                {/* Left Side: Target Image */}
+                <div style={{ flex: '1.2', padding: '26px 32px', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
+                  <label className="form-label" style={{ marginBottom: '8px' }}>Target Image <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(click to replace)</span></label>
                   <label style={{
                     position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    height: '140px', border: editImgSrc ? '2px solid var(--accent-color)' : '2px dashed var(--card-border)', borderRadius: '10px',
-                    backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', marginTop: '8px'
+                    flex: '1', minHeight: '450px', border: editImgSrc ? '2px solid var(--accent-color)' : '2px dashed var(--card-border)', borderRadius: '12px',
+                    backgroundColor: 'rgba(0,0,0,0.1)', cursor: 'pointer', overflow: 'hidden'
                   }}>
                     <input type="file" accept="image/*" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
                       onChange={handleEditARTargetImageChange} />
                     {editImgSrc ? (
                       <>
-                        <img src={editImgSrc} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0, opacity: 0.4 }} alt="" />
-                        <span style={{ position: 'relative', zIndex: 5, color: '#fff', fontSize: '14px', fontWeight: 'bold', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>Change Image</span>
+                        <img src={editImgSrc} style={{ width: '100%', height: '100%', objectFit: 'contain', position: 'absolute', top: 0, left: 0 }} alt="" />
+                        <span style={{ position: 'relative', zIndex: 5, color: '#fff', fontSize: '14px', fontWeight: 'bold', textShadow: '0 1px 4px rgba(0,0,0,0.8)', backgroundColor: 'rgba(0,0,0,0.5)', padding: '6px 12px', borderRadius: '20px' }}>Change Image</span>
                       </>
                     ) : (
                       <span style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '0 10px' }}>
@@ -3060,38 +3083,57 @@ function App() {
                     )}
                   </label>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb, optional — shown over the art in AR)</span></label>
-                  <label style={{
-                    position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    height: '140px', border: editModelSrc ? `2px solid ${PIN_TYPE_CONFIG.ar.color}` : '2px dashed var(--card-border)', borderRadius: '10px',
-                    backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', marginTop: '8px'
-                  }}>
-                    <input type="file" accept=".glb" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
-                      onChange={handleEditARTargetModelChange} />
-                    {editModelSrc ? (
-                      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
-                        <model-viewer src={editModelSrc} auto-rotate camera-controls exposure="1" style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}></model-viewer>
-                        <div style={{ position: 'absolute', bottom: '10px', left: 0, width: '100%', textAlign: 'center' }}>
-                          <span style={{ backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 12px', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>Click to Change Model</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '0 10px' }}>
-                        Drag and drop a .glb model here<br/>or click to browse
-                      </span>
-                    )}
-                  </label>
-                </div>
-              </div>
-              <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
-                <button type="button" className="btn btn-secondary" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
-                  onClick={() => handleDeleteARTarget(editingARTarget.id)}>
-                  <Trash2 size={14} style={{ marginRight: '6px' }} /> Delete
-                </button>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setEditingARTarget(null)}>Cancel</button>
-                  <button type="submit" className="btn btn-primary">Save Changes</button>
+
+                {/* Right Side: Details and Footer */}
+                <div style={{ flex: '1', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  {/* Scrollable details */}
+                  <div style={{ flex: '1', overflowY: 'auto', padding: '26px 32px 10px 32px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Painting Name</label>
+                      <input type="text" className="form-input" required
+                        value={editingARTarget.name} onChange={e => setEditingARTarget({...editingARTarget, name: e.target.value})} />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Description / Info to Display</label>
+                      <textarea className="form-textarea" required rows={4}
+                        value={editingARTarget.description} onChange={e => setEditingARTarget({...editingARTarget, description: e.target.value})} />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb, optional)</span></label>
+                      <label style={{
+                        position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        height: '220px', border: editModelSrc ? `2px solid ${PIN_TYPE_CONFIG.ar.color}` : '2px dashed var(--card-border)', borderRadius: '10px',
+                        backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', marginTop: '8px'
+                      }}>
+                        <input type="file" accept=".glb" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
+                          onChange={handleEditARTargetModelChange} />
+                        {editModelSrc ? (
+                          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
+                            <model-viewer src={editModelSrc} auto-rotate camera-controls exposure="1" style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}></model-viewer>
+                            <div style={{ position: 'absolute', bottom: '10px', left: 0, width: '100%', textAlign: 'center' }}>
+                              <span style={{ backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 12px', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>Click to Change Model</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '0 10px' }}>
+                            Drag and drop a .glb model here<br/>or click to browse
+                          </span>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Fixed footer on the right side */}
+                  <div className="modal-footer" style={{ justifyContent: 'space-between', padding: '16px 32px 26px 32px', borderTop: '1px solid var(--border-color)', marginTop: 'auto' }}>
+                    <button type="button" className="btn btn-secondary" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                      onClick={() => handleDeleteARTarget(editingARTarget.id)}>
+                      <Trash2 size={14} style={{ marginRight: '6px' }} /> Delete
+                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button type="button" className="btn btn-secondary" onClick={() => setEditingARTarget(null)}>Cancel</button>
+                      <button type="submit" className="btn btn-primary">Save Changes</button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </form>
@@ -3956,15 +3998,23 @@ function App() {
                   <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
                     <button 
                       className="btn" 
-                      style={{ padding: '20px', background: generateQuizType === 'spot' ? 'var(--accent-blue)' : 'var(--card-bg)', color: generateQuizType === 'spot' ? '#fff' : 'var(--text-primary)', border: '2px solid var(--accent-blue)' }}
-                      onClick={() => setGenerateQuizType('spot')}
+                      style={{ padding: '20px', background: generateQuizType === 'qr' ? 'var(--accent-blue)' : 'var(--card-bg)', color: generateQuizType === 'qr' ? '#fff' : 'var(--text-primary)', border: '2px solid var(--accent-blue)', minWidth: '120px' }}
+                      onClick={() => setGenerateQuizType('qr')}
                     >
                       <MapPin size={32} style={{ margin: '0 auto 8px' }} />
-                      <br/>QR / AR Spot
+                      <br/>QR Spot
                     </button>
                     <button 
                       className="btn" 
-                      style={{ padding: '20px', background: generateQuizType === 'icon' ? 'var(--accent-pink)' : 'var(--card-bg)', color: generateQuizType === 'icon' ? '#fff' : 'var(--text-primary)', border: '2px solid var(--accent-pink)' }}
+                      style={{ padding: '20px', background: generateQuizType === 'ar' ? 'var(--accent-purple)' : 'var(--card-bg)', color: generateQuizType === 'ar' ? '#fff' : 'var(--text-primary)', border: '2px solid var(--accent-purple)', minWidth: '120px' }}
+                      onClick={() => setGenerateQuizType('ar')}
+                    >
+                      <Scan size={32} style={{ margin: '0 auto 8px' }} />
+                      <br/>AR Spot
+                    </button>
+                    <button 
+                      className="btn" 
+                      style={{ padding: '20px', background: generateQuizType === 'icon' ? 'var(--accent-pink)' : 'var(--card-bg)', color: generateQuizType === 'icon' ? '#fff' : 'var(--text-primary)', border: '2px solid var(--accent-pink)', minWidth: '120px' }}
                       onClick={() => setGenerateQuizType('icon')}
                     >
                       <Target size={32} style={{ margin: '0 auto 8px' }} />
@@ -3983,8 +4033,9 @@ function App() {
                     value={generateQuizContentId} 
                     onChange={(e) => setGenerateQuizContentId(e.target.value)}
                   >
-                    <option value="">— Select {generateQuizType === 'spot' ? 'a Spot' : 'an Icon'} —</option>
-                    {generateQuizType === 'spot' && spots.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    <option value="">— Select {generateQuizType === 'icon' ? 'an Icon' : 'a Spot'} —</option>
+                    {generateQuizType === 'qr' && spots.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    {generateQuizType === 'ar' && arTargets.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                     {generateQuizType === 'icon' && catchIcons.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>

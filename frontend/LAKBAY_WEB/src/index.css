@@ -25,6 +25,12 @@
   --accent-pink-glow: var(--accent-blue-glow);
   --accent-pink-light: var(--accent-blue-light);
 
+  --accent-purple: #8B5CF6;
+  --accent-purple-hover: #7C3AED;
+  --accent-purple-glow: rgba(139, 92, 246, 0.28);
+  --accent-purple-light: rgba(139, 92, 246, 0.09);
+  --accent-purple-border: rgba(139, 92, 246, 0.28);
+
   /* Vinta layag (sail) colours — used for stripes and badge accents */
   --vinta-red:    #DC2626;
   --vinta-gold:   #FBBF24;

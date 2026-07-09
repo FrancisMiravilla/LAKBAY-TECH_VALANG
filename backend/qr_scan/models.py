@@ -93,6 +93,7 @@ class TriviaQuestion(models.Model):
 
     spot = models.ForeignKey(CulturalSpot, on_delete=models.CASCADE, null=True, blank=True, related_name='questions')
     icon = models.ForeignKey('CulturalIcon', on_delete=models.CASCADE, null=True, blank=True, related_name='questions')
+    ar_target = models.ForeignKey('ARTarget', on_delete=models.CASCADE, null=True, blank=True, related_name='questions')
     
     question = models.CharField(max_length=300)
     choices = models.JSONField()          # ["A", "B", "C", "D"]

@@ -4,7 +4,7 @@ from .views import (
     ValidateQRView, UserQRScansView,
     CulturalSpotViewSet, QRMarkerViewSet, TriviaQuestionViewSet,
     SpotTriviaView, SubmitTriviaView, GenerateAITriviaView,
-    CulturalIconViewSet, GenerateIconAITriviaView,
+    CulturalIconViewSet, GenerateIconAITriviaView, GenerateARAITriviaView,
     IconTriviaView, SubmitIconTriviaView,
     TriviaReviewListView, TriviaReviewActionView,
     ARTargetViewSet
@@ -27,10 +27,14 @@ urlpatterns = [
     path('spots/<int:spot_id>/trivia/submit/', SubmitTriviaView.as_view(), name='spot_trivia_submit'),
     path('spots/<int:spot_id>/ai-trivia/', GenerateAITriviaView.as_view(), name='spot_ai_trivia'),
     
+    
     # Catch Icon Trivia
     path('catch-icons/<int:icon_id>/trivia/', IconTriviaView.as_view(), name='icon_trivia'),
     path('catch-icons/<int:icon_id>/trivia/submit/', SubmitIconTriviaView.as_view(), name='icon_trivia_submit'),
     path('catch-icons/<int:icon_id>/ai-trivia/', GenerateIconAITriviaView.as_view(), name='icon_ai_trivia'),
+
+    # AR Target Trivia
+    path('ar-targets/<int:target_id>/ai-trivia/', GenerateARAITriviaView.as_view(), name='ar_ai_trivia'),
     
     # Tourist Guide Review
     path('trivia-review/', TriviaReviewListView.as_view(), name='trivia_review_list'),

@@ -326,6 +326,86 @@ Required JSON format:
             )
 
 
+class GenerateARAITriviaView(APIView):
+    """
+    GET /api/qr/ar-targets/<target_id>/ai-trivia/
+    Generates 5 unique trivia questions for an AR target using Groq.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, target_id):
+        target = get_object_or_404(ARTarget, pk=target_id)
+        
+        try:
+            count = int(request.GET.get('count', 5))
+        except ValueError:
+            count = 5
+
+        client = Groq(api_key=settings.GROQ_API_KEY)
+
+        prompt = f"""You are a cultural trivia generator for a Philippine tourism app called LAKBAY.
+
+Generate exactly {count} multiple-choice trivia questions about this AR target from Zamboanga City:
+
+Name: {target.name}
+Description: {target.description}
+
+Rules:
+- Each question must have exactly 4 choices
+- Questions must be factual and based on the info above
+- Vary the difficulty (mix easy, medium, hard)
+- Do NOT repeat the same question type
+- Return ONLY valid JSON, no markdown, no explanation
+
+Required JSON format:
+{{
+  "questions": [
+    {{
+      "question": "Question text here?",
+      "choices": ["Choice A", "Choice B", "Choice C", "Choice D"],
+      "correct_index": 0,
+      "explanation": "Short explanation of the correct answer."
+    }}
+  ]
+}}"""
+
+        try:
+            response = client.chat.completions.create(
+                model='llama-3.1-8b-instant',
+                messages=[{'role': 'user', 'content': prompt}],
+                temperature=1.0,
+            )
+            raw = response.choices[0].message.content.strip()
+            if raw.startswith('```'):
+                raw = raw.split('```')[1]
+                if raw.startswith('json'):
+                    raw = raw[4:]
+            data = json.loads(raw.strip())
+            questions_created = []
+            for q in data.get('questions', [])[:count]:
+                idx = q.get('correct_index', 0)
+                if len(q['choices']) != 4: continue
+                
+                new_q = TriviaQuestion.objects.create(
+                    ar_target=target,
+                    question=q['question'],
+                    choices=q['choices'],
+                    correct_index=idx,
+                    explanation=q.get('explanation', ''),
+                    status='pending',
+                    generated_by=request.user
+                )
+                questions_created.append(new_q)
+                
+            serializer = TriviaQuestionAdminSerializer(questions_created, many=True)
+            return Response({'message': f'Generated {len(questions_created)} pending questions.', 'questions': serializer.data})
+        except Exception as e:
+            return Response(
+                {'error': f'AI generation failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
 class GenerateIconAITriviaView(APIView):
     """
     GET /api/qr/catch-icons/<icon_id>/ai-trivia/

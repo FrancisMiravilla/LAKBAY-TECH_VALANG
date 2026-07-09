@@ -71,13 +71,17 @@ class TriviaQuestionAdminSerializer(serializers.ModelSerializer):
         queryset=CulturalIcon.objects.all(), source='icon', write_only=True, required=False, allow_null=True
     )
     icon_name = serializers.CharField(source='icon.name', read_only=True)
+    ar_target_id = serializers.PrimaryKeyRelatedField(
+        queryset=ARTarget.objects.all(), source='ar_target', write_only=True, required=False, allow_null=True
+    )
+    ar_target_name = serializers.CharField(source='ar_target.name', read_only=True)
     generated_by_name = serializers.CharField(source='generated_by.full_name', read_only=True)
     reviewed_by_name = serializers.CharField(source='reviewed_by.full_name', read_only=True)
 
     class Meta:
         model = TriviaQuestion
         fields = (
-            'id', 'spot_id', 'spot_name', 'icon_id', 'icon_name', 
+            'id', 'spot_id', 'spot_name', 'icon_id', 'icon_name', 'ar_target_id', 'ar_target_name',
             'question', 'choices', 'correct_index', 'explanation',
             'status', 'generated_by', 'generated_by_name', 
             'reviewed_by', 'reviewed_by_name', 'review_date', 'updated_at'

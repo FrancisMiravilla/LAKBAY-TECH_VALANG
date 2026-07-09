@@ -31,7 +31,72 @@ const resolveModelUrl = (m) => {
 };
 
 // =========================================================================
-// 1. DYNAMIC AR TARGETS LOGIC
+// 1. MANUAL SCALED MODEL (PINCH TO ZOOM & DRAG)
+// =========================================================================
+const ManualScaledModel = ({ source, onLoadStart, onLoadEnd, onError }) => {
+  const [scale, setScale] = useState(0.05); // Start small
+  const [position, setPosition] = useState([0, 0, -2]); // Start 2 meters away from camera
+  const [meshOffset, setMeshOffset] = useState([0, 0, 0]);
+
+  // Reset scale and position when scanning a new artwork
+  React.useEffect(() => {
+    setScale(0.05);
+    setPosition([0, 0, -2]);
+    setMeshOffset([0, 0, 0]);
+  }, [source?.uri]);
+
+  const handlePinch = (pinchState, scaleFactor, source) => {
+    if (pinchState === 3) { // 3 means the pinch gesture ended
+      setScale(scale * scaleFactor);
+    }
+  };
+
+  const handleDrag = (dragToPos, source) => {
+    // Allows the user to literally drag the model with their finger into the perfect spot
+    setPosition([dragToPos[0], dragToPos[1], dragToPos[2]]);
+  };
+
+  const handleBoundingBoxUpdate = (evt) => {
+    // Only calculate once when the box is first valid
+    if (meshOffset[0] !== 0 || meshOffset[1] !== 0 || meshOffset[2] !== 0) return;
+    
+    const boundingBox = evt.boundingBox;
+    if (!boundingBox) return;
+    
+    const [min, max] = boundingBox;
+    const centerX = (max[0] + min[0]) / 2;
+    const centerY = (max[1] + min[1]) / 2;
+    const centerZ = (max[2] + min[2]) / 2;
+    
+    // Set the offset to explicitly pull the mesh origin back to its true visual center
+    setMeshOffset([-centerX, -centerY, -centerZ]);
+  };
+
+  return (
+    <ViroNode 
+      position={position} 
+      scale={[scale, scale, scale]} 
+      onPinch={handlePinch}
+      onDrag={handleDrag}
+    >
+      {/* This inner node spins in place. Because its child is centered inside it, the spin is a perfect rotation on its axis. */}
+      <ViroNode animation={{ name: 'rotate', run: true, loop: true }}>
+        <Viro3DObject
+          source={source}
+          type="GLB"
+          position={meshOffset}
+          onLoadStart={onLoadStart}
+          onLoadEnd={onLoadEnd}
+          onError={onError}
+          onBoundingBoxUpdate={handleBoundingBoxUpdate}
+        />
+      </ViroNode>
+    </ViroNode>
+  );
+};
+
+// =========================================================================
+// 2. DYNAMIC AR TARGETS LOGIC
 // =========================================================================
 // Targets will be registered dynamically via API call in the main component.
 
@@ -49,21 +114,6 @@ const MuseumARScene = (props) => {
       <ViroDirectionalLight color="#FFFFFF" direction={[0, 0, -1]} intensity={1200} />
       <ViroSpotLight innerAngle={5} outerAngle={90} direction={[0, -1, -.2]} position={[0, 3, 1]} color="#ffffff" intensity={1000} castsShadow={true} />
 
-      {/* DIAGNOSTIC: known-good test model, fixed ~0.6m in front of the start
-          pose. Renders independently of any marker so we can tell whether Viro
-          can load a GLB at all in this build. */}
-      {props.sceneNavigator.viroAppProps.testModelUri ? (
-        <Viro3DObject
-          source={{ uri: props.sceneNavigator.viroAppProps.testModelUri }}
-          type="GLB"
-          scale={[0.15, 0.15, 0.15]}
-          position={[0, 0, -0.6]}
-          animation={{ name: 'rotate', run: true, loop: true }}
-          onLoadEnd={() => props.sceneNavigator.viroAppProps.onTestLoadEnd?.()}
-          onError={(event) => props.sceneNavigator.viroAppProps.onTestError?.(JSON.stringify(event?.nativeEvent))}
-        />
-      ) : null}
-
       {/* DYNAMIC TRACKERS */}
       {(props.sceneNavigator.viroAppProps.arTargets || []).map(target => (
         <ViroARImageMarker
@@ -71,26 +121,18 @@ const MuseumARScene = (props) => {
           target={`target_${target.id}`}
           onAnchorFound={() => props.sceneNavigator.viroAppProps.onTargetFound(target)}
           onAnchorRemoved={() => props.sceneNavigator.viroAppProps.onTargetLost()}
-        >
-          {/* Show the admin-uploaded 3D model over the art when one exists.
-              Otherwise render nothing here — the 2D info card is the feedback. */}
-          {target.model_3d ? (
-            <ViroNode position={[0, 0, 0]}>
-              <ViroText text={target.name} scale={[0.1, 0.1, 0.1]} position={[0, 0.18, 0]} style={{ color: '#FFFFFF' }} />
-              <Viro3DObject
-                source={{ uri: target.local_model || resolveModelUrl(target.model_3d) }}
-                type="GLB"
-                scale={[0.1, 0.1, 0.1]}
-                position={[0, 0, 0.05]}
-                animation={{ name: 'rotate', run: true, loop: true }}
-                onLoadStart={() => console.log('[AR] model load START:', target.name, target.local_model || resolveModelUrl(target.model_3d))}
-                onLoadEnd={() => { console.log('[AR] model load END (success):', target.name); props.sceneNavigator.viroAppProps.onModelLoadEnd?.(); }}
-                onError={(event) => { const msg = JSON.stringify(event?.nativeEvent); console.log('[AR] model load ERROR:', target.name, msg); props.sceneNavigator.viroAppProps.onModelError?.(msg); }}
-              />
-            </ViroNode>
-          ) : null}
-        </ViroARImageMarker>
+        />
       ))}
+
+      {/* Show the detected model floating in front of the camera */}
+      {props.sceneNavigator.viroAppProps.detectedSpot?.local_model ? (
+        <ManualScaledModel
+          source={{ uri: props.sceneNavigator.viroAppProps.detectedSpot.local_model }}
+          onLoadStart={() => console.log('[AR] model load START:', props.sceneNavigator.viroAppProps.detectedSpot.name)}
+          onLoadEnd={() => { console.log('[AR] model load END (success):', props.sceneNavigator.viroAppProps.detectedSpot.name); props.sceneNavigator.viroAppProps.onModelLoadEnd?.(props.sceneNavigator.viroAppProps.detectedSpot.id); }}
+          onError={(event) => { const msg = JSON.stringify(event?.nativeEvent); console.log('[AR] model load ERROR:', props.sceneNavigator.viroAppProps.detectedSpot.name, msg); props.sceneNavigator.viroAppProps.onModelError?.(msg); }}
+        />
+      ) : null}
 
     </ViroARScene>
   );
@@ -102,7 +144,7 @@ const MuseumARScene = (props) => {
 ViroAnimations.registerAnimations({
   rotate: {
     properties: { rotateY: "+=90" },
-    duration: 500, // 500ms
+    duration: 2500, // 2.5s for 90 degrees
   },
 });
 
@@ -114,10 +156,7 @@ export default function ViroARScanner({ navigation }) {
   // On-screen 3D model status so we can see load progress/errors without the
   // native console: 'none' | 'loading' | 'loaded' | 'error'
   const [modelStatus, setModelStatus] = useState({ state: 'none', message: '' });
-  // DIAGNOSTIC: a known-good tiny GLB (Khronos Box, no textures/extensions).
-  // If this loads but the real art model doesn't, the art model is the problem;
-  // if even this fails, Viro's GLB loader isn't working in this build.
-  const [testModel, setTestModel] = useState({ uri: null, state: 'idle', message: '' });
+  const loadedModelsRef = React.useRef(new Set());
   const [arTargets, setArTargets] = useState([]);
   const [loading, setLoading] = useState(true);
   // 'checking' | 'ready' | 'unsupported' | 'permission-denied'
@@ -158,22 +197,6 @@ export default function ViroARScanner({ navigation }) {
       if (timer) clearTimeout(timer);
     };
   }, [arStatus, loading]);
-
-  // Download a known-good test GLB once so Viro loads it from a local file.
-  React.useEffect(() => {
-    (async () => {
-      try {
-        const asset = Asset.fromURI('https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Box/glTF-Binary/Box.glb');
-        await asset.downloadAsync();
-        const uri = asset.localUri || asset.uri;
-        console.log('[AR-TEST] test model cached:', uri);
-        setTestModel({ uri, state: 'loading', message: '' });
-      } catch (e) {
-        console.log('[AR-TEST] test model download FAILED:', String(e));
-        setTestModel({ uri: null, state: 'error', message: 'download failed: ' + String(e) });
-      }
-    })();
-  }, []);
 
   React.useEffect(() => {
     (async () => {
@@ -223,18 +246,28 @@ export default function ViroARScanner({ navigation }) {
   // Called natively when ViroARImageMarker sees a painting
   const handleTargetFound = (target) => {
     setDetectedSpot({
+      id: target.id,
       name: target.name,
-      description: target.description || "You've uncovered a hidden AR experience inside the museum! Point your camera to see it."
+      description: target.description || "You've uncovered a hidden AR experience inside the museum! Point your camera to see it.",
+      model_3d: target.model_3d ? resolveModelUrl(target.model_3d) : null,
+      local_model: target.local_model || (target.model_3d ? resolveModelUrl(target.model_3d) : null)
     });
-    setModelStatus({ state: target.model_3d ? 'loading' : 'none', message: '' });
+    if (target.model_3d) {
+      if (loadedModelsRef.current.has(target.id)) {
+        setModelStatus({ state: 'loaded', message: '' });
+      } else {
+        setModelStatus({ state: 'loading', message: '' });
+      }
+    } else {
+      setModelStatus({ state: 'none', message: '' });
+    }
   };
 
-  const handleModelLoadEnd = () => setModelStatus({ state: 'loaded', message: '' });
+  const handleModelLoadEnd = (targetId) => {
+    loadedModelsRef.current.add(targetId);
+    setModelStatus({ state: 'loaded', message: '' });
+  };
   const handleModelError = (message) => setModelStatus({ state: 'error', message: String(message || 'unknown error') });
-
-  const handleTestLoadEnd = () => { console.log('[AR-TEST] test model LOADED ✓'); setTestModel(prev => ({ ...prev, state: 'loaded' })); };
-  const handleTestError = (message) => { console.log('[AR-TEST] test model ERROR:', message); setTestModel(prev => ({ ...prev, state: 'error', message: String(message || 'error') })); };
-
 
   // Called when the painting leaves the camera view
   const handleTargetLost = () => {
@@ -253,16 +286,6 @@ export default function ViroARScanner({ navigation }) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>AR Scanner</Text>
         <View style={{ width: 24 }} />
-      </View>
-
-      {/* DIAGNOSTIC banner: can Viro load a known-good GLB at all? */}
-      <View style={[styles.testBanner, testModel.state === 'loaded' ? styles.testOk : testModel.state === 'error' ? styles.testErr : styles.testNeutral]}>
-        <Text style={styles.testBannerText} numberOfLines={2}>
-          {testModel.state === 'loaded' ? 'Test model: LOADED ✓ (Viro GLB works — a rotating box should be visible)'
-            : testModel.state === 'error' ? `Test model: FAILED — ${testModel.message}`
-            : testModel.state === 'loading' ? 'Test model: loading…'
-            : 'Test model: preparing…'}
-        </Text>
       </View>
 
       {/* Viro React AR Camera View */}
@@ -288,9 +311,7 @@ export default function ViroARScanner({ navigation }) {
               onTargetLost: handleTargetLost,
               onModelLoadEnd: handleModelLoadEnd,
               onModelError: handleModelError,
-              testModelUri: testModel.uri,
-              onTestLoadEnd: handleTestLoadEnd,
-              onTestError: handleTestError
+              detectedSpot: detectedSpot
             }}
             style={{ flex: 1 }}
             autofocus={true}
@@ -325,7 +346,7 @@ export default function ViroARScanner({ navigation }) {
               </Text>
             </View>
 
-            <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate('CatchDetails', { icon: { name: detectedSpot.name, about: detectedSpot.description }})}>
+            <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate('CatchDetails', { icon: { name: detectedSpot.name, about: detectedSpot.description, model_3d: detectedSpot.model_3d }})}>
               <Text style={styles.btnText}>View Full Details</Text>
             </TouchableOpacity>
           </View>
