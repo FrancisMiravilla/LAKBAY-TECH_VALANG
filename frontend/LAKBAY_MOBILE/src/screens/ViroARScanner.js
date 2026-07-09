@@ -12,6 +12,7 @@ import {
   ViroAmbientLight,
   ViroSpotLight,
   ViroDirectionalLight,
+  ViroARCamera,
   isARSupportedOnDevice,
   requestRequiredPermissions,
 } from '@reactvision/react-viro';
@@ -124,14 +125,16 @@ const MuseumARScene = (props) => {
         />
       ))}
 
-      {/* Show the detected model floating in front of the camera */}
+      {/* Show the detected model fixed to the center of the camera screen like a HUD */}
       {props.sceneNavigator.viroAppProps.detectedSpot?.local_model ? (
-        <ManualScaledModel
-          source={{ uri: props.sceneNavigator.viroAppProps.detectedSpot.local_model }}
-          onLoadStart={() => console.log('[AR] model load START:', props.sceneNavigator.viroAppProps.detectedSpot.name)}
-          onLoadEnd={() => { console.log('[AR] model load END (success):', props.sceneNavigator.viroAppProps.detectedSpot.name); props.sceneNavigator.viroAppProps.onModelLoadEnd?.(props.sceneNavigator.viroAppProps.detectedSpot.id); }}
-          onError={(event) => { const msg = JSON.stringify(event?.nativeEvent); console.log('[AR] model load ERROR:', props.sceneNavigator.viroAppProps.detectedSpot.name, msg); props.sceneNavigator.viroAppProps.onModelError?.(msg); }}
-        />
+        <ViroARCamera>
+          <ManualScaledModel
+            source={{ uri: props.sceneNavigator.viroAppProps.detectedSpot.local_model }}
+            onLoadStart={() => console.log('[AR] model load START:', props.sceneNavigator.viroAppProps.detectedSpot.name)}
+            onLoadEnd={() => { console.log('[AR] model load END (success):', props.sceneNavigator.viroAppProps.detectedSpot.name); props.sceneNavigator.viroAppProps.onModelLoadEnd?.(props.sceneNavigator.viroAppProps.detectedSpot.id); }}
+            onError={(event) => { const msg = JSON.stringify(event?.nativeEvent); console.log('[AR] model load ERROR:', props.sceneNavigator.viroAppProps.detectedSpot.name, msg); props.sceneNavigator.viroAppProps.onModelError?.(msg); }}
+          />
+        </ViroARCamera>
       ) : null}
 
     </ViroARScene>
