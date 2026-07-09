@@ -662,7 +662,7 @@ function App() {
   const [generateQuizCount, setGenerateQuizCount] = useState(5);
   const [isGenerateQuizModalOpen, setIsGenerateQuizModalOpen] = useState(false);
   const [generateQuizStep, setGenerateQuizStep] = useState(1);
-  const [generateQuizType, setGenerateQuizType] = useState('spot'); // 'spot' or 'icon'
+  const [generateQuizType, setGenerateQuizType] = useState('qr'); // 'qr', 'ar', or 'icon'
   const [generateQuizContentId, setGenerateQuizContentId] = useState('');
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
 
