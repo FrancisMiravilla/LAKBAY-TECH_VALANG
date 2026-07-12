@@ -387,7 +387,7 @@ export default function MapScreen({ navigation, route }) {
 
   const [cameraPerm, requestCameraPerm] = useCameraPermissions();
 
-  const panResponder = useRef(
+  const panResponder = useMemo(() =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 10,
@@ -405,8 +405,9 @@ export default function MapScreen({ navigation, route }) {
           }
         }
       }
-    })
-  ).current;
+    }),
+    [isNavigating, slideAnim]
+  );
 
   // ── Load spots ────────────────────────────────────────────────────────────
   useEffect(() => {
