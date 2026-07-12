@@ -733,9 +733,15 @@ export default function CatchScreen({ navigation }) {
     Promise.all([getCatchIcons(), getSpots()])
       .then(([iconData, spotData]) => {
         const iconList = (Array.isArray(iconData) ? iconData : (iconData.results || [])).map(normalizeIcon);
-        const spotList = (Array.isArray(spotData) ? spotData : (spotData.results || [])).filter(
-          s => s.latitude && s.longitude && s.feature_types?.includes('catch')
-        );
+        const spotList = (Array.isArray(spotData) ? spotData : (spotData.results || [])).filter(s => {
+          if (!s.latitude || !s.longitude) return false;
+          if (Array.isArray(s.feature_types)) {
+            return s.feature_types.some(f => f.toLowerCase().includes('catch'));
+          } else if (typeof s.feature_types === 'string') {
+            return s.feature_types.toLowerCase().includes('catch');
+          }
+          return false;
+        });
         setIcons(iconList);
         setCatchSpots(spotList);
       })
@@ -784,17 +790,29 @@ export default function CatchScreen({ navigation }) {
 
   // ── Check proximity whenever location or spots change ───────────────────────
   useEffect(() => {
-    if (!userLocation || catchSpots.length === 0 || icons.length === 0) return;
+    if (!userLocation || catchSpots.length === 0 || arVisible) return;
 
     for (const spot of catchSpots) {
       if (proximityDismissed.has(spot.id)) continue;
       const dist = haversineDistance(userLocation.lat, userLocation.lng, spot.latitude, spot.longitude);
       if (dist <= CATCH_RADIUS_METERS) {
-        // Find a matching icon (by name match or fallback to first)
-        const matchedIcon =
-          icons.find(i => spot.name?.toLowerCase().includes(i.name.toLowerCase())) ||
-          icons.find(i => spot.description?.toLowerCase().includes(i.name.toLowerCase())) ||
-          icons[0];
+        let matchedIcon = null;
+        if (icons.length > 0) {
+          matchedIcon =
+            icons.find(i => spot.name && i.name && spot.name.toLowerCase().includes(i.name.toLowerCase())) ||
+            icons.find(i => spot.description && i.name && spot.description.toLowerCase().includes(i.name.toLowerCase())) ||
+            icons[0];
+        }
+
+        if (!matchedIcon && spot.model_3d) {
+          matchedIcon = {
+            id: 'spot-icon-' + spot.id,
+            name: spot.name || 'Unknown',
+            model_3d: spot.model_3d,
+            color: '#F59E0B',
+            glow: '#F59E0B55'
+          };
+        }
 
         if (matchedIcon) {
           setNearbySpot({ spot, icon: matchedIcon, distanceM: dist });
@@ -808,21 +826,25 @@ export default function CatchScreen({ navigation }) {
       const dist = haversineDistance(userLocation.lat, userLocation.lng, prev.spot.latitude, prev.spot.longitude);
       return dist <= CATCH_RADIUS_METERS ? prev : null;
     });
-  }, [userLocation, catchSpots, icons, proximityDismissed]);
+  }, [userLocation, catchSpots, icons, proximityDismissed, arVisible]);
 
   // ── Open AR camera ──────────────────────────────────────────────────────────
   const openAR = useCallback(async (icon, spot) => {
-    if (!cameraPermission?.granted) {
-      const result = await requestCameraPermission();
-      if (!result.granted) {
-        showErr('Camera Required', 'Please allow camera access to use AR catch.', 'warning');
-        return;
+    try {
+      if (!cameraPermission?.granted) {
+        const result = await requestCameraPermission();
+        if (!result.granted) {
+          showErr('Camera Required', 'Please allow camera access to use AR catch.', 'warning');
+          return;
+        }
       }
+      setArIcon(icon);
+      setArSpot(spot);
+      setArVisible(true);
+      setNearbySpot(null);
+    } catch (e) {
+      showErr('Camera Error', e?.message || String(e));
     }
-    setArIcon(icon);
-    setArSpot(spot);
-    setArVisible(true);
-    setNearbySpot(null);
   }, [cameraPermission, requestCameraPermission]);
 
   const handleProximityDismiss = useCallback(() => {
@@ -841,9 +863,9 @@ export default function CatchScreen({ navigation }) {
         title: 'Catch Complete!',
         sub: `${arIcon.name} captured successfully — +80 XP`,
       });
-      navigation.navigate('CatchDetails', { icon: arIcon });
+      navigation.navigate('CatchDetails', { icon: arIcon, spot: arSpot });
     }
-  }, [arIcon, navigation, addNotification]);
+  }, [arIcon, arSpot, navigation, addNotification]);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -895,10 +917,18 @@ export default function CatchScreen({ navigation }) {
             setLoading(true); setError(null);
             Promise.all([getCatchIcons(), getSpots()])
               .then(([iconData, spotData]) => {
-                const iconList = (Array.isArray(iconData) ? iconData : (iconData.results || [])).map(normalizeIcon);
-                const spotList = (Array.isArray(spotData) ? spotData : (spotData.results || [])).filter(s => s.latitude && s.longitude && s.feature_types?.includes('catch'));
-                setIcons(iconList);
-                setCatchSpots(spotList);
+              const iconList = (Array.isArray(iconData) ? iconData : (iconData.results || [])).map(normalizeIcon);
+              const spotList = (Array.isArray(spotData) ? spotData : (spotData.results || [])).filter(s => {
+                if (!s.latitude || !s.longitude) return false;
+                if (Array.isArray(s.feature_types)) {
+                  return s.feature_types.some(f => f.toLowerCase().includes('catch'));
+                } else if (typeof s.feature_types === 'string') {
+                  return s.feature_types.toLowerCase().includes('catch');
+                }
+                return false;
+              });
+              setIcons(iconList);
+              setCatchSpots(spotList);
               })
               .catch(() => setError('Could not load catch data.'))
               .finally(() => setLoading(false));
@@ -930,7 +960,38 @@ export default function CatchScreen({ navigation }) {
                   : null;
                 const inRange = dist !== null && dist <= CATCH_RADIUS_METERS;
                 return (
-                  <View key={spot.id} style={[styles.spotRow, inRange && styles.spotRowActive]}>
+                  <TouchableOpacity 
+                    key={spot.id} 
+                    style={[styles.spotRow, inRange && styles.spotRowActive]}
+                    activeOpacity={inRange ? 0.7 : 1}
+                    onPress={() => {
+                      if (inRange) {
+                        let matchedIcon = null;
+                        if (icons.length > 0) {
+                          matchedIcon =
+                            icons.find(i => spot.name && i.name && spot.name.toLowerCase().includes(i.name.toLowerCase())) ||
+                            icons.find(i => spot.description && i.name && spot.description.toLowerCase().includes(i.name.toLowerCase())) ||
+                            icons[0];
+                        }
+                        
+                        if (!matchedIcon && spot.model_3d) {
+                          matchedIcon = {
+                            id: 'spot-icon-' + spot.id,
+                            name: spot.name || 'Unknown',
+                            model_3d: spot.model_3d,
+                            color: '#F59E0B',
+                            glow: '#F59E0B55'
+                          };
+                        }
+
+                        if (matchedIcon) {
+                          openAR(matchedIcon, spot);
+                        } else {
+                          showErr('No Icon', 'Could not load a 3D model for this spot.', 'warning');
+                        }
+                      }
+                    }}
+                  >
                     <View style={[styles.spotDot, { backgroundColor: inRange ? '#22C55E' : '#64748B' }]} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.spotName}>{spot.name}</Text>
@@ -943,10 +1004,10 @@ export default function CatchScreen({ navigation }) {
                     )}
                     {inRange && (
                       <View style={styles.inRangeBadge}>
-                        <Text style={styles.inRangeBadgeText}>IN RANGE</Text>
+                        <Text style={styles.inRangeBadgeText}>TAP TO CATCH</Text>
                       </View>
                     )}
-                  </View>
+                  </TouchableOpacity>
                 );
               })}
             </View>

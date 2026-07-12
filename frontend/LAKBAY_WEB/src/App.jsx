@@ -42,8 +42,10 @@ import {
 } from 'lucide-react'
 
 import './App.css'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
+import mapboxgl from 'mapbox-gl'
+import 'mapbox-gl/dist/mapbox-gl.css'
+
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || 'your_mapbox_api_key_here';
 import { authService } from './api/authService';
 import '@google/model-viewer';
 import qrService from './api/qrService';
@@ -296,25 +298,22 @@ function App() {
   const editModalMapRef = useRef(null);
   const editModalMarkerRef = useRef(null);
 
-  // Initialize Leaflet map — only rebuilds on tab/theme/pins change, NOT on pin selection
+  // Initialize Mapbox map — only rebuilds on tab/theme/pins change, NOT on pin selection
   useEffect(() => {
     if (activeTab !== 'map' || !mapContainerRef.current) return;
 
-    const tileUrl = theme === 'dark'
-      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+    const styleUrl = theme === 'dark'
+      ? 'mapbox://styles/mapbox/dark-v11'
+      : 'mapbox://styles/mapbox/light-v11';
 
-    const map = L.map(mapContainerRef.current, {
-      center: [6.9214, 122.0790],
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: styleUrl,
+      center: [122.0790, 6.9214],
       zoom: 12,
-      zoomControl: true,
     });
 
-    L.tileLayer(tileUrl, {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 20,
-    }).addTo(map);
+    map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
     mapRef.current = map;
 
@@ -390,18 +389,12 @@ function App() {
           <p style="font-size:10px;color:#999;margin:0">📍 ${parseFloat(pin.latitude || 0).toFixed(4)}° N, ${parseFloat(pin.longitude || 0).toFixed(4)}° E</p>
         </div>`;
 
-      const divIcon = L.divIcon({
-        html: el,
-        className: '',
-        iconSize: [size, size],
-        iconAnchor: [size / 2, size / 2],
-        popupAnchor: [0, -(size / 2 + 8)],
-      });
-      const coord = [parseFloat(pin.latitude) || 0, parseFloat(pin.longitude) || 0];
-      const marker = L.marker(coord, {
-        icon: divIcon
-      })
-        .bindPopup(popupHtml, { maxWidth: 240 })
+      const coord = [parseFloat(pin.longitude) || 0, parseFloat(pin.latitude) || 0];
+      const popup = new mapboxgl.Popup({ offset: [0, -(size / 2 + 8)] }).setHTML(popupHtml);
+
+      new mapboxgl.Marker({ element: el })
+        .setLngLat(coord)
+        .setPopup(popup)
         .addTo(map);
     });
 
@@ -429,10 +422,10 @@ function App() {
     try {
       const pin = spots.find(p => p.id === selectedMapPinId);
       if (pin && pin.latitude) {
-        mapRef.current.flyTo([parseFloat(pin.latitude), parseFloat(pin.longitude)], 14);
+        mapRef.current.flyTo({ center: [parseFloat(pin.longitude), parseFloat(pin.latitude)], zoom: 14 });
       }
     } catch (err) {
-      console.warn("Leaflet flyTo skipped due to rendering state:", err);
+      console.warn("Mapbox flyTo skipped due to rendering state:", err);
     }
   }, [selectedMapPinId, spots, activeTab]);
 
@@ -459,7 +452,7 @@ function App() {
   useEffect(() => {
     if (mapRef.current) {
       setTimeout(() => {
-        mapRef.current.invalidateSize();
+        mapRef.current.resize();
       }, 150);
     }
   }, [isMapFullscreen]);
@@ -479,36 +472,33 @@ function App() {
     const timer = setTimeout(() => {
       if (!modalMapContainerRef.current || modalMapRef.current) return;
 
-      const tileUrl = theme === 'dark'
-        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+      const styleUrl = theme === 'dark'
+        ? 'mapbox://styles/mapbox/dark-v11'
+        : 'mapbox://styles/mapbox/light-v11';
 
-      const map = L.map(modalMapContainerRef.current, {
-        center: [6.9214, 122.0790],
+      const map = new mapboxgl.Map({
+        container: modalMapContainerRef.current,
+        style: styleUrl,
+        center: [122.0790, 6.9214],
         zoom: 13,
-        zoomControl: false,
       });
 
-      L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-      L.tileLayer(tileUrl, {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
-        subdomains: 'abcd',
-        maxZoom: 20,
-      }).addTo(map);
+      map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
 
       map.on('click', async (e) => {
-        const { lat, lng } = e.latlng;
+        const lat = e.lngLat.lat;
+        const lng = e.lngLat.lng;
         setNewSpot(prev => ({ ...prev, latitude: lat.toFixed(6), longitude: lng.toFixed(6) }));
 
         if (modalMarkerRef.current) modalMarkerRef.current.remove();
-        modalMarkerRef.current = L.circleMarker([lat, lng], {
-          radius: 8,
-          color: '#6c63ff',
-          fillColor: '#6c63ff',
-          fillOpacity: 0.9,
-          weight: 2,
-        }).addTo(map);
+        
+        const el = document.createElement('div');
+        el.className = 'custom-modal-marker';
+        el.style.cssText = `width: 16px; height: 16px; border-radius: 50%; background-color: #6c63ff; border: 2px solid #fff; box-shadow: 0 0 5px rgba(0,0,0,0.5);`;
+
+        modalMarkerRef.current = new mapboxgl.Marker({ element: el })
+          .setLngLat([lng, lat])
+          .addTo(map);
 
         // Fetch location name automatically
         try {
@@ -543,50 +533,45 @@ function App() {
     const timer = setTimeout(() => {
       if (!editModalMapContainerRef.current || editModalMapRef.current || !editingSpot) return;
 
-      const tileUrl = theme === 'dark'
-        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+      const styleUrl = theme === 'dark'
+        ? 'mapbox://styles/mapbox/dark-v11'
+        : 'mapbox://styles/mapbox/light-v11';
 
       const initialLat = parseFloat(editingSpot.latitude) || 6.9214;
       const initialLng = parseFloat(editingSpot.longitude) || 122.0790;
       const hasCoords = !!editingSpot.latitude && !!editingSpot.longitude;
 
-      const map = L.map(editModalMapContainerRef.current, {
-        center: [initialLat, initialLng],
+      const map = new mapboxgl.Map({
+        container: editModalMapContainerRef.current,
+        style: styleUrl,
+        center: [initialLng, initialLat],
         zoom: hasCoords ? 15 : 13,
-        zoomControl: false,
       });
 
-      L.control.zoom({ position: 'bottomright' }).addTo(map);
+      map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
 
-      L.tileLayer(tileUrl, {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        subdomains: 'abcd',
-        maxZoom: 20,
-      }).addTo(map);
+      const createEditMarkerEl = () => {
+        const el = document.createElement('div');
+        el.className = 'custom-edit-modal-marker';
+        el.style.cssText = `width: 16px; height: 16px; border-radius: 50%; background-color: #e91e8c; border: 2px solid #fff; box-shadow: 0 0 5px rgba(0,0,0,0.5);`;
+        return el;
+      };
 
       if (hasCoords) {
-        editModalMarkerRef.current = L.circleMarker([initialLat, initialLng], {
-          radius: 8,
-          color: '#e91e8c',
-          fillColor: '#e91e8c',
-          fillOpacity: 0.9,
-          weight: 2,
-        }).addTo(map);
+        editModalMarkerRef.current = new mapboxgl.Marker({ element: createEditMarkerEl() })
+          .setLngLat([initialLng, initialLat])
+          .addTo(map);
       }
 
       map.on('click', async (e) => {
-        const { lat, lng } = e.latlng;
+        const lat = e.lngLat.lat;
+        const lng = e.lngLat.lng;
         setEditingSpot(prev => ({ ...prev, latitude: lat.toFixed(6), longitude: lng.toFixed(6) }));
 
         if (editModalMarkerRef.current) editModalMarkerRef.current.remove();
-        editModalMarkerRef.current = L.circleMarker([lat, lng], {
-          radius: 8,
-          color: '#e91e8c',
-          fillColor: '#e91e8c',
-          fillOpacity: 0.9,
-          weight: 2,
-        }).addTo(map);
+        editModalMarkerRef.current = new mapboxgl.Marker({ element: createEditMarkerEl() })
+          .setLngLat([lng, lat])
+          .addTo(map);
 
         // Fetch location name automatically
         try {
@@ -622,20 +607,26 @@ function App() {
         const parsedLat = parseFloat(lat);
         const parsedLon = parseFloat(lon);
         const locName = display_name.split(',')[0]; // Get the most relevant part of the location name
-        mapRef.flyTo([parsedLat, parsedLon], 15);
+        mapRef.flyTo({ center: [parsedLon, parsedLat], zoom: 15 });
         
+        const createSearchMarkerEl = (color) => {
+          const el = document.createElement('div');
+          el.style.cssText = `width: 16px; height: 16px; border-radius: 50%; background-color: ${color}; border: 2px solid #fff; box-shadow: 0 0 5px rgba(0,0,0,0.5);`;
+          return el;
+        };
+
         if (isEdit) {
           setEditingSpot(prev => ({ ...prev, location_name: prev.location_name || locName, location: prev.location || locName, latitude: parsedLat.toFixed(6), longitude: parsedLon.toFixed(6) }));
           if (editModalMarkerRef.current) editModalMarkerRef.current.remove();
-          editModalMarkerRef.current = L.circleMarker([parsedLat, parsedLon], {
-            radius: 8, color: '#6c63ff', fillColor: '#6c63ff', fillOpacity: 0.9, weight: 2
-          }).addTo(mapRef);
+          editModalMarkerRef.current = new mapboxgl.Marker({ element: createSearchMarkerEl('#6c63ff') })
+            .setLngLat([parsedLon, parsedLat])
+            .addTo(mapRef);
         } else {
           setNewSpot(prev => ({ ...prev, location_name: prev.location_name || locName, latitude: parsedLat.toFixed(6), longitude: parsedLon.toFixed(6) }));
           if (modalMarkerRef.current) modalMarkerRef.current.remove();
-          modalMarkerRef.current = L.circleMarker([parsedLat, parsedLon], {
-            radius: 8, color: '#6c63ff', fillColor: '#6c63ff', fillOpacity: 0.9, weight: 2
-          }).addTo(mapRef);
+          modalMarkerRef.current = new mapboxgl.Marker({ element: createSearchMarkerEl('#6c63ff') })
+            .setLngLat([parsedLon, parsedLat])
+            .addTo(mapRef);
         }
       } else {
         showError('Location not found. Try a different search term.', 'Location Not Found', 'warning');

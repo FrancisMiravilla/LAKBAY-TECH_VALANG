@@ -39,18 +39,18 @@ function buildMiniMapHTML(spots) {
     );
   }
 
+  const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || 'your_mapbox_token_here';
+
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet">
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     html,body{width:100%;height:100%;background:#EEF3FF;overflow:hidden;}
     #map{width:100%;height:100%;filter:saturate(1.15);}
-    .leaflet-container{background:#EEF3FF;}
-    .leaflet-control-container{display:none;}
     .pin{width:16px;height:16px;border-radius:50%;
       border:2px solid rgba(255,255,255,0.95);
       display:flex;align-items:center;justify-content:center;}
@@ -63,15 +63,18 @@ function buildMiniMapHTML(spots) {
 <body>
 <div id="map"></div>
 <script>
-var map=L.map('map',{center:[6.885,122.07],zoom:11,zoomControl:false,
-  dragging:false,touchZoom:false,doubleClickZoom:false,
-  scrollWheelZoom:false,boxZoom:false,keyboard:false,tap:false});
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-  {attribution:'',subdomains:'abcd',maxZoom:20}).addTo(map);
+mapboxgl.accessToken = '${MAPBOX_TOKEN}';
+var map = new mapboxgl.Map({
+  container: 'map',
+  style: 'mapbox://styles/mapbox/light-v11',
+  center: [122.07, 6.885],
+  zoom: 11,
+  interactive: false
+});
 var markers = ${JSON.stringify(markers)};
 markers.forEach(function(m){
   var el=document.createElement('div');el.className='pin pin-'+m.type;
-  L.marker([m.lat,m.lng],{icon:L.divIcon({html:el,className:'',iconSize:[16,16],iconAnchor:[8,8]})}).addTo(map);
+  new mapboxgl.Marker({element: el}).setLngLat([m.lng, m.lat]).addTo(map);
 });
 </script>
 </body>

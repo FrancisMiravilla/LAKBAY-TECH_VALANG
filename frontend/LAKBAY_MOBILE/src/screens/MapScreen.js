@@ -14,8 +14,8 @@ import ErrorModal from '../components/ErrorModal';
 const { height: SCREEN_H } = Dimensions.get('window');
 const CARD_HEIGHT = 240;
 
-// ─── Leaflet HTML Builder ───────────────────────────────────────────────────
-function buildLeafletHTML(spots) {
+// ─── Mapbox HTML Builder ───────────────────────────────────────────────────
+function buildMapboxHTML(spots) {
   const markers = spots
     .filter(s => s.latitude && s.longitude)
     .map(s => ({
@@ -29,20 +29,19 @@ function buildLeafletHTML(spots) {
       model_3d: s.model_3d ? String(s.model_3d).replace(/^http:\/\//, 'https://') : null,
     }));
 
+  const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || 'your_mapbox_token_here';
+
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet">
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     html,body{width:100%;height:100%;background:#EEF3FF;overflow:hidden;}
     #map{width:100%;height:100%;}
-    .leaflet-container{background:#EEF3FF;}
     .pin{
       position:relative;
       cursor:pointer;
@@ -81,35 +80,27 @@ function buildLeafletHTML(spots) {
       0%,100%{box-shadow:0 0 0 6px rgba(59,130,246,0.25);}
       50%{box-shadow:0 0 0 12px rgba(59,130,246,0.08);}
     }
-    /* hide default routing UI */
-    .leaflet-routing-container{display:none!important;}
-    /* style the route line */
-    .leaflet-interactive[stroke="#0033ff"]{stroke:#3B82F6!important;stroke-width:5;}
-    .leaflet-popup-content-wrapper{
-      background:#FFFFFF;border:1px solid #C3D8FF;
-      border-radius:10px;color:#1E293B;font-family:sans-serif;
-      box-shadow:0 4px 16px rgba(26,86,219,0.12);
-    }
-    .leaflet-popup-tip{background:#FFFFFF;}
-    .leaflet-popup-close-button{color:#64748B!important;}
   </style>
 </head>
 <body>
 <div id="map"></div>
 <script>
 (function(){
+  mapboxgl.accessToken = '${MAPBOX_TOKEN}';
   var spots=${JSON.stringify(markers)};
   var selectedId=null;
   var pinEls={};
-  var routingControl=null;
   var userMarker=null;
+  var routeLineId = 'route-line';
 
-  var map=L.map('map',{center:[6.9214,122.0790],zoom:12,zoomControl:true});
+  var map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/light-v11',
+    center: [122.0790, 6.9214],
+    zoom: 12
+  });
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
-    attribution:'&copy; OpenStreetMap &copy; CARTO',
-    subdomains:'abcd',maxZoom:20,
-  }).addTo(map);
+  map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
   var TYPE_COLOR={qr:'#1A56DB',ar:'#10B981',catch:'#FBBF24'};
   var TYPE_LABEL={qr:'QR',ar:'AR',catch:'CATCH'};
@@ -153,83 +144,106 @@ function buildLeafletHTML(spots) {
     label.style.background=TYPE_COLOR[primaryType]||TYPE_COLOR.qr;
     el.appendChild(label);
 
-    var icon=L.divIcon({html:el,className:'',iconSize:[baseSize,baseSize],iconAnchor:[baseSize/2,baseSize/2],popupAnchor:[0,-(baseSize/2+8)]});
-
-    L.marker([spot.latitude,spot.longitude],{icon:icon})
-      .addTo(map)
-      .on('click',function(){
-        if(selectedId!==null&&pinEls[selectedId]) pinEls[selectedId].classList.remove('selected');
-        selectedId=spot.id;
-        el.classList.add('selected');
-        window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(
-          JSON.stringify({type:'SPOT_SELECTED',spot:spot})
-        );
-      });
+    var marker = new mapboxgl.Marker({element: el, anchor: 'bottom'})
+      .setLngLat([spot.longitude, spot.latitude])
+      .addTo(map);
+      
+    el.addEventListener('click', function(){
+      if(selectedId!==null&&pinEls[selectedId]) pinEls[selectedId].classList.remove('selected');
+      selectedId=spot.id;
+      el.classList.add('selected');
+      window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(
+        JSON.stringify({type:'SPOT_SELECTED',spot:spot})
+      );
+    });
   });
 
   // Show user location dot
   function showUserLocation(lat,lng){
-    if(userMarker) map.removeLayer(userMarker);
+    if(userMarker) userMarker.remove();
     var el=document.createElement('div');
     el.className='user-dot';
-    var icon=L.divIcon({html:el,className:'',iconSize:[16,16],iconAnchor:[8,8]});
-    userMarker=L.marker([lat,lng],{icon:icon,zIndexOffset:1000}).addTo(map);
+    userMarker = new mapboxgl.Marker({element: el})
+      .setLngLat([lng, lat])
+      .addTo(map);
   }
 
-  // Draw route using OSRM (free, no API key needed)
+  // Draw route using Mapbox Directions API
   function drawRoute(fromLat,fromLng,toLat,toLng){
-    if(routingControl){
-      map.removeControl(routingControl);
-      routingControl=null;
-    }
+    clearRoute();
     showUserLocation(fromLat,fromLng);
 
-    routingControl=L.Routing.control({
-      waypoints:[
-        L.latLng(fromLat,fromLng),
-        L.latLng(toLat,toLng),
-      ],
-      router: L.Routing.osrmv1({
-        serviceUrl:'https://router.project-osrm.org/route/v1',
-      }),
-      lineOptions:{
-        styles:[{color:'#3B82F6',weight:5,opacity:0.85}],
-        extendToWaypoints:true,
-        missingRouteTolerance:0,
-      },
-      show:false,
-      addWaypoints:false,
-      draggableWaypoints:false,
-      fitSelectedRoutes:true,
-      showAlternatives:false,
-      createMarker:function(){return null;}, // suppress default start/end markers
-    }).addTo(map);
+    var url = 'https://api.mapbox.com/directions/v5/mapbox/driving/' + fromLng + ',' + fromLat + ';' + toLng + ',' + toLat + '?geometries=geojson&access_token=' + mapboxgl.accessToken;
 
-    routingControl.on('routesfound',function(e){
-      var r=e.routes[0].summary;
-      var distKm=(r.totalDistance/1000).toFixed(1);
-      var mins=Math.ceil(r.totalTime/60);
-      window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(
-        JSON.stringify({type:'ROUTE_INFO',distKm:distKm,mins:mins})
-      );
-    });
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        if(data.routes && data.routes.length > 0){
+          var route = data.routes[0];
+          var geojson = {
+            type: 'Feature',
+            properties: {},
+            geometry: route.geometry
+          };
 
-    routingControl.on('routingerror',function(){
-      window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(
-        JSON.stringify({type:'ROUTE_ERROR'})
-      );
-    });
+          if (map.getSource('route')) {
+            map.getSource('route').setData(geojson);
+          } else {
+            map.addSource('route', {
+              type: 'geojson',
+              data: geojson
+            });
+            map.addLayer({
+              id: routeLineId,
+              type: 'line',
+              source: 'route',
+              layout: {
+                'line-join': 'round',
+                'line-cap': 'round'
+              },
+              paint: {
+                'line-color': '#3B82F6',
+                'line-width': 5,
+                'line-opacity': 0.85
+              }
+            });
+          }
+
+          // Fit bounds
+          var coordinates = route.geometry.coordinates;
+          var bounds = coordinates.reduce(function(bounds, coord) {
+            return bounds.extend(coord);
+          }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+          map.fitBounds(bounds, { padding: 40 });
+
+          var distKm = (route.distance / 1000).toFixed(1);
+          var mins = Math.ceil(route.duration / 60);
+          window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(
+            JSON.stringify({type:'ROUTE_INFO',distKm:distKm,mins:mins})
+          );
+        } else {
+          window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(
+            JSON.stringify({type:'ROUTE_ERROR'})
+          );
+        }
+      })
+      .catch(err => {
+        window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(
+          JSON.stringify({type:'ROUTE_ERROR'})
+        );
+      });
   }
 
   function clearRoute(){
-    if(routingControl){ map.removeControl(routingControl); routingControl=null; }
-    if(userMarker){ map.removeLayer(userMarker); userMarker=null; }
+    if(map.getLayer(routeLineId)) map.removeLayer(routeLineId);
+    if(map.getSource('route')) map.removeSource('route');
+    if(userMarker){ userMarker.remove(); userMarker=null; }
   }
 
   window.addEventListener('message',function(e){
     try{
       var msg=JSON.parse(e.data);
-      if(msg.type==='FLY_TO') map.flyTo([msg.lat,msg.lng],15);
+      if(msg.type==='FLY_TO') map.flyTo({center: [msg.lng, msg.lat], zoom: 15});
       if(msg.type==='DESELECT'){
         if(selectedId!==null&&pinEls[selectedId]) pinEls[selectedId].classList.remove('selected');
         selectedId=null;
@@ -242,7 +256,7 @@ function buildLeafletHTML(spots) {
       }
       if(msg.type==='SHOW_USER'){
         showUserLocation(msg.lat,msg.lng);
-        map.flyTo([msg.lat,msg.lng],14);
+        map.flyTo({center: [msg.lng, msg.lat], zoom: 14});
       }
     }catch(err){}
   });
@@ -316,7 +330,7 @@ export default function MapScreen({ navigation, route }) {
     })();
   }, []);
 
-  const leafletHTML = useMemo(() => buildLeafletHTML(spots), [spots]);
+  const mapboxHTML = useMemo(() => buildMapboxHTML(spots), [spots]);
 
   // ── WebView message handler ───────────────────────────────────────────────
   const handleMessage = (event) => {
@@ -458,7 +472,7 @@ export default function MapScreen({ navigation, route }) {
         ) : (
           <WebView
             ref={webviewRef}
-            source={{ html: leafletHTML, baseUrl: 'https://localhost' }}
+            source={{ html: mapboxHTML, baseUrl: 'https://localhost' }}
             style={styles.webview}
             onMessage={handleMessage}
             javaScriptEnabled={true}
