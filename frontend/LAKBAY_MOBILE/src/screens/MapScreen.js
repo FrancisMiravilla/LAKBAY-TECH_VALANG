@@ -10,6 +10,7 @@ import * as Location from 'expo-location';
 import { getSpots, ORIGIN } from '../api/qrService';
 import { COLORS, FONTS, SIZES, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import ErrorModal from '../components/ErrorModal';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 const CARD_HEIGHT = 240;
@@ -40,8 +41,8 @@ function buildMapboxHTML(spots) {
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
-    html,body{width:100%;height:100%;background:#EEF3FF;overflow:hidden;}
-    #map{width:100%;height:100%;}
+    html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
+    #map{width:100%;height:100%;background:transparent;}
     .pin{
       position:relative;
       cursor:pointer;
@@ -291,6 +292,15 @@ function buildMapboxHTML(spots) {
         currentHeading = msg.heading || 0;
         showUserLocation(msg.lat, msg.lng, currentHeading, true);
         map.flyTo({ center: [msg.lng, msg.lat], zoom: 18, pitch: 60, bearing: currentHeading, speed: 1.5 });
+        
+        // Hide base layers
+        if (map.getStyle() && map.getStyle().layers) {
+          map.getStyle().layers.forEach(function(layer) {
+            if (layer.id !== routeLineId && !layer.id.startsWith('spot-') && layer.id !== 'route') {
+              try { map.setLayoutProperty(layer.id, 'visibility', 'none'); } catch(e){}
+            }
+          });
+        }
       }
       if(msg.type==='STOP_NAVIGATION'){
         isNavigating = false;
@@ -298,6 +308,15 @@ function buildMapboxHTML(spots) {
         if(userMarker) {
            var lngLat = userMarker.getLngLat();
            showUserLocation(lngLat.lat, lngLat.lng, 0, false);
+        }
+        
+        // Show base layers
+        if (map.getStyle() && map.getStyle().layers) {
+          map.getStyle().layers.forEach(function(layer) {
+            if (layer.id !== routeLineId && !layer.id.startsWith('spot-') && layer.id !== 'route') {
+              try { map.setLayoutProperty(layer.id, 'visibility', 'visible'); } catch(e){}
+            }
+          });
         }
       }
       if(msg.type==='UPDATE_LOCATION'){
@@ -372,6 +391,8 @@ export default function MapScreen({ navigation, route }) {
   const routeBannerAnim = useRef(new Animated.Value(-80)).current;
   const [errorModal, setErrorModal] = useState({ visible: false, type: 'error', title: '', message: '' });
   const showErr = (title, message, type = 'error') => setErrorModal({ visible: true, type, title, message });
+
+  const [cameraPerm, requestCameraPerm] = useCameraPermissions();
 
   const panResponder = useRef(
     PanResponder.create({
@@ -492,6 +513,14 @@ export default function MapScreen({ navigation, route }) {
     if (!selectedSpot) return;
 
     if (routeInfo) {
+      if (!cameraPerm?.granted) {
+        const p = await requestCameraPerm();
+        if (!p.granted) {
+          showErr('Camera Required', 'Camera permission is needed for AR Navigation.');
+          return;
+        }
+      }
+
       setIsNavigating(true);
       webviewRef.current?.injectJavaScript(`
         window.dispatchEvent(new MessageEvent('message',{
@@ -590,6 +619,9 @@ export default function MapScreen({ navigation, route }) {
       </View>
 
       <View style={styles.mapContainer}>
+        {isNavigating && cameraPerm?.granted && (
+          <CameraView style={StyleSheet.absoluteFillObject} facing="back" />
+        )}
         {loading ? (
           <View style={styles.centered}>
             <ActivityIndicator color={COLORS.accent} size="large" />
@@ -604,7 +636,8 @@ export default function MapScreen({ navigation, route }) {
           <WebView
             ref={webviewRef}
             source={{ html: mapboxHTML, baseUrl: 'https://localhost' }}
-            style={styles.webview}
+            style={[styles.webview, isNavigating && { backgroundColor: 'transparent' }]}
+            containerStyle={isNavigating ? { backgroundColor: 'transparent' } : undefined}
             onMessage={handleMessage}
             javaScriptEnabled={true}
             domStorageEnabled={true}
