@@ -10,7 +10,6 @@ import * as Location from 'expo-location';
 import { getSpots, ORIGIN } from '../api/qrService';
 import { COLORS, FONTS, SIZES, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import ErrorModal from '../components/ErrorModal';
-import ARNavigationOverlay from '../components/ARNavigationOverlay';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 const CARD_HEIGHT = 240;
@@ -81,6 +80,12 @@ function buildMapboxHTML(spots) {
       0%,100%{box-shadow:0 0 0 6px rgba(59,130,246,0.25);}
       50%{box-shadow:0 0 0 12px rgba(59,130,246,0.08);}
     }
+    .nav-arrow {
+      width: 48px; height: 48px;
+      display: flex; align-items: center; justify-content: center;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+    }
+    .nav-arrow svg { width: 100%; height: 100%; }
   </style>
 </head>
 <body>
@@ -160,19 +165,41 @@ function buildMapboxHTML(spots) {
   });
 
   // Show user location dot
-  function showUserLocation(lat,lng){
-    if(userMarker) userMarker.remove();
-    var el=document.createElement('div');
-    el.className='user-dot';
-    userMarker = new mapboxgl.Marker({element: el})
-      .setLngLat([lng, lat])
-      .addTo(map);
+  var currentHeading = 0;
+  var isNavigating = false;
+
+  function showUserLocation(lat, lng, heading, isNav){
+    if(userMarker) {
+      userMarker.setLngLat([lng, lat]);
+      if(isNav && userMarker.getElement().className === 'nav-arrow') {
+        userMarker.setRotation(heading || 0);
+      } else if (!isNav && userMarker.getElement().className === 'user-dot') {
+        // do nothing
+      } else {
+        userMarker.remove();
+        userMarker = null;
+      }
+    }
+    
+    if(!userMarker) {
+      var el = document.createElement('div');
+      if (isNav) {
+        el.className = 'nav-arrow';
+        el.innerHTML = '<svg viewBox="0 0 100 100"><polygon points="50,15 85,85 50,70 15,85" fill="#3B82F6" stroke="#ffffff" stroke-width="6" stroke-linejoin="round"/></svg>';
+      } else {
+        el.className = 'user-dot';
+      }
+      userMarker = new mapboxgl.Marker({element: el, rotationAlignment: isNav ? 'map' : 'auto', pitchAlignment: isNav ? 'map' : 'auto'})
+        .setLngLat([lng, lat])
+        .addTo(map);
+      if (isNav) userMarker.setRotation(heading || 0);
+    }
   }
 
   // Draw route using Mapbox Directions API
   function drawRoute(fromLat,fromLng,toLat,toLng){
     clearRoute();
-    showUserLocation(fromLat,fromLng);
+    showUserLocation(fromLat,fromLng, currentHeading, isNavigating);
 
     var url = 'https://api.mapbox.com/directions/v5/mapbox/driving/' + fromLng + ',' + fromLat + ';' + toLng + ',' + toLat + '?geometries=geojson&access_token=' + mapboxgl.accessToken;
 
@@ -256,8 +283,37 @@ function buildMapboxHTML(spots) {
         clearRoute();
       }
       if(msg.type==='SHOW_USER'){
-        showUserLocation(msg.lat,msg.lng);
+        showUserLocation(msg.lat,msg.lng, 0, false);
         map.flyTo({center: [msg.lng, msg.lat], zoom: 14});
+      }
+      if(msg.type==='START_NAVIGATION'){
+        isNavigating = true;
+        currentHeading = msg.heading || 0;
+        showUserLocation(msg.lat, msg.lng, currentHeading, true);
+        map.flyTo({ center: [msg.lng, msg.lat], zoom: 18, pitch: 60, bearing: currentHeading, speed: 1.5 });
+      }
+      if(msg.type==='STOP_NAVIGATION'){
+        isNavigating = false;
+        map.easeTo({ pitch: 0, bearing: 0 });
+        if(userMarker) {
+           var lngLat = userMarker.getLngLat();
+           showUserLocation(lngLat.lat, lngLat.lng, 0, false);
+        }
+      }
+      if(msg.type==='UPDATE_LOCATION'){
+        if (isNavigating) {
+          showUserLocation(msg.lat, msg.lng, currentHeading, true);
+          map.easeTo({ center: [msg.lng, msg.lat], duration: 1000 });
+        } else {
+          showUserLocation(msg.lat, msg.lng, 0, false);
+        }
+      }
+      if(msg.type==='UPDATE_HEADING'){
+        currentHeading = msg.heading;
+        if(isNavigating && userMarker){
+          userMarker.setRotation(currentHeading);
+          map.easeTo({ bearing: currentHeading, duration: 200 });
+        }
       }
     }catch(err){}
   });
@@ -308,6 +364,9 @@ export default function MapScreen({ navigation, route }) {
   const [routeInfo, setRouteInfo] = useState(null);   // { distKm, mins }
   const [routing, setRouting] = useState(false);       // routing in progress
   const [arNavVisible, setArNavVisible] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const locationSub = useRef(null);
+  const headingSub = useRef(null);
   const webviewRef = useRef(null);
   const slideAnim = useRef(new Animated.Value(CARD_HEIGHT)).current;
   const routeBannerAnim = useRef(new Animated.Value(-80)).current;
@@ -331,6 +390,38 @@ export default function MapScreen({ navigation, route }) {
       setUserLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude, accuracy: loc.coords.accuracy });
     })();
   }, []);
+
+  // ── Navigation Tracking ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (isNavigating) {
+      (async () => {
+        locationSub.current = await Location.watchPositionAsync({ accuracy: Location.Accuracy.High, timeInterval: 1000, distanceInterval: 1 }, (loc) => {
+          webviewRef.current?.injectJavaScript(`
+            window.dispatchEvent(new MessageEvent('message',{
+              data: JSON.stringify({ type: 'UPDATE_LOCATION', lat: ${loc.coords.latitude}, lng: ${loc.coords.longitude} })
+            }));
+            true;
+          `);
+        });
+        headingSub.current = await Location.watchHeadingAsync((hdg) => {
+          const h = hdg.trueHeading >= 0 ? hdg.trueHeading : hdg.magHeading;
+          webviewRef.current?.injectJavaScript(`
+            window.dispatchEvent(new MessageEvent('message',{
+              data: JSON.stringify({ type: 'UPDATE_HEADING', heading: ${h} })
+            }));
+            true;
+          `);
+        });
+      })();
+    } else {
+      locationSub.current?.remove();
+      headingSub.current?.remove();
+    }
+    return () => {
+      locationSub.current?.remove();
+      headingSub.current?.remove();
+    };
+  }, [isNavigating]);
 
   const mapboxHTML = useMemo(() => buildMapboxHTML(spots), [spots]);
 
@@ -380,7 +471,16 @@ export default function MapScreen({ navigation, route }) {
     if (!selectedSpot) return;
 
     if (routeInfo) {
-      setArNavVisible(true);
+      setIsNavigating(true);
+      webviewRef.current?.injectJavaScript(`
+        window.dispatchEvent(new MessageEvent('message',{
+          data: JSON.stringify({ type: 'START_NAVIGATION', lat: ${userLocation.lat}, lng: ${userLocation.lng} })
+        }));
+        true;
+      `);
+      Animated.timing(slideAnim, {
+        toValue: CARD_HEIGHT, duration: 240, useNativeDriver: true,
+      }).start();
       return;
     }
 
@@ -419,12 +519,15 @@ export default function MapScreen({ navigation, route }) {
   const handleClearRoute = () => {
     setRouteInfo(null);
     setRouting(false);
+    setIsNavigating(false);
     Animated.timing(routeBannerAnim, {
       toValue: -80, duration: 200, useNativeDriver: true,
     }).start();
-    webviewRef.current?.injectJavaScript(
-      `window.dispatchEvent(new MessageEvent('message',{data:JSON.stringify({type:'CLEAR_ROUTE'})}));true;`
-    );
+    webviewRef.current?.injectJavaScript(`
+      window.dispatchEvent(new MessageEvent('message',{data:JSON.stringify({type:'STOP_NAVIGATION'})}));
+      window.dispatchEvent(new MessageEvent('message',{data:JSON.stringify({type:'CLEAR_ROUTE'})}));
+      true;
+    `);
   };
 
   // ── Show my location button ───────────────────────────────────────────────
@@ -529,7 +632,7 @@ export default function MapScreen({ navigation, route }) {
               <Text style={styles.routeBannerTime}>{routeInfo?.mins} min</Text>
             </View>
             <TouchableOpacity onPress={handleClearRoute} style={styles.routeBannerClose}>
-              <Text style={styles.routeBannerCloseText}>Clear</Text>
+              <Text style={styles.routeBannerCloseText}>{isNavigating ? 'Exit' : 'Clear'}</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -623,24 +726,6 @@ export default function MapScreen({ navigation, route }) {
           </Animated.View>
         );
       })()}
-
-      {/* ── AR Navigation Overlay ── */}
-      {arNavVisible && selectedSpot && (
-        <View style={[StyleSheet.absoluteFill, { zIndex: 9999 }]}>
-          <ARNavigationOverlay
-            icon={{
-              name: selectedSpot.name,
-              tagline: selectedSpot.location_name || '',
-              color: getBadgeConfig((selectedSpot.feature_types && selectedSpot.feature_types[0]) || 'qr').color,
-              model_3d: selectedSpot.model_3d
-            }}
-            spot={selectedSpot}
-            userLocation={userLocation}
-            onContinue={() => setArNavVisible(false)}
-            onClose={() => setArNavVisible(false)}
-          />
-        </View>
-      )}
 
       {/* ── Error Modal ── */}
       <ErrorModal
