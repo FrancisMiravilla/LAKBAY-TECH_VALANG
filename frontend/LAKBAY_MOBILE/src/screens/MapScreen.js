@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   StyleSheet, View, Text, ActivityIndicator, TouchableOpacity,
-  Animated, Dimensions,
+  Animated, Dimensions, PanResponder
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -373,6 +373,27 @@ export default function MapScreen({ navigation, route }) {
   const [errorModal, setErrorModal] = useState({ visible: false, type: 'error', title: '', message: '' });
   const showErr = (title, message, type = 'error') => setErrorModal({ visible: true, type, title, message });
 
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 10,
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy < -30) {
+          // Swipe up
+          Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 10 }).start();
+        } else if (gestureState.dy > 30) {
+          // Swipe down
+          if (isNavigating) {
+            Animated.spring(slideAnim, { toValue: CARD_HEIGHT - 60, useNativeDriver: true, tension: 65, friction: 10 }).start();
+          } else {
+            Animated.spring(slideAnim, { toValue: CARD_HEIGHT, useNativeDriver: true, tension: 65, friction: 10 }).start();
+            webviewRef.current?.injectJavaScript(`window.dispatchEvent(new MessageEvent('message',{data:JSON.stringify({type:'DESELECT'})}));true;`);
+          }
+        }
+      }
+    })
+  ).current;
+
   // ── Load spots ────────────────────────────────────────────────────────────
   useEffect(() => {
     getSpots()
@@ -478,8 +499,8 @@ export default function MapScreen({ navigation, route }) {
         }));
         true;
       `);
-      Animated.timing(slideAnim, {
-        toValue: CARD_HEIGHT, duration: 240, useNativeDriver: true,
+      Animated.spring(slideAnim, {
+        toValue: CARD_HEIGHT - 60, useNativeDriver: true, tension: 65, friction: 10
       }).start();
       return;
     }
@@ -644,6 +665,7 @@ export default function MapScreen({ navigation, route }) {
         const badge = getBadgeConfig(primaryType);
         return (
           <Animated.View
+            {...panResponder.panHandlers}
             style={[
               styles.bottomSheet,
               { paddingBottom: insets.bottom + 16, transform: [{ translateY: slideAnim }] },
