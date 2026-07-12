@@ -646,7 +646,16 @@ export default function MapScreen({ navigation, route }) {
             <Text style={styles.errorText}>{error}</Text>
           </View>
         ) : (
-          <View pointerEvents="auto" style={isNavigating ? styles.miniMapContainer : styles.fullMapContainer}>
+          <Animated.View 
+            pointerEvents="auto" 
+            style={isNavigating ? [styles.mapAsBottomSheet, { transform: [{ translateY: slideAnim }] }] : styles.fullMapContainer}
+            {...(isNavigating ? panResponder.panHandlers : {})}
+          >
+            {isNavigating && (
+              <View style={styles.dragHandleContainer}>
+                <View style={styles.dragHandle} />
+              </View>
+            )}
             <WebView
               ref={webviewRef}
               source={{ html: mapboxHTML, baseUrl: 'https://localhost' }}
@@ -659,7 +668,7 @@ export default function MapScreen({ navigation, route }) {
               mixedContentMode="always"
               allowUniversalAccessFromFileURLs={true}
             />
-          </View>
+          </Animated.View>
         )}
 
         {/* Legend */}
@@ -707,7 +716,7 @@ export default function MapScreen({ navigation, route }) {
       </View>
 
       {/* ── Bottom Sheet Card ── */}
-      {selectedSpot && (() => {
+      {selectedSpot && !isNavigating && (() => {
         const primaryType = (selectedSpot.feature_types && selectedSpot.feature_types[0]) || 'qr';
         const badge = getBadgeConfig(primaryType);
         return (
@@ -822,7 +831,33 @@ const styles = StyleSheet.create({
   headerSubtitle: { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: COLORS.textSub, marginTop: 4 },
   mapContainer: { flex: 1, position: 'relative', overflow: 'hidden', backgroundColor: COLORS.bg },
   fullMapContainer: { flex: 1, backgroundColor: COLORS.bg },
-  webview: { flex: 1, backgroundColor: 'transparent', opacity: 0.99 },
+  webview: { flex: 1, backgroundColor: 'transparent' },
+  dragHandleContainer: {
+    width: '100%',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingTop: 12,
+    paddingBottom: 8,
+    borderTopLeftRadius: RADIUS.lg,
+    borderTopRightRadius: RADIUS.lg,
+  },
+  mapAsBottomSheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: CARD_HEIGHT,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: RADIUS.lg,
+    borderTopRightRadius: RADIUS.lg,
+    elevation: 20,
+    zIndex: 9999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    overflow: 'hidden',
+  },
   miniMapContainer: {
     position: 'absolute',
     bottom: CARD_HEIGHT + 20,
