@@ -212,6 +212,36 @@ function RadarRing({ color, delay = 0 }) {
   );
 }
 
+function Particle({ p, color }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.delay(p.delay),
+        Animated.timing(anim, { toValue: 1, duration: p.dur, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0, duration: p.dur, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  const opacity = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.1, 0.8, 0.1] });
+  const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [0, -18] });
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        arHudStyles.particle,
+        {
+          left: p.x, top: p.y,
+          width: p.size, height: p.size, borderRadius: p.size / 2,
+          backgroundColor: color,
+          opacity,
+          transform: [{ translateY }],
+        },
+      ]}
+    />
+  );
+}
+
 // ─── AR HUD: Floating Particles ──────────────────────────────────────────────
 function FloatingParticles({ color }) {
   const PARTICLES = [
@@ -224,36 +254,9 @@ function FloatingParticles({ color }) {
   ];
   return (
     <>
-      {PARTICLES.map((p, i) => {
-        const anim = useRef(new Animated.Value(0)).current;
-        useEffect(() => {
-          Animated.loop(
-            Animated.sequence([
-              Animated.delay(p.delay),
-              Animated.timing(anim, { toValue: 1, duration: p.dur, useNativeDriver: true }),
-              Animated.timing(anim, { toValue: 0, duration: p.dur, useNativeDriver: true }),
-            ])
-          ).start();
-        }, []);
-        const opacity = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.1, 0.8, 0.1] });
-        const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [0, -18] });
-        return (
-          <Animated.View
-            key={i}
-            pointerEvents="none"
-            style={[
-              arHudStyles.particle,
-              {
-                left: p.x, top: p.y,
-                width: p.size, height: p.size, borderRadius: p.size / 2,
-                backgroundColor: color,
-                opacity,
-                transform: [{ translateY }],
-              },
-            ]}
-          />
-        );
-      })}
+      {PARTICLES.map((p, i) => (
+        <Particle key={i} p={p} color={color} />
+      ))}
     </>
   );
 }
@@ -407,7 +410,7 @@ function DirectionArrow({ relativeBearing, distanceM, color, deviceHeading, targ
 }
 
 // ─── AR Camera Overlay ───────────────────────────────────────────────────────
-export default function ARNavigationOverlay({ icon, spot, userLocation, onContinue, onClose }) {
+export default function ARNavigationOverlay({ icon, spot, userLocation, onContinue, onClose, hideBottomPanel = false }) {
   const activeModel = (spot && spot.model_3d) 
     ? (spot.model_3d.startsWith('http') || spot.model_3d.startsWith('data:') ? spot.model_3d : `${ORIGIN}${spot.model_3d}`) 
     : icon.model_3d;
@@ -554,31 +557,33 @@ export default function ARNavigationOverlay({ icon, spot, userLocation, onContin
       )}
 
       {/* Bottom panel */}
-      <View style={arStyles.bottomPanel}>
-        <Text style={arStyles.catchName}>{icon.name}</Text>
-        <Text style={arStyles.catchTagline}>{icon.tagline}</Text>
+      {!hideBottomPanel && (
+        <View style={arStyles.bottomPanel}>
+          <Text style={arStyles.catchName}>{icon.name}</Text>
+          <Text style={arStyles.catchTagline}>{icon.tagline}</Text>
 
-        {showArrow ? (
-          /* When guiding: show a "navigate" hint instead of continue */
-          <View style={[arStyles.navigateHint, { borderColor: icon.color + '55', backgroundColor: icon.color + '15' }]}>
-            <Ionicons name="compass-outline" size={18} color={icon.color} style={{ marginRight: 8 }} />
-            <Text style={[arStyles.navigateHintText, { color: icon.color }]}>
-              Walk toward the arrow · {Math.round(distanceM)}m remaining
-            </Text>
-          </View>
-        ) : (
-          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <TouchableOpacity
-              style={[arStyles.continueBtn, { backgroundColor: icon.color }]}
-              onPress={onContinue}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="book-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={arStyles.continueBtnText}>Continue for Information</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-      </View>
+          {showArrow ? (
+            /* When guiding: show a "navigate" hint instead of continue */
+            <View style={[arStyles.navigateHint, { borderColor: icon.color + '55', backgroundColor: icon.color + '15' }]}>
+              <Ionicons name="compass-outline" size={18} color={icon.color} style={{ marginRight: 8 }} />
+              <Text style={[arStyles.navigateHintText, { color: icon.color }]}>
+                Walk toward the arrow · {Math.round(distanceM)}m remaining
+              </Text>
+            </View>
+          ) : (
+            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+              <TouchableOpacity
+                style={[arStyles.continueBtn, { backgroundColor: icon.color }]}
+                onPress={onContinue}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="book-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={arStyles.continueBtnText}>Continue for Information</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+        </View>
+      )}
     </Animated.View>
   );
 }

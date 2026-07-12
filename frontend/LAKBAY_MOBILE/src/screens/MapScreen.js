@@ -10,7 +10,8 @@ import * as Location from 'expo-location';
 import { getSpots, ORIGIN } from '../api/qrService';
 import { COLORS, FONTS, SIZES, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import ErrorModal from '../components/ErrorModal';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useCameraPermissions } from 'expo-camera';
+import ARNavigationOverlay from '../components/ARNavigationOverlay';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 const CARD_HEIGHT = 240;
@@ -619,10 +620,28 @@ export default function MapScreen({ navigation, route }) {
       </View>
 
       <View style={styles.mapContainer}>
-        {isNavigating && cameraPerm?.granted && (
-          <CameraView style={StyleSheet.absoluteFillObject} facing="back" />
-        )}
-        {loading ? (
+        {isNavigating && cameraPerm?.granted ? (
+          <ARNavigationOverlay
+            icon={{
+              id: selectedSpot.id,
+              name: selectedSpot.name,
+              tagline: selectedSpot.description || '',
+              about: '',
+              significance: '',
+              color: getBadgeConfig(selectedSpot.feature_types?.[0] || 'qr').color,
+              glow: getBadgeConfig(selectedSpot.feature_types?.[0] || 'qr').color + '55',
+              model_3d: selectedSpot.model_3d
+                ? String(selectedSpot.model_3d).replace(/^http:\/\//, 'https://')
+                : null
+            }}
+            spot={selectedSpot}
+            userLocation={userLocation}
+            hideBottomPanel={true}
+            onClose={() => {
+              setIsNavigating(false);
+            }}
+          />
+        ) : loading ? (
           <View style={styles.centered}>
             <ActivityIndicator color={COLORS.accent} size="large" />
             <Text style={styles.loadingText}>Loading map spots…</Text>
@@ -636,8 +655,8 @@ export default function MapScreen({ navigation, route }) {
           <WebView
             ref={webviewRef}
             source={{ html: mapboxHTML, baseUrl: 'https://localhost' }}
-            style={[styles.webview, isNavigating && { backgroundColor: 'transparent' }]}
-            containerStyle={isNavigating ? { backgroundColor: 'transparent' } : undefined}
+            style={[styles.webview, isNavigating && { display: 'none' }]}
+            containerStyle={isNavigating ? { display: 'none' } : undefined}
             onMessage={handleMessage}
             javaScriptEnabled={true}
             domStorageEnabled={true}
