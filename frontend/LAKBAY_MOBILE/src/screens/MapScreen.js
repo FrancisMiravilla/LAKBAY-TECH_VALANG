@@ -294,7 +294,10 @@ function buildMapboxHTML(spots) {
         showUserLocation(msg.lat, msg.lng, currentHeading, true);
         map.flyTo({ center: [msg.lng, msg.lat], zoom: 18, pitch: 60, bearing: currentHeading, speed: 1.5 });
         
-        setTimeout(() => map.resize(), 100);
+        [100, 300, 600, 1000].forEach(t => setTimeout(() => {
+          map.resize();
+          window.dispatchEvent(new Event('resize'));
+        }, t));
       }
       if(msg.type==='STOP_NAVIGATION'){
         isNavigating = false;
@@ -304,7 +307,10 @@ function buildMapboxHTML(spots) {
            showUserLocation(lngLat.lat, lngLat.lng, 0, false);
         }
         
-        setTimeout(() => map.resize(), 100);
+        [100, 300, 600, 1000].forEach(t => setTimeout(() => {
+          map.resize();
+          window.dispatchEvent(new Event('resize'));
+        }, t));
       }
       if(msg.type==='UPDATE_LOCATION'){
         if (isNavigating) {
@@ -638,19 +644,20 @@ export default function MapScreen({ navigation, route }) {
             <Text style={styles.errorText}>{error}</Text>
           </View>
         ) : (
-          <WebView
-            ref={webviewRef}
-            source={{ html: mapboxHTML, baseUrl: 'https://localhost' }}
-            style={isNavigating ? styles.miniMapWebview : styles.webview}
-            containerStyle={isNavigating ? styles.miniMapContainer : undefined}
-            onMessage={handleMessage}
-            javaScriptEnabled={true}
-            domStorageEnabled={true}
-            originWhitelist={['*']}
-            scrollEnabled={false}
-            mixedContentMode="always"
-            allowUniversalAccessFromFileURLs={true}
-          />
+          <View pointerEvents="auto" style={isNavigating ? styles.miniMapContainer : styles.fullMapContainer}>
+            <WebView
+              ref={webviewRef}
+              source={{ html: mapboxHTML, baseUrl: 'https://localhost' }}
+              style={styles.webview}
+              onMessage={handleMessage}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              originWhitelist={['*']}
+              scrollEnabled={false}
+              mixedContentMode="always"
+              allowUniversalAccessFromFileURLs={true}
+            />
+          </View>
         )}
 
         {/* Legend */}
@@ -812,13 +819,16 @@ const styles = StyleSheet.create({
   headerTitle: { fontFamily: FONTS.bold, fontSize: SIZES.fontLg, color: COLORS.text },
   headerSubtitle: { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: COLORS.textSub, marginTop: 4 },
   mapContainer: { flex: 1, position: 'relative', overflow: 'hidden', backgroundColor: COLORS.bg },
-  webview: { flex: 1, backgroundColor: COLORS.bg },
+  fullMapContainer: { flex: 1, backgroundColor: COLORS.bg },
+  webview: { flex: 1, backgroundColor: 'transparent' },
   miniMapContainer: {
     position: 'absolute',
     bottom: CARD_HEIGHT + 20,
     right: 20,
     width: 140,
     height: 180,
+    backgroundColor: '#EEF3FF',
+    opacity: 0.99,
     borderRadius: RADIUS.md,
     borderWidth: 2,
     borderColor: '#FFFFFF',
