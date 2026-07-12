@@ -612,7 +612,7 @@ export default function MapScreen({ navigation, route }) {
       </View>
 
       <View style={styles.mapContainer}>
-        {isNavigating && cameraPerm?.granted ? (
+        {isNavigating && cameraPerm?.granted && (
           <ARNavigationOverlay
             icon={{
               id: selectedSpot.id,
@@ -633,7 +633,9 @@ export default function MapScreen({ navigation, route }) {
               setIsNavigating(false);
             }}
           />
-        ) : loading ? (
+        )}
+        
+        {loading ? (
           <View style={styles.centered}>
             <ActivityIndicator color={COLORS.accent} size="large" />
             <Text style={styles.loadingText}>Loading map spots…</Text>
