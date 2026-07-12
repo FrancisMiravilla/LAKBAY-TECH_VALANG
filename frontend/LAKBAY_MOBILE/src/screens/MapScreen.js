@@ -7,9 +7,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { getSpots } from '../api/qrService';
+import { getSpots, ORIGIN } from '../api/qrService';
 import { COLORS, FONTS, SIZES, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import ErrorModal from '../components/ErrorModal';
+import ARNavigationOverlay from '../components/ARNavigationOverlay';
 
 const { height: SCREEN_H } = Dimensions.get('window');
 const CARD_HEIGHT = 240;
@@ -306,6 +307,7 @@ export default function MapScreen({ navigation, route }) {
   const [userLocation, setUserLocation] = useState(null);
   const [routeInfo, setRouteInfo] = useState(null);   // { distKm, mins }
   const [routing, setRouting] = useState(false);       // routing in progress
+  const [arNavVisible, setArNavVisible] = useState(false);
   const webviewRef = useRef(null);
   const slideAnim = useRef(new Animated.Value(CARD_HEIGHT)).current;
   const routeBannerAnim = useRef(new Animated.Value(-80)).current;
@@ -326,7 +328,7 @@ export default function MapScreen({ navigation, route }) {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      setUserLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+      setUserLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude, accuracy: loc.coords.accuracy });
     })();
   }, []);
 
@@ -377,6 +379,11 @@ export default function MapScreen({ navigation, route }) {
   const handleGetDirections = async () => {
     if (!selectedSpot) return;
 
+    if (routeInfo) {
+      setArNavVisible(true);
+      return;
+    }
+
     let loc = userLocation;
 
     // Re-fetch location if not available
@@ -387,7 +394,7 @@ export default function MapScreen({ navigation, route }) {
         return;
       }
       const result = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      loc = { lat: result.coords.latitude, lng: result.coords.longitude };
+      loc = { lat: result.coords.latitude, lng: result.coords.longitude, accuracy: result.coords.accuracy };
       setUserLocation(loc);
     }
 
@@ -430,7 +437,7 @@ export default function MapScreen({ navigation, route }) {
         return;
       }
       const result = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      loc = { lat: result.coords.latitude, lng: result.coords.longitude };
+      loc = { lat: result.coords.latitude, lng: result.coords.longitude, accuracy: result.coords.accuracy };
       setUserLocation(loc);
     }
     webviewRef.current?.injectJavaScript(`
@@ -603,8 +610,8 @@ export default function MapScreen({ navigation, route }) {
                 </>
               ) : routeInfo ? (
                 <>
-                  <Ionicons name="navigate" size={16} color="#fff" style={{ marginRight: 8 }} />
-                  <Text style={styles.directionsBtnText}>{routeInfo.distKm} km · {routeInfo.mins} min</Text>
+                  <Ionicons name="camera" size={16} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={styles.directionsBtnText}>Travel Now</Text>
                 </>
               ) : (
                 <>
@@ -616,6 +623,24 @@ export default function MapScreen({ navigation, route }) {
           </Animated.View>
         );
       })()}
+
+      {/* ── AR Navigation Overlay ── */}
+      {arNavVisible && selectedSpot && (
+        <View style={[StyleSheet.absoluteFill, { zIndex: 9999 }]}>
+          <ARNavigationOverlay
+            icon={{
+              name: selectedSpot.name,
+              tagline: selectedSpot.location_name || '',
+              color: getBadgeConfig((selectedSpot.feature_types && selectedSpot.feature_types[0]) || 'qr').color,
+              model_3d: selectedSpot.model_3d
+            }}
+            spot={selectedSpot}
+            userLocation={userLocation}
+            onContinue={() => setArNavVisible(false)}
+            onClose={() => setArNavVisible(false)}
+          />
+        </View>
+      )}
 
       {/* ── Error Modal ── */}
       <ErrorModal
