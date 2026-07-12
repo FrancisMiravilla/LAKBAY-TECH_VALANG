@@ -820,7 +820,7 @@ const styles = StyleSheet.create({
   headerSubtitle: { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: COLORS.textSub, marginTop: 4 },
   mapContainer: { flex: 1, position: 'relative', overflow: 'hidden', backgroundColor: COLORS.bg },
   fullMapContainer: { flex: 1, backgroundColor: COLORS.bg },
-  webview: { flex: 1, backgroundColor: 'transparent' },
+  webview: { flex: 1, backgroundColor: 'transparent', opacity: 0.99 },
   miniMapContainer: {
     position: 'absolute',
     bottom: CARD_HEIGHT + 20,
@@ -836,9 +836,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
-    elevation: 10,
-    zIndex: 50,
-    overflow: 'hidden'
+    elevation: 99,
+    zIndex: 9999
   },
   miniMapWebview: { flex: 1, backgroundColor: '#EEF3FF' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: SPACING.xl },
