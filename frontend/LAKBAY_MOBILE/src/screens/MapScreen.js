@@ -294,14 +294,7 @@ function buildMapboxHTML(spots) {
         showUserLocation(msg.lat, msg.lng, currentHeading, true);
         map.flyTo({ center: [msg.lng, msg.lat], zoom: 18, pitch: 60, bearing: currentHeading, speed: 1.5 });
         
-        // Hide base layers
-        if (map.getStyle() && map.getStyle().layers) {
-          map.getStyle().layers.forEach(function(layer) {
-            if (layer.id !== routeLineId && !layer.id.startsWith('spot-') && layer.id !== 'route') {
-              try { map.setLayoutProperty(layer.id, 'visibility', 'none'); } catch(e){}
-            }
-          });
-        }
+        setTimeout(() => map.resize(), 100);
       }
       if(msg.type==='STOP_NAVIGATION'){
         isNavigating = false;
@@ -311,14 +304,7 @@ function buildMapboxHTML(spots) {
            showUserLocation(lngLat.lat, lngLat.lng, 0, false);
         }
         
-        // Show base layers
-        if (map.getStyle() && map.getStyle().layers) {
-          map.getStyle().layers.forEach(function(layer) {
-            if (layer.id !== routeLineId && !layer.id.startsWith('spot-') && layer.id !== 'route') {
-              try { map.setLayoutProperty(layer.id, 'visibility', 'visible'); } catch(e){}
-            }
-          });
-        }
+        setTimeout(() => map.resize(), 100);
       }
       if(msg.type==='UPDATE_LOCATION'){
         if (isNavigating) {
@@ -655,8 +641,8 @@ export default function MapScreen({ navigation, route }) {
           <WebView
             ref={webviewRef}
             source={{ html: mapboxHTML, baseUrl: 'https://localhost' }}
-            style={[styles.webview, isNavigating && { display: 'none' }]}
-            containerStyle={isNavigating ? { display: 'none' } : undefined}
+            style={isNavigating ? styles.miniMapWebview : styles.webview}
+            containerStyle={isNavigating ? styles.miniMapContainer : undefined}
             onMessage={handleMessage}
             javaScriptEnabled={true}
             domStorageEnabled={true}
@@ -827,6 +813,24 @@ const styles = StyleSheet.create({
   headerSubtitle: { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: COLORS.textSub, marginTop: 4 },
   mapContainer: { flex: 1, position: 'relative', overflow: 'hidden', backgroundColor: COLORS.bg },
   webview: { flex: 1, backgroundColor: COLORS.bg },
+  miniMapContainer: {
+    position: 'absolute',
+    bottom: CARD_HEIGHT + 20,
+    right: 20,
+    width: 140,
+    height: 180,
+    borderRadius: RADIUS.md,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 10,
+    zIndex: 50,
+    overflow: 'hidden'
+  },
+  miniMapWebview: { flex: 1, backgroundColor: '#EEF3FF' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: SPACING.xl },
   loadingText: { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: COLORS.textMuted, marginTop: SPACING.sm },
   errorText: { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: COLORS.textSub, marginTop: SPACING.sm, textAlign: 'center' },
