@@ -4,6 +4,7 @@ import { CameraView } from 'expo-camera';
 import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
+import { Svg, Polygon } from 'react-native-svg';
 import { ORIGIN } from '../api/qrService';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
 const FALLBACK_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
@@ -346,41 +347,42 @@ function DirectionArrow({ relativeBearing, distanceM, color, deviceHeading, targ
   // Is the target roughly straight ahead? (within ±25°)
   const isAligned = relativeBearing < 25 || relativeBearing > 335;
 
+  const arrowColor = isAligned ? '#22C55E' : (color || '#FF7A00');
+  const shadowColor = isAligned ? '#15803D' : '#CC5A00';
+  const deepShadow = isAligned ? '#14532D' : '#994300';
+  
+  // A chunky arrow path pointing UP
+  const ARROW_POLYGON = "50,10 90,50 70,50 70,100 30,100 30,50 10,50";
+
   return (
     <View style={arrowStyles.container}>
-      {/* Radar rings behind arrow */}
-      <RadarRing color={color} delay={0} />
-      <RadarRing color={color} delay={700} />
-
-      {/* Outer pulsing ring */}
-      <Animated.View
-        style={[
-          arrowStyles.outerRing,
-          {
-            borderColor: isAligned ? '#22C55E' : color + 'AA',
-            transform: [{ scale: pulseAnim }],
-          },
-        ]}
-      />
-
-      {/* Arrow circle */}
-      <View
-        style={[
-          arrowStyles.arrowCircle,
-          {
-            backgroundColor: isAligned ? '#22C55E18' : color + '22',
-            borderColor:     isAligned ? '#22C55ECC' : color + '99',
-          },
-        ]}
-      >
-        <Animated.View style={{ transform: [{ rotate: rotation }, { translateY: bounceAnim }] }}>
-          <Ionicons
-            name="arrow-up"
-            size={38}
-            color={isAligned ? '#22C55E' : color}
-          />
-        </Animated.View>
-      </View>
+      <Animated.View style={{ alignItems: 'center', justifyContent: 'center', width: 140, height: 140, transform: [{ translateY: bounceAnim }] }}>
+        {/* Stack multiple flat SVGs to create a 3D extrusion effect */}
+        {[...Array(15)].map((_, i) => {
+          // Draw bottom-to-top (i=14 is bottom-most, i=0 is top-most)
+          const isTop = i === 0;
+          const layerColor = isTop ? arrowColor : (i > 10 ? deepShadow : shadowColor);
+          return (
+            <Animated.View
+              key={i}
+              style={{
+                position: 'absolute',
+                // Shift each layer down to create thickness
+                top: i * 2.5,
+                // Apply 3D perspective rotation to the flat SVG
+                transform: [
+                  { rotateX: '60deg' },
+                  { rotateZ: rotation }
+                ]
+              }}
+            >
+              <Svg width="120" height="120" viewBox="0 0 100 100">
+                <Polygon points={ARROW_POLYGON} fill={layerColor} stroke={layerColor} strokeWidth="1" strokeLinejoin="round" />
+              </Svg>
+            </Animated.View>
+          );
+        })}
+      </Animated.View>
 
       {/* Aligned flash label */}
       {isAligned && (

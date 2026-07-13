@@ -16,7 +16,7 @@ import ARNavigationOverlay from '../components/ARNavigationOverlay';
 const { height: SCREEN_H } = Dimensions.get('window');
 const CARD_HEIGHT = 240;
 const NAV_MAP_HEIGHT = SCREEN_H * 0.55;
-const NAV_MINIMIZED_Y = NAV_MAP_HEIGHT - 80;
+const NAV_MINIMIZED_Y = NAV_MAP_HEIGHT - 240;
 
 // ─── Mapbox HTML Builder ───────────────────────────────────────────────────
 function buildMapboxHTML(spots) {
@@ -294,7 +294,7 @@ function buildMapboxHTML(spots) {
         isNavigating = true;
         currentHeading = msg.heading || 0;
         showUserLocation(msg.lat, msg.lng, currentHeading, true);
-        map.flyTo({ center: [msg.lng, msg.lat], zoom: 18, pitch: 60, bearing: currentHeading, speed: 1.5, padding: { bottom: 120 } });
+        map.flyTo({ center: [msg.lng, msg.lat], zoom: 18, pitch: 60, bearing: currentHeading, speed: 1.5, padding: { bottom: ${NAV_MINIMIZED_Y} } });
         
         [100, 300, 600, 1000].forEach(t => setTimeout(() => {
           map.resize();
@@ -397,10 +397,14 @@ export default function MapScreen({ navigation, route }) {
         if (gestureState.dy < -30) {
           // Swipe up
           Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 10 }).start();
+          if (isNavigating) {
+            webviewRef.current?.injectJavaScript(`map.easeTo({ padding: { bottom: 0 }, duration: 400 }); true;`);
+          }
         } else if (gestureState.dy > 30) {
           // Swipe down
           if (isNavigating) {
             Animated.spring(slideAnim, { toValue: NAV_MINIMIZED_Y, useNativeDriver: true, tension: 65, friction: 10 }).start();
+            webviewRef.current?.injectJavaScript(`map.easeTo({ padding: { bottom: ${NAV_MINIMIZED_Y} }, duration: 400 }); true;`);
           } else {
             Animated.spring(slideAnim, { toValue: CARD_HEIGHT, useNativeDriver: true, tension: 65, friction: 10 }).start();
             webviewRef.current?.injectJavaScript(`window.dispatchEvent(new MessageEvent('message',{data:JSON.stringify({type:'DESELECT'})}));true;`);
