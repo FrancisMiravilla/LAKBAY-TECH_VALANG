@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { promotionService } from './api/promotionService';
 import '@google/model-viewer';
-import { CheckCircle, XCircle, Clock, User, FileText, Image as ImageIcon, Box, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, User, FileText, Image as ImageIcon, Box, Filter, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 export default function PromotionModeration() {
   const [promotions, setPromotions] = useState([]);
@@ -11,7 +11,10 @@ export default function PromotionModeration() {
   // Filter and Pagination states
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6;
+  const itemsPerPage = 8; // Increased items per page since cards are smaller
+
+  // Modal State
+  const [selectedPromo, setSelectedPromo] = useState(null);
 
   useEffect(() => {
     fetchPromotions();
@@ -20,7 +23,6 @@ export default function PromotionModeration() {
   const fetchPromotions = async () => {
     try {
       const data = await promotionService.getPromotions();
-      // Ensure data is an array (in case backend adds DRF pagination later)
       const results = Array.isArray(data) ? data : (data.results || []);
       setPromotions(results);
     } catch (err) {
@@ -34,6 +36,7 @@ export default function PromotionModeration() {
     try {
       await promotionService.approvePromotion(id);
       fetchPromotions();
+      setSelectedPromo(null);
     } catch (err) {
       alert('Failed to approve');
     }
@@ -45,6 +48,7 @@ export default function PromotionModeration() {
       try {
         await promotionService.rejectPromotion(id, reason);
         fetchPromotions();
+        setSelectedPromo(null);
       } catch (err) {
         alert('Failed to reject');
       }
@@ -63,7 +67,6 @@ export default function PromotionModeration() {
     return filteredPromotions.slice(start, start + itemsPerPage);
   }, [filteredPromotions, currentPage]);
 
-  // Reset page when filter changes
   useEffect(() => {
     setCurrentPage(1);
   }, [filterStatus]);
@@ -77,7 +80,7 @@ export default function PromotionModeration() {
   if (error) return <div className="p-8 text-red-500">{error}</div>;
 
   return (
-    <section className="content-card" style={{ gap: '30px', paddingBottom: '40px' }}>
+    <section className="content-card" style={{ gap: '30px', paddingBottom: '40px', position: 'relative' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
@@ -115,7 +118,8 @@ export default function PromotionModeration() {
         </div>
       </div>
       
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '24px' }}>
+      {/* Smaller Cards Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '20px' }}>
         {paginatedPromotions.length === 0 ? (
           <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
             <CheckCircle size={48} style={{ opacity: 0.5, marginBottom: '16px', margin: '0 auto' }} />
@@ -124,18 +128,32 @@ export default function PromotionModeration() {
           </div>
         ) : (
           paginatedPromotions.map((promo) => (
-            <div key={promo.id} style={{ 
-              backgroundColor: 'var(--bg-card)', 
-              borderRadius: '12px', 
-              border: '1px solid var(--border-color)',
-              overflow: 'hidden',
-              boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
-              display: 'flex',
-              flexDirection: 'column'
-            }}>
+            <div 
+              key={promo.id} 
+              onClick={() => setSelectedPromo(promo)}
+              style={{ 
+                backgroundColor: '#ffffff', 
+                borderRadius: '12px', 
+                border: '1px solid var(--border-color)',
+                overflow: 'hidden',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+                display: 'flex',
+                flexDirection: 'column',
+                cursor: 'pointer',
+                transition: 'transform 0.2s, box-shadow 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 12px 25px rgba(0,0,0,0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+              }}
+            >
               
-              {/* Media Section (Image or 3D Model) */}
-              <div style={{ width: '100%', height: '280px', backgroundColor: '#111', position: 'relative' }}>
+              {/* Media Thumbnail */}
+              <div style={{ width: '100%', height: '160px', backgroundColor: '#111', position: 'relative' }}>
                 {promo.model_3d_file ? (
                   <model-viewer
                     src={promo.model_3d_file}
@@ -147,70 +165,35 @@ export default function PromotionModeration() {
                   <img src={promo.image_file} alt="Promotion" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
-                    No Media Attached
+                    <ImageIcon size={32} opacity={0.5} />
                   </div>
                 )}
+              </div>
+
+              {/* Minimal Content */}
+              <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' }}>
+                <h3 style={{ margin: '0 0 8px 0', color: '#111827', fontSize: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{promo.spot_name}</h3>
                 
                 {/* Status Badge */}
                 <div style={{ 
-                  position: 'absolute', top: '12px', right: '12px', 
-                  padding: '6px 12px', borderRadius: '20px', 
-                  backgroundColor: promo.status === 'PENDING_REVIEW' ? 'rgba(245, 158, 11, 0.9)' : 
-                                   promo.status === 'APPROVED_PENDING_PAYMENT' ? 'rgba(16, 185, 129, 0.9)' : 
-                                   promo.status === 'PUBLISHED' ? 'rgba(59, 130, 246, 0.9)' : 'rgba(239, 68, 68, 0.9)',
-                  color: 'white', fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.5px', backdropFilter: 'blur(4px)'
+                  display: 'inline-block',
+                  padding: '4px 8px', borderRadius: '12px', 
+                  backgroundColor: promo.status === 'PENDING_REVIEW' ? 'rgba(245, 158, 11, 0.2)' : 
+                                   promo.status === 'APPROVED_PENDING_PAYMENT' ? 'rgba(16, 185, 129, 0.2)' : 
+                                   promo.status === 'PUBLISHED' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                  color: promo.status === 'PENDING_REVIEW' ? '#fbbf24' : 
+                         promo.status === 'APPROVED_PENDING_PAYMENT' ? '#34d399' : 
+                         promo.status === 'PUBLISHED' ? '#60a5fa' : '#f87171',
+                  fontSize: '11px', fontWeight: 'bold', alignSelf: 'flex-start',
+                  border: `1px solid ${
+                    promo.status === 'PENDING_REVIEW' ? '#fbbf24' : 
+                    promo.status === 'APPROVED_PENDING_PAYMENT' ? '#34d399' : 
+                    promo.status === 'PUBLISHED' ? '#60a5fa' : '#f87171'
+                  }`
                 }}>
                   {promo.status.replace(/_/g, ' ')}
                 </div>
               </div>
-
-              {/* Content Section */}
-              <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h3 style={{ margin: '0 0 16px 0', color: 'white', fontSize: '20px' }}>{promo.spot_name}</h3>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', marginBottom: '12px', fontSize: '14px' }}>
-                  <User size={16} />
-                  <strong>Submitted by:</strong> {promo.user_name}
-                </div>
-                
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '14px' }}>
-                  <FileText size={16} style={{ marginTop: '3px', flexShrink: 0 }} />
-                  <p style={{ margin: 0, lineHeight: 1.5 }}>{promo.description}</p>
-                </div>
-
-                {/* Actions */}
-                <div style={{ marginTop: 'auto', display: 'flex', gap: '12px' }}>
-                  {promo.status === 'PENDING_REVIEW' ? (
-                    <>
-                      <button 
-                        onClick={() => handleReject(promo.id)}
-                        className="btn"
-                        style={{ flex: 1, backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}
-                      >
-                        <XCircle size={18} /> Reject
-                      </button>
-                      <button 
-                        onClick={() => handleApprove(promo.id)}
-                        className="btn"
-                        style={{ flex: 1, backgroundColor: '#10b981', color: 'white', border: 'none' }}
-                      >
-                        <CheckCircle size={18} /> Approve
-                      </button>
-                    </>
-                  ) : (
-                    <button className="btn" style={{ flex: 1, opacity: 0.5, cursor: 'not-allowed' }} disabled>
-                      Action Completed
-                    </button>
-                  )}
-                </div>
-                
-                {promo.rejection_reason && (
-                  <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderLeft: '3px solid #ef4444', borderRadius: '4px' }}>
-                    <p style={{ color: '#ef4444', margin: 0, fontSize: '13px' }}><strong>Rejection Reason:</strong> {promo.rejection_reason}</p>
-                  </div>
-                )}
-              </div>
-
             </div>
           ))
         )}
@@ -250,6 +233,110 @@ export default function PromotionModeration() {
           >
             Next <ChevronRight size={16} />
           </button>
+        </div>
+      )}
+
+      {/* Details Modal */}
+      {selectedPromo && (
+        <div 
+          onClick={() => setSelectedPromo(null)}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000,
+            display: 'flex', justifyContent: 'center', alignItems: 'center',
+            padding: '20px', backdropFilter: 'blur(5px)'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#ffffff', 
+              borderRadius: '16px', 
+              width: '100%', maxWidth: '600px', 
+              maxHeight: '90vh', overflowY: 'auto',
+              border: '1px solid var(--border-color)',
+              display: 'flex', flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid var(--border-color)', backgroundColor: '#ffffff' }}>
+              <h3 style={{ margin: 0, color: '#111827', fontSize: '20px' }}>{selectedPromo.spot_name}</h3>
+              <button onClick={() => setSelectedPromo(null)} style={{ background: 'transparent', border: 'none', color: '#6b7280', cursor: 'pointer' }}>
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Media */}
+            <div style={{ width: '100%', height: '300px', backgroundColor: '#0a0a0a' }}>
+              {selectedPromo.model_3d_file ? (
+                <model-viewer
+                  src={selectedPromo.model_3d_file}
+                  auto-rotate
+                  camera-controls
+                  style={{ width: '100%', height: '100%', outline: 'none' }}
+                />
+              ) : selectedPromo.image_file ? (
+                <img src={selectedPromo.image_file} alt="Promotion" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
+                  No Media Attached
+                </div>
+              )}
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '24px', flex: 1, backgroundColor: '#ffffff' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4b5563', fontSize: '14px' }}>
+                  <User size={16} />
+                  <strong style={{ color: '#111827' }}>Submitted by:</strong> {selectedPromo.user_name}
+                </div>
+                <div style={{ 
+                  padding: '4px 10px', borderRadius: '12px', 
+                  backgroundColor: selectedPromo.status === 'PENDING_REVIEW' ? 'rgba(245, 158, 11, 0.2)' : 
+                                   selectedPromo.status === 'APPROVED_PENDING_PAYMENT' ? 'rgba(16, 185, 129, 0.2)' : 
+                                   selectedPromo.status === 'PUBLISHED' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                  color: selectedPromo.status === 'PENDING_REVIEW' ? '#fbbf24' : 
+                         selectedPromo.status === 'APPROVED_PENDING_PAYMENT' ? '#34d399' : 
+                         selectedPromo.status === 'PUBLISHED' ? '#60a5fa' : '#f87171',
+                  fontSize: '12px', fontWeight: 'bold'
+                }}>
+                  {selectedPromo.status.replace(/_/g, ' ')}
+                </div>
+              </div>
+              
+              <div style={{ color: '#374151', marginBottom: '24px', fontSize: '15px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                {selectedPromo.description}
+              </div>
+
+              {selectedPromo.rejection_reason && (
+                <div style={{ marginBottom: '24px', padding: '12px', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderLeft: '3px solid #ef4444', borderRadius: '4px' }}>
+                  <p style={{ color: '#ef4444', margin: 0, fontSize: '14px' }}><strong>Rejection Reason:</strong> {selectedPromo.rejection_reason}</p>
+                </div>
+              )}
+
+              {/* Actions */}
+              {selectedPromo.status === 'PENDING_REVIEW' && (
+                <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                  <button 
+                    onClick={() => handleReject(selectedPromo.id)}
+                    className="btn"
+                    style={{ flex: 1, padding: '12px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}
+                  >
+                    <XCircle size={18} /> Reject
+                  </button>
+                  <button 
+                    onClick={() => handleApprove(selectedPromo.id)}
+                    className="btn"
+                    style={{ flex: 1, padding: '12px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}
+                  >
+                    <CheckCircle size={18} /> Approve
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </section>
