@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { promotionService } from './api/promotionService';
 import '@google/model-viewer';
-import { CheckCircle, XCircle, Clock, User, FileText, Image as ImageIcon, Box } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, User, FileText, Image as ImageIcon, Box, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function PromotionModeration() {
   const [promotions, setPromotions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Filter and Pagination states
+  const [filterStatus, setFilterStatus] = useState('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
   useEffect(() => {
     fetchPromotions();
@@ -15,7 +20,9 @@ export default function PromotionModeration() {
   const fetchPromotions = async () => {
     try {
       const data = await promotionService.getPromotions();
-      setPromotions(data);
+      // Ensure data is an array (in case backend adds DRF pagination later)
+      const results = Array.isArray(data) ? data : (data.results || []);
+      setPromotions(results);
     } catch (err) {
       setError('Failed to fetch promotions');
     } finally {
@@ -44,6 +51,24 @@ export default function PromotionModeration() {
     }
   };
 
+  // ─── Filter & Paginate ────────────────────────────────────────────────
+  const filteredPromotions = useMemo(() => {
+    if (filterStatus === 'ALL') return promotions;
+    return promotions.filter(p => p.status === filterStatus);
+  }, [promotions, filterStatus]);
+
+  const totalPages = Math.ceil(filteredPromotions.length / itemsPerPage);
+  const paginatedPromotions = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredPromotions.slice(start, start + itemsPerPage);
+  }, [filteredPromotions, currentPage]);
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus]);
+
+
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px', color: 'var(--text-secondary)' }}>
       <Clock className="animate-spin" size={32} style={{ marginRight: '10px' }} /> Loading Moderation Queue...
@@ -52,8 +77,8 @@ export default function PromotionModeration() {
   if (error) return <div className="p-8 text-red-500">{error}</div>;
 
   return (
-    <section className="content-card" style={{ gap: '30px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '20px' }}>
+    <section className="content-card" style={{ gap: '30px', paddingBottom: '40px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
             <Box size={28} color="var(--accent-gold)" />
@@ -63,17 +88,42 @@ export default function PromotionModeration() {
             Review user-submitted 3D models and promotional content before they are approved for payment.
           </p>
         </div>
+        
+        {/* Filter Dropdown */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Filter size={18} color="var(--text-secondary)" />
+          <select 
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '8px',
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-primary)',
+              fontSize: '14px',
+              outline: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="ALL">All Promotions</option>
+            <option value="PENDING_REVIEW">Pending Review</option>
+            <option value="APPROVED_PENDING_PAYMENT">Approved (Awaiting Payment)</option>
+            <option value="PUBLISHED">Published</option>
+            <option value="REJECTED">Rejected</option>
+          </select>
+        </div>
       </div>
       
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '24px' }}>
-        {promotions.length === 0 ? (
+        {paginatedPromotions.length === 0 ? (
           <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
             <CheckCircle size={48} style={{ opacity: 0.5, marginBottom: '16px', margin: '0 auto' }} />
             <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--text-secondary)' }}>All caught up!</h3>
-            <p>There are no pending promotions in the queue.</p>
+            <p>No promotions found for the selected filter.</p>
           </div>
         ) : (
-          promotions.map((promo) => (
+          paginatedPromotions.map((promo) => (
             <div key={promo.id} style={{ 
               backgroundColor: 'var(--bg-card)', 
               borderRadius: '12px', 
@@ -165,6 +215,43 @@ export default function PromotionModeration() {
           ))
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '30px' }}>
+          <button 
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            style={{
+              padding: '8px 12px', borderRadius: '8px', border: 'none',
+              backgroundColor: currentPage === 1 ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)',
+              color: currentPage === 1 ? 'var(--text-muted)' : 'white',
+              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: '4px'
+            }}
+          >
+            <ChevronLeft size={16} /> Prev
+          </button>
+          
+          <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+            Page {currentPage} of {totalPages}
+          </span>
+          
+          <button 
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            style={{
+              padding: '8px 12px', borderRadius: '8px', border: 'none',
+              backgroundColor: currentPage === totalPages ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.1)',
+              color: currentPage === totalPages ? 'var(--text-muted)' : 'white',
+              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: '4px'
+            }}
+          >
+            Next <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
     </section>
   );
 }
