@@ -26,12 +26,17 @@ import QuizScreen from '../screens/QuizScreen';
 import MapScreen from '../screens/MapScreen'; 
 import EditProfileScreen from '../screens/EditProfileScreen';
 import ViroARScanner from '../screens/ViroARScanner';
+import StoreScreen from '../screens/StoreScreen';
+import PromoteScreen from '../screens/PromoteScreen';
+import MyPromotionsScreen from '../screens/MyPromotionsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 const TABS = [
   { name: 'Explore', label: 'Explore' },
+  { name: 'Promote', label: 'Promote' },
+  { name: 'Store',   label: 'Store'   },
   { name: 'Badges',  label: 'Badges'  },
   { name: 'Profile', label: 'Profile' },
 ];
@@ -84,6 +89,8 @@ function MainTabs({ route }) {
         component={HomeScreen}
         initialParams={{ showOnboarding }}
       />
+      <Tab.Screen name="Promote" component={PromoteScreen} />
+      <Tab.Screen name="Store"   component={StoreScreen} />
       <Tab.Screen name="Badges"  component={BadgesScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
@@ -121,6 +128,8 @@ export default function AppNavigator() {
       <Stack.Screen name="Map"           component={MapScreen} />
       <Stack.Screen name="EditProfile"   component={EditProfileScreen} />
       <Stack.Screen name="MindAR"        component={ViroARScanner} />
+      <Stack.Screen name="Promote"       component={PromoteScreen} />
+      <Stack.Screen name="MyPromotions"  component={MyPromotionsScreen} />
       
       {/* REMOVED: Profile and Badges aliases because they are in MainTabs */}
     </Stack.Navigator>

@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'accounts',
     'quiz',
     'qr_scan',
+    'promotions',
 ]
 
 REST_AUTH = {
@@ -194,6 +195,11 @@ GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET')
 
 # Groq AI
 GROQ_API_KEY = config('GROQ_API_KEY')
+
+# PayMongo Setup
+PAYMONGO_PUBLIC_KEY = config('PAYMONGO_PUBLIC_KEY', default='')
+PAYMONGO_SECRET_KEY = config('PAYMONGO_SECRET_KEY', default='')
+PAYMONGO_WEBHOOK_SECRET = config('PAYMONGO_WEBHOOK_SECRET', default='')
 
 # Cloudinary — CDN storage for 3D models
 cloudinary.config(

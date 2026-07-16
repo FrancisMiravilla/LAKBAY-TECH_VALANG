@@ -8,6 +8,7 @@ import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { getSpots, ORIGIN } from '../api/qrService';
+import { getPublishedPromotions } from '../api/promotionService';
 import { COLORS, FONTS, SIZES, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import ErrorModal from '../components/ErrorModal';
 import { useCameraPermissions } from 'expo-camera';
@@ -41,6 +42,8 @@ function buildMapboxHTML(spots) {
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
   <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet">
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
+  <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js"></script>
+  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css" type="text/css">
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
@@ -61,6 +64,7 @@ function buildMapboxHTML(spots) {
     .pin-qr    .pin-circle{ background:#1A56DB; box-shadow:0 0 10px rgba(26,86,219,0.7),0 0 0 4px rgba(26,86,219,0.2); }
     .pin-ar    .pin-circle{ background:#10B981; box-shadow:0 0 10px rgba(16,185,129,0.7),0 0 0 4px rgba(16,185,129,0.2); }
     .pin-catch .pin-circle{ background:#FBBF24; box-shadow:0 0 10px rgba(251,191,36,0.7),0 0 0 4px rgba(251,191,36,0.2); }
+    .pin-promotion .pin-circle{ background:#EC4899; box-shadow:0 0 10px rgba(236,72,153,0.7),0 0 0 4px rgba(236,72,153,0.2); }
     .pin-catch model-viewer{ width:100%;height:100%;background:transparent;pointer-events:none; --poster-color:transparent; }
     .pin.selected .pin-circle{
       border-color:#fff;
@@ -72,6 +76,18 @@ function buildMapboxHTML(spots) {
       font-family:sans-serif; font-size:7px; font-weight:800; letter-spacing:0.5px;
       color:#fff; padding:1px 5px; border-radius:5px; white-space:nowrap; pointer-events:none;
     }
+    
+    /* Make Geocoder search bar wider */
+    .mapboxgl-ctrl-geocoder {
+      width: calc(100vw - 32px) !important;
+      max-width: calc(100vw - 32px) !important;
+      min-width: 250px !important;
+      margin: 16px !important;
+    }
+    .mapboxgl-ctrl-top-left {
+      width: 100%;
+    }
+    
     /* user location pulse */
     .user-dot{
       width:16px;height:16px;border-radius:50%;
@@ -110,14 +126,22 @@ function buildMapboxHTML(spots) {
     zoom: 12
   });
 
+  var geocoder = new MapboxGeocoder({
+    accessToken: mapboxgl.accessToken,
+    mapboxgl: mapboxgl,
+    marker: false
+  });
+  map.addControl(geocoder, 'top-left');
+
   map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-  var TYPE_COLOR={qr:'#1A56DB',ar:'#10B981',catch:'#FBBF24'};
-  var TYPE_LABEL={qr:'QR',ar:'AR',catch:'CATCH'};
+  var TYPE_COLOR={qr:'#1A56DB',ar:'#10B981',catch:'#FBBF24',promotion:'#EC4899'};
+  var TYPE_LABEL={qr:'QR',ar:'AR',catch:'CATCH',promotion:'PROMO'};
   var ICON_SVG={
     ar:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5"/><path d="M12 12v10"/></svg>',
     qr:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="3" height="3" fill="#fff" stroke="none"/><rect x="18" y="18" width="3" height="3" fill="#fff" stroke="none"/><rect x="14" y="18" width="3" height="3" fill="#fff" stroke="none"/></svg>',
     catch:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 5H4a1 1 0 0 0-1 1 5 5 0 0 0 4 4.9M17 5h3a1 1 0 0 1 1 1 5 5 0 0 1-4 4.9"/></svg>',
+    promotion:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>',
   };
 
   spots.forEach(function(spot){
@@ -417,8 +441,20 @@ export default function MapScreen({ navigation, route }) {
 
   // ── Load spots ────────────────────────────────────────────────────────────
   useEffect(() => {
-    getSpots()
-      .then(data => setSpots(Array.isArray(data) ? data : (data.results || [])))
+    Promise.all([getSpots(), getPublishedPromotions().catch(() => [])])
+      .then(([spotsData, promosData]) => {
+        const parsedSpots = Array.isArray(spotsData) ? spotsData : (spotsData.results || []);
+        const parsedPromos = Array.isArray(promosData) ? promosData : (promosData.results || []);
+        
+        const mappedPromos = parsedPromos.map(p => ({
+          ...p,
+          name: p.spot_name,
+          location_name: 'User Promotion',
+          feature_types: ['promotion']
+        }));
+        
+        setSpots([...parsedSpots, ...mappedPromos]);
+      })
       .catch(() => setError('Could not load map spots. Check your connection.'))
       .finally(() => setLoading(false));
   }, []);
@@ -607,6 +643,7 @@ export default function MapScreen({ navigation, route }) {
     const configs = {
       ar:    { label: 'AR EXHIBIT',  icon: 'cube-outline',  color: '#10B981', bg: '#ECFDF5', border: '#6EE7B7' },
       catch: { label: 'CATCH ZONE',  icon: 'trophy-outline',color: '#D97706', bg: '#FFFBEB', border: '#FCD34D' },
+      promotion:{ label: 'PROMOTION', icon: 'star-outline',  color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8' },
       qr:    { label: 'QR SPOT',     icon: 'scan-outline',  color: COLORS.accent, bg: COLORS.accentSoft, border: COLORS.accentBorder },
     };
     return configs[type] || configs['qr'];
@@ -686,6 +723,7 @@ export default function MapScreen({ navigation, route }) {
               { color: '#1A56DB', label: 'QR Scan', icon: 'qr-code-outline' },
               { color: '#10B981', label: 'AR Exhibit', icon: 'cube-outline' },
               { color: '#FBBF24', label: 'Catch Zone', icon: 'trophy-outline' },
+              { color: '#EC4899', label: 'Promotion', icon: 'star-outline' },
             ].map(item => (
               <View key={item.label} style={styles.legendRow}>
                 <View style={[styles.legendIconDot, { backgroundColor: item.color, shadowColor: item.color, shadowOpacity: 0.8, shadowRadius: 4, elevation: 3 }]}>

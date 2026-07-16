@@ -9,6 +9,7 @@ urlpatterns = [
     path('api/auth/', include('accounts.urls')),
     path('api/quiz/', include('quiz.urls')),
     path('api/qr/', include('qr_scan.urls')),
+    path('api/promotions/', include('promotions.urls')),
     path('model-viewer/', model_viewer_page, name='model_viewer'),
 ]
 

@@ -38,7 +38,9 @@ import {
   ArrowLeft,
   Box,
   Image as ImageIcon,
-  Scan
+  Scan,
+  Store,
+  Settings as SettingsIcon
 } from 'lucide-react'
 
 import './App.css'
@@ -51,6 +53,8 @@ import '@google/model-viewer';
 import qrService from './api/qrService';
 import QRCodeLib from 'qrcode';
 import ErrorModal from './ErrorModal';
+import PromotionModeration from './PromotionModeration';
+import PromotionSettings from './PromotionSettings';
 
 const generateNotificationId = () => Date.now();
 
@@ -1528,6 +1532,20 @@ function App() {
                 <FileText className="menu-icon" />
                 Reports
               </div>
+              <div 
+                className={`menu-item ${activeTab === 'promotions' ? 'active' : ''}`}
+                onClick={() => setActiveTab('promotions')}
+              >
+                <Store className="menu-icon" />
+                Promotions Queue
+              </div>
+              <div 
+                className={`menu-item ${activeTab === 'settings' ? 'active' : ''}`}
+                onClick={() => setActiveTab('settings')}
+              >
+                <SettingsIcon className="menu-icon" />
+                Settings
+              </div>
             </>
           )}
         </nav>
@@ -1573,6 +1591,8 @@ function App() {
               {activeTab === 'users' && 'User Directory'}
               {activeTab === 'badges' && 'Gamification Badges'}
               {activeTab === 'reports' && 'Analytics & Reports'}
+              {activeTab === 'promotions' && 'Promotions Queue'}
+              {activeTab === 'settings' && 'System Settings'}
             </h1>
             <span className="header-subtitle">
               {activeTab === 'overview' && 'Zamboanga City cultural app performance & analytics'}
@@ -1586,6 +1606,8 @@ function App() {
               {activeTab === 'users' && 'Manage user achievements, checks, and registration status'}
               {activeTab === 'badges' && 'Configure and inspect user achievement badges'}
               {activeTab === 'reports' && 'Export records and review monthly performance summaries'}
+              {activeTab === 'promotions' && 'Review and approve submitted user promotions and 3D models'}
+              {activeTab === 'settings' && 'Configure system variables like dynamic pricing'}
             </span>
           </div>
 
@@ -2874,7 +2896,13 @@ function App() {
               </div>
             </section>
           )}
+          {activeTab === 'promotions' && (
+            <PromotionModeration />
+          )}
 
+          {activeTab === 'settings' && (
+            <PromotionSettings />
+          )}
         </div>
       </main>
 

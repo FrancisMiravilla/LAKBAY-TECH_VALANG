@@ -157,6 +157,14 @@ export default function DetailsScreen({ route, navigation }) {
           <Text style={styles.sectionTitle}>About this Place</Text>
           <Text style={styles.desc}>{info.overview}</Text>
 
+          {/* Promote Button */}
+          <TouchableOpacity 
+            style={styles.promoteBtn}
+            onPress={() => navigation.navigate('Promote', { spotName: destination.title })}
+          >
+            <Ionicons name="megaphone-outline" size={20} color="#FFF" />
+            <Text style={styles.promoteBtnText}>Promote this Spot!</Text>
+          </TouchableOpacity>
 
         </View>
       </ScrollView>
@@ -261,6 +269,14 @@ const styles = StyleSheet.create({
   },
   desc: {
     fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textSub, lineHeight: 22,
+  },
+  promoteBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: COLORS.teal, padding: 16, borderRadius: RADIUS.md, marginTop: 24,
+    elevation: 3, shadowColor: COLORS.teal, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
+  },
+  promoteBtnText: {
+    fontFamily: FONTS.bold, fontSize: 15, color: '#FFF',
   },
 
   // ── Highlights Grid ──────────────────────────────────────────────────

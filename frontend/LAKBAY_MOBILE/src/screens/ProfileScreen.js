@@ -10,6 +10,7 @@ import VintaStripe from '../components/VintaStripe';
 
 const SETTINGS_OPTIONS = [
   { id: 'edit',   icon: '✏️', label: 'Edit Profile' },
+  { id: 'promotions', icon: '📢', label: 'My Promotions' },
   { id: 'notif',  icon: '🔔', label: 'Notifications' },
   { id: 'priv',   icon: '🔒', label: 'Privacy & Security' },
   { id: 'help',   icon: '❓', label: 'Help & Support' },
@@ -139,6 +140,7 @@ const handleLogout = () => {
               onPress={() => {
                 if (opt.id === 'logout') handleLogout();
                 else if (opt.id === 'edit') navigation.navigate('EditProfile');
+                else if (opt.id === 'promotions') navigation.navigate('MyPromotions');
               }}
             >
               <View style={styles.settingIconWrap}>
