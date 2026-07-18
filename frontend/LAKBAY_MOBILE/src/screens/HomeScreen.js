@@ -10,6 +10,7 @@ import { WebView } from 'react-native-webview';
 import { useApp } from '../context/AppContext';
 
 import { getSpots, ORIGIN } from '../api/qrService';
+import { getPublishedPromotions } from '../api/promotionService';
 
 const formatImageUrl = (img) => {
   if (!img) return null;
@@ -195,6 +196,7 @@ export default function HomeScreen({ navigation, route }) {
   const [selectedQa, setSelectedQa] = useState(null);
   const [spots, setSpots] = useState([]); // used for map
   const [featuredPlaces, setFeaturedPlaces] = useState([]); // used for places to experience
+  const [promotedPlaces, setPromotedPlaces] = useState([]); // used for places promoted by users
   const [showTour, setShowTour] = useState(false);
   const { notifs, addNotification } = useApp();
   const prevSpotCountRef = useRef(0);
@@ -206,8 +208,9 @@ export default function HomeScreen({ navigation, route }) {
   const tourSteps = TOUR_STEPS.map((s) => (s.refKey ? { ...s, targetRef: refs[s.refKey] } : s));
 
   useEffect(() => {
-    const fetchSpots = () => {
-      getSpots().then(data => {
+    const fetchSpotsAndPromotions = async () => {
+      try {
+        const data = await getSpots();
         const allSpots = Array.isArray(data) ? data : (data.results || []);
         setSpots(allSpots);
         setFeaturedPlaces(allSpots.filter(s => s.is_featured));
@@ -221,11 +224,17 @@ export default function HomeScreen({ navigation, route }) {
           });
         }
         prevSpotCountRef.current = allSpots.length;
-      }).catch(e => console.log('Home spots error', e));
+
+        const promoData = await getPublishedPromotions();
+        const publishedPromos = Array.isArray(promoData) ? promoData : (promoData.results || []);
+        setPromotedPlaces(publishedPromos.filter(p => p.is_place));
+      } catch (e) {
+        console.log('Home fetch error', e);
+      }
     };
 
-    fetchSpots();
-    const interval = setInterval(fetchSpots, 15000);
+    fetchSpotsAndPromotions();
+    const interval = setInterval(fetchSpotsAndPromotions, 15000);
     return () => clearInterval(interval);
   }, []);
 
@@ -406,6 +415,34 @@ export default function HomeScreen({ navigation, route }) {
               <View style={styles.accentBar} />
               <Text style={styles.promoTitle}>Places to Experience</Text>
             </View>
+
+            {/* Promoted Places */}
+            {promotedPlaces.map((p) => (
+              <TouchableOpacity
+                key={`promo-${p.id}`}
+                style={styles.destinationCard}
+                activeOpacity={0.9}
+                onPress={() => {
+                  navigation.navigate('Details', { destination: { title: p.spot_name, location: 'Promoted Place', description: p.description, images: [formatImageUrl(p.image_file)] } });
+                }}
+              >
+                <View style={styles.destImageContainer}>
+                  <Image source={{ uri: formatImageUrl(p.image_file) }} style={styles.destImage} resizeMode="cover" />
+                  <View style={[styles.destTagBadge, { backgroundColor: 'rgba(0,0,0,0.6)', borderColor: COLORS.gold, position: 'absolute', top: 12, left: 12 }]}>
+                    <Text style={[styles.destTagText, { color: COLORS.gold }]}>Promotion by others</Text>
+                  </View>
+                </View>
+
+                <View style={styles.destBody}>
+                  <Text style={styles.destName}>{p.spot_name}</Text>
+                  <Text style={styles.destDesc} numberOfLines={2}>{p.description}</Text>
+
+                  <View style={styles.destFooter}>
+                    <Text style={[styles.destCta, { color: COLORS.gold }]}>Explore →</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
 
             {/* Destination promo cards */}
             {featuredPlaces.map((d) => {

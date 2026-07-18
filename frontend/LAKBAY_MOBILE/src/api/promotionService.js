@@ -36,10 +36,11 @@ export const getPublishedPromotions = async () => {
   return response.data;
 };
 
-export const submitPromotion = async (spotName, description, imageUri, glbUri, lat, lng) => {
+export const submitPromotion = async (spotName, description, imageUri, glbUri, lat, lng, isPlace = false) => {
   const formData = new FormData();
   formData.append('spot_name', spotName);
   formData.append('description', description);
+  formData.append('is_place', isPlace ? 'true' : 'false');
   
   if (lat !== undefined && lng !== undefined) {
     formData.append('latitude', lat);

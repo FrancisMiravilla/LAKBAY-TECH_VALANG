@@ -12,7 +12,7 @@ const { height: SCREEN_H } = Dimensions.get('window');
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || 'your_mapbox_token_here';
 
-const MAP_PICKER_HTML = `
+const getMapPickerHTML = (lng, lat) => `
 <!DOCTYPE html>
 <html>
 <head>
@@ -59,33 +59,71 @@ const MAP_PICKER_HTML = `
   var map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/light-v11',
-    center: [122.0790, 6.9214], // Default Zamboanga
+    center: [${lng}, ${lat}], 
     zoom: 12
   });
-  
+  function nominatimGeocoder(query) {
+    return fetch('https://nominatim.openstreetmap.org/search?format=geojson&q=' + encodeURIComponent(query), {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'LakbayMobileApp/1.0 (contact@lakbay.ph)'
+      }
+    })
+      .then(function(response) {
+        return response.json();
+      })
+      .then(function(data) {
+        return data.features;
+      })
+      .catch(function(e) {
+        console.error(e);
+        return [];
+      });
+  }
+
   var geocoder = new MapboxGeocoder({
     accessToken: mapboxgl.accessToken,
     mapboxgl: mapboxgl,
-    marker: false
+    marker: false,
+    externalGeocoder: nominatimGeocoder
   });
   map.addControl(geocoder, 'top-left');
   map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
 
-  // Send center coordinates whenever map moves
-  function sendCenter() {
-    var center = map.getCenter();
+  // Send coordinates
+  function sendLocation(lng, lat) {
     window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({
       type: 'LOCATION_UPDATED',
-      lat: center.lat,
-      lng: center.lng
+      lat: lat,
+      lng: lng
     }));
   }
-  
-  map.on('move', sendCenter);
-  map.on('moveend', sendCenter);
-  
-  // Send initial
-  map.on('load', sendCenter);
+
+  // Update location when the map moves
+  map.on('move', function() {
+    var center = map.getCenter();
+    sendLocation(center.lng, center.lat);
+  });
+  map.on('moveend', function() {
+    var center = map.getCenter();
+    sendLocation(center.lng, center.lat);
+  });
+
+  // Center map on tap
+  map.on('click', function(e) {
+    map.panTo(e.lngLat);
+  });
+
+  // Handle geocoder result
+  geocoder.on('result', function(e) {
+    var coords = e.result.center; // [lng, lat]
+    sendLocation(coords[0], coords[1]);
+  });
+
+  // Send initial location
+  map.on('load', function() {
+    sendLocation(${lng}, ${lat});
+  });
 </script>
 </body>
 </html>
@@ -100,6 +138,7 @@ export default function PromoteScreen({ route, navigation }) {
   const [imageUri, setImageUri] = useState(null);
   const [glbUri, setGlbUri] = useState(null);
   const [glbName, setGlbName] = useState(null);
+  const [isPlace, setIsPlace] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
   // Location State
@@ -138,7 +177,7 @@ export default function PromoteScreen({ route, navigation }) {
     
     setSubmitting(true);
     try {
-      await submitPromotion(spotName.trim(), description.trim(), imageUri, glbUri, location.lat, location.lng);
+      await submitPromotion(spotName.trim(), description.trim(), imageUri, glbUri, location.lat, location.lng, isPlace);
       Alert.alert('Success', 'Your promotion has been submitted for review!', [
         { 
           text: 'OK', 
@@ -150,6 +189,7 @@ export default function PromoteScreen({ route, navigation }) {
               setGlbUri(null);
               setGlbName(null);
               setLocation(null);
+              setIsPlace(false);
             } else {
               navigation.goBack();
             }
@@ -158,7 +198,13 @@ export default function PromoteScreen({ route, navigation }) {
       ]);
     } catch (e) {
       console.log('Submit error', e);
-      Alert.alert('Error', 'Failed to submit promotion.');
+      let errMsg = 'Failed to submit promotion.';
+      if (e.response && e.response.data) {
+        errMsg = JSON.stringify(e.response.data);
+      } else if (e.message) {
+        errMsg = e.message;
+      }
+      Alert.alert('Error', errMsg);
     } finally {
       setSubmitting(false);
     }
@@ -236,6 +282,16 @@ export default function PromoteScreen({ route, navigation }) {
           onChangeText={setDescription}
         />
 
+        <View style={styles.checkboxContainer}>
+          <TouchableOpacity 
+            style={[styles.checkbox, isPlace && styles.checkboxChecked]} 
+            onPress={() => setIsPlace(!isPlace)}
+          >
+            {isPlace && <Ionicons name="checkmark" size={16} color="#FFF" />}
+          </TouchableOpacity>
+          <Text style={styles.checkboxLabel}>This is a place (will appear in Explore tabs)</Text>
+        </View>
+
         <Text style={styles.label}>Attach Photo (Optional)</Text>
         <TouchableOpacity style={styles.uploadBox} onPress={pickImage}>
           {imageUri ? (
@@ -269,30 +325,32 @@ export default function PromoteScreen({ route, navigation }) {
         <Text style={styles.infoText}>Once approved by an admin, you can pay coins to publish it.</Text>
       </ScrollView>
 
-      {/* Map Picker Modal */}
-      <Modal visible={mapModalVisible} animationType="slide">
-        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bgCard }}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity style={styles.modalBackBtn} onPress={() => setMapModalVisible(false)}>
-              <Ionicons name="close" size={24} color={COLORS.text} />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Drag Map to Pin</Text>
-            <TouchableOpacity style={styles.modalConfirmBtn} onPress={confirmLocation}>
-              <Text style={styles.modalConfirmText}>Confirm</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={{ flex: 1 }}>
-            <WebView
-              source={{ html: MAP_PICKER_HTML, baseUrl: 'https://localhost' }}
-              style={{ flex: 1 }}
-              onMessage={handleMapMessage}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              originWhitelist={['*']}
-            />
-          </View>
-        </SafeAreaView>
-      </Modal>
+      {/* Map Picker Modal (Replaced with absolute view to fix Android WebView keyboard issue) */}
+      {mapModalVisible && (
+        <View style={[StyleSheet.absoluteFill, { zIndex: 999, elevation: 10, backgroundColor: COLORS.bgCard }]}>
+          <SafeAreaView style={{ flex: 1 }}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity style={styles.modalBackBtn} onPress={() => setMapModalVisible(false)}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Drag Map to Pin</Text>
+              <TouchableOpacity style={styles.modalConfirmBtn} onPress={confirmLocation}>
+                <Text style={styles.modalConfirmText}>Confirm</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ flex: 1 }}>
+              <WebView
+                source={{ html: getMapPickerHTML(location?.lng || 122.0790, location?.lat || 6.9214), baseUrl: 'https://localhost' }}
+                style={{ flex: 1 }}
+                onMessage={handleMapMessage}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+                originWhitelist={['*']}
+              />
+            </View>
+          </SafeAreaView>
+        </View>
+      )}
 
     </SafeAreaView>
   );
@@ -351,6 +409,13 @@ const styles = StyleSheet.create({
   },
   submitText: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.text },
   infoText: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textSub, textAlign: 'center', marginTop: 12 },
+  checkboxContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 8 },
+  checkbox: { 
+    width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: COLORS.border,
+    justifyContent: 'center', alignItems: 'center', marginRight: 10,
+  },
+  checkboxChecked: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
+  checkboxLabel: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.text, flex: 1 },
   
   // Modal styles
   modalHeader: {

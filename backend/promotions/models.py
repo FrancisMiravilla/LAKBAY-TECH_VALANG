@@ -45,6 +45,7 @@ class UserPromotion(models.Model):
     # Location
     latitude = models.FloatField(blank=True, null=True)
     longitude = models.FloatField(blank=True, null=True)
+    is_place = models.BooleanField(default=False)
 
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='DRAFT')
     rejection_reason = models.TextField(blank=True, null=True)

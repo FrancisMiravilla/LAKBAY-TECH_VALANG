@@ -34,11 +34,11 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 const TABS = [
-  { name: 'Explore', label: 'Explore' },
-  { name: 'Promote', label: 'Promote' },
-  { name: 'Store',   label: 'Store'   },
-  { name: 'Badges',  label: 'Badges'  },
-  { name: 'Profile', label: 'Profile' },
+  { name: 'Explore', label: 'Explore', icon: 'compass' },
+  { name: 'Promote', label: 'Promote', icon: 'megaphone' },
+  { name: 'Store',   label: 'Store',   icon: 'storefront' },
+  { name: 'Badges',  label: 'Badges',  icon: 'medal' },
+  { name: 'Profile', label: 'Profile', icon: 'person' },
 ];
 
 function MainTabs({ route }) {
@@ -63,12 +63,15 @@ function MainTabs({ route }) {
         ),
         tabBarIcon: ({ focused }) => {
           const tab = TABS.find(t => t.name === route.name);
+          const iconName = focused ? tab?.icon : `${tab?.icon}-outline`;
+          const color = focused ? '#FBBF24' : '#94A3B8';
+          
           return (
             <View style={[tabStyles.pill, focused && tabStyles.pillActive]}>
+              <Ionicons name={iconName} size={22} color={color} style={{ marginBottom: 2 }} />
               <Text style={[tabStyles.pillText, focused && tabStyles.pillTextActive]}>
                 {tab?.label ?? route.name}
               </Text>
-              {focused && <View style={tabStyles.activeDot} />}
             </View>
           );
         },

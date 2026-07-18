@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   StyleSheet, View, Text, ActivityIndicator, TouchableOpacity,
-  Animated, Dimensions, PanResponder
+  Animated, Dimensions, PanResponder, Image
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -32,6 +32,7 @@ function buildMapboxHTML(spots) {
       description: s.description || '',
       feature_types: s.feature_types || [],
       model_3d: s.model_3d ? String(s.model_3d).replace(/^http:\/\//, 'https://') : null,
+      image: s.image ? String(s.image).replace(/^http:\/\//, 'https://') : null,
     }));
 
   const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || 'your_mapbox_token_here';
@@ -126,10 +127,30 @@ function buildMapboxHTML(spots) {
     zoom: 12
   });
 
+  function nominatimGeocoder(query) {
+    return fetch('https://nominatim.openstreetmap.org/search?format=geojson&q=' + encodeURIComponent(query), {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'LakbayMobileApp/1.0 (contact@lakbay.ph)'
+      }
+    })
+      .then(function(response) {
+        return response.json();
+      })
+      .then(function(data) {
+        return data.features;
+      })
+      .catch(function(e) {
+        console.error(e);
+        return [];
+      });
+  }
+
   var geocoder = new MapboxGeocoder({
     accessToken: mapboxgl.accessToken,
     mapboxgl: mapboxgl,
-    marker: false
+    marker: false,
+    externalGeocoder: nominatimGeocoder
   });
   map.addControl(geocoder, 'top-left');
 
@@ -146,8 +167,9 @@ function buildMapboxHTML(spots) {
 
   spots.forEach(function(spot){
     var primaryType=(spot.feature_types&&spot.feature_types[0])||'qr';
-    var hasModel=primaryType==='catch'&&!!spot.model_3d;
-    var baseSize=hasModel?46:36;
+    var hasModel=(primaryType==='catch'||primaryType==='promotion')&&!!spot.model_3d;
+    var hasPic=(primaryType==='promotion')&&!!spot.image&&!hasModel;
+    var baseSize=hasModel?46:(hasPic?40:36);
 
     var el=document.createElement('div');
     el.className='pin pin-'+primaryType;
@@ -168,6 +190,13 @@ function buildMapboxHTML(spots) {
       mv.setAttribute('interaction-prompt','none');
       mv.setAttribute('exposure','1.1');
       circle.appendChild(mv);
+    } else if (hasPic) {
+      var img = document.createElement('img');
+      img.src = spot.image;
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.style.objectFit = 'cover';
+      circle.appendChild(img);
     } else {
       circle.innerHTML=ICON_SVG[primaryType]||ICON_SVG.qr;
     }
@@ -450,7 +479,9 @@ export default function MapScreen({ navigation, route }) {
           ...p,
           name: p.spot_name,
           location_name: 'User Promotion',
-          feature_types: ['promotion']
+          feature_types: ['promotion'],
+          model_3d: p.model_3d_file ? (p.model_3d_file.startsWith('http') ? p.model_3d_file : ORIGIN + p.model_3d_file) : null,
+          image: p.image_file ? (p.image_file.startsWith('http') ? p.image_file : ORIGIN + p.image_file) : null
         }));
         
         setSpots([...parsedSpots, ...mappedPromos]);
@@ -800,8 +831,8 @@ export default function MapScreen({ navigation, route }) {
               </View>
             )}
 
-            {/* 3D Model for Catch Zones */}
-            {selectedSpot.feature_types?.includes('catch') && selectedSpot.model_3d && (
+            {/* Media rendering (3D Model or Image) */}
+            {(selectedSpot.feature_types?.includes('catch') || selectedSpot.feature_types?.includes('promotion')) && selectedSpot.model_3d ? (
               <View style={{ width: '100%', height: 180, marginTop: 12, borderRadius: RADIUS.md, overflow: 'hidden', backgroundColor: '#0F172A' }}>
                 <WebView
                   source={{ html: build3DViewerHTML(selectedSpot.model_3d.replace('http://', 'https://').startsWith('http') ? selectedSpot.model_3d.replace('http://', 'https://') : `${ORIGIN}${selectedSpot.model_3d}`) }}
@@ -813,7 +844,15 @@ export default function MapScreen({ navigation, route }) {
                   androidLayerType="hardware"
                 />
               </View>
-            )}
+            ) : selectedSpot.feature_types?.includes('promotion') && selectedSpot.image ? (
+              <View style={{ width: '100%', height: 180, marginTop: 12, borderRadius: RADIUS.md, overflow: 'hidden', backgroundColor: COLORS.card }}>
+                <Image 
+                  source={{ uri: selectedSpot.image.replace('http://', 'https://').startsWith('http') ? selectedSpot.image.replace('http://', 'https://') : `${ORIGIN}${selectedSpot.image}` }} 
+                  style={{ width: '100%', height: '100%' }} 
+                  resizeMode="cover" 
+                />
+              </View>
+            ) : null}
 
             {/* Divider */}
             <View style={styles.divider} />

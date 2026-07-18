@@ -19,6 +19,7 @@ class UserPromotionSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'user_name', 'spot_name', 'description', 
             'image_file', 'model_3d_file', 'latitude', 'longitude',
+            'is_place',
             'status', 'rejection_reason', 'created_at', 'updated_at'
         )
         read_only_fields = ['status', 'rejection_reason']
