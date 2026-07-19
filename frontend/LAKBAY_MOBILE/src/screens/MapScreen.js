@@ -128,17 +128,17 @@ function buildMapboxHTML(spots) {
   });
 
   function nominatimGeocoder(query) {
-    return fetch('https://nominatim.openstreetmap.org/search?format=geojson&q=' + encodeURIComponent(query), {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'LakbayMobileApp/1.0 (contact@lakbay.ph)'
-      }
-    })
+    return fetch('https://nominatim.openstreetmap.org/search?format=geojson&email=contact@lakbay.ph&q=' + encodeURIComponent(query))
       .then(function(response) {
         return response.json();
       })
       .then(function(data) {
-        return data.features;
+        return data.features.map(function(f) {
+          f.place_name = f.properties.display_name;
+          f.text = f.properties.name || f.properties.display_name.split(',')[0];
+          f.center = f.geometry.coordinates;
+          return f;
+        });
       })
       .catch(function(e) {
         console.error(e);

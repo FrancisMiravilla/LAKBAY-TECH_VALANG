@@ -18,6 +18,7 @@ class CoinBundle(models.Model):
     description = models.TextField(blank=True, null=True)
     coins_amount = models.PositiveIntegerField()
     price_php = models.DecimalField(max_digits=10, decimal_places=2)
+    image = models.ImageField(upload_to='bundle_coins/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

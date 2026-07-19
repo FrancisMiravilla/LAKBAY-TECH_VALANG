@@ -40,7 +40,8 @@ import {
   Image as ImageIcon,
   Scan,
   Store,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Coins
 } from 'lucide-react'
 
 import './App.css'
@@ -55,6 +56,7 @@ import QRCodeLib from 'qrcode';
 import ErrorModal from './ErrorModal';
 import PromotionModeration from './PromotionModeration';
 import PromotionSettings from './PromotionSettings';
+import CoinBundleManagement from './CoinBundleManagement';
 
 const generateNotificationId = () => Date.now();
 
@@ -1540,6 +1542,13 @@ function App() {
                 Promotions Queue
               </div>
               <div 
+                className={`menu-item ${activeTab === 'coin_bundles' ? 'active' : ''}`}
+                onClick={() => setActiveTab('coin_bundles')}
+              >
+                <Coins className="menu-icon" />
+                Coin Bundles
+              </div>
+              <div 
                 className={`menu-item ${activeTab === 'settings' ? 'active' : ''}`}
                 onClick={() => setActiveTab('settings')}
               >
@@ -1592,6 +1601,7 @@ function App() {
               {activeTab === 'badges' && 'Gamification Badges'}
               {activeTab === 'reports' && 'Analytics & Reports'}
               {activeTab === 'promotions' && 'Promotions Queue'}
+              {activeTab === 'coin_bundles' && 'Coin Bundles'}
               {activeTab === 'settings' && 'System Settings'}
             </h1>
             <span className="header-subtitle">
@@ -1607,6 +1617,7 @@ function App() {
               {activeTab === 'badges' && 'Configure and inspect user achievement badges'}
               {activeTab === 'reports' && 'Export records and review monthly performance summaries'}
               {activeTab === 'promotions' && 'Review and approve submitted user promotions and 3D models'}
+              {activeTab === 'coin_bundles' && 'Manage coin bundles available for purchase'}
               {activeTab === 'settings' && 'Configure system variables like dynamic pricing'}
             </span>
           </div>
@@ -2902,6 +2913,10 @@ function App() {
 
           {activeTab === 'settings' && (
             <PromotionSettings />
+          )}
+          
+          {activeTab === 'coin_bundles' && (
+            <CoinBundleManagement />
           )}
         </div>
       </main>

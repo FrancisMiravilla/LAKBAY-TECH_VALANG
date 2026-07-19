@@ -9,7 +9,7 @@ class WalletSerializer(serializers.ModelSerializer):
 class CoinBundleSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoinBundle
-        fields = ['id', 'name', 'description', 'coins_amount', 'price_php', 'is_active']
+        fields = ['id', 'name', 'description', 'coins_amount', 'price_php', 'image', 'is_active']
 
 class UserPromotionSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField()

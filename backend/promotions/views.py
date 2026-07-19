@@ -22,6 +22,20 @@ class CoinBundleListView(generics.ListAPIView):
     serializer_class = CoinBundleSerializer
     permission_classes = [AllowAny]
 
+class CoinBundleViewSet(viewsets.ModelViewSet):
+    queryset = CoinBundle.objects.all().order_by('-created_at')
+    serializer_class = CoinBundleSerializer
+    
+    def get_permissions(self):
+        if self.request.method in ['GET']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
+        
+    def check_permissions(self, request):
+        super().check_permissions(request)
+        if request.method not in ['GET'] and not request.user.is_staff:
+            self.permission_denied(request, message="Not authorized.")
+
 class AppSettingViewSet(viewsets.ModelViewSet):
     queryset = AppSetting.objects.all()
     serializer_class = AppSettingSerializer

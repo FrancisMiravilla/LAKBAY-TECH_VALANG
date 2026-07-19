@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     WalletRetrieveView,
     CoinBundleListView,
+    CoinBundleViewSet,
     UserPromotionViewSet,
     CreatePayMongoCheckoutView,
     PayMongoWebhookView,
@@ -14,6 +15,7 @@ from .views import (
 router = DefaultRouter()
 router.register(r'promotions', UserPromotionViewSet, basename='promotions')
 router.register(r'settings', AppSettingViewSet, basename='settings')
+router.register(r'coin-bundles', CoinBundleViewSet, basename='coin-bundles')
 
 urlpatterns = [
     path('wallet/', WalletRetrieveView.as_view(), name='wallet-detail'),

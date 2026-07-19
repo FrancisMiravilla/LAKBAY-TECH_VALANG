@@ -1,15 +1,25 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Linking, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Linking, Image, Dimensions, ImageBackground } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { getWallet, getBundles, createCheckout } from '../api/promotionService';
+import { ORIGIN } from '../api/qrService';
 
 const { width } = Dimensions.get('window');
 
 // A placeholder 2D image for the coin bundles since we don't have image fields in the database yet
 const COIN_IMAGE = 'https://cdn-icons-png.flaticon.com/512/2850/2850730.png';
+
+const formatImageUrl = (img) => {
+  if (!img) return COIN_IMAGE;
+  if (img.startsWith('http://localhost:8000') || img.startsWith('http://127.0.0.1:8000')) {
+    return img.replace(/^http:\/\/(localhost|127\.0\.0\.1):8000/, ORIGIN);
+  }
+  if (img.startsWith('/media')) return `${ORIGIN}${img}`;
+  return img;
+};
 
 export default function StoreScreen({ navigation }) {
   const [wallet, setWallet] = useState(null);
@@ -57,29 +67,36 @@ export default function StoreScreen({ navigation }) {
   }
 
   const renderBundleCard = ({ item }) => (
-    <View style={styles.cardContainer}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>{item.name}</Text>
-      </View>
-      
-      <View style={styles.imageContainer}>
-        {/* Here is where the 2D Image goes! */}
-        <Image source={{ uri: COIN_IMAGE }} style={styles.bundleImage} resizeMode="contain" />
-      </View>
-      
-      <View style={styles.coinsRow}>
-        <Ionicons name="diamond" size={16} color={COLORS.gold} />
-        <Text style={styles.coinsText}>{item.coins_amount}</Text>
-      </View>
-
-      <TouchableOpacity 
-        style={[styles.buyBtn, buying && { opacity: 0.7 }]} 
-        onPress={() => handleBuy(item.id)}
-        disabled={buying}
+    <TouchableOpacity 
+      style={styles.cardContainer}
+      onPress={() => handleBuy(item.id)}
+      disabled={buying}
+      activeOpacity={0.8}
+    >
+      <ImageBackground 
+        source={{ uri: formatImageUrl(item.image) }} 
+        style={styles.bundleBgImage} 
+        resizeMode="cover"
       >
-        <Text style={styles.buyBtnText}>₱{item.price_php}</Text>
-      </TouchableOpacity>
-    </View>
+        <View style={styles.overlay}>
+          {/* Top Right: Price */}
+          <View style={styles.priceTag}>
+            <Text style={styles.priceText}>₱{item.price_php}</Text>
+          </View>
+
+          {/* Center: Coin Amount */}
+          <View style={styles.centerContent}>
+            <Image source={{ uri: COIN_IMAGE }} style={{ width: 32, height: 32, tintColor: COLORS.gold }} />
+            <Text style={styles.coinsTextCenter}>{item.coins_amount}</Text>
+          </View>
+
+          {/* Bottom: Name */}
+          <View style={styles.bottomContent}>
+            <Text style={styles.cardTitle}>{item.name}</Text>
+          </View>
+        </View>
+      </ImageBackground>
+    </TouchableOpacity>
   );
 
   return (
@@ -91,12 +108,13 @@ export default function StoreScreen({ navigation }) {
       <View style={styles.walletCard}>
         <Text style={styles.walletTitle}>Your Balance</Text>
         <View style={styles.walletRow}>
-          <Ionicons name="diamond" size={24} color={COLORS.gold} />
+          <Image source={{ uri: COIN_IMAGE }} style={{ width: 28, height: 28, tintColor: COLORS.gold }} />
           <Text style={styles.walletBalance}>{wallet?.balance || 0} Coins</Text>
         </View>
       </View>
 
       <FlatList
+        key="2col"
         data={bundles}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.list}
@@ -133,47 +151,51 @@ const styles = StyleSheet.create({
   
   cardContainer: {
     width: (width - 48) / 2, // 2 columns with 16 padding on edges and between
+    height: 160,
     backgroundColor: COLORS.bgCard,
     borderRadius: RADIUS.md,
     borderWidth: 2,
     borderColor: COLORS.border,
-    padding: 12,
-    alignItems: 'center',
+    overflow: 'hidden',
+    marginBottom: 16,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4,
   },
-  cardHeader: {
-    marginBottom: 8,
+  bundleBgImage: {
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    padding: 10,
+    justifyContent: 'space-between',
+  },
+  priceTag: {
+    alignSelf: 'flex-end',
+    backgroundColor: COLORS.teal,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.pill,
+  },
+  priceText: {
+    fontFamily: FONTS.bold, fontSize: 13, color: '#FFF',
+  },
+  centerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  coinsTextCenter: {
+    fontFamily: FONTS.bold, fontSize: 26, color: COLORS.gold,
+    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 4,
+  },
+  bottomContent: {
+    alignItems: 'center',
   },
   cardTitle: {
-    fontFamily: FONTS.bold, fontSize: 13, color: COLORS.text, textAlign: 'center',
-  },
-  imageContainer: {
-    width: '100%',
-    height: 80,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  bundleImage: {
-    width: 60,
-    height: 60,
-  },
-  coinsRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12,
-    backgroundColor: 'rgba(251,191,36,0.1)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.pill
-  },
-  coinsText: {
-    fontFamily: FONTS.bold, fontSize: 16, color: COLORS.gold,
-  },
-  buyBtn: {
-    width: '100%',
-    backgroundColor: COLORS.teal,
-    paddingVertical: 10,
-    borderRadius: RADIUS.pill,
-    alignItems: 'center',
-  },
-  buyBtnText: {
-    fontFamily: FONTS.bold, fontSize: 14, color: '#FFF',
+    fontFamily: FONTS.bold, fontSize: 14, color: '#FFF', textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 4,
   },
   emptyText: { textAlign: 'center', color: COLORS.textSub, marginTop: 40, fontFamily: FONTS.regular },
 });
