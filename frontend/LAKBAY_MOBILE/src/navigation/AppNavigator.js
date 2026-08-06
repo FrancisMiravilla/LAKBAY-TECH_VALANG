@@ -165,7 +165,7 @@ const tabStyles = StyleSheet.create({
     borderColor: 'rgba(251,191,36,0.40)',
   },
   pillText: {
-    fontSize: 13,
+    fontSize: 9,
     fontFamily: FONTS.semiBold,
     color: '#94A3B8',
     letterSpacing: 0.5,

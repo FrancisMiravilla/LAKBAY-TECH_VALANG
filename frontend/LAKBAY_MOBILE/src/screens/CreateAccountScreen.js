@@ -3,6 +3,7 @@ import {
   SafeAreaView, StyleSheet, Text, View, TextInput, Image,
   TouchableOpacity, ScrollView, StatusBar, ActivityIndicator, Animated,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
@@ -97,10 +98,12 @@ export default function CreateAccountScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.navy} />
 
-      <ScrollView
+      <KeyboardAwareScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scroll}
+        enableOnAndroid
+        extraScrollHeight={20}
       >
         {/* ── Hero Banner ─────────────────────────────────── */}
         <Animated.View
@@ -328,7 +331,7 @@ export default function CreateAccountScreen({ navigation }) {
           </View>
 
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <ErrorModal
         visible={errorModal.visible}
