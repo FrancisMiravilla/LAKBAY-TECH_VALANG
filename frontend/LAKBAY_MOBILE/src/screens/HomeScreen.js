@@ -138,7 +138,7 @@ const DESTINATIONS = [
 ];
 
 const QA_CARDS = [
-  { emoji: '📷', badge: 'AR',    title: 'Augmented Reality', color: COLORS.accent, shadow: SHADOW.accent, route: 'MindAR', icon: 'camera', message: "This feature works only in Zamboanga City's museum" },
+  { emoji: '📷', badge: 'AR',    title: 'Augmented Reality', color: COLORS.accent, shadow: SHADOW.accent, route: 'MindAR', icon: 'camera', message: "You need to find 10 mythical models in each building where it has 3 buildings 10 for each." },
   { emoji: '🔍', badge: 'QR',    title: 'Scan & Discover',   color: COLORS.teal,   shadow: SHADOW.card,   route: 'QR', icon: 'scan', message: "This feature works only on tourist spots" },
   { emoji: '🏆', badge: 'CATCH', title: 'Collect & Win',     color: COLORS.gold,   shadow: SHADOW.gold,   route: 'Catch', icon: 'trophy', message: "This only works 4 symbols to catch which are the curacha, vinta, weave, and the lantaka" },
 ];

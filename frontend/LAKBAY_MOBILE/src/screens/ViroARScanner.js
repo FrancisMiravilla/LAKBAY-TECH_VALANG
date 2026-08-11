@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar, InteractionManager } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar, InteractionManager, Alert, Modal, Animated, Image } from 'react-native';
 import {
   ViroARSceneNavigator,
   ViroARScene,
@@ -168,6 +168,30 @@ export default function ViroARScanner({ navigation }) {
   // have settled. Mounting ViroARSceneNavigator too early races the native
   // GL surface setup and shows a black camera on some devices (e.g. Samsung).
   const [sceneMountReady, setSceneMountReady] = useState(false);
+  const [showInstructionModal, setShowInstructionModal] = useState(true);
+  const [rewardModalData, setRewardModalData] = useState(null);
+  const glowAnim = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (rewardModalData) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(glowAnim, {
+            toValue: 0,
+            duration: 1000,
+            useNativeDriver: true,
+          })
+        ])
+      ).start();
+    } else {
+      glowAnim.setValue(0);
+    }
+  }, [rewardModalData]);
 
   React.useEffect(() => {
     (async () => {
@@ -247,7 +271,27 @@ export default function ViroARScanner({ navigation }) {
   }, []);
 
   // Called natively when ViroARImageMarker sees a painting
-  const handleTargetFound = (target) => {
+  const handleTargetFound = async (target) => {
+    if (!target.model_3d) {
+      Alert.alert("Notice", "This item is not included in the 10 mythical models.");
+      return;
+    }
+
+    setRewardModalData({ name: target.name, emoji: '🐉' });
+
+    // Save to SecureStore for the Badges tab
+    try {
+      const SecureStore = require('expo-secure-store');
+      const existing = await SecureStore.getItemAsync('collected_models');
+      let models = existing ? JSON.parse(existing) : [];
+      if (!models.find(m => m.id === target.id)) {
+        models.push({ id: target.id, name: target.name, emoji: '🐉', color: COLORS.accent, model_3d: target.model_3d ? resolveModelUrl(target.model_3d) : null });
+        await SecureStore.setItemAsync('collected_models', JSON.stringify(models));
+      }
+    } catch (e) {
+      console.error("Error saving collected model", e);
+    }
+
     setDetectedSpot({
       id: target.id,
       name: target.name,
@@ -282,6 +326,72 @@ export default function ViroARScanner({ navigation }) {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       
+      <Modal
+        visible={!!rewardModalData}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { borderColor: COLORS.gold, borderWidth: 2, paddingVertical: 32 }]}>
+            <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <Animated.View style={{
+                position: 'absolute',
+                width: 80, height: 80, borderRadius: 40,
+                backgroundColor: COLORS.gold,
+                opacity: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.1, 0.4] }),
+                transform: [{ scale: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }]
+              }} />
+              <View style={[styles.modalIcon, { backgroundColor: 'rgba(251, 191, 36, 0.2)', width: 80, height: 80, borderRadius: 40, marginBottom: 0 }]}>
+                <Ionicons name="lock-open" size={40} color={COLORS.gold} />
+              </View>
+            </View>
+            <Text style={[styles.modalTitle, { color: COLORS.gold, fontSize: 24, textTransform: 'uppercase', letterSpacing: 1 }]}>
+              Reward Unlocked!
+            </Text>
+            <Text style={[styles.modalMessage, { fontSize: 16 }]}>
+              You found a Mythical Model:{"\n"}
+              <Text style={{ fontFamily: FONTS.bold, color: '#FFF' }}>{rewardModalData?.name}</Text>
+            </Text>
+            <TouchableOpacity 
+              style={[styles.modalBtn, { backgroundColor: COLORS.gold }]} 
+              onPress={() => setRewardModalData(null)}
+            >
+              <Text style={[styles.modalBtnText, { color: '#000' }]}>Awesome!</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showInstructionModal}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Image source={require('../assets/buildings.jpg')} style={styles.modalImage} resizeMode="cover" />
+            <View style={styles.modalTextContainer}>
+              <Text style={styles.modalTitle}>Mythical Models</Text>
+              <Text style={styles.modalMessage}>
+                You need to find 10 mythical models in each building where it has 3 buildings 10 for each.
+              </Text>
+              <View style={styles.noteBox}>
+                <Ionicons name="information-circle" size={16} color={COLORS.gold} style={{ marginRight: 6, marginTop: 1 }} />
+                <Text style={styles.noteText}>
+                  Note: If you scan an artwork and nothing happens, it means that artwork is not part of the mythical arts.
+                </Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.modalBtn} 
+                onPress={() => setShowInstructionModal(false)}
+              >
+                <Text style={styles.modalBtnText}>Proceed</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -483,5 +593,75 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     color: '#FFF',
     fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: '#1E293B',
+    borderRadius: RADIUS.lg,
+    alignItems: 'stretch',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    width: '100%',
+    maxWidth: 320,
+    overflow: 'hidden',
+  },
+  modalImage: {
+    width: '100%',
+    height: 180,
+  },
+  modalTextContainer: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 18,
+    color: '#FFF',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.85)',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  noteBox: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(251, 191, 36, 0.1)',
+    padding: 12,
+    borderRadius: RADIUS.sm,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.3)',
+    width: '100%',
+  },
+  noteText: {
+    flex: 1,
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    lineHeight: 18,
+  },
+  modalBtn: {
+    backgroundColor: COLORS.accent,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: RADIUS.md,
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalBtnText: {
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    color: '#FFF',
   }
 });

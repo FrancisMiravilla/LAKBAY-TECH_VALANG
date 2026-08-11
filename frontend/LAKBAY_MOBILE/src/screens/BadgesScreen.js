@@ -6,7 +6,46 @@ import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
 import VintaStripe from '../components/VintaStripe';
 import { authService } from '../api/authService';
-import { getMyScans, getSpots } from '../api/qrService';
+import { getMyScans, getSpots, getARTargets, ORIGIN } from '../api/qrService';
+import * as SecureStore from 'expo-secure-store';
+import { WebView } from 'react-native-webview';
+
+const resolveModelUrl = (m) => {
+  if (!m) return null;
+  if (m.startsWith('data:')) return m;
+  if (m.startsWith('http')) return m;
+  return `${ORIGIN}${m}`;
+};
+
+const HTML_ESCAPE = { '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;', '&': '&amp;' };
+const escapeAttr = (s) => String(s).replace(/["'<>&]/g, (c) => HTML_ESCAPE[c]);
+
+function build3DViewerHTML(modelUrl) {
+  if (!modelUrl) return null;
+  let safe;
+  try {
+    safe = escapeAttr(modelUrl);
+  } catch {
+    return null;
+  }
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; }
+    model-viewer { width: 100%; height: 100%; --progress-bar-color: transparent; }
+  </style>
+</head>
+<body>
+  <model-viewer src="${safe}" auto-rotate rotation-per-second="30deg" interaction-prompt="none" bounds="tight" exposure="1" shadow-intensity="1" style="width:100%;height:100%"></model-viewer>
+</body>
+</html>`;
+}
+
 
 const BADGES = [
   { emoji: '⛵', label: 'Vinta',       color: COLORS.accent },
@@ -21,22 +60,38 @@ export default function BadgesScreen() {
   const [scans, setScans] = useState([]);
   const [totalSpots, setTotalSpots] = useState(12);
   const [loading, setLoading] = useState(true);
+  const [collectedModels, setCollectedModels] = useState([]);
 
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
       const fetchData = async () => {
         try {
-          const [p, s, spotsData] = await Promise.all([
+          const [p, s, spotsData, collectedModelsStr, arTargetsData] = await Promise.all([
             authService.getProfile(),
             getMyScans(),
-            getSpots().catch(() => []) // Fallback in case spots fail
+            getSpots().catch(() => []),
+            SecureStore.getItemAsync('collected_models').catch(() => null),
+            getARTargets().catch(() => [])
           ]);
           if (isActive) {
             setProfile(p);
             setScans(s?.scans || []);
             if (spotsData?.length > 0) {
               setTotalSpots(spotsData.length);
+            }
+            if (collectedModelsStr) {
+               let storedModels = JSON.parse(collectedModelsStr);
+               const targets = Array.isArray(arTargetsData) ? arTargetsData : (arTargetsData?.results || []);
+               
+               storedModels = storedModels.map(m => {
+                   const t = targets.find(t => t.id === m.id);
+                   if (t && t.model_3d) {
+                       m.model_3d = resolveModelUrl(t.model_3d);
+                   }
+                   return m;
+               });
+               setCollectedModels(storedModels);
             }
           }
         } catch (err) {
@@ -197,30 +252,46 @@ export default function BadgesScreen() {
 
         <View style={styles.divider} />
 
-        {/* ── Badges Collected ── */}
+        {/* ── Models Collected ── */}
         <View style={styles.badgesSection}>
           <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>Collected Badges</Text>
-            <TouchableOpacity onPress={() => alert('View All Badges')}>
+            <Text style={styles.sectionTitle}>Collected Models</Text>
+            <TouchableOpacity onPress={() => alert('View All Models')}>
               <Text style={styles.viewAll}>View All</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.badgesGrid}>
-            {BADGES.map(b => (
-              <View key={b.label} style={styles.badgeItem}>
-                <View
-                  style={[
-                    styles.badgeRing,
-                    { borderColor: b.color, shadowColor: b.color },
-                  ]}
-                >
-                  <View style={styles.badgeCircle}>
-                    <Text style={styles.badgeEmoji}>{b.emoji}</Text>
+            {collectedModels.length > 0 ? (
+              collectedModels.map(b => (
+                <View key={b.id || b.name} style={styles.badgeItem}>
+                  <View
+                    style={[
+                      styles.badgeRing,
+                      { borderColor: b.color || COLORS.accent, shadowColor: b.color || COLORS.accent, overflow: 'hidden', padding: 0, backgroundColor: COLORS.bgCard },
+                    ]}
+                  >
+                    {b.model_3d ? (
+                      <View pointerEvents="none" style={{ flex: 1, width: 70, height: 70, borderRadius: 35, overflow: 'hidden' }}>
+                        <WebView
+                          source={{ html: build3DViewerHTML(b.model_3d) }}
+                          style={{ flex: 1, width: 70, height: 70, backgroundColor: 'transparent' }}
+                          javaScriptEnabled
+                          originWhitelist={['*']}
+                          scrollEnabled={false}
+                        />
+                      </View>
+                    ) : (
+                      <View style={styles.badgeCircle}>
+                        <Text style={styles.badgeEmoji}>{b.emoji || '🐉'}</Text>
+                      </View>
+                    )}
                   </View>
+                  <Text style={styles.badgeLabel}>{b.name}</Text>
                 </View>
-                <Text style={styles.badgeLabel}>{b.label}</Text>
-              </View>
-            ))}
+              ))
+            ) : (
+              <Text style={{ fontFamily: FONTS.regular, color: COLORS.textMuted, fontSize: 12 }}>You haven't collected any models yet.</Text>
+            )}
           </View>
         </View>
 

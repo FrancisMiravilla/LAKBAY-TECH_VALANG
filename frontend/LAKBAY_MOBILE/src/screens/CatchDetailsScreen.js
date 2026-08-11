@@ -167,16 +167,6 @@ export default function CatchDetailsScreen({ route, navigation }) {
 
       </ScrollView>
 
-      {/* Bottom CTA */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity
-          style={[styles.continueBtn, { backgroundColor: iconColor }]}
-          onPress={() => navigation.navigate('QuizScreen', { icon })}
-        >
-          <Text style={styles.continueBtnText}>Continue to Quiz</Text>
-          <Ionicons name="arrow-forward" size={20} color="#FFF" style={{ marginLeft: 8 }} />
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
@@ -200,7 +190,7 @@ const styles = StyleSheet.create({
   headerCenter: { alignItems: 'center' },
   headerTitle: { fontFamily: FONTS.bold, fontSize: 18, color: '#FFF', letterSpacing: 0.5 },
 
-  scroll: { paddingHorizontal: 20, paddingBottom: 110, paddingTop: 20 },
+  scroll: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 20 },
 
   /* 3D model card */
   modelCard: {
@@ -250,13 +240,4 @@ const styles = StyleSheet.create({
   },
   divider: { height: 1, backgroundColor: COLORS.border, marginVertical: 20 },
 
-  /* Bottom button */
-  bottomNav: { position: 'absolute', bottom: 20, left: 20, right: 20 },
-  continueBtn: {
-    flexDirection: 'row', height: 56, borderRadius: RADIUS.md,
-    justifyContent: 'center', alignItems: 'center',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25, shadowRadius: 8, elevation: 6,
-  },
-  continueBtnText: { fontFamily: FONTS.bold, fontSize: 15, color: '#FFF', letterSpacing: 0.8 },
 });
