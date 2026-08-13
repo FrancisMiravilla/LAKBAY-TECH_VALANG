@@ -1,5 +1,15 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar, InteractionManager, Alert, Modal, Animated, Image } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar, InteractionManager, Alert, Modal, Animated, Easing, Image, Dimensions } from 'react-native';
+import { WebView } from 'react-native-webview';
+
+const { width: SCREEN_W } = Dimensions.get('window');
+
+// Build model-viewer HTML for reward modal
+const buildRewardViewerHTML = (modelUrl) => {
+  if (!modelUrl) return null;
+  const safe = String(modelUrl).replace(/["'<>&]/g, c => ({ '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+  return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js" crossorigin="anonymous"></script><style>*{margin:0;padding:0;box-sizing:border-box;}html,body{width:100%;height:100%;background:transparent;overflow:hidden;}model-viewer{width:100%;height:100%;--progress-bar-color:transparent;}</style></head><body><model-viewer src="${safe}" auto-rotate camera-controls bounds="tight" exposure="1.3" shadow-intensity="0" style="width:100%;height:100%"></model-viewer></body></html>`;
+};
 import {
   ViroARSceneNavigator,
   ViroARScene,
@@ -169,6 +179,37 @@ export default function ViroARScanner({ navigation }) {
   // GL surface setup and shows a black camera on some devices (e.g. Samsung).
   const [sceneMountReady, setSceneMountReady] = useState(false);
   const [showInstructionModal, setShowInstructionModal] = useState(true);
+  const [modalStep, setModalStep] = useState(0);
+
+  const instructionSteps = [
+    {
+      icon: 'location',
+      iconColor: COLORS.accent,
+      iconBg: 'rgba(26,86,219,0.15)',
+      stepLabel: 'STEP 1 OF 3',
+      title: 'Head to the Building',
+      body: 'Start by going to the first museum building (S1). Each building holds a unique set of hidden mythical models waiting to be discovered.',
+      note: null,
+    },
+    {
+      icon: 'eye',
+      iconColor: COLORS.gold,
+      iconBg: 'rgba(251,191,36,0.15)',
+      stepLabel: 'STEP 2 OF 3',
+      title: 'Find the 10 Mythical Models',
+      body: 'Inside the building, use your AR camera to scan artworks and exhibits. There are 10 mythical models hidden throughout — each one guarded by a unique marker.',
+      note: 'If you scan an artwork and nothing happens, it is not part of the mythical models.',
+    },
+    {
+      icon: 'trophy',
+      iconColor: COLORS.teal,
+      iconBg: 'rgba(16,185,129,0.15)',
+      stepLabel: 'STEP 3 OF 3',
+      title: 'Collect & Track Progress',
+      body: 'Every mythical model you find is automatically collected and saved. Head to the Progress tab anytime to see how many you have found across all buildings!',
+      note: null,
+    },
+  ];
   const [rewardModalData, setRewardModalData] = useState(null);
   const glowAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -277,7 +318,7 @@ export default function ViroARScanner({ navigation }) {
       return;
     }
 
-    setRewardModalData({ name: target.name, emoji: '🐉' });
+    setRewardModalData({ name: target.name, emoji: '🐉', model_3d: target.model_3d ? resolveModelUrl(target.model_3d) : null });
 
     // Save to SecureStore for the Badges tab
     try {
@@ -329,37 +370,22 @@ export default function ViroARScanner({ navigation }) {
       <Modal
         visible={!!rewardModalData}
         transparent={true}
-        animationType="slide"
+        animationType="fade"
+        statusBarTranslucent
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { borderColor: COLORS.gold, borderWidth: 2, paddingVertical: 32 }]}>
-            <View style={{ alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
-              <Animated.View style={{
-                position: 'absolute',
-                width: 80, height: 80, borderRadius: 40,
-                backgroundColor: COLORS.gold,
-                opacity: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.1, 0.4] }),
-                transform: [{ scale: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }]
-              }} />
-              <View style={[styles.modalIcon, { backgroundColor: 'rgba(251, 191, 36, 0.2)', width: 80, height: 80, borderRadius: 40, marginBottom: 0 }]}>
-                <Ionicons name="lock-open" size={40} color={COLORS.gold} />
-              </View>
-            </View>
-            <Text style={[styles.modalTitle, { color: COLORS.gold, fontSize: 24, textTransform: 'uppercase', letterSpacing: 1 }]}>
-              Reward Unlocked!
-            </Text>
-            <Text style={[styles.modalMessage, { fontSize: 16 }]}>
-              You found a Mythical Model:{"\n"}
-              <Text style={{ fontFamily: FONTS.bold, color: '#FFF' }}>{rewardModalData?.name}</Text>
-            </Text>
-            <TouchableOpacity 
-              style={[styles.modalBtn, { backgroundColor: COLORS.gold }]} 
-              onPress={() => setRewardModalData(null)}
-            >
-              <Text style={[styles.modalBtnText, { color: '#000' }]}>Awesome!</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <RewardModal
+          data={rewardModalData}
+          glowAnim={glowAnim}
+          onClose={() => setRewardModalData(null)}
+          onViewDetails={() => {
+            setRewardModalData(null);
+            if (detectedSpot) {
+              navigation.navigate('CatchDetails', {
+                icon: { name: detectedSpot.name, about: detectedSpot.description, model_3d: detectedSpot.model_3d },
+              });
+            }
+          }}
+        />
       </Modal>
 
       <Modal
@@ -370,23 +396,77 @@ export default function ViroARScanner({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Image source={require('../assets/buildings.jpg')} style={styles.modalImage} resizeMode="cover" />
+
+            {/* Step dot indicators */}
+            <View style={styles.stepDotsRow}>
+              {instructionSteps.map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.stepDot,
+                    i === modalStep ? styles.stepDotActive : styles.stepDotInactive,
+                  ]}
+                />
+              ))}
+            </View>
+
             <View style={styles.modalTextContainer}>
-              <Text style={styles.modalTitle}>Mythical Models</Text>
-              <Text style={styles.modalMessage}>
-                You need to find 10 mythical models in each building where it has 3 buildings 10 for each.
+              {/* Step label */}
+              <Text style={[styles.stepLabel, { color: instructionSteps[modalStep].iconColor }]}>
+                {instructionSteps[modalStep].stepLabel}
               </Text>
-              <View style={styles.noteBox}>
-                <Ionicons name="information-circle" size={16} color={COLORS.gold} style={{ marginRight: 6, marginTop: 1 }} />
-                <Text style={styles.noteText}>
-                  Note: If you scan an artwork and nothing happens, it means that artwork is not part of the mythical arts.
-                </Text>
+
+              {/* Icon */}
+              <View style={[styles.stepIconCircle, { backgroundColor: instructionSteps[modalStep].iconBg }]}>
+                <Ionicons name={instructionSteps[modalStep].icon} size={28} color={instructionSteps[modalStep].iconColor} />
               </View>
-              <TouchableOpacity 
-                style={styles.modalBtn} 
-                onPress={() => setShowInstructionModal(false)}
-              >
-                <Text style={styles.modalBtnText}>Proceed</Text>
-              </TouchableOpacity>
+
+              {/* Title */}
+              <Text style={styles.modalTitle}>{instructionSteps[modalStep].title}</Text>
+
+              {/* Body */}
+              <Text style={styles.modalMessage}>{instructionSteps[modalStep].body}</Text>
+
+              {/* Optional note */}
+              {instructionSteps[modalStep].note ? (
+                <View style={styles.noteBox}>
+                  <Ionicons name="information-circle" size={16} color={COLORS.gold} style={{ marginRight: 6, marginTop: 1 }} />
+                  <Text style={styles.noteText}>{instructionSteps[modalStep].note}</Text>
+                </View>
+              ) : null}
+
+              {/* Navigation buttons */}
+              <View style={styles.modalNavRow}>
+                {modalStep > 0 ? (
+                  <TouchableOpacity
+                    style={styles.modalBtnSecondary}
+                    onPress={() => setModalStep(modalStep - 1)}
+                  >
+                    <Ionicons name="chevron-back" size={16} color="rgba(255,255,255,0.8)" />
+                    <Text style={styles.modalBtnSecondaryText}>Back</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={{ flex: 1 }} />
+                )}
+
+                {modalStep < instructionSteps.length - 1 ? (
+                  <TouchableOpacity
+                    style={styles.modalBtn}
+                    onPress={() => setModalStep(modalStep + 1)}
+                  >
+                    <Text style={styles.modalBtnText}>Next</Text>
+                    <Ionicons name="chevron-forward" size={16} color="#FFF" style={{ marginLeft: 4 }} />
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.modalBtn, { backgroundColor: COLORS.teal }]}
+                    onPress={() => { setShowInstructionModal(false); setModalStep(0); }}
+                  >
+                    <Ionicons name="checkmark-circle" size={16} color="#FFF" style={{ marginRight: 4 }} />
+                    <Text style={styles.modalBtnText}>Proceed</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           </View>
         </View>
@@ -468,6 +548,372 @@ export default function ViroARScanner({ navigation }) {
     </SafeAreaView>
   );
 }
+
+// ── Gamified Reward Modal Component ─────────────────────────────────────────
+function RewardModal({ data, glowAnim, onClose, onViewDetails }) {
+  const scaleAnim  = useRef(new Animated.Value(0.6)).current;
+  const opacAnim   = useRef(new Animated.Value(0)).current;
+  const shimmer    = useRef(new Animated.Value(0)).current;
+  const titleBounce = useRef(new Animated.Value(0)).current;
+
+  // Floating particle orbs
+  const orbs = useRef(
+    Array.from({ length: 6 }, () => ({
+      x: new Animated.Value(0),
+      y: new Animated.Value(0),
+      op: new Animated.Value(0),
+      sc: new Animated.Value(0.3),
+    }))
+  ).current;
+
+  useEffect(() => {
+    if (!data) return;
+
+    // Card pop-in
+    Animated.parallel([
+      Animated.spring(scaleAnim, { toValue: 1, friction: 7, tension: 70, useNativeDriver: true }),
+      Animated.timing(opacAnim,  { toValue: 1, duration: 300, useNativeDriver: true }),
+    ]).start();
+
+    // Title bounce
+    setTimeout(() => {
+      Animated.sequence([
+        Animated.timing(titleBounce, { toValue: -8, duration: 180, useNativeDriver: true }),
+        Animated.spring(titleBounce,  { toValue: 0,  friction: 4, useNativeDriver: true }),
+      ]).start();
+    }, 400);
+
+    // Shimmer on model card
+    Animated.loop(
+      Animated.timing(shimmer, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: true })
+    ).start();
+
+    // Floating orbs
+    const POSITIONS = [
+      { tx: -80, ty: -120 }, { tx: 80, ty: -100 }, { tx: -110, ty: 20 },
+      { tx: 110, ty: 10  }, { tx: -60, ty: 130  }, { tx: 60,  ty: 120 },
+    ];
+    orbs.forEach((orb, i) => {
+      const pos = POSITIONS[i];
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(orb.op, { toValue: 1,   duration: 400, useNativeDriver: true }),
+          Animated.timing(orb.sc, { toValue: 1,   duration: 500, useNativeDriver: true }),
+          Animated.timing(orb.x,  { toValue: pos.tx, duration: 1800 + i * 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(orb.y,  { toValue: pos.ty, duration: 1800 + i * 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        ]).start(() => {
+          Animated.timing(orb.op, { toValue: 0, duration: 600, useNativeDriver: true }).start();
+        });
+      }, i * 80);
+    });
+
+    return () => {
+      scaleAnim.setValue(0.6);
+      opacAnim.setValue(0);
+      shimmer.setValue(0);
+      titleBounce.setValue(0);
+      orbs.forEach(o => { o.x.setValue(0); o.y.setValue(0); o.op.setValue(0); o.sc.setValue(0.3); });
+    };
+  }, [data]);
+
+  if (!data) return null;
+
+  const shimmerX = shimmer.interpolate({ inputRange: [0, 1], outputRange: [-(SCREEN_W), SCREEN_W] });
+  const rewardHTML = data.model_3d ? buildRewardViewerHTML(data.model_3d) : null;
+
+  return (
+    <View style={rwStyles.overlay}>
+      {/* Particle orbs */}
+      {orbs.map((orb, i) => (
+        <Animated.View
+          key={i}
+          pointerEvents="none"
+          style={[
+            rwStyles.orb,
+            { opacity: orb.op, transform: [{ translateX: orb.x }, { translateY: orb.y }, { scale: orb.sc }] },
+            i % 2 === 0 ? rwStyles.orbGold : rwStyles.orbPurple,
+          ]}
+        />
+      ))}
+
+      <Animated.View style={[rwStyles.card, { opacity: opacAnim, transform: [{ scale: scaleAnim }] }]}>
+
+        {/* Header banner */}
+        <View style={rwStyles.cardHeader}>
+          <View style={rwStyles.headerGlow} />
+          <View style={rwStyles.rarityRow}>
+            <Ionicons name="diamond" size={12} color="#A855F7" />
+            <Text style={rwStyles.rarityText}>MYTHICAL FOUND</Text>
+            <Ionicons name="diamond" size={12} color="#A855F7" />
+          </View>
+          <Animated.Text style={[rwStyles.rewardTitle, { transform: [{ translateY: titleBounce }] }]}>
+            ✨ Reward Unlocked!
+          </Animated.Text>
+        </View>
+
+        {/* 3D model viewer OR fallback icon */}
+        <View style={rwStyles.modelFrame}>
+          {/* Glow ring */}
+          <Animated.View style={[
+            rwStyles.modelGlow,
+            { opacity: glowAnim.interpolate({ inputRange: [0,1], outputRange: [0.3, 0.8] }),
+              transform: [{ scale: glowAnim.interpolate({ inputRange: [0,1], outputRange: [1, 1.15] }) }] }
+          ]} />
+
+          <View style={rwStyles.modelCard}>
+            {rewardHTML ? (
+              <WebView
+                source={{ html: rewardHTML }}
+                style={{ flex: 1, backgroundColor: 'transparent' }}
+                javaScriptEnabled
+                originWhitelist={['https://*']}
+                scrollEnabled={false}
+              />
+            ) : (
+              <View style={rwStyles.noModelFallback}>
+                <Text style={{ fontSize: 52 }}>🐉</Text>
+              </View>
+            )}
+            {/* Shimmer sweep */}
+            <Animated.View
+              pointerEvents="none"
+              style={[rwStyles.shimmer, { transform: [{ translateX: shimmerX }] }]}
+            />
+          </View>
+
+          {/* Stars below viewer */}
+          <View style={rwStyles.starsRow}>
+            {[...Array(5)].map((_, i) => (
+              <Ionicons key={i} name="star" size={14} color="#A855F7" style={{ marginHorizontal: 2 }} />
+            ))}
+          </View>
+        </View>
+
+        {/* Model name */}
+        <Text style={rwStyles.modelName}>{data.name}</Text>
+
+        {/* XP + collection row */}
+        <View style={rwStyles.rewardRow}>
+          <View style={rwStyles.rewardPill}>
+            <Ionicons name="flash" size={14} color={COLORS.gold} />
+            <Text style={rwStyles.rewardPillText}>+150 XP</Text>
+          </View>
+          <View style={[rwStyles.rewardPill, rwStyles.rewardPillGreen]}>
+            <Ionicons name="checkmark-circle" size={14} color={COLORS.teal} />
+            <Text style={[rwStyles.rewardPillText, { color: COLORS.teal }]}>Collected!</Text>
+          </View>
+        </View>
+
+        {/* Buttons */}
+        <View style={rwStyles.btnRow}>
+          <TouchableOpacity style={rwStyles.btnSecondary} onPress={onClose}>
+            <Text style={rwStyles.btnSecondaryText}>Continue</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={rwStyles.btnPrimary} onPress={onViewDetails}>
+            <Ionicons name="book-outline" size={15} color="#FFF" style={{ marginRight: 5 }} />
+            <Text style={rwStyles.btnPrimaryText}>View Lore</Text>
+          </TouchableOpacity>
+        </View>
+
+      </Animated.View>
+    </View>
+  );
+}
+
+const rwStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.88)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  orb: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+  },
+  orbGold:   { backgroundColor: COLORS.gold },
+  orbPurple: { backgroundColor: '#A855F7' },
+
+  card: {
+    width: SCREEN_W - 48,
+    backgroundColor: '#0D0D24',
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: 'rgba(168,85,247,0.5)',
+    overflow: 'hidden',
+    shadowColor: '#A855F7',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.6,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+
+  // Header
+  cardHeader: {
+    backgroundColor: '#13132E',
+    paddingTop: 20,
+    paddingBottom: 16,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderColor: 'rgba(168,85,247,0.2)',
+    overflow: 'hidden',
+  },
+  headerGlow: {
+    position: 'absolute',
+    top: -30,
+    width: 180,
+    height: 80,
+    borderRadius: 90,
+    backgroundColor: 'rgba(168,85,247,0.25)',
+  },
+  rarityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  rarityText: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: '#A855F7',
+    letterSpacing: 2,
+  },
+  rewardTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 22,
+    color: COLORS.gold,
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(251,191,36,0.6)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
+  },
+
+  // Model viewer
+  modelFrame: {
+    alignItems: 'center',
+    paddingTop: 20,
+    paddingBottom: 4,
+  },
+  modelGlow: {
+    position: 'absolute',
+    top: 12,
+    width: SCREEN_W - 100,
+    height: 200,
+    borderRadius: 20,
+    backgroundColor: 'rgba(168,85,247,0.18)',
+  },
+  modelCard: {
+    width: SCREEN_W - 100,
+    height: 190,
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(168,85,247,0.45)',
+    backgroundColor: '#0A0A1A',
+  },
+  noModelFallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shimmer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 70,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  starsRow: {
+    flexDirection: 'row',
+    marginTop: 10,
+  },
+
+  // Name
+  modelName: {
+    fontFamily: FONTS.bold,
+    fontSize: 18,
+    color: '#FFF',
+    textAlign: 'center',
+    marginTop: 14,
+    marginBottom: 4,
+    paddingHorizontal: 20,
+    textShadowColor: 'rgba(168,85,247,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
+  },
+
+  // Reward pills
+  rewardRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 10,
+    marginBottom: 18,
+  },
+  rewardPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(251,191,36,0.12)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.3)',
+  },
+  rewardPillGreen: {
+    backgroundColor: 'rgba(16,185,129,0.1)',
+    borderColor: 'rgba(16,185,129,0.3)',
+  },
+  rewardPillText: {
+    fontFamily: FONTS.bold,
+    fontSize: 13,
+    color: COLORS.gold,
+  },
+
+  // Buttons
+  btnRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingBottom: 22,
+  },
+  btnSecondary: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 14,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  btnSecondaryText: {
+    fontFamily: FONTS.bold,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.75)',
+  },
+  btnPrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    paddingVertical: 13,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.accent,
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  btnPrimaryText: {
+    fontFamily: FONTS.bold,
+    fontSize: 14,
+    color: '#FFF',
+  },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
@@ -615,6 +1061,67 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 180,
   },
+  stepDotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 16,
+    paddingBottom: 4,
+    gap: 8,
+  },
+  stepDot: {
+    height: 8,
+    borderRadius: 4,
+  },
+  stepDotActive: {
+    width: 24,
+    backgroundColor: COLORS.accent,
+  },
+  stepDotInactive: {
+    width: 8,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  stepLabel: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    letterSpacing: 1.5,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  stepIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  modalNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 12,
+    marginTop: 4,
+  },
+  modalBtnSecondary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.07)',
+  },
+  modalBtnSecondaryText: {
+    fontFamily: FONTS.bold,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    marginLeft: 4,
+  },
   modalTextContainer: {
     padding: 24,
     alignItems: 'center',
@@ -652,12 +1159,14 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   modalBtn: {
+    flex: 1,
+    flexDirection: 'row',
     backgroundColor: COLORS.accent,
     paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     borderRadius: RADIUS.md,
-    width: '100%',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   modalBtnText: {
     fontFamily: FONTS.bold,

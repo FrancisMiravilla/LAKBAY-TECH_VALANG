@@ -293,19 +293,9 @@ function ARStatusBar({ color, distanceM, showArrow, accuracy }) {
 }
 
 // ─── AR Direction Arrow ───────────────────────────────────────────────────────
-/**
- * relativeBearing: angle in degrees where
- *   0  = target is straight ahead (camera facing it)
- *   90 = target is to the right
- *   180 = target is behind
- *   270 = target is to the left
- * The arrow always points UP at 0°, so rotating by relativeBearing
- * makes it point toward the target relative to where the camera is aimed.
- */
 function DirectionArrow({ relativeBearing, distanceM, color, deviceHeading, targetBearing }) {
   const bounceAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim  = useRef(new Animated.Value(1)).current;
-  // Animated rotation value — updated smoothly on each heading change
   const rotAnim    = useRef(new Animated.Value(relativeBearing)).current;
   const prevRel    = useRef(relativeBearing);
 
@@ -324,18 +314,14 @@ function DirectionArrow({ relativeBearing, distanceM, color, deviceHeading, targ
     ).start();
   }, []);
 
-  // Smooth the rotation: take shortest arc to avoid 350°→10° spinning backwards
+  // Smooth shortest-arc rotation
   useEffect(() => {
     let delta = relativeBearing - prevRel.current;
     if (delta > 180)  delta -= 360;
     if (delta < -180) delta += 360;
     const next = prevRel.current + delta;
     prevRel.current = next;
-    Animated.timing(rotAnim, {
-      toValue: next,
-      duration: 120,       // snappy but smooth
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(rotAnim, { toValue: next, duration: 120, useNativeDriver: true }).start();
   }, [relativeBearing]);
 
   const rotation = rotAnim.interpolate({
@@ -344,22 +330,18 @@ function DirectionArrow({ relativeBearing, distanceM, color, deviceHeading, targ
     extrapolate: 'extend',
   });
 
-  // Is the target roughly straight ahead? (within ±25°)
   const isAligned = relativeBearing < 25 || relativeBearing > 335;
 
-  const arrowColor = isAligned ? '#22C55E' : (color || '#FF7A00');
+  const arrowColor  = isAligned ? '#22C55E' : (color || '#FF7A00');
   const shadowColor = isAligned ? '#15803D' : '#CC5A00';
-  const deepShadow = isAligned ? '#14532D' : '#994300';
-  
-  // A chunky arrow path pointing UP
-  const ARROW_POLYGON = "50,10 90,50 70,50 70,100 30,100 30,50 10,50";
+  const deepShadow  = isAligned ? '#14532D' : '#994300';
+
+  const ARROW_POLYGON = '50,10 90,50 70,50 70,100 30,100 30,50 10,50';
 
   return (
     <View style={arrowStyles.container}>
       <Animated.View style={{ alignItems: 'center', justifyContent: 'center', width: 140, height: 140, transform: [{ translateY: bounceAnim }] }}>
-        {/* Stack multiple flat SVGs to create a 3D extrusion effect */}
         {[...Array(15)].map((_, i) => {
-          // Draw bottom-to-top (i=14 is bottom-most, i=0 is top-most)
           const isTop = i === 0;
           const layerColor = isTop ? arrowColor : (i > 10 ? deepShadow : shadowColor);
           return (
@@ -367,13 +349,8 @@ function DirectionArrow({ relativeBearing, distanceM, color, deviceHeading, targ
               key={i}
               style={{
                 position: 'absolute',
-                // Shift each layer down to create thickness
                 top: i * 2.5,
-                // Apply 3D perspective rotation to the flat SVG
-                transform: [
-                  { rotateX: '60deg' },
-                  { rotateZ: rotation }
-                ]
+                transform: [{ rotateX: '60deg' }, { rotateZ: rotation }],
               }}
             >
               <Svg width="120" height="120" viewBox="0 0 100 100">
@@ -384,7 +361,6 @@ function DirectionArrow({ relativeBearing, distanceM, color, deviceHeading, targ
         })}
       </Animated.View>
 
-      {/* Aligned flash label */}
       {isAligned && (
         <View style={[arrowStyles.alignedBadge, { backgroundColor: '#22C55E22', borderColor: '#22C55E88' }]}>
           <Ionicons name="checkmark-circle" size={12} color="#22C55E" style={{ marginRight: 4 }} />
@@ -392,11 +368,10 @@ function DirectionArrow({ relativeBearing, distanceM, color, deviceHeading, targ
         </View>
       )}
 
-      {/* Distance + heading row */}
       <View style={arrowStyles.infoRow}>
-        <View style={[arrowStyles.distLabel, { backgroundColor: color + '22', borderColor: color + '66' }]}>
-          <Ionicons name="walk-outline" size={11} color={color} style={{ marginRight: 4 }} />
-          <Text style={[arrowStyles.distLabelText, { color }]}>
+        <View style={[arrowStyles.distLabel, { backgroundColor: arrowColor + '22', borderColor: arrowColor + '66' }]}>
+          <Ionicons name="walk-outline" size={11} color={arrowColor} style={{ marginRight: 4 }} />
+          <Text style={[arrowStyles.distLabelText, { color: arrowColor }]}>
             {Math.round(distanceM)}m away
           </Text>
         </View>
@@ -410,6 +385,8 @@ function DirectionArrow({ relativeBearing, distanceM, color, deviceHeading, targ
     </View>
   );
 }
+
+
 
 // ─── AR Camera Overlay ───────────────────────────────────────────────────────
 export default function ARNavigationOverlay({ icon, spot, userLocation, onContinue, onClose, hideBottomPanel = false }) {
@@ -486,7 +463,7 @@ export default function ARNavigationOverlay({ icon, spot, userLocation, onContin
       {/* ── Live Camera feed ── */}
       <CameraView style={StyleSheet.absoluteFill} facing="back" />
 
-      {/* ── HUD: Scanning line (always on) ── */}
+      {/* ── HUD: Scanning line ── */}
       <ScanLine color={icon.color} />
 
       {/* ── HUD: Corner brackets ── */}
@@ -497,34 +474,62 @@ export default function ARNavigationOverlay({ icon, spot, userLocation, onContin
 
       {/* ── Dark vignette top ── */}
       <View style={arStyles.topGradient} />
-      {/* ── Dark vignette bottom half — only when NOT in arrow mode ── */}
       {!showArrow && <View style={arStyles.bottomVignette} />}
 
-      {/* ── HUD: Live status bar ── */}
-      <ARStatusBar color={icon.color} distanceM={distanceM} showArrow={showArrow} accuracy={gpsAccuracy} />
-
-      {/* ── Close button ── */}
-      <TouchableOpacity style={arStyles.closeBtn} onPress={onClose} activeOpacity={0.8}>
-        <View style={arStyles.closeBtnCircle}>
-          <Ionicons name="close" size={20} color="#fff" />
+      {/* ════════════════════════════════════════
+          TOP BAR  — status + close
+      ════════════════════════════════════════ */}
+      <View style={arStyles.topBar}>
+        {/* Left: mode badge */}
+        <View style={[arStyles.modeBadge, { borderColor: icon.color + '88', backgroundColor: icon.color + '22' }]}>
+          <View style={[arStyles.modeDot, { backgroundColor: icon.color }]} />
+          <Text style={[arStyles.modeText, { color: icon.color }]}>
+            {showArrow ? 'NAVIGATING' : 'AR LIVE'}
+          </Text>
         </View>
-      </TouchableOpacity>
 
-      {/* ── Top label ── */}
-      <View style={arStyles.topLabel}>
-        <View style={[arStyles.typeBadge, { backgroundColor: icon.color + '33', borderColor: icon.color + '88' }]}>
-          <Ionicons name="locate-outline" size={11} color={icon.color} style={{ marginRight: 5 }} />
-          <Text style={[arStyles.typeBadgeText, { color: icon.color }]}>CATCH ZONE ACTIVE</Text>
-        </View>
-        <Text style={arStyles.arTitle}>{icon.name}</Text>
-        <Text style={arStyles.arSubtitle}>
-          {showArrow
-            ? 'Follow the arrow to find the model!'
-            : "You're on the spot — look around to catch it!"}
-        </Text>
+        {/* Centre: distance readout */}
+        {distanceM !== null && (
+          <View style={arStyles.distReadout}>
+            <Ionicons name="navigate" size={11} color="rgba(255,255,255,0.7)" />
+            <Text style={arStyles.distReadoutText}>
+              {distanceM >= 1000
+                ? (distanceM / 1000).toFixed(1) + ' km'
+                : Math.round(distanceM) + ' m'}
+            </Text>
+          </View>
+        )}
+
+        {/* Right: close X */}
+        <TouchableOpacity style={[arStyles.closeBtn, { borderColor: 'rgba(255,255,255,0.25)' }]} onPress={onClose} activeOpacity={0.8}>
+          <Ionicons name="close" size={18} color="#fff" />
+        </TouchableOpacity>
       </View>
 
-      {/* ── Directional Path Arrow (only when not at exact spot) ── */}
+      {/* ════════════════════════════════════════
+          TOP LABEL  — spot name + subtitle
+      ════════════════════════════════════════ */}
+      <View style={arStyles.topLabel}>
+        <View style={[arStyles.rarityBadge, { borderColor: icon.color + '99', backgroundColor: icon.color + '25' }]}>
+          <Ionicons name="diamond" size={9} color={icon.color} />
+          <Text style={[arStyles.rarityText, { color: icon.color }]}>MYTHICAL SPOT</Text>
+          <Ionicons name="diamond" size={9} color={icon.color} />
+        </View>
+        <Text style={arStyles.arTitle}>{icon.name}</Text>
+        <View style={arStyles.subtitleRow}>
+          <Ionicons
+            name={showArrow ? 'arrow-up-circle' : 'radio-button-on'}
+            size={12}
+            color={showArrow ? '#FBBF24' : '#22C55E'}
+            style={{ marginRight: 5 }}
+          />
+          <Text style={arStyles.arSubtitle}>
+            {showArrow ? 'Follow the arrow to reach the spot' : "You're here — look around!"}
+          </Text>
+        </View>
+      </View>
+
+      {/* ── Directional Arrow ── */}
       {showArrow && (
         <DirectionArrow
           relativeBearing={relativeBearing}
@@ -535,7 +540,7 @@ export default function ARNavigationOverlay({ icon, spot, userLocation, onContin
         />
       )}
 
-      {/* ── Floating 3D model — only show when user is at spot (≤ 5m) ── */}
+      {/* ── Floating 3D model (at spot) ── */}
       {!showArrow && (
         <Animated.View style={[arStyles.modelWrap, { transform: [{ translateY: floatAnim }] }]}>
           {activeModel ? (
@@ -553,34 +558,75 @@ export default function ARNavigationOverlay({ icon, spot, userLocation, onContin
               <Ionicons name="fish" size={72} color={icon.color} style={{ opacity: 0.9 }} />
             </View>
           )}
-          {/* Glow ring under model */}
           <View style={[arStyles.modelGlow, { backgroundColor: icon.color + '30', shadowColor: icon.color }]} />
         </Animated.View>
       )}
 
-      {/* Bottom panel */}
+      {/* ════════════════════════════════════════
+          BOTTOM PANEL
+      ════════════════════════════════════════ */}
       {!hideBottomPanel && (
         <View style={arStyles.bottomPanel}>
-          <Text style={arStyles.catchName}>{icon.name}</Text>
-          <Text style={arStyles.catchTagline}>{icon.tagline}</Text>
+          {/* Handle bar */}
+          <View style={arStyles.panelHandle} />
+
+          {/* Spot header */}
+          <View style={arStyles.panelHeader}>
+            <View style={[arStyles.panelIconBadge, { backgroundColor: icon.color + '22', borderColor: icon.color + '55' }]}>
+              <Ionicons name="location" size={16} color={icon.color} />
+            </View>
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={arStyles.catchName}>{icon.name}</Text>
+              {!!icon.tagline && (
+                <Text style={arStyles.catchTagline} numberOfLines={1}>{icon.tagline}</Text>
+              )}
+            </View>
+            {/* XP chip */}
+            <View style={arStyles.xpChip}>
+              <Ionicons name="flash" size={11} color="#FBBF24" />
+              <Text style={arStyles.xpText}>+150 XP</Text>
+            </View>
+          </View>
+
+          {/* Divider */}
+          <View style={arStyles.panelDivider} />
 
           {showArrow ? (
-            /* When guiding: show a "navigate" hint instead of continue */
-            <View style={[arStyles.navigateHint, { borderColor: icon.color + '55', backgroundColor: icon.color + '15' }]}>
-              <Ionicons name="compass-outline" size={18} color={icon.color} style={{ marginRight: 8 }} />
-              <Text style={[arStyles.navigateHintText, { color: icon.color }]}>
-                Walk toward the arrow · {Math.round(distanceM)}m remaining
-              </Text>
+            /* ── NAVIGATE MODE ── */
+            <View style={arStyles.navBlock}>
+              {/* Progress bar */}
+              <View style={arStyles.progressRow}>
+                <Ionicons name="flag" size={12} color={icon.color} style={{ marginRight: 6 }} />
+                <Text style={[arStyles.progressLabel, { color: icon.color }]}>
+                  {Math.round(distanceM)}m remaining
+                </Text>
+              </View>
+              <View style={arStyles.progressTrack}>
+                <Animated.View
+                  style={[
+                    arStyles.progressFill,
+                    { backgroundColor: icon.color, width: `${Math.min(100, Math.max(5, 100 - (distanceM / 500) * 100))}%` },
+                  ]}
+                />
+              </View>
+              <View style={[arStyles.navHint, { borderColor: icon.color + '44', backgroundColor: icon.color + '12' }]}>
+                <Ionicons name="compass" size={16} color={icon.color} style={{ marginRight: 8 }} />
+                <Text style={[arStyles.navHintText, { color: icon.color }]}>
+                  Walk toward the arrow above
+                </Text>
+              </View>
             </View>
           ) : (
+            /* ── ARRIVED MODE ── */
             <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
               <TouchableOpacity
-                style={[arStyles.continueBtn, { backgroundColor: icon.color }]}
+                style={[arStyles.continueBtn, { backgroundColor: icon.color, shadowColor: icon.color }]}
                 onPress={onContinue}
                 activeOpacity={0.85}
               >
-                <Ionicons name="book-outline" size={18} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={arStyles.continueBtnText}>Continue for Information</Text>
+                <Ionicons name="book" size={18} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={arStyles.continueBtnText}>View Lore & Info</Text>
+                <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.7)" style={{ marginLeft: 4 }} />
               </TouchableOpacity>
             </Animated.View>
           )}
@@ -590,35 +636,113 @@ export default function ARNavigationOverlay({ icon, spot, userLocation, onContin
   );
 }
 
-
-
 const arStyles = StyleSheet.create({
+  // ── Vigniettes ──
   topGradient: {
-    position: 'absolute', top: 0, left: 0, right: 0, height: 160,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    position: 'absolute', top: 0, left: 0, right: 0, height: 200,
+    backgroundColor: 'rgba(0,0,0,0.60)',
   },
   bottomVignette: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: H * 0.38,
-    backgroundColor: 'rgba(0,0,0,0.18)',
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: H * 0.42,
+    backgroundColor: 'rgba(0,0,0,0.22)',
     pointerEvents: 'none',
   },
-  closeBtn: { position: 'absolute', top: 52, right: 20, zIndex: 10 },
-  closeBtnCircle: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
-    justifyContent: 'center', alignItems: 'center',
-  },
-  topLabel: { position: 'absolute', top: 52, left: 20, right: 70, zIndex: 10 },
-  typeBadge: {
-    flexDirection: 'row', alignItems: 'center',
-    alignSelf: 'flex-start', borderRadius: 20, borderWidth: 1,
-    paddingHorizontal: 10, paddingVertical: 4, marginBottom: 8,
-  },
-  typeBadgeText: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1 },
-  arTitle: { fontFamily: FONTS.bold, fontSize: 22, color: '#FFF', marginBottom: 4 },
-  arSubtitle: { fontFamily: FONTS.regular, fontSize: 13, color: 'rgba(255,255,255,0.75)' },
 
+  // ── Top bar ──
+  topBar: {
+    position: 'absolute',
+    top: 48,
+    left: 16, right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 20,
+  },
+  modeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 6,
+  },
+  modeDot: {
+    width: 7, height: 7, borderRadius: 4,
+  },
+  modeText: {
+    fontFamily: FONTS.bold,
+    fontSize: 9,
+    letterSpacing: 1.5,
+  },
+  distReadout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  distReadoutText: {
+    fontFamily: FONTS.bold,
+    fontSize: 12,
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+  closeBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // ── Top label ──
+  topLabel: {
+    position: 'absolute',
+    top: 100,
+    left: 20, right: 20,
+    zIndex: 10,
+  },
+  rarityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  rarityText: {
+    fontFamily: FONTS.bold,
+    fontSize: 9,
+    letterSpacing: 2,
+  },
+  arTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 24,
+    color: '#FFF',
+    marginBottom: 6,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+  subtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  arSubtitle: {
+    fontFamily: FONTS.regular,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+  },
+
+  // ── 3D model ──
   modelWrap: {
     position: 'absolute',
     top: H * 0.22,
@@ -654,31 +778,124 @@ const arStyles = StyleSheet.create({
     elevation: 10,
   },
 
+  // ── Bottom panel ──
   bottomPanel: {
     position: 'absolute',
     bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(0,0,0,0.72)',
+    backgroundColor: 'rgba(6,6,20,0.88)',
     borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    paddingHorizontal: 24, paddingTop: 24, paddingBottom: 44,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 44,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.12)',
+  },
+  panelHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    alignSelf: 'center',
+    marginBottom: 18,
+  },
+  panelHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)',
+    marginBottom: 14,
   },
-  catchName: { fontFamily: FONTS.bold, fontSize: 22, color: '#FFF', marginBottom: 6 },
-  catchTagline: { fontFamily: FONTS.regular, fontSize: 13, color: 'rgba(255,255,255,0.65)', marginBottom: 22, textAlign: 'center' },
-  continueBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 28, paddingVertical: 16,
+  panelIconBadge: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1,
+  },
+  catchName: {
+    fontFamily: FONTS.bold,
+    fontSize: 17,
+    color: '#FFF',
+    marginBottom: 1,
+  },
+  catchTagline: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  xpChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(251,191,36,0.15)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.35)',
+  },
+  xpText: {
+    fontFamily: FONTS.bold,
+    fontSize: 11,
+    color: '#FBBF24',
+  },
+  panelDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginBottom: 16,
+  },
+
+  // Navigate mode
+  navBlock: { gap: 10 },
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  progressLabel: {
+    fontFamily: FONTS.bold,
+    fontSize: 12,
+    letterSpacing: 0.3,
+  },
+  progressTrack: {
+    height: 5,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  navHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 13,
     borderRadius: 16,
-    shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 8,
+    borderWidth: 1,
   },
-  continueBtnText: { fontFamily: FONTS.bold, fontSize: 15, color: '#FFF', letterSpacing: 0.3 },
-  navigateHint: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    width: '100%', paddingVertical: 16, paddingHorizontal: 20,
-    borderRadius: 16, borderWidth: 1,
+  navHintText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 14,
+    letterSpacing: 0.2,
   },
-  navigateHintText: { fontFamily: FONTS.semiBold, fontSize: 14, letterSpacing: 0.2 },
+
+  // Continue button
+  continueBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    paddingVertical: 16,
+    borderRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  continueBtnText: {
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    color: '#FFF',
+    letterSpacing: 0.3,
+  },
 });
+
+
 
 // ─── Direction Arrow Styles ───────────────────────────────────────────────────
 const arrowStyles = StyleSheet.create({
@@ -689,22 +906,6 @@ const arrowStyles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 20,
   },
-  outerRing: {
-    position: 'absolute',
-    width: 110, height: 110, borderRadius: 55,
-    borderWidth: 2,
-    backgroundColor: 'transparent',
-  },
-  arrowCircle: {
-    width: 88, height: 88, borderRadius: 44,
-    borderWidth: 2,
-    justifyContent: 'center', alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.7,
-    shadowRadius: 18,
-    elevation: 12,
-  },
   distLabel: {
     flexDirection: 'row', alignItems: 'center',
     marginTop: 14,
@@ -712,8 +913,6 @@ const arrowStyles = StyleSheet.create({
     borderRadius: 20, borderWidth: 1,
   },
   distLabelText: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 0.4 },
-
-  // "FACING TARGET" badge shown when aligned
   alignedBadge: {
     flexDirection: 'row', alignItems: 'center',
     marginTop: 10,
@@ -721,14 +920,10 @@ const arrowStyles = StyleSheet.create({
     borderRadius: 20, borderWidth: 1,
   },
   alignedText: { fontFamily: FONTS.bold, fontSize: 10, color: '#22C55E', letterSpacing: 1 },
-
-  // Row containing distance pill + heading pill
   infoRow: {
     flexDirection: 'row', alignItems: 'center',
     marginTop: 12, gap: 8,
   },
-
-  // Compass heading pill
   headingPill: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 10, paddingVertical: 5,
@@ -736,6 +931,8 @@ const arrowStyles = StyleSheet.create({
   },
   headingText: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.75)' },
 });
+
+
 
 // ─── AR HUD Styles ────────────────────────────────────────────────────────────
 const arHudStyles = StyleSheet.create({

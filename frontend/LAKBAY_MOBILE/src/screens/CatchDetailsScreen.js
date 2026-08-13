@@ -1,25 +1,30 @@
-import React, { useMemo } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import React, { useMemo, useRef, useEffect, useState } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  StatusBar,
+  Animated,
+  Easing,
+  Dimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS } from '../constants/theme';
 
+const { width: SCREEN_W } = Dimensions.get('window');
+
+// ── HTML Escape helpers ──────────────────────────────────────────────────────
 const HTML_ESCAPE = { '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;', '&': '&amp;' };
 const escapeAttr = (s) => String(s).replace(/["'<>&]/g, (c) => HTML_ESCAPE[c]);
 
+// ── 3-D Viewer HTML ──────────────────────────────────────────────────────────
 function build3DViewerHTML(modelUrl) {
-  // Only allow https:// model URLs (data: URLs are resolved before reaching here
-  // because normalizeIcon() always resolves relative paths to ORIGIN + path).
-  let safe;
-  try {
-    const parsed = new URL(modelUrl);
-    if (parsed.protocol !== 'https:') return null;
-    safe = escapeAttr(modelUrl);
-  } catch {
-    return null;
-  }
-
+  if (!modelUrl) return null;
+  const safe = escapeAttr(modelUrl);
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -30,9 +35,9 @@ function build3DViewerHTML(modelUrl) {
     crossorigin="anonymous">
   </script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; }
-    model-viewer { width: 100%; height: 100%; --progress-bar-color: transparent; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html,body { width:100%; height:100%; background:#0A0A1A; overflow:hidden; }
+    model-viewer { width:100%; height:100%; --progress-bar-color:transparent; }
   </style>
 </head>
 <body>
@@ -41,7 +46,7 @@ function build3DViewerHTML(modelUrl) {
     auto-rotate
     camera-controls
     bounds="tight"
-    exposure="1"
+    exposure="1.2"
     shadow-intensity="1"
     style="width:100%;height:100%"
   ></model-viewer>
@@ -49,195 +54,534 @@ function build3DViewerHTML(modelUrl) {
 </html>`;
 }
 
-function NoModel({ color }) {
+// ── Rarity config ─────────────────────────────────────────────────────────────
+const RARITY = {
+  label: 'MYTHICAL',
+  color: '#A855F7',
+  glow: 'rgba(168,85,247,0.35)',
+  stars: 5,
+};
+
+// ── Tab definitions ──────────────────────────────────────────────────────────
+const TABS = [
+  { key: 'about',   icon: 'book',   label: 'Lore'     },
+  { key: 'history', icon: 'time',   label: 'History'  },
+  { key: 'culture', icon: 'globe',  label: 'Culture'  },
+  { key: 'funfact', icon: 'bulb',   label: 'Fun Fact' },
+];
+
+// ── No-model placeholder ─────────────────────────────────────────────────────
+function NoModel() {
+  const pulse = useRef(new Animated.Value(0.5)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1,   duration: 900, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.5, duration: 900, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
   return (
-    <View style={[styles.noModelBox, { borderColor: color + '44' }]}>
-      <Ionicons name="cube-outline" size={52} color={color} style={{ opacity: 0.5 }} />
-      <Text style={[styles.noModelText, { color: color }]}>3D model not uploaded yet</Text>
+    <View style={styles.noModelBox}>
+      <Animated.View style={[styles.noModelOrb, { opacity: pulse }]} />
+      <Ionicons name="cube-outline" size={52} color={RARITY.color} style={{ opacity: 0.7 }} />
+      <Text style={styles.noModelText}>3D model not available yet</Text>
     </View>
   );
 }
 
+// ── Main Screen ──────────────────────────────────────────────────────────────
 export default function CatchDetailsScreen({ route, navigation }) {
   const { icon, spot } = route.params;
-  const iconColor = icon.color || COLORS.primary;
 
-  // Prioritize the spot's 3D model if available, fallback to the icon's model
   const activeModel = spot?.model_3d || icon.model_3d;
-  
-  const viewerHTML = useMemo(
-    () => activeModel ? build3DViewerHTML(activeModel) : null,
-    [activeModel],
-  );
+  const viewerHTML  = useMemo(() => activeModel ? build3DViewerHTML(activeModel) : null, [activeModel]);
+
+  // Animations
+  const headerSlide   = useRef(new Animated.Value(-40)).current;
+  const headerOpacity = useRef(new Animated.Value(0)).current;
+  const xpSlide       = useRef(new Animated.Value(30)).current;
+  const xpOpacity     = useRef(new Animated.Value(0)).current;
+  const glowAnim      = useRef(new Animated.Value(0)).current;
+  const shimmer       = useRef(new Animated.Value(0)).current;
+
+  const [activeTab, setActiveTab] = useState('about');
+  const tabAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(headerSlide,   { toValue: 0, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(headerOpacity, { toValue: 1, duration: 450, useNativeDriver: true }),
+    ]).start();
+
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(xpSlide,   { toValue: 0, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(xpOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+      ]).start();
+    }, 250);
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, { toValue: 1, duration: 1400, useNativeDriver: true }),
+        Animated.timing(glowAnim, { toValue: 0, duration: 1400, useNativeDriver: true }),
+      ])
+    ).start();
+
+    Animated.loop(
+      Animated.timing(shimmer, { toValue: 1, duration: 2000, easing: Easing.linear, useNativeDriver: true })
+    ).start();
+  }, []);
+
+  const switchTab = (key) => {
+    setActiveTab(key);
+    Animated.sequence([
+      Animated.timing(tabAnim, { toValue: 1, duration: 120, useNativeDriver: true }),
+      Animated.timing(tabAnim, { toValue: 0, duration: 180, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const glowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.7] });
+  const glowScale   = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] });
+  const shimmerX    = shimmer.interpolate({ inputRange: [0, 1], outputRange: [-SCREEN_W, SCREEN_W] });
+  const tabScale    = tabAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.96] });
+
+  const tabContent = (() => {
+    if (spot) {
+      switch (activeTab) {
+        case 'about':   return spot.description           || 'No lore available for this mythical model.';
+        case 'history': return spot.historical_background || 'Historical records are still being uncovered...';
+        case 'culture': return spot.cultural_significance || 'Cultural meaning not yet documented.';
+        case 'funfact': return spot.fun_fact              || 'More secrets will be revealed as you explore further.';
+      }
+    }
+    switch (activeTab) {
+      case 'about':   return icon.about       || 'No information available.';
+      case 'history': return icon.history     || 'Historical records are still being uncovered...';
+      case 'culture': return icon.significance|| 'Cultural meaning not yet documented.';
+      case 'funfact': return icon.fun_fact    || 'More secrets will be revealed as you explore further.';
+    }
+  })();
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={iconColor} />
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor="#07071A" />
 
-      {/* Coloured header */}
-      <View style={[styles.headerBg, { backgroundColor: iconColor }]}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-            <Ionicons name="arrow-back" size={20} color="#FFF" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>{icon.name}</Text>
-          </View>
-          <View style={styles.iconBtn} />
-        </View>
-      </View>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── HERO SECTION ── */}
+        <View style={styles.hero}>
+          <SafeAreaView edges={['top']} style={styles.heroTopSafe}>
+            <View style={styles.heroTopRow}>
+              <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+                <Ionicons name="chevron-back" size={22} color="#FFF" />
+              </TouchableOpacity>
+              <View style={styles.heroBadgeRow}>
+                <View style={[styles.rarityBadge, { backgroundColor: RARITY.glow, borderColor: RARITY.color }]}>
+                  <Ionicons name="diamond" size={11} color={RARITY.color} />
+                  <Text style={[styles.rarityLabel, { color: RARITY.color }]}>{RARITY.label}</Text>
+                </View>
+              </View>
+            </View>
+          </SafeAreaView>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-
-        {/* ── 3D Model ── */}
-        <View style={[styles.modelCard, { borderColor: iconColor + '44' }]}>
-          {viewerHTML ? (
-            <WebView
-              source={{ html: viewerHTML }}
-              style={styles.webview}
-              javaScriptEnabled
-              originWhitelist={['https://*']}
-              allowsFullscreenVideo
-              scrollEnabled={false}
+          {/* 3-D Model Card */}
+          <Animated.View
+            style={[styles.modelCardOuter, { opacity: headerOpacity, transform: [{ translateY: headerSlide }] }]}
+          >
+            <Animated.View
+              style={[styles.modelGlowRing, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]}
             />
-          ) : (
-            <NoModel color={iconColor} />
-          )}
+            <View style={styles.modelCard}>
+              {viewerHTML ? (
+                <WebView
+                  source={{ html: viewerHTML }}
+                  style={styles.webview}
+                  javaScriptEnabled
+                  originWhitelist={['https://*']}
+                  allowsFullscreenVideo
+                  scrollEnabled={false}
+                />
+              ) : (
+                <NoModel />
+              )}
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.shimmerBar, { transform: [{ translateX: shimmerX }] }]}
+              />
+            </View>
+
+            <View style={styles.starsRow}>
+              {Array.from({ length: RARITY.stars }).map((_, i) => (
+                <Ionicons key={i} name="star" size={14} color={RARITY.color} style={{ marginHorizontal: 2 }} />
+              ))}
+            </View>
+          </Animated.View>
+
+          <Animated.View style={{ opacity: headerOpacity, alignItems: 'center', paddingHorizontal: 24 }}>
+            <Text style={styles.modelName}>{icon.name}</Text>
+            {!!icon.tagline && <Text style={styles.modelTagline}>{icon.tagline}</Text>}
+          </Animated.View>
+
+          {/* XP reward banner */}
+          <Animated.View
+            style={[styles.xpBanner, { opacity: xpOpacity, transform: [{ translateY: xpSlide }] }]}
+          >
+            <View style={styles.xpLeft}>
+              <Ionicons name="flash" size={16} color={COLORS.gold} />
+              <Text style={styles.xpText}>+150 XP Earned</Text>
+            </View>
+            <View style={styles.xpDivider} />
+            <View style={styles.xpRight}>
+              <Ionicons name="trophy" size={14} color={COLORS.teal} />
+              <Text style={styles.xpCollectedText}>Model Collected!</Text>
+            </View>
+          </Animated.View>
         </View>
 
-        {/* ── Name centred ── */}
-        <Text style={styles.iconName}>{icon.name}</Text>
-        {!!icon.tagline && <Text style={styles.iconTagline}>{icon.tagline}</Text>}
-
-        {/* ── Content card ── */}
-        <View style={[styles.infoCard, { borderColor: iconColor + '44' }]}>
-
-          {spot ? (
-            <>
-              {/* Description */}
-              <Text style={[styles.sectionLabel, { color: iconColor }]}>DESCRIPTION</Text>
-              <Text style={styles.bodyText}>
-                {spot.description || 'No description available.'}
-              </Text>
-
-              <View style={styles.divider} />
-
-              {/* Historical Background */}
-              <Text style={[styles.sectionLabel, { color: iconColor }]}>HISTORICAL BACKGROUND</Text>
-              <Text style={styles.bodyText}>
-                {spot.historical_background || 'No historical background available.'}
-              </Text>
-
-              <View style={styles.divider} />
-
-              {/* Cultural Significance */}
-              <Text style={[styles.sectionLabel, { color: iconColor }]}>CULTURAL SIGNIFICANCE</Text>
-              <Text style={styles.bodyText}>
-                {spot.cultural_significance || 'No cultural significance noted.'}
-              </Text>
-
-              {spot.fun_fact ? (
-                <>
-                  <View style={styles.divider} />
-                  {/* Fun Fact */}
-                  <Text style={[styles.sectionLabel, { color: iconColor }]}>FUN FACT</Text>
-                  <Text style={styles.bodyText}>
-                    {spot.fun_fact}
+        {/* ── LORE TABS ── */}
+        <View style={styles.tabsSection}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tabsRow}
+          >
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  style={[styles.tab, isActive && styles.tabActive]}
+                  onPress={() => switchTab(tab.key)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons
+                    name={tab.icon}
+                    size={14}
+                    color={isActive ? '#FFF' : 'rgba(255,255,255,0.4)'}
+                    style={{ marginRight: 5 }}
+                  />
+                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+                    {tab.label}
                   </Text>
-                </>
-              ) : null}
-            </>
-          ) : (
-            <>
-              <Text style={[styles.sectionLabel, { color: iconColor }]}>ABOUT</Text>
-              <Text style={styles.bodyText}>
-                {icon.about || 'No information available.'}
-              </Text>
-              {icon.significance ? (
-                <>
-                  <View style={styles.divider} />
-                  <Text style={[styles.sectionLabel, { color: iconColor }]}>CULTURAL SIGNIFICANCE</Text>
-                  <Text style={styles.bodyText}>{icon.significance}</Text>
-                </>
-              ) : null}
-            </>
-          )}
+                  {isActive && <View style={styles.tabUnderline} />}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
 
+          <Animated.View style={[styles.loreCard, { transform: [{ scale: tabScale }] }]}>
+            <View style={styles.loreCornerTL} />
+            <View style={styles.loreCornerBR} />
+            <View style={styles.loreLabelRow}>
+              <Ionicons
+                name={TABS.find(t => t.key === activeTab)?.icon}
+                size={15}
+                color={RARITY.color}
+              />
+              <Text style={[styles.loreLabel, { color: RARITY.color }]}>
+                {TABS.find(t => t.key === activeTab)?.label?.toUpperCase()}
+              </Text>
+            </View>
+            <Text style={styles.loreBody}>{tabContent}</Text>
+          </Animated.View>
         </View>
+
+        {/* ── STATS ROW ── */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Ionicons name="location" size={18} color={COLORS.accent} />
+            <Text style={styles.statValue}>S1</Text>
+            <Text style={styles.statLabel}>Building</Text>
+          </View>
+          <View style={[styles.statCard, styles.statCardCenter]}>
+            <Ionicons name="ribbon" size={18} color={COLORS.gold} />
+            <Text style={styles.statValue}>Mythical</Text>
+            <Text style={styles.statLabel}>Rarity</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Ionicons name="checkmark-circle" size={18} color={COLORS.teal} />
+            <Text style={styles.statValue}>Collected</Text>
+            <Text style={styles.statLabel}>Status</Text>
+          </View>
+        </View>
+
+        {/* ── FOOTER CTA ── */}
+        <TouchableOpacity
+          style={styles.ctaBtn}
+          activeOpacity={0.85}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="scan" size={18} color="#FFF" style={{ marginRight: 8 }} />
+          <Text style={styles.ctaBtnText}>Keep Scanning</Text>
+        </TouchableOpacity>
 
       </ScrollView>
-
-    </SafeAreaView>
+    </View>
   );
 }
 
+// ── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+  root: { flex: 1, backgroundColor: '#07071A' },
+  scrollContent: { paddingBottom: 40 },
 
-  headerBg: {
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  headerTop: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 14,
-  },
-  iconBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    justifyContent: 'center', alignItems: 'center',
-  },
-  headerCenter: { alignItems: 'center' },
-  headerTitle: { fontFamily: FONTS.bold, fontSize: 18, color: '#FFF', letterSpacing: 0.5 },
-
-  scroll: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 20 },
-
-  /* 3D model card */
-  modelCard: {
-    width: '100%', height: 280,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
+  // ── Hero ──
+  hero: {
+    backgroundColor: '#0D0D24',
+    paddingBottom: 28,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
     overflow: 'hidden',
-    marginBottom: 20,
-    backgroundColor: COLORS.bgSurface,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(168,85,247,0.2)',
+  },
+  heroTopSafe: { paddingHorizontal: 16 },
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroBadgeRow: { flexDirection: 'row', gap: 8 },
+  rarityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+  },
+  rarityLabel: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2 },
+
+  // ── 3-D card ──
+  modelCardOuter: {
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  modelGlowRing: {
+    position: 'absolute',
+    width: SCREEN_W - 40,
+    height: 260,
+    borderRadius: RADIUS.lg,
+    backgroundColor: 'rgba(168,85,247,0.18)',
+  },
+  modelCard: {
+    width: SCREEN_W - 40,
+    height: 240,
+    borderRadius: RADIUS.lg,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(168,85,247,0.45)',
+    backgroundColor: '#0A0A1A',
+    shadowColor: '#A855F7',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
   },
   webview: { flex: 1, backgroundColor: 'transparent' },
-
-  noModelBox: {
-    flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10,
-    borderRadius: RADIUS.md, borderWidth: 1,
+  shimmerBar: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 80,
+    backgroundColor: 'rgba(255,255,255,0.07)',
   },
-  noModelText: { fontFamily: FONTS.semiBold, fontSize: 12 },
+  starsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
 
-  /* Name */
-  iconName: {
-    fontFamily: FONTS.bold, fontSize: 26, color: COLORS.text,
-    textAlign: 'center', marginBottom: 6, letterSpacing: -0.3,
+  // ── Name ──
+  modelName: {
+    fontFamily: FONTS.bold,
+    fontSize: 26,
+    color: '#FFF',
+    textAlign: 'center',
+    letterSpacing: 0.3,
+    marginBottom: 4,
+    textShadowColor: 'rgba(168,85,247,0.6)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 10,
   },
-  iconTagline: {
-    fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMuted,
-    textAlign: 'center', marginBottom: 22, lineHeight: 19,
+  modelTagline: {
+    fontFamily: FONTS.regular,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 2,
   },
 
-  /* Info card */
-  infoCard: {
-    backgroundColor: COLORS.bgCard,
+  // ── XP Banner ──
+  xpBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: RADIUS.md,
+    marginHorizontal: 20,
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    gap: 16,
+  },
+  xpLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  xpText: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.gold },
+  xpDivider: { width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.15)' },
+  xpRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  xpCollectedText: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.teal },
+
+  // ── Tabs ──
+  tabsSection: { marginTop: 24, paddingHorizontal: 20 },
+  tabsRow: { flexDirection: 'row', gap: 8, paddingBottom: 4 },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    position: 'relative',
+  },
+  tabActive: {
+    backgroundColor: 'rgba(168,85,247,0.18)',
+    borderColor: 'rgba(168,85,247,0.5)',
+  },
+  tabLabel: { fontFamily: FONTS.semiBold, fontSize: 13, color: 'rgba(255,255,255,0.4)' },
+  tabLabelActive: { color: '#FFF' },
+  tabUnderline: {
+    position: 'absolute',
+    bottom: -1,
+    left: 10,
+    right: 10,
+    height: 2,
+    backgroundColor: '#A855F7',
+    borderRadius: 2,
+  },
+
+  // ── Lore card ──
+  loreCard: {
+    backgroundColor: '#111128',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(168,85,247,0.25)',
+    padding: 22,
+    marginTop: 14,
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#A855F7',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  loreCornerTL: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 40,
+    height: 40,
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderColor: 'rgba(168,85,247,0.5)',
+    borderTopLeftRadius: RADIUS.lg,
+  },
+  loreCornerBR: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 40,
+    height: 40,
+    borderBottomWidth: 2,
+    borderRightWidth: 2,
+    borderColor: 'rgba(168,85,247,0.5)',
+    borderBottomRightRadius: RADIUS.lg,
+  },
+  loreLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 },
+  loreLabel: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.8 },
+  loreBody: {
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.78)',
+    lineHeight: 24,
+  },
+
+  // ── Stats row ──
+  statsRow: { flexDirection: 'row', marginTop: 20, marginHorizontal: 20, gap: 10 },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#111128',
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: 22,
-    marginBottom: 16,
-    ...SHADOW.card,
+    borderColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 6,
   },
+  statCardCenter: {
+    borderColor: 'rgba(251,191,36,0.25)',
+    backgroundColor: 'rgba(251,191,36,0.06)',
+  },
+  statValue: { fontFamily: FONTS.bold, fontSize: 13, color: '#FFF' },
+  statLabel: { fontFamily: FONTS.regular, fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5 },
 
-  sectionLabel: {
-    fontFamily: FONTS.bold, fontSize: 11,
-    letterSpacing: 1.6, marginBottom: 10,
+  // ── CTA ──
+  ctaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.accent,
+    borderRadius: RADIUS.pill,
+    paddingVertical: 16,
+    marginHorizontal: 20,
+    marginTop: 24,
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    elevation: 8,
   },
-  bodyText: {
-    fontFamily: FONTS.regular, fontSize: 14,
-    color: COLORS.textSub, lineHeight: 22,
-  },
-  divider: { height: 1, backgroundColor: COLORS.border, marginVertical: 20 },
+  ctaBtnText: { fontFamily: FONTS.bold, fontSize: 15, color: '#FFF', letterSpacing: 0.5 },
 
+  // ── No model ──
+  noModelBox: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    position: 'relative',
+  },
+  noModelOrb: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(168,85,247,0.2)',
+  },
+  noModelText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 8,
+  },
 });
