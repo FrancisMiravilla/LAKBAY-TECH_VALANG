@@ -797,21 +797,26 @@ export default function CatchScreen({ navigation }) {
       const dist = haversineDistance(userLocation.lat, userLocation.lng, spot.latitude, spot.longitude);
       if (dist <= CATCH_RADIUS_METERS) {
         let matchedIcon = null;
-        if (icons.length > 0) {
+
+        // If the spot has its own model and/or tagline (hook), construct icon from spot
+        if (spot.hook || spot.model_3d) {
+          matchedIcon = {
+            id: 'spot-icon-' + spot.id,
+            name: spot.hook || spot.name,
+            tagline: spot.hook ? spot.name : (spot.description || ''),
+            model_3d: spot.model_3d || (icons[0]?.model_3d ?? null),
+            color: '#A855F7',
+            glow: 'rgba(168,85,247,0.35)',
+            about: spot.description || '',
+            significance: spot.cultural_significance || '',
+            history: spot.historical_background || '',
+            fun_fact: spot.fun_fact || '',
+          };
+        } else if (icons.length > 0) {
           matchedIcon =
             icons.find(i => spot.name && i.name && spot.name.toLowerCase().includes(i.name.toLowerCase())) ||
             icons.find(i => spot.description && i.name && spot.description.toLowerCase().includes(i.name.toLowerCase())) ||
             icons[0];
-        }
-
-        if (!matchedIcon && spot.model_3d) {
-          matchedIcon = {
-            id: 'spot-icon-' + spot.id,
-            name: spot.name || 'Unknown',
-            model_3d: spot.model_3d,
-            color: '#F59E0B',
-            glow: '#F59E0B55'
-          };
         }
 
         if (matchedIcon) {

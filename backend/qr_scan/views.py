@@ -259,21 +259,23 @@ class GenerateAITriviaView(APIView):
 
         prompt = f"""You are a cultural trivia generator for a Philippine tourism app called LAKBAY.
 
-Generate exactly {count} multiple-choice trivia questions about this cultural spot:
+Generate exactly {count} multiple-choice trivia questions strictly based on the cultural spot details provided below:
 
-Name: {spot.name}
+Spot Name: {spot.name}
+Tagline / Creature: {spot.hook or 'N/A'}
 Location: {spot.location_name}
-Description: {spot.description}
+Description / Lore: {spot.description}
 Historical Background: {spot.historical_background}
 Cultural Significance: {spot.cultural_significance}
 Fun Fact: {spot.fun_fact or 'N/A'}
 
 Rules:
-- Each question must have exactly 4 choices
-- Questions must be factual and based on the info above
-- Vary the difficulty (mix easy, medium, hard)
-- Do NOT repeat the same question type
-- Return ONLY valid JSON, no markdown, no explanation
+- Questions MUST be strictly derived from the Description, Historical Background, Cultural Significance, and Fun Fact provided above.
+- Do NOT generate generic or unverified questions outside the provided details.
+- Each question must have exactly 4 choices with only one correct answer.
+- Distribute questions across the Lore/Description, History, Cultural Significance, and Fun Fact sections.
+- Vary the difficulty (mix easy, medium, hard).
+- Return ONLY valid JSON with no markdown formatting or extra text.
 
 Required JSON format:
 {{
@@ -282,29 +284,41 @@ Required JSON format:
       "question": "Question text here?",
       "choices": ["Choice A", "Choice B", "Choice C", "Choice D"],
       "correct_index": 0,
-      "explanation": "Short explanation of the correct answer."
+      "explanation": "Short explanation citing the source detail from the text above."
     }}
   ]
 }}"""
 
         try:
             response = client.chat.completions.create(
-                model='llama-3.1-8b-instant',
+                model='openai/gpt-oss-120b',
                 messages=[{'role': 'user', 'content': prompt}],
-                temperature=1.0,
+                temperature=0.7,
             )
             raw = response.choices[0].message.content.strip()
-            # Strip markdown code fences if Gemini wraps with ```json
-            if raw.startswith('```'):
-                raw = raw.split('```')[1]
-                if raw.startswith('json'):
-                    raw = raw[4:]
-            data = json.loads(raw.strip())
+            
+            # Robust JSON extraction
+            if '```' in raw:
+                import re
+                match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', raw, re.DOTALL)
+                if match:
+                    raw = match.group(1)
+                else:
+                    raw = raw.split('```')[1]
+                    if raw.startswith('json'):
+                        raw = raw[4:]
+
+            raw = raw.strip()
+            start = raw.find('{')
+            end = raw.rfind('}')
+            if start != -1 and end != -1:
+                raw = raw[start:end+1]
+
+            data = json.loads(raw)
             questions_created = []
             for q in data.get('questions', [])[:count]:
                 idx = q.get('correct_index', 0)
-                # Ensure choices match the expected format
-                if len(q['choices']) != 4: continue
+                if len(q.get('choices', [])) != 4: continue
                 
                 new_q = TriviaQuestion.objects.create(
                     spot=spot,
@@ -320,6 +334,7 @@ Required JSON format:
             serializer = TriviaQuestionAdminSerializer(questions_created, many=True)
             return Response({'message': f'Generated {len(questions_created)} pending questions.', 'questions': serializer.data})
         except Exception as e:
+            print("AI Generation Error:", str(e))
             return Response(
                 {'error': f'AI generation failed: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -371,20 +386,31 @@ Required JSON format:
 
         try:
             response = client.chat.completions.create(
-                model='llama-3.1-8b-instant',
+                model='openai/gpt-oss-120b',
                 messages=[{'role': 'user', 'content': prompt}],
-                temperature=1.0,
+                temperature=0.7,
             )
             raw = response.choices[0].message.content.strip()
-            if raw.startswith('```'):
-                raw = raw.split('```')[1]
-                if raw.startswith('json'):
-                    raw = raw[4:]
-            data = json.loads(raw.strip())
+            if '```' in raw:
+                import re
+                match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', raw, re.DOTALL)
+                if match:
+                    raw = match.group(1)
+                else:
+                    raw = raw.split('```')[1]
+                    if raw.startswith('json'):
+                        raw = raw[4:]
+            raw = raw.strip()
+            start = raw.find('{')
+            end = raw.rfind('}')
+            if start != -1 and end != -1:
+                raw = raw[start:end+1]
+
+            data = json.loads(raw)
             questions_created = []
             for q in data.get('questions', [])[:count]:
                 idx = q.get('correct_index', 0)
-                if len(q['choices']) != 4: continue
+                if len(q.get('choices', [])) != 4: continue
                 
                 new_q = TriviaQuestion.objects.create(
                     ar_target=target,
@@ -453,20 +479,31 @@ Required JSON format:
 
         try:
             response = client.chat.completions.create(
-                model='llama-3.1-8b-instant',
+                model='openai/gpt-oss-120b',
                 messages=[{'role': 'user', 'content': prompt}],
-                temperature=1.0,
+                temperature=0.7,
             )
             raw = response.choices[0].message.content.strip()
-            if raw.startswith('```'):
-                raw = raw.split('```')[1]
-                if raw.startswith('json'):
-                    raw = raw[4:]
-            data = json.loads(raw.strip())
+            if '```' in raw:
+                import re
+                match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', raw, re.DOTALL)
+                if match:
+                    raw = match.group(1)
+                else:
+                    raw = raw.split('```')[1]
+                    if raw.startswith('json'):
+                        raw = raw[4:]
+            raw = raw.strip()
+            start = raw.find('{')
+            end = raw.rfind('}')
+            if start != -1 and end != -1:
+                raw = raw[start:end+1]
+
+            data = json.loads(raw)
             questions_created = []
             for q in data.get('questions', [])[:count]:
                 idx = q.get('correct_index', 0)
-                if len(q['choices']) != 4: continue
+                if len(q.get('choices', [])) != 4: continue
                 
                 new_q = TriviaQuestion.objects.create(
                     icon=icon,

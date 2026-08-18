@@ -222,8 +222,8 @@ export default function CatchDetailsScreen({ route, navigation }) {
           </Animated.View>
 
           <Animated.View style={{ opacity: headerOpacity, alignItems: 'center', paddingHorizontal: 24 }}>
-            <Text style={styles.modelName}>{icon.name}</Text>
-            {!!icon.tagline && <Text style={styles.modelTagline}>{icon.tagline}</Text>}
+            <Text style={styles.modelName}>{spot?.hook || icon?.name || spot?.name || 'Cultural Model'}</Text>
+            <Text style={styles.modelTagline}>{spot?.hook ? (spot?.name || '') : (icon?.tagline || spot?.location_name || '')}</Text>
           </Animated.View>
 
           {/* XP reward banner */}
@@ -292,17 +292,12 @@ export default function CatchDetailsScreen({ route, navigation }) {
 
         {/* ── STATS ROW ── */}
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Ionicons name="location" size={18} color={COLORS.accent} />
-            <Text style={styles.statValue}>S1</Text>
-            <Text style={styles.statLabel}>Building</Text>
-          </View>
-          <View style={[styles.statCard, styles.statCardCenter]}>
+          <View style={[styles.statCard, { flex: 1 }]}>
             <Ionicons name="ribbon" size={18} color={COLORS.gold} />
             <Text style={styles.statValue}>Mythical</Text>
             <Text style={styles.statLabel}>Rarity</Text>
           </View>
-          <View style={styles.statCard}>
+          <View style={[styles.statCard, styles.statCardCenter, { flex: 1 }]}>
             <Ionicons name="checkmark-circle" size={18} color={COLORS.teal} />
             <Text style={styles.statValue}>Collected</Text>
             <Text style={styles.statLabel}>Status</Text>
@@ -313,10 +308,16 @@ export default function CatchDetailsScreen({ route, navigation }) {
         <TouchableOpacity
           style={styles.ctaBtn}
           activeOpacity={0.85}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            navigation.navigate('QuizScreen', {
+              icon: icon ? { ...icon, color: RARITY.color } : null,
+              spotId: spot?.id ?? null,
+              spotName: spot?.name || icon?.name || 'Cultural Icon',
+            });
+          }}
         >
-          <Ionicons name="scan" size={18} color="#FFF" style={{ marginRight: 8 }} />
-          <Text style={styles.ctaBtnText}>Keep Scanning</Text>
+          <Ionicons name="help-circle" size={20} color="#FFF" style={{ marginRight: 8 }} />
+          <Text style={styles.ctaBtnText}>Take the Quiz</Text>
         </TouchableOpacity>
 
       </ScrollView>

@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity,
-  ActivityIndicator, StatusBar, ScrollView,
+  ActivityIndicator, StatusBar, ScrollView, Animated, Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { getSpotTrivia, getIconTrivia, awardSpotBadge } from '../api/qrService';
+import { authService } from '../api/authService';
 
 // ─── 3-D viewer HTML (same security pattern as CatchDetailsScreen) ────────────
 const HTML_ESCAPE = { '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;', '&': '&amp;' };
@@ -50,9 +51,9 @@ export default function QuizScreen({ navigation, route }) {
   const spotId   = route.params?.spotId   ?? null;
   const spotName = route.params?.spotName ?? 'this spot';
 
-  const isIconMode = !!icon;
+  const isIconMode = !spotId && !!icon;
   const accentColor = icon?.color ?? COLORS.accent;
-  const displayName = isIconMode ? icon.name : spotName;
+  const displayName = spotName || icon?.name || 'Quiz Challenge';
 
   const [loading, setLoading]               = useState(true);
   const [error, setError]                   = useState('');
@@ -62,39 +63,77 @@ export default function QuizScreen({ navigation, route }) {
   const [isCorrect, setIsCorrect]           = useState(null);
   const [showReward, setShowReward]         = useState(false);
   const [reward, setReward]                 = useState({ xp_earned: 0, total_xp: 0, awarded: false });
+  
+  // Real-time XP tracking & floating toast animations
+  const [userProfile, setUserProfile]       = useState(null);
+  const [sessionXP, setSessionXP]           = useState(0);
+  const [floatingToast, setFloatingToast]   = useState(null); // { text, color, type }
+  
+  const toastFadeAnim = useRef(new Animated.Value(0)).current;
+  const toastSlideAnim = useRef(new Animated.Value(20)).current;
+  const cardScaleAnim = useRef(new Animated.Value(1)).current;
 
-  // 3-D viewer HTML (only for icon mode)
+  // 3-D viewer HTML
+  const modelUrl = icon?.model_3d || null;
   const viewerHTML = useMemo(() => {
-    if (!isIconMode || !icon.model_3d) return null;
-    return buildViewerHTML(icon.model_3d);
-  }, [isIconMode, icon?.model_3d]);
+    if (!modelUrl) return null;
+    return buildViewerHTML(modelUrl);
+  }, [modelUrl]);
 
   useEffect(() => {
-    const fetchTrivia = isIconMode
-      ? getIconTrivia(icon.id)
-      : spotId ? getSpotTrivia(spotId) : Promise.reject(new Error('no-id'));
+    // Fetch user profile to know initial XP & Level
+    authService.getProfile()
+      .then(profile => setUserProfile(profile))
+      .catch(() => {});
 
-    fetchTrivia
-      .then((data) => {
-        if (!data.questions?.length) {
-          setError('No trivia questions available yet.');
-        } else {
-          setQuestions(data.questions);
+    const fetchTrivia = async () => {
+      try {
+        if (spotId) {
+          try {
+            const data = await getSpotTrivia(spotId);
+            if (data.questions?.length) {
+              setQuestions(data.questions);
+              return;
+            }
+          } catch (err) {
+            console.log('Spot trivia not found, checking icon trivia...');
+          }
         }
-      })
-      .catch((err) => {
-        if (err.message === 'no-id') {
-          setError('No icon or spot selected.');
-        } else if (err?.code === 'ECONNABORTED') {
+
+        if (icon?.id) {
+          const data = await getIconTrivia(icon.id);
+          if (data.questions?.length) {
+            setQuestions(data.questions);
+            return;
+          }
+        }
+
+        setError('No trivia questions available yet for this spot.');
+      } catch (err) {
+        if (err?.code === 'ECONNABORTED') {
           setError('The server is taking too long to respond. Please try again.');
         } else {
           setError(err?.response?.data?.error || 'Could not load quiz. Make sure the backend is running.');
         }
-      })
-      .finally(() => setLoading(false));
-  }, []);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleSelect = (option) => {
+    fetchTrivia();
+  }, [spotId, icon]);
+
+  const showFloatingReward = (text, color, type) => {
+    setFloatingToast({ text, color, type });
+    toastFadeAnim.setValue(0);
+    toastSlideAnim.setValue(15);
+    Animated.parallel([
+      Animated.timing(toastFadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.timing(toastSlideAnim, { toValue: -15, duration: 400, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true }),
+    ]).start();
+  };
+
+  const handleSelect = async (option) => {
     if (selectedOption !== null) return;
     setSelectedOption(option);
     
@@ -102,15 +141,48 @@ export default function QuizScreen({ navigation, route }) {
     const correct = option === currentQ.choices[currentQ.correct_index];
     setIsCorrect(correct);
 
-    if (!correct) {
+    if (correct) {
+      // Award +10 XP
+      setSessionXP(prev => prev + 10);
+      showFloatingReward('+10 XP Earned! ✨', '#10B981', 'success');
+      
+      // Card pulse animation
+      Animated.sequence([
+        Animated.timing(cardScaleAnim, { toValue: 1.04, duration: 150, useNativeDriver: true }),
+        Animated.timing(cardScaleAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
+      ]).start();
+
+      authService.adjustXP(10).then(res => {
+        if (res?.xp != null) setUserProfile(p => p ? { ...p, xp: res.xp } : p);
+      }).catch(console.error);
+
+    } else {
+      // Wrong answer
+      const currentTotalXP = (userProfile?.xp ?? 0);
+      
+      if (currentTotalXP === 0 && sessionXP === 0) {
+        // New user protection: free extra chance without penalty
+        showFloatingReward('Extra Chance! (New Explorer Shield 🛡️)', '#38BDF8', 'shield');
+      } else {
+        // Penalty -5 XP (floor at 0)
+        setSessionXP(prev => Math.max(0, prev - 5));
+        showFloatingReward('-5 XP', '#EF4444', 'penalty');
+        
+        authService.adjustXP(-5).then(res => {
+          if (res?.xp != null) setUserProfile(p => p ? { ...p, xp: res.xp } : p);
+        }).catch(console.error);
+      }
+
       setTimeout(() => {
         setSelectedOption(null);
         setIsCorrect(null);
-      }, 1400);
+        setFloatingToast(null);
+      }, 1500);
     }
   };
 
   const handleNext = async () => {
+    setFloatingToast(null);
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setSelectedOption(null);
@@ -121,8 +193,10 @@ export default function QuizScreen({ navigation, route }) {
           const result = await awardSpotBadge(spotId);
           setReward(result);
         } catch {
-          setReward({ xp_earned: 0, total_xp: 0, awarded: false });
+          setReward({ xp_earned: sessionXP, total_xp: userProfile?.xp || 0, awarded: true });
         }
+      } else {
+        setReward({ xp_earned: sessionXP, total_xp: userProfile?.xp || 0, awarded: true });
       }
       setShowReward(true);
     }
@@ -213,8 +287,30 @@ export default function QuizScreen({ navigation, route }) {
           <Ionicons name="close" size={22} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>Capture Challenge</Text>
-        <View style={{ width: 40 }} />
+        
+        {/* Live User XP Display */}
+        <View style={styles.topXPBadge}>
+          <Ionicons name="flash" size={14} color="#FBBF24" />
+          <Text style={styles.topXPText}>{(userProfile?.xp ?? 0)} XP</Text>
+        </View>
       </View>
+
+      {/* Floating XP Toast Animation */}
+      {floatingToast && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.floatingToast,
+            {
+              backgroundColor: floatingToast.color,
+              opacity: toastFadeAnim,
+              transform: [{ translateY: toastSlideAnim }],
+            },
+          ]}
+        >
+          <Text style={styles.floatingToastText}>{floatingToast.text}</Text>
+        </Animated.View>
+      )}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -245,9 +341,14 @@ export default function QuizScreen({ navigation, route }) {
 
         {/* ── Progress ── */}
         <View style={styles.progressSection}>
-          <Text style={styles.progressLabel}>
-            Question {currentIndex + 1} of {questions.length}
-          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <Text style={styles.progressLabel}>
+              Question {currentIndex + 1} of {questions.length}
+            </Text>
+            <Text style={[styles.progressLabel, { color: '#10B981' }]}>
+              Session: +{sessionXP} XP
+            </Text>
+          </View>
           <View style={styles.progressBg}>
             <View style={[styles.progressFill, {
               width: `${(currentIndex / questions.length) * 100}%`,
@@ -256,10 +357,10 @@ export default function QuizScreen({ navigation, route }) {
           </View>
         </View>
 
-        {/* ── Question card ── */}
-        <View style={[styles.questionCard, { borderColor: accentColor }]}>
+        {/* ── Question card with pop animation ── */}
+        <Animated.View style={[styles.questionCard, { borderColor: accentColor, transform: [{ scale: cardScaleAnim }] }]}>
           <Text style={styles.questionText}>{currentQ.question}</Text>
-        </View>
+        </Animated.View>
 
         {/* ── Options ── */}
         <View style={styles.options}>
@@ -305,7 +406,7 @@ export default function QuizScreen({ navigation, route }) {
         {selectedOption !== null && (
           <View style={styles.feedback}>
             <Text style={[styles.feedbackText, { color: isCorrect ? '#10B981' : '#EF4444' }]}>
-              {isCorrect ? 'Correct! Awesome!' : 'Oops! Try again.'}
+              {isCorrect ? 'Correct! +10 XP' : 'Incorrect (-5 XP)'}
             </Text>
             {isCorrect && currentQ.explanation ? (
               <View style={styles.explanationBox}>
@@ -361,6 +462,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   topBarTitle: { fontFamily: FONTS.bold, fontSize: 17, color: '#FFF', letterSpacing: 0.8 },
+  topXPBadge: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(251,191,36,0.18)',
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderRadius: 16, borderWidth: 1, borderColor: 'rgba(251,191,36,0.4)',
+    gap: 5,
+  },
+  topXPText: {
+    fontFamily: FONTS.bold, fontSize: 13, color: '#FBBF24',
+  },
+
+  // Floating Toast
+  floatingToast: {
+    position: 'absolute', top: 80, alignSelf: 'center', zIndex: 999,
+    paddingHorizontal: 20, paddingVertical: 10,
+    borderRadius: 24, shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 10, elevation: 8,
+  },
+  floatingToastText: {
+    fontFamily: FONTS.bold, fontSize: 14, color: '#FFF', letterSpacing: 0.5,
+  },
 
   scroll: { paddingBottom: 44 },
 

@@ -99,6 +99,31 @@ def test_auth(request):
     })
 
 
+class AdjustUserXPView(APIView):
+    """
+    POST: {"delta": 10} or {"delta": -5}
+    Adjusts user's XP score, never going below 0.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        try:
+            delta = int(request.data.get('delta', 0))
+        except (ValueError, TypeError):
+            return Response({'error': 'Valid integer delta is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        new_xp = max(0, user.xp + delta)
+        user.xp = new_xp
+        user.save(update_fields=['xp'])
+
+        return Response({
+            'message': 'XP adjusted successfully',
+            'delta': delta,
+            'xp': user.xp,
+        })
+
+
 class UserListView(APIView):
     """Admin-only: list all non-staff registered users."""
     permission_classes = [permissions.IsAdminUser]

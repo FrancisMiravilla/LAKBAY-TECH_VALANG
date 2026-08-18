@@ -5,11 +5,13 @@ from .views import (
     GoogleLoginView, LogoutView,
     CharacterSetupView, test_auth,
     UserListView, ToggleUserStatusView,
+    AdjustUserXPView,
 )
 
 urlpatterns = [
     path('register/', UserViewSet.as_view({'post': 'create'}), name='register'),
     path('profile/', UserViewSet.as_view({'get': 'me', 'put': 'me', 'patch': 'me'}), name='profile'),
+    path('adjust-xp/', AdjustUserXPView.as_view(), name='adjust_xp'),
 
     path('login/', TokenObtainPairView.as_view(), name='login'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),

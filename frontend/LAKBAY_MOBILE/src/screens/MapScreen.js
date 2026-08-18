@@ -490,14 +490,50 @@ export default function MapScreen({ navigation, route }) {
       .finally(() => setLoading(false));
   }, []);
 
-  // ── Request location permission on mount ──────────────────────────────────
+  // ── Request location permission on mount and watch GPS position ──────────
   useEffect(() => {
+    let watcher = null;
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      setUserLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude, accuracy: loc.coords.accuracy });
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+        
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        const coords = { lat: loc.coords.latitude, lng: loc.coords.longitude, accuracy: loc.coords.accuracy };
+        setUserLocation(coords);
+
+        // Immediately show user location pin on map
+        webviewRef.current?.injectJavaScript(`
+          window.dispatchEvent(new MessageEvent('message',{
+            data: JSON.stringify({ type: 'SHOW_USER', lat: ${coords.lat}, lng: ${coords.lng} })
+          }));
+          true;
+        `);
+
+        // Continuously update user pin on map as user walks/moves
+        watcher = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.High, timeInterval: 3000, distanceInterval: 2 },
+          (newLoc) => {
+            const newCoords = { lat: newLoc.coords.latitude, lng: newLoc.coords.longitude, accuracy: newLoc.coords.accuracy };
+            setUserLocation(newCoords);
+            if (!isNavigating) {
+              webviewRef.current?.injectJavaScript(`
+                window.dispatchEvent(new MessageEvent('message',{
+                  data: JSON.stringify({ type: 'UPDATE_LOCATION', lat: ${newCoords.lat}, lng: ${newCoords.lng} })
+                }));
+                true;
+              `);
+            }
+          }
+        );
+      } catch (err) {
+        console.warn('GPS location tracking error:', err);
+      }
     })();
+
+    return () => {
+      if (watcher) watcher.remove();
+    };
   }, []);
 
   // ── Navigation Tracking ───────────────────────────────────────────────────

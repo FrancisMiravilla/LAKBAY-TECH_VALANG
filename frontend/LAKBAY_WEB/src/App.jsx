@@ -321,6 +321,19 @@ function App() {
 
     map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
+    const geolocateControl = new mapboxgl.GeolocateControl({
+      positionOptions: { enableHighAccuracy: true },
+      trackUserLocation: true,
+      showUserHeading: true,
+      showAccuracyCircle: true,
+    });
+    map.addControl(geolocateControl, 'top-right');
+
+    map.on('load', () => {
+      // Automatically request user location and center map
+      geolocateControl.trigger();
+    });
+
     mapRef.current = map;
 
     spots.forEach(pin => {
@@ -4062,7 +4075,7 @@ function App() {
                       onClick={() => setGenerateQuizType('icon')}
                     >
                       <Target size={32} style={{ margin: '0 auto 8px' }} />
-                      <br/>Catch Icon
+                      <br/>Catch Zone
                     </button>
                   </div>
                 </div>
@@ -4077,10 +4090,25 @@ function App() {
                     value={generateQuizContentId} 
                     onChange={(e) => setGenerateQuizContentId(e.target.value)}
                   >
-                    <option value="">— Select {generateQuizType === 'icon' ? 'an Icon' : 'a Spot'} —</option>
-                    {generateQuizType === 'qr' && spots.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    <option value="">— Select {generateQuizType === 'icon' ? 'a Catch Zone' : 'a Spot'} —</option>
+                    {generateQuizType === 'qr' && spots.filter(s => !(s.feature_types || []).includes('catch')).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     {generateQuizType === 'ar' && arTargets.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    {generateQuizType === 'icon' && catchIcons.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {generateQuizType === 'icon' && (
+                      <>
+                        {/* Catch Spots from Interactive Map */}
+                        {spots.filter(s => (s.feature_types || []).includes('catch')).map(s => (
+                          <option key={`spot_${s.id}`} value={`spot_${s.id}`}>
+                            {s.hook ? `${s.name} (${s.hook})` : s.name}
+                          </option>
+                        ))}
+                        {/* Cultural Icons if any */}
+                        {catchIcons.map(c => (
+                          <option key={`icon_${c.id}`} value={`icon_${c.id}`}>
+                            {c.tagline ? `${c.name} (${c.tagline})` : c.name}
+                          </option>
+                        ))}
+                      </>
+                    )}
                   </select>
                 </div>
               )}

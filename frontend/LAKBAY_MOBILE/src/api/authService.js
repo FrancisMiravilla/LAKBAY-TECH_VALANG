@@ -64,6 +64,16 @@ export const authService = {
     }
   },
 
+  adjustXP: async (delta) => {
+    try {
+      const response = await apiClient.post('adjust-xp/', { delta });
+      return response.data;
+    } catch (error) {
+      console.warn('Failed to adjust XP:', error);
+      return null;
+    }
+  },
+
   logout: async () => {
     try {
       await SecureStore.deleteItemAsync('accessToken');

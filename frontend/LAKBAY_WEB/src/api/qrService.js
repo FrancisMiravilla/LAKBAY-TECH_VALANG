@@ -45,9 +45,19 @@ const qrService = {
 
   generateAITrivia: (type, id, count = 5) => {
     let endpoint = 'spots';
-    if (type === 'icon') endpoint = 'catch-icons';
-    if (type === 'ar') endpoint = 'ar-targets';
-    return adminClient.get(`/api/qr/${endpoint}/${id}/ai-trivia/?count=${count}`);
+    let targetId = id;
+    if (typeof id === 'string' && id.startsWith('spot_')) {
+      endpoint = 'spots';
+      targetId = id.replace('spot_', '');
+    } else if (typeof id === 'string' && id.startsWith('icon_')) {
+      endpoint = 'catch-icons';
+      targetId = id.replace('icon_', '');
+    } else if (type === 'icon') {
+      endpoint = 'catch-icons';
+    } else if (type === 'ar') {
+      endpoint = 'ar-targets';
+    }
+    return adminClient.get(`/api/qr/${endpoint}/${targetId}/ai-trivia/?count=${count}`);
   },
   getPendingQuizzes: () => adminClient.get('/api/qr/trivia-review/'),
   reviewQuizAction: (id, actionData) => adminClient.put(`/api/qr/trivia-review/${id}/`, actionData),
