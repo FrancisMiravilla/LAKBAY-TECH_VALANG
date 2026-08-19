@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
+import * as SecureStore from 'expo-secure-store';
 import { useApp } from '../context/AppContext';
 import { getCatchIcons, getSpots, ORIGIN } from '../api/qrService';
 import ErrorModal from '../components/ErrorModal';
@@ -595,7 +596,7 @@ function ARCatchOverlay({ icon, spot, userLocation, onContinue, onClose }) {
 }
 
 // ─── Proximity Alert Sheet ────────────────────────────────────────────────────
-function ProximitySheet({ spot, icon, distanceM, onCatch, onDismiss }) {
+function ProximitySheet({ spot, icon, distanceM, isAlreadyCaught, onCatch, onDismiss }) {
   const activeModel = (spot && spot.model_3d) 
     ? (spot.model_3d.startsWith('http') || spot.model_3d.startsWith('data:') ? spot.model_3d : `${ORIGIN}${spot.model_3d}`) 
     : icon.model_3d;
@@ -668,10 +669,10 @@ function ProximitySheet({ spot, icon, distanceM, onCatch, onDismiss }) {
         </Animated.View>
 
         {/* Glowing label under the model preview */}
-        <View style={[proximityStyles.modelLabel, { backgroundColor: icon.color + '20', borderColor: icon.color + '44' }]}>
-          <Ionicons name="cube-outline" size={10} color={icon.color} style={{ marginRight: 4 }} />
-          <Text style={[proximityStyles.modelLabelText, { color: icon.color }]}>
-            {icon.name} · 3D Model
+        <View style={[proximityStyles.modelLabel, { backgroundColor: isAlreadyCaught ? 'rgba(16,185,129,0.15)' : icon.color + '20', borderColor: isAlreadyCaught ? '#10B981' : icon.color + '44' }]}>
+          <Ionicons name={isAlreadyCaught ? 'checkmark-circle' : 'cube-outline'} size={10} color={isAlreadyCaught ? '#10B981' : icon.color} style={{ marginRight: 4 }} />
+          <Text style={[proximityStyles.modelLabelText, { color: isAlreadyCaught ? '#10B981' : icon.color }]}>
+            {isAlreadyCaught ? 'ALREADY CAUGHT' : `${icon.name} · 3D Model`}
           </Text>
         </View>
 
@@ -682,24 +683,28 @@ function ProximitySheet({ spot, icon, distanceM, onCatch, onDismiss }) {
         </View>
 
         <Text style={proximityStyles.sheetTitle}>
-          {icon.name} is{'\n'}nearby!
+          {isAlreadyCaught ? `${icon.name}\nAlready Caught!` : `${icon.name} is\nnearby!`}
         </Text>
         <Text style={proximityStyles.sheetLocation}>📍 {spot.location_name || spot.name}</Text>
         <Text style={proximityStyles.sheetDesc}>
-          You're close enough to catch this cultural icon. Open your camera and experience it in AR!
+          {isAlreadyCaught
+            ? "You have already caught and mastered this cultural model in your Journey collection. You can still inspect it in AR anytime."
+            : "You're close enough to catch this cultural icon. Open your camera and experience it in AR!"}
         </Text>
 
         <TouchableOpacity
-          style={[proximityStyles.catchBtn, { backgroundColor: icon.color }]}
+          style={[proximityStyles.catchBtn, { backgroundColor: isAlreadyCaught ? '#10B981' : icon.color }]}
           onPress={onCatch}
           activeOpacity={0.85}
         >
-          <Ionicons name="camera" size={18} color="#fff" style={{ marginRight: 8 }} />
-          <Text style={proximityStyles.catchBtnText}>Let's Catch It!</Text>
+          <Ionicons name={isAlreadyCaught ? 'eye' : 'camera'} size={18} color="#fff" style={{ marginRight: 8 }} />
+          <Text style={proximityStyles.catchBtnText}>
+            {isAlreadyCaught ? 'View Model in AR' : "Let's Catch It!"}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={dismiss} style={proximityStyles.dismissBtn}>
-          <Text style={proximityStyles.dismissText}>Maybe later</Text>
+          <Text style={proximityStyles.dismissText}>Dismiss</Text>
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -728,8 +733,22 @@ export default function CatchScreen({ navigation }) {
   const [arSpot, setArSpot] = useState(null);   // spot object for bearing computation
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
-  // ── Load data ───────────────────────────────────────────────────────────────
+  const [collectedModelIds, setCollectedModelIds] = useState(new Set());
+
+  // ── Load data & collected models ───────────────────────────────────────────
   useEffect(() => {
+    SecureStore.getItemAsync('collected_models')
+      .then(str => {
+        if (str) {
+          try {
+            const arr = JSON.parse(str);
+            const ids = new Set(arr.map(m => String(m.id || m.name)));
+            setCollectedModelIds(ids);
+          } catch {}
+        }
+      })
+      .catch(() => {});
+
     Promise.all([getCatchIcons(), getSpots()])
       .then(([iconData, spotData]) => {
         const iconList = (Array.isArray(iconData) ? iconData : (iconData.results || [])).map(normalizeIcon);
@@ -1088,6 +1107,12 @@ export default function CatchScreen({ navigation }) {
           spot={nearbySpot.spot}
           icon={nearbySpot.icon}
           distanceM={nearbySpot.distanceM}
+          isAlreadyCaught={
+            collectedModelIds.has(String(nearbySpot.spot.id)) ||
+            collectedModelIds.has(String(nearbySpot.icon.name)) ||
+            collectedModelIds.has(String(nearbySpot.icon.id)) ||
+            collectedModelIds.has(String(nearbySpot.spot.name))
+          }
           onCatch={() => openAR(nearbySpot.icon, nearbySpot.spot)}
           onDismiss={handleProximityDismiss}
         />

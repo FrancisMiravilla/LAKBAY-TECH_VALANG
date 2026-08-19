@@ -32,6 +32,7 @@ import { COLORS, FONTS, RADIUS } from '../constants/theme';
 
 import { Asset } from 'expo-asset';
 import { getARTargets, ORIGIN } from '../api/qrService';
+import { authService } from '../api/authService';
 
 // Resolve a model path into an absolute https URL Viro can load.
 const resolveModelUrl = (m) => {
@@ -318,9 +319,8 @@ export default function ViroARScanner({ navigation }) {
       return;
     }
 
-    setRewardModalData({ name: target.name, emoji: '🐉', model_3d: target.model_3d ? resolveModelUrl(target.model_3d) : null });
-
-    // Save to SecureStore for the Badges tab
+    // Save to SecureStore for the Badges tab and award XP
+    let wasAlreadyCollected = false;
     try {
       const SecureStore = require('expo-secure-store');
       const existing = await SecureStore.getItemAsync('collected_models');
@@ -328,10 +328,22 @@ export default function ViroARScanner({ navigation }) {
       if (!models.find(m => m.id === target.id)) {
         models.push({ id: target.id, name: target.name, emoji: '🐉', color: COLORS.accent, model_3d: target.model_3d ? resolveModelUrl(target.model_3d) : null });
         await SecureStore.setItemAsync('collected_models', JSON.stringify(models));
+        
+        // Award +150 XP live to user profile
+        authService.adjustXP(150).catch(err => console.warn('Failed to award AR XP:', err));
+      } else {
+        wasAlreadyCollected = true;
       }
     } catch (e) {
       console.error("Error saving collected model", e);
     }
+
+    setRewardModalData({
+      name: target.name,
+      emoji: '🐉',
+      model_3d: target.model_3d ? resolveModelUrl(target.model_3d) : null,
+      already_collected: wasAlreadyCollected,
+    });
 
     setDetectedSpot({
       id: target.id,
@@ -382,6 +394,7 @@ export default function ViroARScanner({ navigation }) {
             if (detectedSpot) {
               navigation.navigate('CatchDetails', {
                 icon: { name: detectedSpot.name, about: detectedSpot.description, model_3d: detectedSpot.model_3d },
+                isAR: true,
               });
             }
           }}
@@ -539,7 +552,7 @@ export default function ViroARScanner({ navigation }) {
               </Text>
             </View>
 
-            <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate('CatchDetails', { icon: { name: detectedSpot.name, about: detectedSpot.description, model_3d: detectedSpot.model_3d }})}>
+            <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate('CatchDetails', { icon: { name: detectedSpot.name, about: detectedSpot.description, model_3d: detectedSpot.model_3d }, isAR: true })}>
               <Text style={styles.btnText}>View Full Details</Text>
             </TouchableOpacity>
           </View>
@@ -643,11 +656,13 @@ function RewardModal({ data, glowAnim, onClose, onViewDetails }) {
           <View style={rwStyles.headerGlow} />
           <View style={rwStyles.rarityRow}>
             <Ionicons name="diamond" size={12} color="#A855F7" />
-            <Text style={rwStyles.rarityText}>MYTHICAL FOUND</Text>
+            <Text style={rwStyles.rarityText}>
+              {data.already_collected ? 'ALREADY IN COLLECTION' : 'MYTHICAL FOUND'}
+            </Text>
             <Ionicons name="diamond" size={12} color="#A855F7" />
           </View>
           <Animated.Text style={[rwStyles.rewardTitle, { transform: [{ translateY: titleBounce }] }]}>
-            ✨ Reward Unlocked!
+            {data.already_collected ? '🎨 Art Already Collected!' : '✨ Reward Unlocked!'}
           </Animated.Text>
         </View>
 
@@ -694,20 +709,31 @@ function RewardModal({ data, glowAnim, onClose, onViewDetails }) {
 
         {/* XP + collection row */}
         <View style={rwStyles.rewardRow}>
-          <View style={rwStyles.rewardPill}>
-            <Ionicons name="flash" size={14} color={COLORS.gold} />
-            <Text style={rwStyles.rewardPillText}>+150 XP</Text>
-          </View>
-          <View style={[rwStyles.rewardPill, rwStyles.rewardPillGreen]}>
-            <Ionicons name="checkmark-circle" size={14} color={COLORS.teal} />
-            <Text style={[rwStyles.rewardPillText, { color: COLORS.teal }]}>Collected!</Text>
-          </View>
+          {data.already_collected ? (
+            <View style={[rwStyles.rewardPill, rwStyles.rewardPillGreen, { flex: 1, justifyContent: 'center' }]}>
+              <Ionicons name="checkmark-done-circle" size={15} color={COLORS.teal} style={{ marginRight: 4 }} />
+              <Text style={[rwStyles.rewardPillText, { color: COLORS.teal }]}>
+                Already Collected in Journey (No Duplicate XP)
+              </Text>
+            </View>
+          ) : (
+            <>
+              <View style={rwStyles.rewardPill}>
+                <Ionicons name="flash" size={14} color={COLORS.gold} />
+                <Text style={rwStyles.rewardPillText}>+150 XP</Text>
+              </View>
+              <View style={[rwStyles.rewardPill, rwStyles.rewardPillGreen]}>
+                <Ionicons name="checkmark-circle" size={14} color={COLORS.teal} />
+                <Text style={[rwStyles.rewardPillText, { color: COLORS.teal }]}>Collected!</Text>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Buttons */}
         <View style={rwStyles.btnRow}>
           <TouchableOpacity style={rwStyles.btnSecondary} onPress={onClose}>
-            <Text style={rwStyles.btnSecondaryText}>Continue</Text>
+            <Text style={rwStyles.btnSecondaryText}>Hop Next</Text>
           </TouchableOpacity>
           <TouchableOpacity style={rwStyles.btnPrimary} onPress={onViewDetails}>
             <Ionicons name="book-outline" size={15} color="#FFF" style={{ marginRight: 5 }} />

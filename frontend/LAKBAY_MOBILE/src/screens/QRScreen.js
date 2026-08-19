@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   StyleSheet, Text, View, TouchableOpacity, StatusBar,
-  ScrollView, Animated, Easing, ActivityIndicator, Alert,
+  ScrollView, Animated, Easing, ActivityIndicator, Alert, Modal,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { COLORS, FONTS, SHADOW } from '../constants/theme';
 import { validateQR } from '../api/qrService';
@@ -13,6 +14,7 @@ export default function QRScreen({ navigation }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [alreadyScannedModal, setAlreadyScannedModal] = useState(null); // holds spot data when already scanned
   const scanLock = useRef(false); // prevents multiple simultaneous scans
 
   useEffect(() => {
@@ -31,19 +33,28 @@ export default function QRScreen({ navigation }) {
   }, []);
 
   const handleQRScanned = async (qrCode) => {
-    if (scanLock.current || isLoading) return;
+    if (scanLock.current || isLoading || alreadyScannedModal) return;
     scanLock.current = true;
     setIsLoading(true);
     setErrorMsg('');
 
     try {
       const result = await validateQR(qrCode);
-      navigation.navigate('QRScanned', {
-        spot: result.spot,
-        already_scanned: result.already_scanned,
-        unlock_type: result.unlock_type,
-        bonus_creature: result.bonus_creature,
-      });
+      if (result.already_scanned) {
+        setAlreadyScannedModal({
+          spot: result.spot,
+          already_scanned: true,
+          unlock_type: result.unlock_type,
+          bonus_creature: result.bonus_creature,
+        });
+      } else {
+        navigation.navigate('QRScanned', {
+          spot: result.spot,
+          already_scanned: false,
+          unlock_type: result.unlock_type,
+          bonus_creature: result.bonus_creature,
+        });
+      }
     } catch (err) {
       const status = err.response?.status;
       if (status === 404) {
@@ -190,6 +201,58 @@ export default function QRScreen({ navigation }) {
         </View>
 
       </ScrollView>
+
+      {/* ── Already Scanned / Collected Modal ── */}
+      <Modal
+        visible={!!alreadyScannedModal}
+        transparent={true}
+        animationType="fade"
+        statusBarTranslucent
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconWrap}>
+              <Ionicons name="checkmark-done-circle" size={48} color="#10B981" />
+            </View>
+
+            <Text style={styles.modalTitle}>ALREADY SCANNED!</Text>
+            <Text style={styles.modalSub}>
+              You have already discovered and scanned{' '}
+              <Text style={{ color: '#FFF', fontFamily: FONTS.bold }}>
+                {alreadyScannedModal?.spot?.name || 'this spot'}
+              </Text>
+              . All XP and rewards for this location have been collected.
+            </Text>
+
+            <View style={styles.modalActionRow}>
+              <TouchableOpacity
+                style={styles.modalBtnSecondary}
+                onPress={() => setAlreadyScannedModal(null)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalBtnSecondaryText}>Scan Other</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.modalBtnPrimary}
+                onPress={() => {
+                  const data = alreadyScannedModal;
+                  setAlreadyScannedModal(null);
+                  navigation.navigate('QRScanned', {
+                    spot: data.spot,
+                    already_scanned: true,
+                    unlock_type: data.unlock_type,
+                    bonus_creature: data.bonus_creature,
+                  });
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalBtnPrimaryText}>View Lore Anyway</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -315,4 +378,53 @@ const styles = StyleSheet.create({
   permissionDeniedText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: FONTS.semiBold, fontWeight: '600', marginBottom: 12, textAlign: 'center' },
   permissionButton: { backgroundColor: COLORS.accentDark, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20 },
   permissionButtonText: { color: '#FFF', fontSize: 11, fontFamily: FONTS.bold, fontWeight: '700' },
+
+  // Already Scanned Modal
+  modalBackdrop: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.82)',
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%', backgroundColor: '#0F0F26',
+    borderRadius: 24, borderWidth: 1.5, borderColor: 'rgba(16,185,129,0.4)',
+    padding: 24, alignItems: 'center',
+    shadowColor: '#10B981', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25, shadowRadius: 16, elevation: 10,
+  },
+  modalIconWrap: {
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: 'rgba(16,185,129,0.12)',
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: 16, borderWidth: 1, borderColor: 'rgba(16,185,129,0.3)',
+  },
+  modalTitle: {
+    fontFamily: FONTS.bold, fontSize: 18, color: '#10B981',
+    letterSpacing: 1.2, marginBottom: 8, textAlign: 'center',
+  },
+  modalSub: {
+    fontFamily: FONTS.medium, fontSize: 13, color: '#94A3B8',
+    lineHeight: 20, textAlign: 'center', marginBottom: 24,
+  },
+  modalActionRow: {
+    flexDirection: 'row', width: '100%', gap: 12,
+  },
+  modalBtnSecondary: {
+    flex: 1, paddingVertical: 14, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  modalBtnSecondaryText: {
+    fontFamily: FONTS.bold, fontSize: 13, color: '#E2E8F0',
+  },
+  modalBtnPrimary: {
+    flex: 1.3, paddingVertical: 14, borderRadius: 20,
+    backgroundColor: '#10B981',
+    justifyContent: 'center', alignItems: 'center',
+    shadowColor: '#10B981', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+  },
+  modalBtnPrimaryText: {
+    fontFamily: FONTS.bold, fontSize: 13, color: '#FFF',
+  },
 });

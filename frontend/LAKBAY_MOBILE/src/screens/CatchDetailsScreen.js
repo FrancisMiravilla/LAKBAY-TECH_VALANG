@@ -92,9 +92,9 @@ function NoModel() {
 
 // ── Main Screen ──────────────────────────────────────────────────────────────
 export default function CatchDetailsScreen({ route, navigation }) {
-  const { icon, spot } = route.params;
+  const { icon, spot, isAR = false } = route.params || {};
 
-  const activeModel = spot?.model_3d || icon.model_3d;
+  const activeModel = spot?.model_3d || icon?.model_3d;
   const viewerHTML  = useMemo(() => activeModel ? build3DViewerHTML(activeModel) : null, [activeModel]);
 
   // Animations
@@ -149,17 +149,18 @@ export default function CatchDetailsScreen({ route, navigation }) {
   const tabContent = (() => {
     if (spot) {
       switch (activeTab) {
-        case 'about':   return spot.description           || 'No lore available for this mythical model.';
-        case 'history': return spot.historical_background || 'Historical records are still being uncovered...';
-        case 'culture': return spot.cultural_significance || 'Cultural meaning not yet documented.';
-        case 'funfact': return spot.fun_fact              || 'More secrets will be revealed as you explore further.';
+        case 'about':   return spot?.description           || 'No lore available for this mythical model.';
+        case 'history': return spot?.historical_background || 'Historical records are still being uncovered...';
+        case 'culture': return spot?.cultural_significance || 'Cultural meaning not yet documented.';
+        case 'funfact': return spot?.fun_fact              || 'More secrets will be revealed as you explore further.';
       }
     }
     switch (activeTab) {
-      case 'about':   return icon.about       || 'No information available.';
-      case 'history': return icon.history     || 'Historical records are still being uncovered...';
-      case 'culture': return icon.significance|| 'Cultural meaning not yet documented.';
-      case 'funfact': return icon.fun_fact    || 'More secrets will be revealed as you explore further.';
+      case 'about':   return icon?.about        || icon?.description || 'No information available.';
+      case 'history': return icon?.history      || icon?.historical_background || 'Historical records are still being uncovered...';
+      case 'culture': return icon?.significance || icon?.cultural_significance || 'Cultural meaning not yet documented.';
+      case 'funfact': return icon?.fun_fact     || 'More secrets will be revealed as you explore further.';
+      default:        return 'No information available.';
     }
   })();
 
@@ -305,20 +306,32 @@ export default function CatchDetailsScreen({ route, navigation }) {
         </View>
 
         {/* ── FOOTER CTA ── */}
-        <TouchableOpacity
-          style={styles.ctaBtn}
-          activeOpacity={0.85}
-          onPress={() => {
-            navigation.navigate('QuizScreen', {
-              icon: icon ? { ...icon, color: RARITY.color } : null,
-              spotId: spot?.id ?? null,
-              spotName: spot?.name || icon?.name || 'Cultural Icon',
-            });
-          }}
-        >
-          <Ionicons name="help-circle" size={20} color="#FFF" style={{ marginRight: 8 }} />
-          <Text style={styles.ctaBtnText}>Take the Quiz</Text>
-        </TouchableOpacity>
+        {isAR ? (
+          <TouchableOpacity
+            style={[styles.ctaBtn, { backgroundColor: '#10B981', shadowColor: '#10B981' }]}
+            activeOpacity={0.85}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="sparkles" size={20} color="#FFF" style={{ marginRight: 8 }} />
+            <Text style={styles.ctaBtnText}>Hop onto Next</Text>
+            <Ionicons name="arrow-forward" size={18} color="#FFF" style={{ marginLeft: 6 }} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.ctaBtn}
+            activeOpacity={0.85}
+            onPress={() => {
+              navigation.navigate('QuizScreen', {
+                icon: icon ? { ...icon, color: RARITY.color } : null,
+                spotId: spot?.id ?? null,
+                spotName: spot?.name || icon?.name || 'Cultural Icon',
+              });
+            }}
+          >
+            <Ionicons name="help-circle" size={20} color="#FFF" style={{ marginRight: 8 }} />
+            <Text style={styles.ctaBtnText}>Take the Quiz</Text>
+          </TouchableOpacity>
+        )}
 
       </ScrollView>
     </View>
