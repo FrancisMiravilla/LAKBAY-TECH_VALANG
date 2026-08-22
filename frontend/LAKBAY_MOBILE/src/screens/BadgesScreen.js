@@ -475,15 +475,18 @@ export default function BadgesScreen() {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Collected Models</Text>
               <View style={[styles.sectionBadge, { backgroundColor: COLORS.goldSoft, borderColor: COLORS.gold + '55' }]}>
-                <Text style={[styles.sectionBadgeText, { color: COLORS.gold }]}>{collectedModels.length} / 4</Text>
+                <Text style={[styles.sectionBadgeText, { color: COLORS.gold }]}>{collectedModels.length} Collected</Text>
               </View>
             </View>
 
             {collectedModels.length > 0 ? (
               <View style={styles.badgesGrid}>
-                {collectedModels.map(b => (
-                  <View key={b.id || b.name} style={styles.badgeItem}>
-                    <HexBadge size={84} borderColor={b.color || COLORS.accent} glowColor={(b.color || COLORS.accent) + '33'}>
+                {collectedModels.map((b, idx) => {
+                  const rarityStr = (b.rarity || 'common').toUpperCase();
+                  const rarityColor = b.color || (rarityStr === 'LEGENDARY' ? '#F59E0B' : rarityStr === 'MYTHICAL' ? '#A855F7' : rarityStr === 'RARE' ? '#3B82F6' : '#10B981');
+                  return (
+                  <View key={b.id || b.name || idx} style={styles.badgeItem}>
+                    <HexBadge size={84} borderColor={rarityColor} glowColor={rarityColor + '33'}>
                       {b.model_3d ? (
                         <View pointerEvents="none" style={{ width: 58, height: 58, borderRadius: 29, overflow: 'hidden' }}>
                           <WebView
@@ -495,17 +498,18 @@ export default function BadgesScreen() {
                           />
                         </View>
                       ) : (
-                        <Text style={styles.badgeEmoji}>{b.emoji || '🐉'}</Text>
+                        <Text style={styles.badgeEmoji}>{b.emoji || '🏺'}</Text>
                       )}
                     </HexBadge>
-                    <View style={[styles.rarityStrip, { backgroundColor: b.color || COLORS.accent }]} />
-                    <Text style={styles.badgeLabel}>{b.name}</Text>
-                    <Text style={styles.badgeRarity}>✦ RARE</Text>
+                    <View style={[styles.rarityStrip, { backgroundColor: rarityColor }]} />
+                    <Text style={styles.badgeLabel} numberOfLines={1}>{b.name}</Text>
+                    <Text style={[styles.badgeRarity, { color: rarityColor }]}>✦ {rarityStr}</Text>
+                    <Text style={{ fontSize: 9, fontFamily: FONTS.medium, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>
+                      Building {b.building || 'S1'} · Slot #{b.slot_number || 1}/10
+                    </Text>
                   </View>
-                ))}
-                {Array.from({ length: Math.max(0, 4 - collectedModels.length) }).map((_, i) => (
-                  <LockedBadge key={`lock_${i}`} />
-                ))}
+                  );
+                })}
               </View>
             ) : (
               <View style={styles.emptyState}>

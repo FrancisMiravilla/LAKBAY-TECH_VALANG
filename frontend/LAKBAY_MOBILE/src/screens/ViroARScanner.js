@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar, InteractionManager, Alert, Modal, Animated, Easing, Image, Dimensions } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar, InteractionManager, Alert, Modal, Animated, Easing, Image, Dimensions, ScrollView } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -31,6 +31,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
 
 import { Asset } from 'expo-asset';
+import * as FileSystem from 'expo-file-system';
 import { getARTargets, ORIGIN } from '../api/qrService';
 import { authService } from '../api/authService';
 
@@ -40,6 +41,49 @@ const resolveModelUrl = (m) => {
   if (m.startsWith('data:')) return m;
   if (m.startsWith('http')) return m.replace('http://', 'https://');
   return `${ORIGIN}${m}`;
+};
+
+export const RARITY_THEME = {
+  common: {
+    label: 'COMMON',
+    title: 'Common Cultural Discovery',
+    color: '#10B981',
+    bg: 'rgba(16, 185, 129, 0.18)',
+    border: '#10B981',
+    icon: 'sparkles',
+    xp: 50,
+    emoji: '🏺',
+  },
+  rare: {
+    label: 'RARE',
+    title: 'Rare Regional Relic',
+    color: '#3B82F6',
+    bg: 'rgba(59, 130, 246, 0.18)',
+    border: '#3B82F6',
+    icon: 'star',
+    xp: 100,
+    emoji: '⚔️',
+  },
+  mythical: {
+    label: 'MYTHICAL',
+    title: 'Mythical Spirit Legend',
+    color: '#A855F7',
+    bg: 'rgba(168, 85, 247, 0.18)',
+    border: '#A855F7',
+    icon: 'diamond',
+    xp: 150,
+    emoji: '🐉',
+  },
+  legendary: {
+    label: 'LEGENDARY',
+    title: 'Legendary Masterpiece',
+    color: '#F59E0B',
+    bg: 'rgba(245, 158, 11, 0.22)',
+    border: '#F59E0B',
+    icon: 'trophy',
+    xp: 250,
+    emoji: '👑',
+  },
 };
 
 // =========================================================================
@@ -189,7 +233,7 @@ export default function ViroARScanner({ navigation }) {
       iconBg: 'rgba(26,86,219,0.15)',
       stepLabel: 'STEP 1 OF 3',
       title: 'Head to the Building',
-      body: 'Start by going to the first museum building (S1). Each building holds a unique set of hidden mythical models waiting to be discovered.',
+      body: 'Start by visiting the museum building (S1, S2, or S3). Each building holds up to 10 artwork models waiting to be discovered.',
       note: null,
     },
     {
@@ -197,21 +241,24 @@ export default function ViroARScanner({ navigation }) {
       iconColor: COLORS.gold,
       iconBg: 'rgba(251,191,36,0.15)',
       stepLabel: 'STEP 2 OF 3',
-      title: 'Find the 10 Mythical Models',
-      body: 'Inside the building, use your AR camera to scan artworks and exhibits. There are 10 mythical models hidden throughout — each one guarded by a unique marker.',
-      note: 'If you scan an artwork and nothing happens, it is not part of the mythical models.',
+      title: 'Scan the 10 Artwork Exhibits',
+      body: 'Inside the building, point your AR camera at paintings and exhibits. Artworks range across 4 rarities: Common, Rare, Mythical, and Legendary.',
+      note: 'If you need assistance finding a piece, tap the Exhibit Clues button on the top right.',
     },
     {
       icon: 'trophy',
       iconColor: COLORS.teal,
       iconBg: 'rgba(16,185,129,0.15)',
       stepLabel: 'STEP 3 OF 3',
-      title: 'Collect & Track Progress',
-      body: 'Every mythical model you find is automatically collected and saved. Head to the Progress tab anytime to see how many you have found across all buildings!',
+      title: 'Collect & View 3D Models',
+      body: 'Every artwork you scan is saved to your permanent collection with its rarity badge and slot number. Visit your Collection in the Badges tab anytime!',
       note: null,
     },
   ];
   const [rewardModalData, setRewardModalData] = useState(null);
+  const [activeHintBanner, setActiveHintBanner] = useState(null);
+  const [showHintModal, setShowHintModal] = useState(false);
+  const hintBannerAnim = React.useRef(new Animated.Value(-120)).current;
   const glowAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
@@ -234,6 +281,29 @@ export default function ViroARScanner({ navigation }) {
       glowAnim.setValue(0);
     }
   }, [rewardModalData]);
+
+  // Hint auto-popup: If tourist hasn't found art in 12s, popup a clue
+  React.useEffect(() => {
+    if (!sceneMountReady || arStatus !== 'ready' || loading || arTargets.length === 0) return;
+    
+    const targetsWithHints = arTargets.filter(t => t.hint && t.hint.trim().length > 0);
+    if (targetsWithHints.length === 0) return;
+
+    const timer = setTimeout(() => {
+      if (!detectedSpot && !rewardModalData) {
+        const chosen = targetsWithHints[Math.floor(Math.random() * targetsWithHints.length)];
+        setActiveHintBanner(chosen);
+        Animated.spring(hintBannerAnim, {
+          toValue: 0,
+          friction: 6,
+          tension: 50,
+          useNativeDriver: true,
+        }).start();
+      }
+    }, 12000);
+
+    return () => clearTimeout(timer);
+  }, [sceneMountReady, arStatus, loading, arTargets, detectedSpot, rewardModalData]);
 
   React.useEffect(() => {
     (async () => {
@@ -287,22 +357,33 @@ export default function ViroARScanner({ navigation }) {
         }
         const usable = targets.filter(t => t.image);
 
-        // Viro's Android loader fails on remote model URLs ("Failed to load
-        // model"), so pre-download each .glb to local cache and hand Viro a
-        // file:// path. Falls back to the remote URL if the download fails.
+        // Viro's Android loader requires local file:// paths ("Failed to load
+        // model" when given remote URLs). Pre-download each .glb via FileSystem.
         await Promise.all(usable.map(async (t) => {
           if (!t.model_3d) return;
           try {
-            const asset = Asset.fromURI(resolveModelUrl(t.model_3d));
-            await asset.downloadAsync();
-            t.local_model = asset.localUri || asset.uri;
-            console.log('[AR] model cached locally:', t.name, t.local_model);
+            const remoteUrl = resolveModelUrl(t.model_3d);
+            const localDest = `${FileSystem.cacheDirectory}ar_target_${t.id}.glb`;
+            const info = await FileSystem.getInfoAsync(localDest);
+            if (info.exists && info.size > 0) {
+              t.local_model = localDest;
+              console.log('[AR] model found in cache:', t.name, localDest);
+            } else {
+              const res = await FileSystem.downloadAsync(remoteUrl, localDest);
+              if (res.status === 200) {
+                t.local_model = res.uri;
+                console.log('[AR] model downloaded to local cache:', t.name, res.uri);
+              } else {
+                t.local_model = res.uri || remoteUrl;
+              }
+            }
           } catch (e) {
-            console.log('[AR] model download FAILED:', t.name, String(e));
+            console.log('[AR] model FileSystem download failed:', t.name, String(e));
+            t.local_model = resolveModelUrl(t.model_3d);
           }
         }));
 
-        console.log('[AR] targets loaded:', usable.map(t => ({ name: t.name, hasModel: !!t.model_3d, local: t.local_model || null })));
+        console.log('[AR] targets loaded:', usable.map(t => ({ name: t.name, hasModel: !!t.model_3d, rarity: t.rarity, slot: t.slot_number, local: t.local_model || null })));
         setArTargets(usable);
         setLoading(false);
       } catch (err) {
@@ -314,10 +395,9 @@ export default function ViroARScanner({ navigation }) {
 
   // Called natively when ViroARImageMarker sees a painting
   const handleTargetFound = async (target) => {
-    if (!target.model_3d) {
-      Alert.alert("Notice", "This item is not included in the 10 mythical models.");
-      return;
-    }
+    const rarityKey = (target.rarity || 'common').toLowerCase();
+    const rarityTheme = RARITY_THEME[rarityKey] || RARITY_THEME.common;
+    const earnedXP = rarityTheme.xp || 150;
 
     // Save to SecureStore for the Badges tab and award XP
     let wasAlreadyCollected = false;
@@ -325,12 +405,24 @@ export default function ViroARScanner({ navigation }) {
       const SecureStore = require('expo-secure-store');
       const existing = await SecureStore.getItemAsync('collected_models');
       let models = existing ? JSON.parse(existing) : [];
-      if (!models.find(m => m.id === target.id)) {
-        models.push({ id: target.id, name: target.name, emoji: '🐉', color: COLORS.accent, model_3d: target.model_3d ? resolveModelUrl(target.model_3d) : null });
+      const existingIdx = models.findIndex(m => m.id === target.id);
+      if (existingIdx === -1) {
+        models.push({
+          id: target.id,
+          name: target.name,
+          building: target.building || 'S1',
+          rarity: target.rarity || 'common',
+          slot_number: target.slot_number || 1,
+          spot_name: target.spot_name || '',
+          hint: target.hint || '',
+          emoji: rarityTheme.emoji || '🎨',
+          color: rarityTheme.color,
+          model_3d: target.model_3d ? resolveModelUrl(target.model_3d) : null,
+        });
         await SecureStore.setItemAsync('collected_models', JSON.stringify(models));
         
-        // Award +150 XP live to user profile
-        authService.adjustXP(150).catch(err => console.warn('Failed to award AR XP:', err));
+        // Award XP live to user profile
+        authService.adjustXP(earnedXP).catch(err => console.warn('Failed to award AR XP:', err));
       } else {
         wasAlreadyCollected = true;
       }
@@ -338,9 +430,35 @@ export default function ViroARScanner({ navigation }) {
       console.error("Error saving collected model", e);
     }
 
+    let localModelPath = target.local_model;
+    if (target.model_3d && (!localModelPath || localModelPath.startsWith('http'))) {
+      try {
+        const remoteUrl = resolveModelUrl(target.model_3d);
+        const localDest = `${FileSystem.cacheDirectory}ar_target_${target.id}.glb`;
+        const info = await FileSystem.getInfoAsync(localDest);
+        if (info.exists && info.size > 0) {
+          localModelPath = localDest;
+        } else {
+          const res = await FileSystem.downloadAsync(remoteUrl, localDest);
+          if (res.status === 200) {
+            localModelPath = res.uri;
+          }
+        }
+      } catch (err) {
+        console.warn('[AR] on-demand target model download error:', err);
+      }
+    }
+
     setRewardModalData({
+      id: target.id,
       name: target.name,
-      emoji: '🐉',
+      building: target.building || 'S1',
+      rarity: target.rarity || 'common',
+      slot_number: target.slot_number || 1,
+      spot_name: target.spot_name || '',
+      hint: target.hint || '',
+      emoji: rarityTheme.emoji || '🎨',
+      earnedXP: earnedXP,
       model_3d: target.model_3d ? resolveModelUrl(target.model_3d) : null,
       already_collected: wasAlreadyCollected,
     });
@@ -348,10 +466,19 @@ export default function ViroARScanner({ navigation }) {
     setDetectedSpot({
       id: target.id,
       name: target.name,
-      description: target.description || "You've uncovered a hidden AR experience inside the museum! Point your camera to see it.",
+      building: target.building || 'S1',
+      rarity: target.rarity || 'common',
+      slot_number: target.slot_number || 1,
+      spot_name: target.spot_name || '',
+      hint: target.hint || '',
+      description: target.description || "You've uncovered a hidden AR experience inside the building! Point your camera to see it.",
       model_3d: target.model_3d ? resolveModelUrl(target.model_3d) : null,
-      local_model: target.local_model || (target.model_3d ? resolveModelUrl(target.model_3d) : null)
+      local_model: localModelPath || target.local_model || (target.model_3d ? resolveModelUrl(target.model_3d) : null)
     });
+
+    // Dismiss any active hint banner when target is found
+    setActiveHintBanner(null);
+
     if (target.model_3d) {
       if (loadedModelsRef.current.has(target.id)) {
         setModelStatus({ state: 'loaded', message: '' });
@@ -491,8 +618,32 @@ export default function ViroARScanner({ navigation }) {
           <Ionicons name="chevron-back" size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>AR Scanner</Text>
-        <View style={{ width: 24 }} />
+        <TouchableOpacity onPress={() => setShowHintModal(true)} style={styles.hintHeaderBtn}>
+          <Ionicons name="bulb" size={18} color={COLORS.gold} />
+          <Text style={styles.hintHeaderBtnText}>Hints</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Floating Hint Pop-up Banner (Appears when tourist needs help finding art) */}
+      {activeHintBanner && (
+        <Animated.View style={[styles.hintBanner, { transform: [{ translateY: hintBannerAnim }] }]}>
+          <View style={styles.hintBannerIconCircle}>
+            <Ionicons name="bulb" size={20} color="#FFF" />
+          </View>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <Text style={styles.hintBannerTitle}>Need a Hint?</Text>
+              <Text style={styles.hintBannerSlot}>Building {activeHintBanner.building || 'S1'} · Slot #{activeHintBanner.slot_number || 1}</Text>
+            </View>
+            <Text style={styles.hintBannerText} numberOfLines={2}>
+              "{activeHintBanner.hint}"
+            </Text>
+          </View>
+          <TouchableOpacity onPress={() => setActiveHintBanner(null)} style={styles.hintBannerClose}>
+            <Ionicons name="close" size={18} color="rgba(255,255,255,0.7)" />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
       {/* Viro React AR Camera View */}
       <View style={styles.cameraContainer}>
@@ -525,13 +676,78 @@ export default function ViroARScanner({ navigation }) {
         )}
       </View>
 
+      {/* MODAL: LOCATION HINTS LIST */}
+      <Modal
+        visible={showHintModal}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={styles.hintModalOverlay}>
+          <View style={styles.hintModalContent}>
+            <View style={styles.hintModalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={styles.hintModalIcon}>
+                  <Ionicons name="bulb" size={22} color={COLORS.gold} />
+                </View>
+                <View>
+                  <Text style={styles.hintModalTitle}>Exhibit Location Clues</Text>
+                  <Text style={styles.hintModalSub}>Find all 10 artwork models per building (S1, S2, S3)</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={() => setShowHintModal(false)} style={styles.hintModalCloseBtn}>
+                <Ionicons name="close" size={20} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.hintModalScroll} contentContainerStyle={{ paddingBottom: 24 }}>
+              {arTargets.length === 0 ? (
+                <View style={{ padding: 30, alignItems: 'center' }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>No AR target exhibits registered for this spot yet.</Text>
+                </View>
+              ) : (
+                arTargets.map((t, idx) => {
+                  const rTheme = RARITY_THEME[(t.rarity || 'common').toLowerCase()] || RARITY_THEME.common;
+                  return (
+                    <View key={t.id || idx} style={[styles.hintItemCard, { borderColor: rTheme.color + '44' }]}>
+                      <View style={styles.hintItemHeader}>
+                        <View style={[styles.hintSlotBadge, { backgroundColor: rTheme.bg, borderColor: rTheme.color }]}>
+                          <Text style={[styles.hintSlotText, { color: rTheme.color }]}>Building {t.building || 'S1'} · Slot #{t.slot_number || (idx + 1)}</Text>
+                        </View>
+                        <View style={[styles.hintRarityPill, { backgroundColor: rTheme.color + '22', borderColor: rTheme.color + '66' }]}>
+                          <Text style={[styles.hintRarityText, { color: rTheme.color }]}>{rTheme.label}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.hintTargetName}>{t.name}</Text>
+                      <View style={styles.hintQuoteBox}>
+                        <Ionicons name="compass-outline" size={16} color={COLORS.gold} style={{ marginRight: 6, marginTop: 1 }} />
+                        <Text style={styles.hintQuoteText}>{t.hint || 'Explore the room and point your camera at paintings and sculptures.'}</Text>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* React Native UI Overlay (Pops up when painting is detected) */}
       {detectedSpot && (
         <View style={styles.overlayUI}>
           <View style={styles.infoCard}>
-            <View style={styles.badge}>
-              <Ionicons name="sparkles" size={14} color={COLORS.gold} />
-              <Text style={styles.badgeText}>Artwork Detected</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <View style={styles.badge}>
+                <Ionicons name="sparkles" size={14} color={COLORS.gold} />
+                <Text style={styles.badgeText}>Artwork Detected</Text>
+              </View>
+              {(() => {
+                const rTheme = RARITY_THEME[(detectedSpot.rarity || 'common').toLowerCase()] || RARITY_THEME.common;
+                return (
+                  <View style={[styles.detectedRarityBadge, { backgroundColor: rTheme.bg, borderColor: rTheme.color }]}>
+                    <Text style={[styles.detectedRarityText, { color: rTheme.color }]}>{rTheme.label} · Building {detectedSpot.building || 'S1'} · Slot #{detectedSpot.slot_number || 1}</Text>
+                  </View>
+                );
+              })()}
             </View>
             <Text style={styles.title}>{detectedSpot.name}</Text>
             <Text style={styles.desc}>{detectedSpot.description}</Text>
@@ -631,6 +847,8 @@ function RewardModal({ data, glowAnim, onClose, onViewDetails }) {
 
   if (!data) return null;
 
+  const rarityKey = (data.rarity || 'common').toLowerCase();
+  const rTheme = RARITY_THEME[rarityKey] || RARITY_THEME.common;
   const shimmerX = shimmer.interpolate({ inputRange: [0, 1], outputRange: [-(SCREEN_W), SCREEN_W] });
   const rewardHTML = data.model_3d ? buildRewardViewerHTML(data.model_3d) : null;
 
@@ -644,26 +862,29 @@ function RewardModal({ data, glowAnim, onClose, onViewDetails }) {
           style={[
             rwStyles.orb,
             { opacity: orb.op, transform: [{ translateX: orb.x }, { translateY: orb.y }, { scale: orb.sc }] },
-            i % 2 === 0 ? rwStyles.orbGold : rwStyles.orbPurple,
+            { backgroundColor: i % 2 === 0 ? rTheme.color : COLORS.gold },
           ]}
         />
       ))}
 
-      <Animated.View style={[rwStyles.card, { opacity: opacAnim, transform: [{ scale: scaleAnim }] }]}>
+      <Animated.View style={[rwStyles.card, { borderColor: rTheme.color + '99', shadowColor: rTheme.color, opacity: opacAnim, transform: [{ scale: scaleAnim }] }]}>
 
         {/* Header banner */}
-        <View style={rwStyles.cardHeader}>
-          <View style={rwStyles.headerGlow} />
+        <View style={[rwStyles.cardHeader, { borderBottomColor: rTheme.color + '44' }]}>
+          <View style={[rwStyles.headerGlow, { backgroundColor: rTheme.color + '44' }]} />
           <View style={rwStyles.rarityRow}>
-            <Ionicons name="diamond" size={12} color="#A855F7" />
-            <Text style={rwStyles.rarityText}>
-              {data.already_collected ? 'ALREADY IN COLLECTION' : 'MYTHICAL FOUND'}
+            <Ionicons name={rTheme.icon} size={13} color={rTheme.color} />
+            <Text style={[rwStyles.rarityText, { color: rTheme.color }]}>
+              {data.already_collected ? 'ALREADY IN COLLECTION' : `${rTheme.label} DISCOVERY`}
             </Text>
-            <Ionicons name="diamond" size={12} color="#A855F7" />
+            <Ionicons name={rTheme.icon} size={13} color={rTheme.color} />
           </View>
           <Animated.Text style={[rwStyles.rewardTitle, { transform: [{ translateY: titleBounce }] }]}>
-            {data.already_collected ? '🎨 Art Already Collected!' : '✨ Reward Unlocked!'}
+            {data.already_collected ? '🎨 Art Already Collected!' : '✨ Art Discovered!'}
           </Animated.Text>
+          <Text style={rwStyles.slotBanner}>
+            Slot #{data.slot_number || 1} of 10 · Building {data.building || 'S1'}
+          </Text>
         </View>
 
         {/* 3D model viewer OR fallback icon */}
@@ -671,11 +892,12 @@ function RewardModal({ data, glowAnim, onClose, onViewDetails }) {
           {/* Glow ring */}
           <Animated.View style={[
             rwStyles.modelGlow,
-            { opacity: glowAnim.interpolate({ inputRange: [0,1], outputRange: [0.3, 0.8] }),
+            { backgroundColor: rTheme.color + '26',
+              opacity: glowAnim.interpolate({ inputRange: [0,1], outputRange: [0.3, 0.8] }),
               transform: [{ scale: glowAnim.interpolate({ inputRange: [0,1], outputRange: [1, 1.15] }) }] }
           ]} />
 
-          <View style={rwStyles.modelCard}>
+          <View style={[rwStyles.modelCard, { borderColor: rTheme.color + '66' }]}>
             {rewardHTML ? (
               <WebView
                 source={{ html: rewardHTML }}
@@ -686,7 +908,7 @@ function RewardModal({ data, glowAnim, onClose, onViewDetails }) {
               />
             ) : (
               <View style={rwStyles.noModelFallback}>
-                <Text style={{ fontSize: 52 }}>🐉</Text>
+                <Text style={{ fontSize: 52 }}>{rTheme.emoji || '🎨'}</Text>
               </View>
             )}
             {/* Shimmer sweep */}
@@ -696,10 +918,10 @@ function RewardModal({ data, glowAnim, onClose, onViewDetails }) {
             />
           </View>
 
-          {/* Stars below viewer */}
+          {/* Stars / icons below viewer */}
           <View style={rwStyles.starsRow}>
             {[...Array(5)].map((_, i) => (
-              <Ionicons key={i} name="star" size={14} color="#A855F7" style={{ marginHorizontal: 2 }} />
+              <Ionicons key={i} name="star" size={14} color={rTheme.color} style={{ marginHorizontal: 2 }} />
             ))}
           </View>
         </View>
@@ -713,14 +935,14 @@ function RewardModal({ data, glowAnim, onClose, onViewDetails }) {
             <View style={[rwStyles.rewardPill, rwStyles.rewardPillGreen, { flex: 1, justifyContent: 'center' }]}>
               <Ionicons name="checkmark-done-circle" size={15} color={COLORS.teal} style={{ marginRight: 4 }} />
               <Text style={[rwStyles.rewardPillText, { color: COLORS.teal }]}>
-                Already Collected in Journey (No Duplicate XP)
+                Already In Collection (No Duplicate XP)
               </Text>
             </View>
           ) : (
             <>
-              <View style={rwStyles.rewardPill}>
-                <Ionicons name="flash" size={14} color={COLORS.gold} />
-                <Text style={rwStyles.rewardPillText}>+150 XP</Text>
+              <View style={[rwStyles.rewardPill, { borderColor: rTheme.color + '66', backgroundColor: rTheme.color + '22' }]}>
+                <Ionicons name="flash" size={14} color={rTheme.color} />
+                <Text style={[rwStyles.rewardPillText, { color: rTheme.color }]}>+{data.earnedXP || rTheme.xp} XP</Text>
               </View>
               <View style={[rwStyles.rewardPill, rwStyles.rewardPillGreen]}>
                 <Ionicons name="checkmark-circle" size={14} color={COLORS.teal} />
@@ -814,6 +1036,13 @@ const rwStyles = StyleSheet.create({
     textShadowColor: 'rgba(251,191,36,0.6)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
+  },
+  slotBanner: {
+    fontFamily: FONTS.medium,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: 4,
+    letterSpacing: 0.5,
   },
 
   // Model viewer
@@ -1198,5 +1427,198 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     fontSize: 15,
     color: '#FFF',
-  }
+  },
+  hintHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+  },
+  hintHeaderBtnText: {
+    fontFamily: FONTS.bold,
+    fontSize: 12,
+    color: COLORS.gold,
+  },
+  hintBanner: {
+    position: 'absolute',
+    top: 98,
+    left: 14,
+    right: 14,
+    zIndex: 50,
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+    borderRadius: RADIUS.md,
+    borderWidth: 1.5,
+    borderColor: COLORS.gold,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: COLORS.gold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  hintBannerIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  hintBannerTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 12,
+    color: COLORS.gold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  hintBannerSlot: {
+    fontFamily: FONTS.medium,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  hintBannerText: {
+    fontFamily: FONTS.regular,
+    fontSize: 13,
+    color: '#FFF',
+    fontStyle: 'italic',
+    lineHeight: 18,
+  },
+  hintBannerClose: {
+    padding: 4,
+  },
+  hintModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'flex-end',
+  },
+  hintModalContent: {
+    backgroundColor: '#0F172A',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderTopWidth: 1.5,
+    borderColor: 'rgba(251, 191, 36, 0.35)',
+    maxHeight: '80%',
+    paddingTop: 20,
+    paddingHorizontal: 20,
+  },
+  hintModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    marginBottom: 14,
+  },
+  hintModalIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hintModalTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 17,
+    color: '#FFF',
+  },
+  hintModalSub: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 1,
+  },
+  hintModalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hintModalScroll: {
+    marginTop: 4,
+  },
+  noHintsText: {
+    fontFamily: FONTS.regular,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+  },
+  hintItemCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 12,
+  },
+  hintItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  hintSlotBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  hintSlotText: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
+  hintRarityPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  hintRarityText: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  hintTargetName: {
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    color: '#FFF',
+    marginBottom: 8,
+  },
+  hintQuoteBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 8,
+    padding: 10,
+  },
+  hintQuoteText: {
+    flex: 1,
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.85)',
+    fontStyle: 'italic',
+    lineHeight: 18,
+  },
+  detectedRarityBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  detectedRarityText: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
 });

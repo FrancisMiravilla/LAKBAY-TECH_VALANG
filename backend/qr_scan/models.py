@@ -29,7 +29,50 @@ class CulturalSpot(models.Model):
     def __str__(self):
         return self.name
 
+from django.core.validators import MinValueValidator, MaxValueValidator
+
 class ARTarget(models.Model):
+    RARITY_CHOICES = [
+        ('common', 'Common'),
+        ('rare', 'Rare'),
+        ('mythical', 'Mythical'),
+        ('legendary', 'Legendary'),
+    ]
+
+    BUILDING_CHOICES = [
+        ('S1', 'Building S1'),
+        ('S2', 'Building S2'),
+        ('S3', 'Building S3'),
+    ]
+
+    building = models.CharField(
+        max_length=10,
+        choices=BUILDING_CHOICES,
+        default='S1',
+        help_text="Designated Building / Structure (S1, S2, or S3)"
+    )
+    spot = models.ForeignKey(
+        CulturalSpot,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ar_targets',
+        help_text="Optional Cultural Landmark associated with this art"
+    )
+    slot_number = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Model slot number for this building (1 to 10)"
+    )
+    rarity = models.CharField(
+        max_length=20,
+        choices=RARITY_CHOICES,
+        default='common'
+    )
+    hint = models.TextField(
+        blank=True,
+        help_text="Location hint to help users find the target (e.g. 'go to west side and find the art')"
+    )
     name = models.CharField(max_length=200)
     description = models.TextField()
     image = models.ImageField(upload_to='ar_targets/', null=True, blank=True)
@@ -43,8 +86,11 @@ class ARTarget(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ['building', 'slot_number', '-created_at']
+
     def __str__(self):
-        return self.name
+        return f"[{self.building}] Slot #{self.slot_number} - {self.name} ({self.get_rarity_display()})"
 
 
 class QRMarker(models.Model):

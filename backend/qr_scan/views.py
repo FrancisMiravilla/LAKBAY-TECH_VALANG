@@ -31,8 +31,17 @@ class CulturalIconViewSet(viewsets.ModelViewSet):
 
 
 class ARTargetViewSet(viewsets.ModelViewSet):
-    queryset = ARTarget.objects.all().order_by('-created_at')
     serializer_class = ARTargetSerializer
+    
+    def get_queryset(self):
+        qs = ARTarget.objects.select_related('spot').all().order_by('building', 'slot_number', '-created_at')
+        building = self.request.query_params.get('building')
+        if building:
+            qs = qs.filter(building__iexact=building)
+        spot_id = self.request.query_params.get('spot')
+        if spot_id:
+            qs = qs.filter(spot_id=spot_id)
+        return qs
     
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:

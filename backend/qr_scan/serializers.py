@@ -20,8 +20,15 @@ class Base64FileField(serializers.FileField):
             ext = 'glb'
             raw = base64.b64decode(filestr)
             # Strip glTF material extensions Viro's mobile AR loader can't parse
-            # (e.g. KHR_materials_sheen), otherwise the model is invisible in AR.
             raw = strip_incompatible_extensions(raw)
+            if raw.startswith(b'BLENDER'):
+                raise serializers.ValidationError(
+                    "Invalid 3D model: This file is a Blender project (.blend). Please open Blender and go to File > Export > glTF 2.0 (.glb) and upload the exported .glb file."
+                )
+            if not raw.startswith(b'glTF'):
+                raise serializers.ValidationError(
+                    "Invalid 3D model format: File must be an exported glTF 2.0 binary (.glb) model."
+                )
             data = ContentFile(raw, name=f"{uuid.uuid4().hex}.{ext}")
         return super().to_internal_value(data)
 
@@ -106,6 +113,10 @@ class CulturalIconSerializer(serializers.ModelSerializer):
 
 
 class ARTargetSerializer(serializers.ModelSerializer):
+    spot_id = serializers.PrimaryKeyRelatedField(
+        queryset=CulturalSpot.objects.all(), source='spot', write_only=True, required=False, allow_null=True
+    )
+    spot_name = serializers.CharField(source='spot.name', read_only=True)
     image = Base64ImageField(required=False, allow_null=True)
     model_3d = Base64FileField(required=False, allow_null=True)
 

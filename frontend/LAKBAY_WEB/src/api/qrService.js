@@ -30,17 +30,17 @@ const qrService = {
 
   getCatchIcons: ()             => adminClient.get('/api/qr/catch-icons/'),
   createCatchIcon: (data)       => adminClient.post('/api/qr/catch-icons/', data),
-  updateCatchIcon: (id, data)   => adminClient.put(`/api/qr/catch-icons/${id}/`, data),
+  updateCatchIcon: (id, data)   => adminClient.patch(`/api/qr/catch-icons/${id}/`, data),
   deleteCatchIcon: (id)         => adminClient.delete(`/api/qr/catch-icons/${id}/`),
 
   getARTargets: ()              => adminClient.get('/api/qr/ar-targets/'),
   createARTarget: (data)        => adminClient.post('/api/qr/ar-targets/', data),
-  updateARTarget: (id, data)    => adminClient.put(`/api/qr/ar-targets/${id}/`, data),
+  updateARTarget: (id, data)    => adminClient.patch(`/api/qr/ar-targets/${id}/`, data),
   deleteARTarget: (id)          => adminClient.delete(`/api/qr/ar-targets/${id}/`),
 
   getTriviaQuestions: (spotId)   => adminClient.get('/api/qr/trivia-questions/' + (spotId ? `?spot=${spotId}` : '')),
   createTriviaQuestion: (data)   => adminClient.post('/api/qr/trivia-questions/', data),
-  updateTriviaQuestion: (id, data) => adminClient.put(`/api/qr/trivia-questions/${id}/`, data),
+  updateTriviaQuestion: (id, data) => adminClient.patch(`/api/qr/trivia-questions/${id}/`, data),
   deleteTriviaQuestion: (id)     => adminClient.delete(`/api/qr/trivia-questions/${id}/`),
 
   generateAITrivia: (type, id, count = 5) => {

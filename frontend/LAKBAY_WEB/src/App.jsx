@@ -122,6 +122,19 @@ const PIN_TYPE_CONFIG = {
   catch: { color: '#FBBF24', glow: 'rgba(251,191,36,0.55)', label: 'Catch Zone' },
 };
 
+const RARITY_CONFIG = {
+  common:    { label: 'Common',    color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.4)', icon: '✦', desc: 'Standard cultural artifact' },
+  rare:      { label: 'Rare',      color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.15)',  border: 'rgba(59, 130, 246, 0.4)',  icon: '★', desc: 'Precious regional treasure' },
+  mythical:  { label: 'Mythical',  color: '#A855F7', bg: 'rgba(168, 85, 247, 0.15)', border: 'rgba(168, 85, 247, 0.4)', icon: '◆', desc: 'Ancient folklore & spirit relic' },
+  legendary: { label: 'Legendary', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.18)', border: 'rgba(245, 158, 11, 0.5)',  icon: '👑', desc: 'Pinnacle landmark centerpiece' },
+};
+
+const BUILDING_CONFIG = {
+  S1: { id: 'S1', label: 'Building S1', full: 'Building S1 (Structure 1)', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.4)' },
+  S2: { id: 'S2', label: 'Building S2', full: 'Building S2 (Structure 2)', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)', border: 'rgba(139, 92, 246, 0.4)' },
+  S3: { id: 'S3', label: 'Building S3', full: 'Building S3 (Structure 3)', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.15)', border: 'rgba(236, 72, 153, 0.4)' },
+};
+
 // Inline SVG glyphs for map marker pins (mirrors the mobile app's markers)
 const PIN_ICON_SVG = {
   ar: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5"/><path d="M12 12v10"/></svg>',
@@ -832,7 +845,16 @@ function App() {
   const [isAddCatchIconModalOpen, setIsAddCatchIconModalOpen] = useState(false);
   const [isAddARTargetModalOpen, setIsAddARTargetModalOpen] = useState(false);
   const [arTargets, setArTargets] = useState([]);
-  const [newARTarget, setNewARTarget] = useState({ name: '', description: '', image: null, model_3d: null });
+  const [newARTarget, setNewARTarget] = useState({
+    name: '',
+    description: '',
+    image: null,
+    model_3d: null,
+    building: 'S1',
+    slot_number: 1,
+    rarity: 'common',
+    hint: '',
+  });
   const [selectedARTarget, setSelectedARTarget] = useState(null);
   const [editingARTarget, setEditingARTarget] = useState(null);
   const [isEditCatchIconModalOpen, setIsEditCatchIconModalOpen] = useState(false);
@@ -916,13 +938,14 @@ function App() {
   const handleModelFileChange = (e, isEdit) => {
     const file = e.target.files[0];
     if (!file) return;
+    const blobUrl = URL.createObjectURL(file);
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = reader.result;
       if (isEdit) {
-        setEditingSpot(prev => ({ ...prev, model_3d: base64String }));
+        setEditingSpot(prev => ({ ...prev, model_3d: base64String, model_3d_preview: blobUrl }));
       } else {
-        setNewSpot(prev => ({ ...prev, model_3d: base64String }));
+        setNewSpot(prev => ({ ...prev, model_3d: base64String, model_3d_preview: blobUrl }));
       }
     };
     reader.readAsDataURL(file);
@@ -941,9 +964,10 @@ function App() {
   const handleARTargetModelChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    const blobUrl = URL.createObjectURL(file);
     const reader = new FileReader();
     reader.onloadend = () => {
-      setNewARTarget(prev => ({ ...prev, model_3d: reader.result }));
+      setNewARTarget(prev => ({ ...prev, model_3d: reader.result, model_3d_preview: blobUrl }));
     };
     reader.readAsDataURL(file);
   };
@@ -1093,12 +1117,13 @@ function App() {
   const handleCatchFileChange = (e, isEditing) => {
     const file = e.target.files[0];
     if (!file) return;
+    const blobUrl = URL.createObjectURL(file);
     const reader = new FileReader();
     reader.onload = (event) => {
       if (isEditing) {
-        setEditingCatchIcon({ ...editingCatchIcon, model_3d: event.target.result });
+        setEditingCatchIcon({ ...editingCatchIcon, model_3d: event.target.result, model_3d_preview: blobUrl });
       } else {
-        setNewCatchIcon({ ...newCatchIcon, model_3d: event.target.result });
+        setNewCatchIcon({ ...newCatchIcon, model_3d: event.target.result, model_3d_preview: blobUrl });
       }
     };
     reader.readAsDataURL(file);
@@ -1107,9 +1132,17 @@ function App() {
   const handleCatchSubmit = async (e) => {
     e.preventDefault();
     try {
-      const payload = { ...newCatchIcon };
-      if (!payload.emoji) payload.emoji = '👾';
-      if (!payload.type_name) payload.type_name = 'Catch Model';
+      const payload = {
+        name: newCatchIcon.name,
+        emoji: newCatchIcon.emoji || '👾',
+        tagline: newCatchIcon.tagline || '',
+        type_name: newCatchIcon.type_name || 'Catch Model',
+        color: newCatchIcon.color || '#38BDF8',
+        about: newCatchIcon.about || '',
+        significance: newCatchIcon.significance || '',
+        facts: newCatchIcon.facts || [],
+        model_3d: newCatchIcon.model_3d || null,
+      };
       
       const res = await qrService.createCatchIcon(payload);
       setCatchIcons(prev => [...prev, res.data]);
@@ -1125,17 +1158,28 @@ function App() {
   const handleAddARTarget = async (e) => {
     e.preventDefault();
     try {
-      const res = await qrService.createARTarget(newARTarget);
+      const payload = {
+        name: newARTarget.name,
+        description: newARTarget.description || '',
+        building: newARTarget.building || 'S1',
+        slot_number: Number(newARTarget.slot_number) || 1,
+        rarity: newARTarget.rarity || 'common',
+        hint: newARTarget.hint || '',
+        image: newARTarget.image || null,
+        model_3d: newARTarget.model_3d || null,
+      };
+      const res = await qrService.createARTarget(payload);
       setArTargets([...arTargets, res.data]);
       setNotifications(prev => [
-        { id: generateNotificationId(), text: `AR Target "${newARTarget.name}" added.`, time: 'Just now' },
+        { id: generateNotificationId(), text: `AR Target "${newARTarget.name}" added to Building ${newARTarget.building || 'S1'}.`, time: 'Just now' },
         ...prev,
       ]);
-      setNewARTarget({ name: '', description: '', image: null, model_3d: null });
+      setNewARTarget({ name: '', description: '', image: null, model_3d: null, model_3d_preview: null, building: 'S1', slot_number: 1, rarity: 'common', hint: '' });
       setIsAddARTargetModalOpen(false);
     } catch (err) {
       console.error(err);
-      showError('Failed to add AR Target. Please try again.', 'Error', 'error');
+      const errMsg = err.response?.data ? (typeof err.response.data === 'object' ? JSON.stringify(err.response.data) : String(err.response.data)) : err.message;
+      showError(`Failed to add AR Target: ${errMsg}`, 'Error', 'error');
     }
   };
 
@@ -1150,8 +1194,9 @@ function App() {
   const handleEditARTargetModelChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    const blobUrl = URL.createObjectURL(file);
     const reader = new FileReader();
-    reader.onloadend = () => setEditingARTarget(prev => ({ ...prev, model_3d: reader.result }));
+    reader.onloadend = () => setEditingARTarget(prev => ({ ...prev, model_3d: reader.result, model_3d_preview: blobUrl }));
     reader.readAsDataURL(file);
   };
 
@@ -1162,6 +1207,10 @@ function App() {
       const payload = {
         name: editingARTarget.name,
         description: editingARTarget.description || '',
+        building: editingARTarget.building || 'S1',
+        slot_number: Number(editingARTarget.slot_number) || 1,
+        rarity: editingARTarget.rarity || 'common',
+        hint: editingARTarget.hint || '',
         // Only send media when the admin picked a new file (data: URL); an
         // existing URL string must be omitted so the backend keeps the file.
         ...(typeof editingARTarget.image === 'string' && editingARTarget.image.startsWith('data:') && { image: editingARTarget.image }),
@@ -1176,7 +1225,8 @@ function App() {
       setEditingARTarget(null);
     } catch (err) {
       console.error(err);
-      showError('Failed to update AR Target. Please try again.', 'Error', 'error');
+      const errMsg = err.response?.data ? (typeof err.response.data === 'object' ? JSON.stringify(err.response.data) : String(err.response.data)) : err.message;
+      showError(`Failed to update AR Target: ${errMsg}`, 'Error', 'error');
     }
   };
 
@@ -2522,17 +2572,19 @@ function App() {
                       <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>Add a museum painting so tourists can scan it in AR.</p>
                     </div>
                   ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px', marginTop: '20px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '20px', marginTop: '20px' }}>
                     {arTargets.map(target => {
                       const imgSrc = typeof target.image === 'string'
                         ? qrService.getMediaUrl(target.image)
                         : (target.image ? URL.createObjectURL(target.image) : null);
+                      const rarityCfg = RARITY_CONFIG[target.rarity] || RARITY_CONFIG.common;
+                      const bldCfg = BUILDING_CONFIG[target.building] || BUILDING_CONFIG.S1;
                       return (
                       <div key={target.id} onClick={() => setSelectedARTarget(target)}
                         title="Click to view details"
                         onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.15)'; }}
                         onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)'; }}
-                        style={{ border: '1px solid var(--card-border)', borderRadius: '14px', backgroundColor: 'var(--body-bg)', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}>
+                        style={{ border: `1px solid ${rarityCfg.border}`, borderRadius: '14px', backgroundColor: 'var(--body-bg)', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' }}>
                         <div style={{ position: 'relative', height: '150px', backgroundColor: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                           {imgSrc ? (
                             <img src={imgSrc} alt={target.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -2543,11 +2595,14 @@ function App() {
                             </div>
                           )}
                           <span style={{ position: 'absolute', top: '10px', left: '10px', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 9px', borderRadius: '999px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase', color: '#fff', backgroundColor: PIN_TYPE_CONFIG.ar.color, boxShadow: '0 2px 6px rgba(0,0,0,0.25)' }}>
-                            <Eye size={11} /> AR Target
+                            <Eye size={11} /> Slot #{target.slot_number || 1}
+                          </span>
+                          <span style={{ position: 'absolute', top: '10px', right: '10px', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 9px', borderRadius: '999px', fontSize: '10px', fontWeight: 800, letterSpacing: '0.4px', textTransform: 'uppercase', color: rarityCfg.color, backgroundColor: 'rgba(0,0,0,0.7)', border: `1px solid ${rarityCfg.color}66`, boxShadow: '0 2px 6px rgba(0,0,0,0.25)' }}>
+                            <span>{rarityCfg.icon}</span> {rarityCfg.label}
                           </span>
                         </div>
-                        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                             <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-title)' }}>{target.name}</h4>
                             {target.model_3d && (
                               <span title="Has a 3D model shown in AR" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '2px 7px', borderRadius: '999px', fontSize: '10px', fontWeight: 700, color: PIN_TYPE_CONFIG.ar.color, backgroundColor: PIN_TYPE_CONFIG.ar.color + '22' }}>
@@ -2555,9 +2610,30 @@ function App() {
                               </span>
                             )}
                           </div>
-                          <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.5, color: 'var(--text-secondary)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          <div style={{ fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ color: bldCfg.color, backgroundColor: bldCfg.bg, border: `1px solid ${bldCfg.border}`, padding: '2px 8px', borderRadius: '6px' }}>
+                              🏛️ {bldCfg.label}
+                            </span>
+                          </div>
+                          <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.4, color: 'var(--text-secondary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                             {target.description || 'No description provided.'}
                           </p>
+                          {target.hint ? (
+                            <div style={{ padding: '6px 10px', borderRadius: '8px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <span>💡</span>
+                              <span style={{ fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{target.hint}</span>
+                            </div>
+                          ) : null}
+                          <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setEditingARTarget(target); }}
+                              className="btn btn-secondary" style={{ flex: 1, padding: '5px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                              <Edit size={12} /> Edit
+                            </button>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); handleDeleteARTarget(target.id); }}
+                              className="btn btn-secondary" style={{ flex: 1, padding: '5px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', color: 'var(--danger)', borderColor: 'var(--danger)' }}>
+                              <Trash2 size={12} /> Delete
+                            </button>
+                          </div>
                         </div>
                       </div>
                       );
@@ -2939,11 +3015,21 @@ function App() {
         const viewSrc = typeof selectedARTarget.image === 'string'
           ? qrService.getMediaUrl(selectedARTarget.image)
           : (selectedARTarget.image ? URL.createObjectURL(selectedARTarget.image) : null);
+        const selRarityCfg = RARITY_CONFIG[selectedARTarget.rarity] || RARITY_CONFIG.common;
+        const selBldCfg = BUILDING_CONFIG[selectedARTarget.building] || BUILDING_CONFIG.S1;
         return (
         <div className="modal-overlay" onClick={() => setSelectedARTarget(null)}>
           <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '1000px', width: '95vw', minHeight: '600px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">{selectedARTarget.name}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <h3 className="modal-title">{selectedARTarget.name}</h3>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: selRarityCfg.color, backgroundColor: selRarityCfg.bg, border: `1px solid ${selRarityCfg.border}` }}>
+                  <span>{selRarityCfg.icon}</span> {selRarityCfg.label}
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+                  Slot #{selectedARTarget.slot_number || 1} / 10
+                </span>
+              </div>
               <button className="close-btn" onClick={() => setSelectedARTarget(null)}><X size={20}/></button>
             </div>
             <div className="modal-body" style={{ flexDirection: 'row', padding: 0, gap: 0, maxHeight: '80vh', flex: '1' }}>
@@ -2968,11 +3054,17 @@ function App() {
               {/* Right Side: Details and Footer */}
               <div style={{ flex: '1', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 {/* Scrollable details */}
-                <div style={{ flex: '1', overflowY: 'auto', padding: '26px 32px 10px 32px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ flex: '1', overflowY: 'auto', padding: '26px 32px 10px 32px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Museum Building</label>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '14px', fontWeight: 700, color: selBldCfg.color }}>
+                      🏛️ {selBldCfg.full}
+                    </p>
+                  </div>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(shown over the art in AR)</span></label>
                     {selectedARTarget.model_3d ? (
-                      <div style={{ width: '100%', height: '220px', borderRadius: '12px', overflow: 'hidden', backgroundColor: 'var(--body-bg)', marginTop: '8px' }}>
+                      <div style={{ width: '100%', height: '200px', borderRadius: '12px', overflow: 'hidden', backgroundColor: 'var(--body-bg)', marginTop: '8px' }}>
                         <model-viewer src={qrService.getMediaUrl(selectedARTarget.model_3d)} auto-rotate camera-controls exposure="1" style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}></model-viewer>
                       </div>
                     ) : (
@@ -2980,15 +3072,22 @@ function App() {
                     )}
                   </div>
                   <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Tourist Location Hint</label>
+                    <div style={{ marginTop: '4px', padding: '10px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', fontSize: '13px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '16px' }}>💡</span>
+                      <span style={{ fontStyle: 'italic' }}>{selectedARTarget.hint || 'No hint provided. Tourists will rely purely on AR scanning without clues.'}</span>
+                    </div>
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label">Description</label>
-                    <p style={{ margin: '4px 0 0 0', fontSize: '14px', lineHeight: 1.6, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', lineHeight: 1.6, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
                       {selectedARTarget.description || 'No description provided.'}
                     </p>
                   </div>
                   {selectedARTarget.created_at && (
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label">Added</label>
-                      <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
                         {new Date(selectedARTarget.created_at).toLocaleString()}
                       </p>
                     </div>
@@ -3019,20 +3118,20 @@ function App() {
       {/* MODAL: ADD AR TARGET */}
       {isAddARTargetModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: '1000px', width: '95vw', minHeight: '600px' }}>
+          <div className="modal-card" style={{ maxWidth: '1050px', width: '95vw', minHeight: '620px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Add AR Painting (MindAR)</h3>
+              <h3 className="modal-title">Add AR Painting & 3D Model</h3>
               <button className="close-btn" onClick={() => setIsAddARTargetModalOpen(false)}><X size={20}/></button>
             </div>
             <form onSubmit={handleAddARTarget} style={{ display: 'flex', flex: '1', overflow: 'hidden' }}>
-              <div className="modal-body" style={{ flexDirection: 'row', padding: 0, gap: 0, maxHeight: '80vh', flex: '1' }}>
+              <div className="modal-body" style={{ flexDirection: 'row', padding: 0, gap: 0, maxHeight: '82vh', flex: '1' }}>
                 
                 {/* Left Side: Target Image */}
-                <div style={{ flex: '1.2', padding: '26px 32px', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
-                  <label className="form-label" style={{ marginBottom: '8px' }}>Target Image <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(For MindAR Compilation)</span></label>
+                <div style={{ flex: '1.1', padding: '24px 28px', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
+                  <label className="form-label" style={{ marginBottom: '8px' }}>Target Image <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(For AR Camera Recognition)</span></label>
                   <label style={{
                     position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    flex: '1', minHeight: '450px', border: newARTarget.image ? '2px solid var(--accent-color)' : '2px dashed var(--card-border)', borderRadius: '12px',
+                    flex: '1', minHeight: '400px', border: newARTarget.image ? '2px solid var(--accent-color)' : '2px dashed var(--card-border)', borderRadius: '12px',
                     backgroundColor: 'rgba(0,0,0,0.1)', cursor: 'pointer', overflow: 'hidden'
                   }}>
                     <input type="file" accept="image/*" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
@@ -3051,44 +3150,108 @@ function App() {
                 </div>
 
                 {/* Right Side: Details and Footer */}
-                <div style={{ flex: '1', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div style={{ flex: '1.3', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                   {/* Scrollable details */}
-                  <div style={{ flex: '1', overflowY: 'auto', padding: '26px 32px 10px 32px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ flex: '1', overflowY: 'auto', padding: '24px 28px 10px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">Painting Name</label>
-                      <input type="text" className="form-input" required 
+                      <label className="form-label">Artwork / Painting Name</label>
+                      <input type="text" className="form-input" required placeholder="e.g. Vinta on the Horizon"
                         value={newARTarget.name} onChange={e => setNewARTarget({...newARTarget, name: e.target.value})} />
                     </div>
+
+                    {/* Building & Slot Row */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label">Museum Building (S1, S2, S3)</label>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                          {Object.values(BUILDING_CONFIG).map(b => {
+                            const isSel = (newARTarget.building || 'S1') === b.id;
+                            return (
+                              <button key={b.id} type="button" onClick={() => setNewARTarget({...newARTarget, building: b.id})}
+                                style={{
+                                  padding: '8px 4px', borderRadius: '8px',
+                                  border: isSel ? `2px solid ${b.color}` : '1px solid var(--border-color)',
+                                  backgroundColor: isSel ? b.bg : 'var(--bg-secondary)',
+                                  color: isSel ? b.color : 'var(--text-secondary)',
+                                  fontWeight: 800, fontSize: '12px', cursor: 'pointer', textAlign: 'center',
+                                  transition: 'all 0.15s ease'
+                                }}>
+                                {b.id}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label">Model Slot (1 to 10)</label>
+                        <select className="form-input" value={newARTarget.slot_number || 1} onChange={e => setNewARTarget({...newARTarget, slot_number: Number(e.target.value)})}>
+                          {[...Array(10)].map((_, i) => (
+                            <option key={i + 1} value={i + 1}>Slot #{i + 1} {i === 0 ? '(Common)' : i === 9 ? '(Legendary)' : ''}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Rarity Selector */}
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Rarity Tier</label>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                        {Object.entries(RARITY_CONFIG).map(([key, cfg]) => {
+                          const isSelected = (newARTarget.rarity || 'common') === key;
+                          return (
+                            <button key={key} type="button" onClick={() => setNewARTarget({...newARTarget, rarity: key})}
+                              style={{
+                                padding: '8px 4px', borderRadius: '8px', border: isSelected ? `2px solid ${cfg.color}` : '1px solid var(--border-color)',
+                                backgroundColor: isSelected ? cfg.bg : 'var(--bg-secondary)', color: isSelected ? cfg.color : 'var(--text-secondary)',
+                                fontWeight: 700, fontSize: '11px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
+                                transition: 'all 0.15s ease'
+                              }}>
+                              <span style={{ fontSize: '13px' }}>{cfg.icon}</span>
+                              <span>{cfg.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Hint textarea */}
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Location Hint <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(Pops up in mobile AR if user cannot find art)</span></label>
+                      <textarea className="form-textarea" rows={2} placeholder="e.g. Go to west side and find the art near the courtyard..."
+                        value={newARTarget.hint} onChange={e => setNewARTarget({...newARTarget, hint: e.target.value})} />
+                    </div>
+
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label">Description / Info to Display</label>
-                      <textarea className="form-textarea" required rows={4}
+                      <textarea className="form-textarea" required rows={3} placeholder="Provide the cultural history and story behind this artwork..."
                         value={newARTarget.description} onChange={e => setNewARTarget({...newARTarget, description: e.target.value})} />
                     </div>
+
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label">3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb, optional)</span></label>
                       <label style={{
                         position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                        height: '220px', border: newARTarget.model_3d ? `2px solid ${PIN_TYPE_CONFIG.ar.color}` : '2px dashed var(--card-border)', borderRadius: '10px',
-                        backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', marginTop: '8px'
+                        height: '180px', border: newARTarget.model_3d ? `2px solid ${PIN_TYPE_CONFIG.ar.color}` : '2px dashed var(--card-border)', borderRadius: '10px',
+                        backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', marginTop: '4px'
                       }}>
                         <input type="file" accept=".glb" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
                           onChange={handleARTargetModelChange} />
                         {newARTarget.model_3d ? (
                           <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
-                            <model-viewer src={typeof newARTarget.model_3d === 'string' ? newARTarget.model_3d : URL.createObjectURL(newARTarget.model_3d)} auto-rotate camera-controls exposure="1" style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}></model-viewer>
-                            <div style={{ position: 'absolute', bottom: '10px', left: 0, width: '100%', textAlign: 'center' }}>
-                              <span style={{ backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 12px', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>Click to Change Model</span>
+                            <model-viewer src={newARTarget.model_3d_preview || (typeof newARTarget.model_3d === 'string' && !newARTarget.model_3d.startsWith('data:') ? qrService.getMediaUrl(newARTarget.model_3d) : null)} auto-rotate camera-controls exposure="1" style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}></model-viewer>
+                            <div style={{ position: 'absolute', bottom: '8px', left: 0, width: '100%', textAlign: 'center' }}>
+                              <span style={{ backgroundColor: 'rgba(0,0,0,0.6)', padding: '3px 10px', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}>Click to Change Model</span>
                             </div>
                           </div>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '0 10px' }}>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center', padding: '0 10px' }}>
                             Drag and drop a .glb model here<br/>or click to browse
                           </span>
                         )}
                       </label>
                     </div>
                   </div>
-                  <div className="modal-footer" style={{ borderTop: '1px solid var(--card-border)', padding: '16px 32px' }}>
+                  <div className="modal-footer" style={{ borderTop: '1px solid var(--card-border)', padding: '14px 28px' }}>
                     <button type="button" className="btn btn-secondary" onClick={() => setIsAddARTargetModalOpen(false)}>Cancel</button>
                     <button type="submit" className="btn btn-primary">Save Target</button>
                   </div>
@@ -3105,25 +3268,27 @@ function App() {
         const editImgSrc = typeof editingARTarget.image === 'string'
           ? (editingARTarget.image.startsWith('data:') ? editingARTarget.image : qrService.getMediaUrl(editingARTarget.image))
           : (editingARTarget.image ? URL.createObjectURL(editingARTarget.image) : null);
-        const editModelSrc = typeof editingARTarget.model_3d === 'string'
-          ? (editingARTarget.model_3d.startsWith('data:') ? editingARTarget.model_3d : qrService.getMediaUrl(editingARTarget.model_3d))
-          : null;
+        const editModelSrc = editingARTarget.model_3d_preview || (
+          typeof editingARTarget.model_3d === 'string'
+            ? (editingARTarget.model_3d.startsWith('data:') ? null : qrService.getMediaUrl(editingARTarget.model_3d))
+            : null
+        );
         return (
         <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: '1000px', width: '95vw', minHeight: '600px' }}>
+          <div className="modal-card" style={{ maxWidth: '1050px', width: '95vw', minHeight: '620px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Edit AR Art</h3>
+              <h3 className="modal-title">Edit AR Art & 3D Model</h3>
               <button className="close-btn" onClick={() => setEditingARTarget(null)}><X size={20}/></button>
             </div>
             <form onSubmit={handleEditARTargetSubmit} style={{ display: 'flex', flex: '1', overflow: 'hidden' }}>
-              <div className="modal-body" style={{ flexDirection: 'row', padding: 0, gap: 0, maxHeight: '80vh', flex: '1' }}>
+              <div className="modal-body" style={{ flexDirection: 'row', padding: 0, gap: 0, maxHeight: '82vh', flex: '1' }}>
                 
                 {/* Left Side: Target Image */}
-                <div style={{ flex: '1.2', padding: '26px 32px', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: '1.1', padding: '24px 28px', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
                   <label className="form-label" style={{ marginBottom: '8px' }}>Target Image <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(click to replace)</span></label>
                   <label style={{
                     position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    flex: '1', minHeight: '450px', border: editImgSrc ? '2px solid var(--accent-color)' : '2px dashed var(--card-border)', borderRadius: '12px',
+                    flex: '1', minHeight: '400px', border: editImgSrc ? '2px solid var(--accent-color)' : '2px dashed var(--card-border)', borderRadius: '12px',
                     backgroundColor: 'rgba(0,0,0,0.1)', cursor: 'pointer', overflow: 'hidden'
                   }}>
                     <input type="file" accept="image/*" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
@@ -3142,37 +3307,101 @@ function App() {
                 </div>
 
                 {/* Right Side: Details and Footer */}
-                <div style={{ flex: '1', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div style={{ flex: '1.3', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                   {/* Scrollable details */}
-                  <div style={{ flex: '1', overflowY: 'auto', padding: '26px 32px 10px 32px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ flex: '1', overflowY: 'auto', padding: '24px 28px 10px 28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">Painting Name</label>
+                      <label className="form-label">Artwork / Painting Name</label>
                       <input type="text" className="form-input" required
                         value={editingARTarget.name} onChange={e => setEditingARTarget({...editingARTarget, name: e.target.value})} />
                     </div>
+
+                    {/* Building & Slot Row */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label">Museum Building (S1, S2, S3)</label>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                          {Object.values(BUILDING_CONFIG).map(b => {
+                            const isSel = (editingARTarget.building || 'S1') === b.id;
+                            return (
+                              <button key={b.id} type="button" onClick={() => setEditingARTarget({...editingARTarget, building: b.id})}
+                                style={{
+                                  padding: '8px 4px', borderRadius: '8px',
+                                  border: isSel ? `2px solid ${b.color}` : '1px solid var(--border-color)',
+                                  backgroundColor: isSel ? b.bg : 'var(--bg-secondary)',
+                                  color: isSel ? b.color : 'var(--text-secondary)',
+                                  fontWeight: 800, fontSize: '12px', cursor: 'pointer', textAlign: 'center',
+                                  transition: 'all 0.15s ease'
+                                }}>
+                                {b.id}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label">Model Slot (1 to 10)</label>
+                        <select className="form-input" value={editingARTarget.slot_number || 1} onChange={e => setEditingARTarget({...editingARTarget, slot_number: Number(e.target.value)})}>
+                          {[...Array(10)].map((_, i) => (
+                            <option key={i + 1} value={i + 1}>Slot #{i + 1} {i === 0 ? '(Common)' : i === 9 ? '(Legendary)' : ''}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Rarity Selector */}
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Rarity Tier</label>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                        {Object.entries(RARITY_CONFIG).map(([key, cfg]) => {
+                          const isSelected = (editingARTarget.rarity || 'common') === key;
+                          return (
+                            <button key={key} type="button" onClick={() => setEditingARTarget({...editingARTarget, rarity: key})}
+                              style={{
+                                padding: '8px 4px', borderRadius: '8px', border: isSelected ? `2px solid ${cfg.color}` : '1px solid var(--border-color)',
+                                backgroundColor: isSelected ? cfg.bg : 'var(--bg-secondary)', color: isSelected ? cfg.color : 'var(--text-secondary)',
+                                fontWeight: 700, fontSize: '11px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px',
+                                transition: 'all 0.15s ease'
+                              }}>
+                              <span style={{ fontSize: '13px' }}>{cfg.icon}</span>
+                              <span>{cfg.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Hint textarea */}
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label">Location Hint <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(Pops up in mobile AR if user cannot find art)</span></label>
+                      <textarea className="form-textarea" rows={2} placeholder="e.g. Go to west side and find the art near the courtyard..."
+                        value={editingARTarget.hint || ''} onChange={e => setEditingARTarget({...editingARTarget, hint: e.target.value})} />
+                    </div>
+
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label">Description / Info to Display</label>
-                      <textarea className="form-textarea" required rows={4}
+                      <textarea className="form-textarea" required rows={3}
                         value={editingARTarget.description} onChange={e => setEditingARTarget({...editingARTarget, description: e.target.value})} />
                     </div>
+
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label">3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb, optional)</span></label>
                       <label style={{
                         position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                        height: '220px', border: editModelSrc ? `2px solid ${PIN_TYPE_CONFIG.ar.color}` : '2px dashed var(--card-border)', borderRadius: '10px',
-                        backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', marginTop: '8px'
+                        height: '180px', border: editModelSrc ? `2px solid ${PIN_TYPE_CONFIG.ar.color}` : '2px dashed var(--card-border)', borderRadius: '10px',
+                        backgroundColor: 'var(--bg-secondary)', cursor: 'pointer', overflow: 'hidden', marginTop: '4px'
                       }}>
                         <input type="file" accept=".glb" style={{ opacity: 0, position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', zIndex: 10 }}
                           onChange={handleEditARTargetModelChange} />
                         {editModelSrc ? (
                           <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
                             <model-viewer src={editModelSrc} auto-rotate camera-controls exposure="1" style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}></model-viewer>
-                            <div style={{ position: 'absolute', bottom: '10px', left: 0, width: '100%', textAlign: 'center' }}>
-                              <span style={{ backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 12px', borderRadius: '12px', color: '#fff', fontSize: '12px', fontWeight: 'bold' }}>Click to Change Model</span>
+                            <div style={{ position: 'absolute', bottom: '8px', left: 0, width: '100%', textAlign: 'center' }}>
+                              <span style={{ backgroundColor: 'rgba(0,0,0,0.6)', padding: '3px 10px', borderRadius: '12px', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}>Click to Change Model</span>
                             </div>
                           </div>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '0 10px' }}>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center', padding: '0 10px' }}>
                             Drag and drop a .glb model here<br/>or click to browse
                           </span>
                         )}
@@ -3181,7 +3410,7 @@ function App() {
                   </div>
 
                   {/* Fixed footer on the right side */}
-                  <div className="modal-footer" style={{ justifyContent: 'space-between', padding: '16px 32px 26px 32px', borderTop: '1px solid var(--border-color)', marginTop: 'auto' }}>
+                  <div className="modal-footer" style={{ justifyContent: 'space-between', padding: '14px 28px', borderTop: '1px solid var(--border-color)', marginTop: 'auto' }}>
                     <button type="button" className="btn btn-secondary" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}
                       onClick={() => handleDeleteARTarget(editingARTarget.id)}>
                       <Trash2 size={14} style={{ marginRight: '6px' }} /> Delete
@@ -3223,7 +3452,7 @@ function App() {
                     {newCatchIcon.model_3d ? (
                       <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5}}>
                         <model-viewer 
-                          src={newCatchIcon.model_3d}
+                          src={newCatchIcon.model_3d_preview || (typeof newCatchIcon.model_3d === 'string' && !newCatchIcon.model_3d.startsWith('data:') ? qrService.getMediaUrl(newCatchIcon.model_3d) : null)}
                           auto-rotate 
                           camera-controls 
                           bounds="tight"
@@ -3288,14 +3517,16 @@ function App() {
                     
                     {(() => {
                       const matchingSpot = spots.find(s => s.name?.toLowerCase().includes(editingCatchIcon.name.toLowerCase()) || editingCatchIcon.name.toLowerCase().includes(s.name?.toLowerCase()));
-                      const activeModel = editingCatchIcon.model_3d?.startsWith('data:') 
-                        ? editingCatchIcon.model_3d 
-                        : (matchingSpot?.model_3d || editingCatchIcon.model_3d);
+                      const activeModel = editingCatchIcon.model_3d_preview || (
+                        editingCatchIcon.model_3d?.startsWith('data:') 
+                          ? null 
+                          : (matchingSpot?.model_3d ? qrService.getMediaUrl(matchingSpot.model_3d) : (editingCatchIcon.model_3d ? qrService.getMediaUrl(editingCatchIcon.model_3d) : null))
+                      );
                       
                       return activeModel ? (
                       <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5}}>
                         <model-viewer 
-                          src={activeModel.startsWith('data:') ? activeModel : qrService.getMediaUrl(activeModel)}
+                          src={activeModel}
                           auto-rotate 
                           camera-controls 
                           bounds="tight"
@@ -3493,7 +3724,7 @@ function App() {
                         {newSpot.model_3d ? (
                           <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
                             <model-viewer
-                              src={newSpot.model_3d}
+                              src={newSpot.model_3d_preview || (typeof newSpot.model_3d === 'string' && !newSpot.model_3d.startsWith('data:') ? qrService.getMediaUrl(newSpot.model_3d) : null)}
                               auto-rotate
                               camera-controls
                               bounds="tight"
@@ -3705,7 +3936,7 @@ function App() {
                         {editingSpot.model_3d ? (
                           <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
                             <model-viewer
-                              src={editingSpot.model_3d?.startsWith('data:') ? editingSpot.model_3d : qrService.getMediaUrl(editingSpot.model_3d)}
+                              src={editingSpot.model_3d_preview || (typeof editingSpot.model_3d === 'string' && !editingSpot.model_3d.startsWith('data:') ? qrService.getMediaUrl(editingSpot.model_3d) : null)}
                               auto-rotate
                               camera-controls
                               bounds="tight"

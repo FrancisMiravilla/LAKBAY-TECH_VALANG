@@ -15,6 +15,9 @@ left untouched.
 
 import json
 import struct
+import subprocess
+import tempfile
+import os
 
 # Material extensions Viro's glTF loader does not support and that are safe to
 # drop (they only add optical detail on top of base pbrMetallicRoughness).
@@ -39,6 +42,26 @@ def strip_incompatible_extensions(data: bytes) -> bytes:
     If `data` is not a valid GLB, or nothing needs changing, the original
     bytes are returned unmodified.
     """
+    if len(data) < 12:
+        return data
+
+    # Check if data is Zstandard compressed (magic: 0x28 0xB5 0x2F 0xFD)
+    if data.startswith(b'\x28\xb5\x2f\xfd'):
+        try:
+            with tempfile.NamedTemporaryFile(suffix='.zst', delete=False) as tf:
+                tf.write(data)
+                tf_path = tf.name
+            out_path = tf_path + '.glb'
+            res = subprocess.run(['zstd', '-d', tf_path, '-o', out_path], capture_output=True)
+            if res.returncode == 0 and os.path.exists(out_path):
+                with open(out_path, 'rb') as f:
+                    data = f.read()
+                os.remove(out_path)
+            if os.path.exists(tf_path):
+                os.remove(tf_path)
+        except Exception:
+            pass
+
     if len(data) < 12:
         return data
 
