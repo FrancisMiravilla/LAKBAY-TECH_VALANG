@@ -86,7 +86,7 @@ const RARITY_CONFIG = {
   },
 };
 
-// ── Tab definitions ──────────────────────────────────────────────────────────
+// ── Tab definitions (used by Catch feature only) ──────────────────────────
 const TABS = [
   { key: 'about',   icon: 'book',   label: 'Lore'     },
   { key: 'history', icon: 'time',   label: 'History'  },
@@ -271,67 +271,102 @@ export default function CatchDetailsScreen({ route, navigation }) {
           </Animated.View>
         </View>
 
-        {/* ── LORE TABS ── */}
-        <View style={styles.tabsSection}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tabsRow}
-          >
-            {TABS.map((tab) => {
-              const isActive = activeTab === tab.key;
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={[styles.tab, isActive && styles.tabActive]}
-                  onPress={() => switchTab(tab.key)}
-                  activeOpacity={0.75}
-                >
-                  <Ionicons
-                    name={tab.icon}
-                    size={14}
-                    color={isActive ? '#FFF' : 'rgba(255,255,255,0.4)'}
-                    style={{ marginRight: 5 }}
-                  />
-                  <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
-                    {tab.label}
-                  </Text>
-                  {isActive && <View style={styles.tabUnderline} />}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          <Animated.View style={[styles.loreCard, { transform: [{ scale: tabScale }] }]}>
-            <View style={styles.loreCornerTL} />
-            <View style={styles.loreCornerBR} />
-            <View style={styles.loreLabelRow}>
-              <Ionicons
-                name={TABS.find(t => t.key === activeTab)?.icon}
-                size={15}
-                color={RARITY.color}
-              />
-              <Text style={[styles.loreLabel, { color: RARITY.color }]}>
-                {TABS.find(t => t.key === activeTab)?.label?.toUpperCase()}
+        {/* ── CONTENT SECTION — AR: description only; Catch: lore tabs ── */}
+        {isAR ? (
+          /* ── AR: Single Description Card ── */
+          <View style={styles.tabsSection}>
+            <View style={styles.arDescCard}>
+              <View style={styles.arDescLabelRow}>
+                <Ionicons name="document-text" size={15} color={RARITY.color} />
+                <Text style={[styles.loreLabel, { color: RARITY.color }]}>DESCRIPTION</Text>
+              </View>
+              <Text style={styles.loreBody}>
+                {icon?.about || icon?.description || 'No description available for this artwork.'}
               </Text>
             </View>
-            <Text style={styles.loreBody}>{tabContent}</Text>
-          </Animated.View>
-        </View>
+          </View>
+        ) : (
+          /* ── Catch: 4-tab lore system ── */
+          <View style={styles.tabsSection}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.tabsRow}
+            >
+              {TABS.map((tab) => {
+                const isActive = activeTab === tab.key;
+                return (
+                  <TouchableOpacity
+                    key={tab.key}
+                    style={[styles.tab, isActive && styles.tabActive]}
+                    onPress={() => switchTab(tab.key)}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons
+                      name={tab.icon}
+                      size={14}
+                      color={isActive ? '#FFF' : 'rgba(255,255,255,0.4)'}
+                      style={{ marginRight: 5 }}
+                    />
+                    <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+                      {tab.label}
+                    </Text>
+                    {isActive && <View style={styles.tabUnderline} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <Animated.View style={[styles.loreCard, { transform: [{ scale: tabScale }] }]}>
+              <View style={styles.loreCornerTL} />
+              <View style={styles.loreCornerBR} />
+              <View style={styles.loreLabelRow}>
+                <Ionicons
+                  name={TABS.find(t => t.key === activeTab)?.icon}
+                  size={15}
+                  color={RARITY.color}
+                />
+                <Text style={[styles.loreLabel, { color: RARITY.color }]}>
+                  {TABS.find(t => t.key === activeTab)?.label?.toUpperCase()}
+                </Text>
+              </View>
+              <Text style={styles.loreBody}>{tabContent}</Text>
+            </Animated.View>
+          </View>
+        )}
 
         {/* ── STATS ROW ── */}
-        <View style={styles.statsRow}>
-          <View style={[styles.statCard, { flex: 1 }]}>
-            <Ionicons name="ribbon" size={18} color={COLORS.gold} />
-            <Text style={styles.statValue}>Mythical</Text>
-            <Text style={styles.statLabel}>Rarity</Text>
+        {isAR ? (
+          /* AR: dynamic rarity + building/slot */
+          <View style={styles.statsRow}>
+            <View style={[styles.statCard, { flex: 1 }]}>
+              <Ionicons name={RARITY.icon || 'ribbon'} size={18} color={RARITY.color} />
+              <Text style={[styles.statValue, { color: RARITY.color }]}>{RARITY.label}</Text>
+              <Text style={styles.statLabel}>Rarity</Text>
+            </View>
+            <View style={[styles.statCard, styles.statCardCenter, { flex: 1 }]}>
+              <Ionicons name="business" size={18} color={COLORS.accent} />
+              <Text style={styles.statValue}>
+                {icon?.building || 'S1'} · #{icon?.slot_number || 1}
+              </Text>
+              <Text style={styles.statLabel}>Building · Slot</Text>
+            </View>
           </View>
-          <View style={[styles.statCard, styles.statCardCenter, { flex: 1 }]}>
-            <Ionicons name="checkmark-circle" size={18} color={COLORS.teal} />
-            <Text style={styles.statValue}>Collected</Text>
-            <Text style={styles.statLabel}>Status</Text>
+        ) : (
+          /* Catch: original static stats */
+          <View style={styles.statsRow}>
+            <View style={[styles.statCard, { flex: 1 }]}>
+              <Ionicons name="ribbon" size={18} color={COLORS.gold} />
+              <Text style={styles.statValue}>{RARITY.label}</Text>
+              <Text style={styles.statLabel}>Rarity</Text>
+            </View>
+            <View style={[styles.statCard, styles.statCardCenter, { flex: 1 }]}>
+              <Ionicons name="checkmark-circle" size={18} color={COLORS.teal} />
+              <Text style={styles.statValue}>Collected</Text>
+              <Text style={styles.statLabel}>Status</Text>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* ── FOOTER CTA ── */}
         {isAR ? (
@@ -561,6 +596,21 @@ const styles = StyleSheet.create({
   },
   loreLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 },
   loreLabel: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.8 },
+
+  // ── AR Description Card (replaces tabs when isAR=true) ──
+  arDescCard: {
+    backgroundColor: '#111128',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(168,85,247,0.25)',
+    padding: 22,
+    shadowColor: '#A855F7',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  arDescLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 },
   loreBody: {
     fontFamily: FONTS.regular,
     fontSize: 14,
