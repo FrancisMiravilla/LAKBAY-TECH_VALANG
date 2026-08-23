@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Animated, Alert, Image } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Animated, Alert, Image, ImageBackground } from 'react-native';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import CustomModal from '../components/CustomModal';
@@ -317,21 +317,32 @@ export default function HomeScreen({ navigation, route }) {
 
         {/* ── Explore Section ──────────────────────────────────────── */}
         <View style={styles.section}>
+
+          {/* Gamified Section Header */}
           <View style={styles.sectionTitleRow}>
             <View style={styles.accentBar} />
-            <Text style={styles.sectionTitle}>Explore Zamboanga</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Map')}>
-              <Text style={styles.viewAll}>View All →</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.mapSectionEyebrow}>🗺  FIELD MAP</Text>
+              <Text style={styles.sectionTitle}>Explore Zamboanga</Text>
+            </View>
+            {/* LIVE badge */}
+            <View style={styles.mapLiveBadge}>
+              <View style={styles.mapLiveDot} />
+              <Text style={styles.mapLiveText}>LIVE</Text>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate('Map')} style={styles.mapViewAllBtn}>
+              <Ionicons name="chevron-forward" size={13} color={COLORS.accent} />
             </TouchableOpacity>
           </View>
 
-          {/* Map Card */}
+          {/* Map Card — Gamified HUD */}
           <TouchableOpacity
             ref={mapCardRef}
             style={styles.mapCard}
             activeOpacity={0.92}
             onPress={() => navigation.navigate('Map')}
           >
+            {/* Actual map */}
             <WebView
               source={{ html: buildMiniMapHTML(spots), baseUrl: 'https://localhost' }}
               style={styles.map}
@@ -343,41 +354,46 @@ export default function HomeScreen({ navigation, route }) {
               pointerEvents="none"
             />
 
-            {/* Top fade + location badge */}
-            <View style={styles.mapTopFade} pointerEvents="none" />
-            <View style={styles.mapLocationBadge} pointerEvents="none">
-              <Ionicons name="location" size={12} color={COLORS.accent} />
-              <Text style={styles.mapLocationBadgeText}>Zamboanga City</Text>
+            {/* HUD top-left: coordinates */}
+            <View style={styles.mapHudCoords} pointerEvents="none">
+              <Text style={styles.mapHudCoordsText}>6°54′N  122°4′E</Text>
             </View>
 
+            {/* HUD top-right: compass */}
             <View style={styles.mapCompass} pointerEvents="none">
               <Text style={styles.mapCompassLabel}>N</Text>
               <Text style={styles.mapCompassArrow}>↑</Text>
             </View>
 
-            {/* Legend */}
-            <View style={styles.mapLegend} pointerEvents="none">
-              <View style={styles.mapLegendRow}>
-                <View style={[styles.mapLegendDot, { backgroundColor: COLORS.accent }]} />
-                <Text style={styles.mapLegendText}>QR</Text>
-              </View>
-              <View style={styles.mapLegendRow}>
-                <View style={[styles.mapLegendDot, { backgroundColor: COLORS.teal }]} />
-                <Text style={styles.mapLegendText}>AR</Text>
-              </View>
-              <View style={styles.mapLegendRow}>
-                <View style={[styles.mapLegendDot, { backgroundColor: COLORS.gold }]} />
-                <Text style={styles.mapLegendText}>Catch</Text>
-              </View>
+            {/* Radar ring decoration */}
+            <View style={styles.mapRadarRing1} pointerEvents="none" />
+            <View style={styles.mapRadarRing2} pointerEvents="none" />
+
+            {/* Top dark fade */}
+            <View style={styles.mapTopFade} pointerEvents="none" />
+
+            {/* Spot count HUD chips — bottom-left */}
+            <View style={styles.mapHudChips} pointerEvents="none">
+              {[
+                { label: 'QR', color: COLORS.accent, count: spots.filter(s => s.feature_types?.includes('qr')).length || '?' },
+                { label: 'AR', color: COLORS.teal,   count: spots.filter(s => s.feature_types?.includes('ar')).length || '?' },
+                { label: 'CATCH', color: COLORS.gold, count: spots.filter(s => s.feature_types?.includes('catch')).length || '?' },
+              ].map(chip => (
+                <View key={chip.label} style={[styles.mapHudChip, { borderColor: chip.color + '88', backgroundColor: chip.color + '22' }]}>
+                  <View style={[styles.mapHudChipDot, { backgroundColor: chip.color }]} />
+                  <Text style={[styles.mapHudChipCount, { color: chip.color }]}>{chip.count}</Text>
+                  <Text style={styles.mapHudChipLabel}>{chip.label}</Text>
+                </View>
+              ))}
             </View>
 
-            <Text style={styles.mapScaleLabel}>📏 10 km</Text>
-
-            {/* Bottom fade + floating CTA */}
+            {/* Bottom dark fade */}
             <View style={styles.mapBottomFade} pointerEvents="none" />
+
+            {/* CTA pill */}
             <View style={styles.mapTapPill} pointerEvents="none">
-              <Ionicons name="map" size={14} color="#FFF" />
-              <Text style={styles.mapTapText}>Tap to Explore Interactive Map</Text>
+              <Ionicons name="navigate" size={14} color="#FFF" />
+              <Text style={styles.mapTapText}>OPEN WORLD MAP</Text>
               <Ionicons name="arrow-forward" size={14} color="#FFF" />
             </View>
           </TouchableOpacity>
@@ -410,78 +426,161 @@ export default function HomeScreen({ navigation, route }) {
               </View>
             </View>
 
-            {/* Section header */}
-            <View style={styles.promoTitleRow}>
-              <View style={styles.accentBar} />
-              <Text style={styles.promoTitle}>Places to Experience</Text>
+            {/* ── Quest Board Section Header ───────────────────── */}
+            <View style={styles.questBoardHeader}>
+              <View style={styles.questBoardLeft}>
+                <View style={styles.accentBar} />
+                <View>
+                  <Text style={styles.questBoardEyebrow}>⚔  ACTIVE QUESTS</Text>
+                  <Text style={styles.questBoardTitle}>Places to Experience</Text>
+                </View>
+              </View>
+              <View style={styles.questCountPill}>
+                <Text style={styles.questCountText}>
+                  {(promotedPlaces.length + featuredPlaces.length) || '—'} Quests
+                </Text>
+              </View>
             </View>
 
-            {/* Promoted Places */}
+            {/* Promoted Places — Quest Cards */}
             {promotedPlaces.map((p) => (
               <TouchableOpacity
                 key={`promo-${p.id}`}
-                style={styles.destinationCard}
-                activeOpacity={0.9}
+                style={[styles.questCard, styles.questCardGold]}
+                activeOpacity={0.88}
                 onPress={() => {
                   navigation.navigate('Details', { destination: { title: p.spot_name, location: 'Promoted Place', description: p.description, images: [formatImageUrl(p.image_file)] } });
                 }}
               >
-                <View style={styles.destImageContainer}>
-                  <Image source={{ uri: formatImageUrl(p.image_file) }} style={styles.destImage} resizeMode="cover" />
-                  <View style={[styles.destTagBadge, { backgroundColor: 'rgba(0,0,0,0.6)', borderColor: COLORS.gold, position: 'absolute', top: 12, left: 12 }]}>
-                    <Text style={[styles.destTagText, { color: COLORS.gold }]}>Promotion by others</Text>
+                <ImageBackground
+                  source={{ uri: formatImageUrl(p.image_file) }}
+                  style={styles.questCardImage}
+                  imageStyle={{ borderTopLeftRadius: RADIUS.lg, borderTopRightRadius: RADIUS.lg }}
+                  resizeMode="cover"
+                >
+                  <View style={styles.questImageOverlay} />
+                  <View style={styles.questCardTopRow}>
+                    <View style={[styles.questTypeBadge, { backgroundColor: 'rgba(251,191,36,0.18)', borderColor: COLORS.gold }]}>
+                      <View style={[styles.questTypeDot, { backgroundColor: COLORS.gold }]} />
+                      <Text style={[styles.questTypeLabel, { color: COLORS.gold }]}>📣  SPONSORED</Text>
+                    </View>
+                  </View>
+                  <View style={styles.questCardImageBottom}>
+                    <Text style={styles.questCardName} numberOfLines={1}>{p.spot_name}</Text>
+                  </View>
+                </ImageBackground>
+                <View style={styles.questCardBody}>
+                  <Text style={styles.questCardDesc} numberOfLines={2}>{p.description}</Text>
+                  <View style={styles.questCardFooter}>
+                    <View style={styles.questObjective}>
+                      <Ionicons name="flag-outline" size={11} color={COLORS.textMuted} />
+                      <Text style={styles.questObjectiveText}>Visit & Discover</Text>
+                    </View>
+                    <View style={[styles.questCtaBtn, { backgroundColor: COLORS.gold }]}>
+                      <Text style={styles.questCtaText}>START QUEST →</Text>
+                    </View>
                   </View>
                 </View>
-
-                <View style={styles.destBody}>
-                  <Text style={styles.destName}>{p.spot_name}</Text>
-                  <Text style={styles.destDesc} numberOfLines={2}>{p.description}</Text>
-
-                  <View style={styles.destFooter}>
-                    <Text style={[styles.destCta, { color: COLORS.gold }]}>Explore →</Text>
-                  </View>
-                </View>
+                <View style={[styles.questCardGlowBar, { backgroundColor: COLORS.gold }]} />
               </TouchableOpacity>
             ))}
 
-            {/* Destination promo cards */}
+            {/* Featured Places — Quest Cards */}
             {featuredPlaces.map((d) => {
-              // Extract primary feature type
               const primaryType = d.feature_types && d.feature_types.length > 0 ? d.feature_types[0] : 'qr';
-              
-              // Map primary feature type to visual attributes
-              let emoji = '📍';
-              let tag = 'Culture';
-              let color = COLORS.accent;
-              if (primaryType === 'qr') { emoji = '🔍'; tag = 'QR Discovery'; color = COLORS.teal; }
-              else if (primaryType === 'ar') { emoji = '📷'; tag = 'AR Experience'; color = COLORS.accent; }
-              else if (primaryType === 'catch') { emoji = '🏆'; tag = 'Collect & Win'; color = COLORS.gold; }
+
+              let questEmoji = '🔍';
+              let questTypeLabel = 'QR DISCOVERY';
+              let questColor = COLORS.teal;
+              let questXp = '+75 XP';
+              let questDiff = '★★☆';
+              let questDiffLabel = 'Medium';
+              let borderStyle = styles.questCardTeal;
+
+              if (primaryType === 'ar') {
+                questEmoji = '📷';
+                questTypeLabel = 'AR EXPERIENCE';
+                questColor = COLORS.accent;
+                questXp = '+100 XP';
+                questDiff = '★★★';
+                questDiffLabel = 'Hard';
+                borderStyle = styles.questCardBlue;
+              } else if (primaryType === 'catch') {
+                questEmoji = '🏆';
+                questTypeLabel = 'COLLECT & WIN';
+                questColor = COLORS.gold;
+                questXp = '+120 XP';
+                questDiff = '★★★';
+                questDiffLabel = 'Legendary';
+                borderStyle = styles.questCardGold;
+              }
+
+              const imageUri = formatImageUrl(d.image);
 
               return (
                 <TouchableOpacity
                   key={d.id}
-                  style={styles.destinationCard}
-                  activeOpacity={0.9}
+                  style={[styles.questCard, borderStyle]}
+                  activeOpacity={0.88}
                   onPress={() => {
                     const combinedImages = [d.image, d.image2, d.image3].filter(img => img).map(formatImageUrl);
-                    navigation.navigate('Details', { destination: { title: d.name, location: d.location_name, description: d.description, historical_background: d.historical_background, cultural_significance: d.cultural_significance, fun_fact: d.fun_fact, image: formatImageUrl(d.image), images: combinedImages } });
+                    navigation.navigate('Details', { destination: { title: d.name, location: d.location_name, description: d.description, historical_background: d.historical_background, cultural_significance: d.cultural_significance, fun_fact: d.fun_fact, image: imageUri, images: combinedImages } });
                   }}
                 >
-                  <View style={styles.destImageContainer}>
-                    <Image source={{ uri: formatImageUrl(d.image) }} style={styles.destImage} resizeMode="cover" />
-                    <View style={[styles.destTagBadge, { backgroundColor: 'rgba(0,0,0,0.6)', borderColor: color, position: 'absolute', top: 12, left: 12 }]}>
-                      <Text style={[styles.destTagText, { color: color }]}>{tag}</Text>
+                  <ImageBackground
+                    source={{ uri: imageUri }}
+                    style={styles.questCardImage}
+                    imageStyle={{ borderTopLeftRadius: RADIUS.lg, borderTopRightRadius: RADIUS.lg }}
+                    resizeMode="cover"
+                  >
+                    <View style={styles.questImageOverlay} />
+                    <View style={styles.questCardTopRow}>
+                      <View style={[styles.questTypeBadge, { backgroundColor: questColor + '22', borderColor: questColor + '88' }]}>
+                        <View style={[styles.questTypeDot, { backgroundColor: questColor }]} />
+                        <Text style={[styles.questTypeLabel, { color: questColor }]}>{questEmoji}  {questTypeLabel}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.questCardImageBottom}>
+                      <Text style={styles.questCardName} numberOfLines={1}>{d.name}</Text>
+                    </View>
+                  </ImageBackground>
+
+                  <View style={styles.questCardBody}>
+                    <View style={styles.questLocationRow}>
+                      <Ionicons name="location-outline" size={11} color={questColor} />
+                      <Text style={[styles.questLocationText, { color: questColor }]} numberOfLines={1}>
+                        {d.location_name || 'Zamboanga City'}
+                      </Text>
+                    </View>
+
+                    <Text style={styles.questCardDesc} numberOfLines={2}>{d.description}</Text>
+
+                    {d.feature_types && d.feature_types.length > 1 && (
+                      <View style={styles.questTagsRow}>
+                        {d.feature_types.slice(0, 3).map((ft) => {
+                          const ftColor = ft === 'qr' ? COLORS.teal : ft === 'ar' ? COLORS.accent : COLORS.gold;
+                          const ftLabel = ft === 'qr' ? 'QR' : ft === 'ar' ? 'AR' : 'CATCH';
+                          return (
+                            <View key={ft} style={[styles.questMiniTag, { borderColor: ftColor + '66', backgroundColor: ftColor + '18' }]}>
+                              <Text style={[styles.questMiniTagText, { color: ftColor }]}>{ftLabel}</Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+
+                    <View style={styles.questCardFooter}>
+                      <View style={styles.questObjective}>
+                        <Ionicons name="flag-outline" size={11} color={COLORS.textMuted} />
+                        <Text style={styles.questObjectiveText}>Explore & Earn</Text>
+                      </View>
+                      <View style={[styles.questCtaBtn, { backgroundColor: questColor }]}>
+                        <Text style={styles.questCtaText}>START QUEST →</Text>
+                      </View>
                     </View>
                   </View>
 
-                  <View style={styles.destBody}>
-                    <Text style={styles.destName}>{d.name}</Text>
-                    <Text style={styles.destDesc} numberOfLines={2}>{d.description}</Text>
-
-                    <View style={styles.destFooter}>
-                      <Text style={[styles.destCta, { color: color }]}>Explore →</Text>
-                    </View>
-                  </View>
+                  <View style={[styles.questCardGlowBar, { backgroundColor: questColor }]} />
                 </TouchableOpacity>
               );
             })}
@@ -924,7 +1023,119 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     color: '#FFF',
     fontSize: 12,
-    letterSpacing: 0.3,
+    letterSpacing: 1,
+  },
+
+  // ── Map Gamified HUD extras ───────────────────────────────────────
+  mapSectionEyebrow: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 9,
+    color: COLORS.teal,
+    letterSpacing: 2.5,
+    textTransform: 'uppercase',
+    marginBottom: 1,
+  },
+  mapLiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.40)',
+    paddingVertical: 4,
+    paddingHorizontal: 9,
+    marginRight: 6,
+  },
+  mapLiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#EF4444',
+  },
+  mapLiveText: {
+    fontFamily: FONTS.bold,
+    fontSize: 9,
+    color: '#EF4444',
+    letterSpacing: 1.5,
+  },
+  mapViewAllBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.accentSoft,
+    borderWidth: 1,
+    borderColor: COLORS.accentBorder,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapHudCoords: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    backgroundColor: 'rgba(12,36,97,0.75)',
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(99,179,237,0.35)',
+    paddingVertical: 4,
+    paddingHorizontal: 9,
+  },
+  mapHudCoordsText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 9,
+    color: 'rgba(191,215,255,0.90)',
+    letterSpacing: 0.8,
+  },
+  mapRadarRing1: {
+    position: 'absolute',
+    bottom: 54,
+    right: 16,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(26,86,219,0.25)',
+  },
+  mapRadarRing2: {
+    position: 'absolute',
+    bottom: 70,
+    right: 32,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(26,86,219,0.18)',
+  },
+  mapHudChips: {
+    position: 'absolute',
+    bottom: 58,
+    left: 12,
+    flexDirection: 'row',
+    gap: 6,
+  },
+  mapHudChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  mapHudChipDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+  },
+  mapHudChipCount: {
+    fontFamily: FONTS.black,
+    fontSize: 11,
+  },
+  mapHudChipLabel: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.75)',
+    letterSpacing: 0.8,
   },
 
   // ── Welcome Zamboanga Promo ───────────────────────────────────────
@@ -1080,6 +1291,232 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
+  // ── Quest Board Header ────────────────────────────────────────────
+  questBoardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  questBoardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  questBoardEyebrow: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 9,
+    color: COLORS.gold,
+    letterSpacing: 2.5,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  questBoardTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    color: COLORS.text,
+  },
+  questCountPill: {
+    backgroundColor: COLORS.navy,
+    borderRadius: RADIUS.pill,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: COLORS.accentBorder,
+  },
+  questCountText: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: COLORS.accent,
+    letterSpacing: 0.5,
+  },
+
+  // ── Quest Card Base ───────────────────────────────────────────────
+  questCard: {
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+    marginBottom: 18,
+    ...SHADOW.card,
+  },
+  questCardTeal: {
+    borderColor: COLORS.teal + '55',
+    shadowColor: COLORS.teal,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.20,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  questCardBlue: {
+    borderColor: COLORS.accent + '55',
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  questCardGold: {
+    borderColor: COLORS.gold + '55',
+    shadowColor: COLORS.gold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+
+  // ── Quest Card Image Area ─────────────────────────────────────────
+  questCardImage: {
+    width: '100%',
+    height: 175,
+    justifyContent: 'space-between',
+  },
+  questImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(8,15,35,0.52)',
+    borderTopLeftRadius: RADIUS.lg,
+    borderTopRightRadius: RADIUS.lg,
+  },
+  questCardTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+  },
+  questTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  questTypeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  questTypeLabel: {
+    fontFamily: FONTS.bold,
+    fontSize: 9,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  questXpBadge: {
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  questXpText: {
+    fontFamily: FONTS.black,
+    fontSize: 11,
+    letterSpacing: 0.5,
+  },
+  questCardImageBottom: {
+    padding: 12,
+  },
+  questCardName: {
+    fontFamily: FONTS.pixel,
+    fontSize: 11,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+    lineHeight: 18,
+    textShadowColor: 'rgba(0,0,0,0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 5,
+    marginBottom: 6,
+  },
+  questDiffRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  questDiffStar: {
+    fontFamily: FONTS.bold,
+    fontSize: 12,
+  },
+  questDiffLabel: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.75)',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+
+  // ── Quest Card Body ───────────────────────────────────────────────
+  questCardBody: {
+    padding: 14,
+  },
+  questLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
+  },
+  questLocationText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 11,
+    letterSpacing: 0.3,
+  },
+  questCardDesc: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: COLORS.textSub,
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  questTagsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 10,
+  },
+  questMiniTag: {
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    paddingVertical: 3,
+    paddingHorizontal: 9,
+  },
+  questMiniTagText: {
+    fontFamily: FONTS.bold,
+    fontSize: 9,
+    letterSpacing: 1,
+  },
+  questCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  questObjective: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  questObjectiveText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 11,
+    color: COLORS.textMuted,
+    letterSpacing: 0.2,
+  },
+  questCtaBtn: {
+    borderRadius: RADIUS.pill,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+  },
+  questCtaText: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: '#0C2461',
+    letterSpacing: 0.8,
+  },
+
+  // ── Quest Card Glow Bar (bottom accent) ───────────────────────────
+  questCardGlowBar: {
+    height: 3,
+    width: '100%',
+  },
+
   // ── Quick Access ──────────────────────────────────────────────────
   qaRow: {
     flexDirection: 'row',
@@ -1117,10 +1554,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   qaTitle: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 11,
+    fontFamily: FONTS.pixel,
+    fontSize: 8,
     color: COLORS.textSub,
-    lineHeight: 15,
+    lineHeight: 14,
   },
   qaAccentLine: {
     height: 2,
