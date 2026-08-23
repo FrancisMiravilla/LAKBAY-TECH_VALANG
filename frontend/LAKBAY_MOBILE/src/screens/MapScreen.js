@@ -432,6 +432,9 @@ export default function MapScreen({ navigation, route }) {
   const [routing, setRouting] = useState(false);       // routing in progress
   const [arNavVisible, setArNavVisible] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [proximitySpot, setProximitySpot] = useState(null); // spot user is near
+  const proximityDismissed = useRef(new Set());             // ids dismissed this session
+  const proximityAnim = useRef(new Animated.Value(120)).current; // slides up from bottom
   const locationSub = useRef(null);
   const headingSub = useRef(null);
   const webviewRef = useRef(null);
@@ -467,6 +470,34 @@ export default function MapScreen({ navigation, route }) {
     }),
     [isNavigating, slideAnim]
   );
+
+  // ── Haversine distance (metres) ───────────────────────────────────────────
+  const haversineMetres = (lat1, lng1, lat2, lng2) => {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  const PROXIMITY_RADIUS_M = 50; // metres — tweak as needed
+
+  const showProximityPopup = (spot) => {
+    setProximitySpot(spot);
+    Animated.spring(proximityAnim, {
+      toValue: 0, useNativeDriver: true, tension: 65, friction: 10,
+    }).start();
+  };
+
+  const hideProximityPopup = (dismiss = false) => {
+    Animated.timing(proximityAnim, {
+      toValue: 120, duration: 220, useNativeDriver: true,
+    }).start(() => setProximitySpot(null));
+    if (dismiss && proximitySpot) {
+      proximityDismissed.current.add(proximitySpot.id);
+    }
+  };
 
   // ── Load spots ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -524,6 +555,32 @@ export default function MapScreen({ navigation, route }) {
                 true;
               `);
             }
+
+            // ── Proximity check ──────────────────────────────────────
+            setSpots(currentSpots => {
+              const nearby = currentSpots.find(s =>
+                s.latitude && s.longitude &&
+                !proximityDismissed.current.has(s.id) &&
+                haversineMetres(newCoords.lat, newCoords.lng, parseFloat(s.latitude), parseFloat(s.longitude)) <= PROXIMITY_RADIUS_M
+              );
+              setProximitySpot(prev => {
+                if (nearby && (!prev || prev.id !== nearby.id)) {
+                  // Entered radius of a new spot — show popup
+                  Animated.spring(proximityAnim, {
+                    toValue: 0, useNativeDriver: true, tension: 65, friction: 10,
+                  }).start();
+                  return nearby;
+                } else if (!nearby && prev) {
+                  // Left radius — auto-dismiss
+                  Animated.timing(proximityAnim, {
+                    toValue: 120, duration: 220, useNativeDriver: true,
+                  }).start();
+                  return null;
+                }
+                return prev;
+              });
+              return currentSpots; // no mutation
+            });
           }
         );
       } catch (err) {
@@ -934,6 +991,72 @@ export default function MapScreen({ navigation, route }) {
         message={errorModal.message}
         onClose={() => setErrorModal(prev => ({ ...prev, visible: false }))}
       />
+
+      {/* ── Proximity Popup ── */}
+      {proximitySpot && (() => {
+        const pType = (proximitySpot.feature_types && proximitySpot.feature_types[0]) || 'qr';
+        const pBadge = getBadgeConfig(pType);
+        const typeEmoji = pType === 'ar' ? '📷' : pType === 'catch' ? '🏆' : pType === 'promotion' ? '📣' : '🔍';
+        return (
+          <Animated.View
+            style={[styles.proximityPopup, { transform: [{ translateY: proximityAnim }] }]}
+            pointerEvents="box-none"
+          >
+            {/* Colored top accent line */}
+            <View style={[styles.proximityAccentBar, { backgroundColor: pBadge.color }]} />
+
+            <View style={styles.proximityInner}>
+              {/* Icon circle + badge */}
+              <View style={[styles.proximityIconCircle, { backgroundColor: pBadge.bg, borderColor: pBadge.border }]}>
+                <Text style={styles.proximityIconEmoji}>{typeEmoji}</Text>
+              </View>
+
+              <View style={styles.proximityContent}>
+                {/* Badge label */}
+                <View style={[styles.proximityBadge, { backgroundColor: pBadge.bg, borderColor: pBadge.border }]}>
+                  <Ionicons name={pBadge.icon} size={9} color={pBadge.color} />
+                  <Text style={[styles.proximityBadgeText, { color: pBadge.color }]}>{pBadge.label}</Text>
+                </View>
+
+                {/* Spot name in pixel font */}
+                <Text style={styles.proximitySpotName} numberOfLines={1}>{proximitySpot.name}</Text>
+
+                {/* Teaser */}
+                <Text style={styles.proximityDesc} numberOfLines={2}>
+                  Want to know about this place? See description inside.
+                </Text>
+
+                {/* Actions row */}
+                <View style={styles.proximityActionsRow}>
+                  <TouchableOpacity
+                    style={[styles.proximityGotItBtn, { backgroundColor: pBadge.color }]}
+                    activeOpacity={0.85}
+                    onPress={() => hideProximityPopup(true)}
+                  >
+                    <Text style={styles.proximityGotItText}>Got it!</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.proximityViewBtn}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      hideProximityPopup(true);
+                      // Open the spot's bottom sheet card
+                      setSelectedSpot(proximitySpot);
+                      Animated.spring(slideAnim, {
+                        toValue: 0, useNativeDriver: true, tension: 65, friction: 10,
+                      }).start();
+                    }}
+                  >
+                    <Ionicons name="eye-outline" size={13} color={pBadge.color} />
+                    <Text style={[styles.proximityViewText, { color: pBadge.color }]}>See Details</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
+        );
+      })()}
     </SafeAreaView>
   );
 }
@@ -1088,4 +1211,109 @@ const styles = StyleSheet.create({
   },
   directionsBtnLoading: { backgroundColor: '#93C5FD' },
   directionsBtnText: { fontFamily: FONTS.bold, fontSize: 15, color: '#FFFFFF' },
+
+  // ── Proximity Popup ───────────────────────────────────────────────────────
+  proximityPopup: {
+    position: 'absolute',
+    bottom: 20,
+    left: 16,
+    right: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: RADIUS.lg,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 30,
+    zIndex: 9999,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  proximityAccentBar: {
+    height: 3,
+    width: '100%',
+  },
+  proximityInner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 14,
+    gap: 12,
+  },
+  proximityIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  proximityIconEmoji: {
+    fontSize: 22,
+  },
+  proximityContent: {
+    flex: 1,
+  },
+  proximityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    marginBottom: 6,
+  },
+  proximityBadgeText: {
+    fontFamily: FONTS.bold,
+    fontSize: 9,
+    letterSpacing: 1,
+  },
+  proximitySpotName: {
+    fontFamily: FONTS.pixel,
+    fontSize: 9,
+    color: COLORS.text,
+    lineHeight: 15,
+    marginBottom: 5,
+  },
+  proximityDesc: {
+    fontFamily: FONTS.regular,
+    fontSize: 11,
+    color: COLORS.textSub,
+    lineHeight: 16,
+    marginBottom: 10,
+  },
+  proximityActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  proximityGotItBtn: {
+    borderRadius: RADIUS.pill,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+  },
+  proximityGotItText: {
+    fontFamily: FONTS.bold,
+    fontSize: 11,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  proximityViewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  proximityViewText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 11,
+    letterSpacing: 0.3,
+  },
 });
