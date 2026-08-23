@@ -520,7 +520,15 @@ export default function ViroARScanner({ navigation }) {
             setRewardModalData(null);
             if (detectedSpot) {
               navigation.navigate('CatchDetails', {
-                icon: { name: detectedSpot.name, about: detectedSpot.description, model_3d: detectedSpot.model_3d },
+                icon: {
+                  name: detectedSpot.name,
+                  about: detectedSpot.description,
+                  model_3d: detectedSpot.model_3d,
+                  rarity: detectedSpot.rarity || 'common',
+                  building: detectedSpot.building || 'S1',
+                  slot_number: detectedSpot.slot_number || 1,
+                  spot_name: detectedSpot.spot_name || '',
+                },
                 isAR: true,
               });
             }

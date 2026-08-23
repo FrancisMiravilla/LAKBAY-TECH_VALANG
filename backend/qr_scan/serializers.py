@@ -116,10 +116,14 @@ class ARTargetSerializer(serializers.ModelSerializer):
     spot_id = serializers.PrimaryKeyRelatedField(
         queryset=CulturalSpot.objects.all(), source='spot', write_only=True, required=False, allow_null=True
     )
-    spot_name = serializers.CharField(source='spot.name', read_only=True)
+    spot_name = serializers.CharField(source='spot.name', read_only=True, allow_null=True, default=None)
     image = Base64ImageField(required=False, allow_null=True)
     model_3d = Base64FileField(required=False, allow_null=True)
 
     class Meta:
         model = ARTarget
-        fields = '__all__'
+        fields = (
+            'id', 'name', 'description', 'building', 'slot_number',
+            'rarity', 'hint', 'image', 'model_3d',
+            'spot_id', 'spot_name', 'created_at',
+        )

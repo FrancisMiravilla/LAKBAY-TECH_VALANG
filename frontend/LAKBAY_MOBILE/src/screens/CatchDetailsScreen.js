@@ -54,12 +54,36 @@ function build3DViewerHTML(modelUrl) {
 </html>`;
 }
 
-// ── Rarity config ─────────────────────────────────────────────────────────────
-const RARITY = {
-  label: 'MYTHICAL',
-  color: '#A855F7',
-  glow: 'rgba(168,85,247,0.35)',
-  stars: 5,
+// ── Rarity config (matches backend RARITY_CHOICES & RARITY_THEME in ViroARScanner) ───
+const RARITY_CONFIG = {
+  common: {
+    label: 'COMMON',
+    color: '#10B981',
+    glow: 'rgba(16,185,129,0.30)',
+    stars: 1,
+    icon: 'sparkles',
+  },
+  rare: {
+    label: 'RARE',
+    color: '#3B82F6',
+    glow: 'rgba(59,130,246,0.32)',
+    stars: 3,
+    icon: 'star',
+  },
+  mythical: {
+    label: 'MYTHICAL',
+    color: '#A855F7',
+    glow: 'rgba(168,85,247,0.35)',
+    stars: 4,
+    icon: 'diamond',
+  },
+  legendary: {
+    label: 'LEGENDARY',
+    color: '#F59E0B',
+    glow: 'rgba(245,158,11,0.38)',
+    stars: 5,
+    icon: 'trophy',
+  },
 };
 
 // ── Tab definitions ──────────────────────────────────────────────────────────
@@ -71,7 +95,7 @@ const TABS = [
 ];
 
 // ── No-model placeholder ─────────────────────────────────────────────────────
-function NoModel() {
+function NoModel({ color = '#A855F7' }) {
   const pulse = useRef(new Animated.Value(0.5)).current;
   useEffect(() => {
     Animated.loop(
@@ -84,7 +108,7 @@ function NoModel() {
   return (
     <View style={styles.noModelBox}>
       <Animated.View style={[styles.noModelOrb, { opacity: pulse }]} />
-      <Ionicons name="cube-outline" size={52} color={RARITY.color} style={{ opacity: 0.7 }} />
+      <Ionicons name="cube-outline" size={52} color={color} style={{ opacity: 0.7 }} />
       <Text style={styles.noModelText}>3D model not available yet</Text>
     </View>
   );
@@ -93,6 +117,10 @@ function NoModel() {
 // ── Main Screen ──────────────────────────────────────────────────────────────
 export default function CatchDetailsScreen({ route, navigation }) {
   const { icon, spot, isAR = false } = route.params || {};
+
+  // ── Derive rarity dynamically from the icon/AR target's rarity field ──────
+  const rarityKey = ((icon?.rarity || spot?.rarity || 'common')).toLowerCase();
+  const RARITY = RARITY_CONFIG[rarityKey] || RARITY_CONFIG.common;
 
   const activeModel = spot?.model_3d || icon?.model_3d;
   const viewerHTML  = useMemo(() => activeModel ? build3DViewerHTML(activeModel) : null, [activeModel]);
@@ -182,9 +210,9 @@ export default function CatchDetailsScreen({ route, navigation }) {
               </TouchableOpacity>
               <View style={styles.heroBadgeRow}>
                 <View style={[styles.rarityBadge, { backgroundColor: RARITY.glow, borderColor: RARITY.color }]}>
-                  <Ionicons name="diamond" size={11} color={RARITY.color} />
-                  <Text style={[styles.rarityLabel, { color: RARITY.color }]}>{RARITY.label}</Text>
-                </View>
+                <Ionicons name={RARITY.icon || 'diamond'} size={11} color={RARITY.color} />
+                <Text style={[styles.rarityLabel, { color: RARITY.color }]}>{RARITY.label}</Text>
+              </View>
               </View>
             </View>
           </SafeAreaView>
@@ -207,7 +235,7 @@ export default function CatchDetailsScreen({ route, navigation }) {
                   scrollEnabled={false}
                 />
               ) : (
-                <NoModel />
+                <NoModel color={RARITY.color} />
               )}
               <Animated.View
                 pointerEvents="none"
