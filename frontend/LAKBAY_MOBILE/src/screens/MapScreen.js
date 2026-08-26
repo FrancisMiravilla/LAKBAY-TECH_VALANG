@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   StyleSheet, View, Text, ActivityIndicator, TouchableOpacity,
-  Animated, Dimensions, PanResponder, Image
+  Animated, Dimensions, PanResponder, Image, ImageBackground, StatusBar, Modal
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { getSpots, ORIGIN } from '../api/qrService';
 import { getPublishedPromotions } from '../api/promotionService';
+import { authService } from '../api/authService';
 import { COLORS, FONTS, SIZES, RADIUS, SPACING, SHADOW } from '../constants/theme';
 import ErrorModal from '../components/ErrorModal';
 import { useCameraPermissions } from 'expo-camera';
@@ -20,20 +21,29 @@ const NAV_MAP_HEIGHT = SCREEN_H * 0.55;
 const NAV_MINIMIZED_Y = NAV_MAP_HEIGHT - 240;
 
 // ─── Mapbox HTML Builder ───────────────────────────────────────────────────
-function buildMapboxHTML(spots) {
+function buildMapboxHTML(spots, userLevel = 1) {
   const markers = spots
     .filter(s => s.latitude && s.longitude)
-    .map(s => ({
-      id: s.id,
-      name: s.name,
-      latitude: s.latitude,
-      longitude: s.longitude,
-      location_name: s.location_name || '',
-      description: s.description || '',
-      feature_types: s.feature_types || [],
-      model_3d: s.model_3d ? String(s.model_3d).replace(/^http:\/\//, 'https://') : null,
-      image: s.image ? String(s.image).replace(/^http:\/\//, 'https://') : null,
-    }));
+    .map(s => {
+      const isQr = (s.feature_types || []).includes('qr');
+      const reqLvl = s.required_level || 1;
+      const isLocked = isQr && (reqLvl > userLevel);
+      return {
+        id: s.id,
+        name: s.name,
+        latitude: s.latitude,
+        longitude: s.longitude,
+        location_name: s.location_name || '',
+        description: s.description || '',
+        feature_types: s.feature_types || [],
+        required_level: reqLvl,
+        xp_reward: s.xp_reward || 50,
+        is_locked: isLocked,
+        is_qr: isQr,
+        model_3d: s.model_3d ? String(s.model_3d).replace(/^http:\/\//, 'https://') : null,
+        image: s.image ? String(s.image).replace(/^http:\/\//, 'https://') : null,
+      };
+    });
 
   const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || 'your_mapbox_token_here';
 
@@ -66,6 +76,18 @@ function buildMapboxHTML(spots) {
     .pin-ar    .pin-circle{ background:#10B981; box-shadow:0 0 10px rgba(16,185,129,0.7),0 0 0 4px rgba(16,185,129,0.2); }
     .pin-catch .pin-circle{ background:#FBBF24; box-shadow:0 0 10px rgba(251,191,36,0.7),0 0 0 4px rgba(251,191,36,0.2); }
     .pin-promotion .pin-circle{ background:#EC4899; box-shadow:0 0 10px rgba(236,72,153,0.7),0 0 0 4px rgba(236,72,153,0.2); }
+    .pin.is-locked .pin-circle{
+      border-color:#EF4444!important;
+      box-shadow:0 0 10px rgba(239,68,68,0.7),0 0 0 3px rgba(239,68,68,0.25)!important;
+      filter:grayscale(0.35);
+    }
+    .pin-lock-badge{
+      position:absolute; top:-6px; right:-6px;
+      background:#EF4444; border:1.5px solid #fff; color:#fff;
+      font-size:8px; font-weight:900; border-radius:8px;
+      padding:1px 3px; display:flex; align-items:center; justify-content:center;
+      z-index:5; box-shadow:0 2px 4px rgba(0,0,0,0.5);
+    }
     .pin-catch model-viewer{ width:100%;height:100%;background:transparent;pointer-events:none; --poster-color:transparent; }
     .pin.selected .pin-circle{
       border-color:#fff;
@@ -172,7 +194,7 @@ function buildMapboxHTML(spots) {
     var baseSize=hasModel?46:(hasPic?40:36);
 
     var el=document.createElement('div');
-    el.className='pin pin-'+primaryType;
+    el.className='pin pin-'+primaryType + (spot.is_locked ? ' is-locked' : '');
     el.style.width=baseSize+'px';
     el.style.height=baseSize+'px';
     pinEls[spot.id]=el;
@@ -180,6 +202,13 @@ function buildMapboxHTML(spots) {
     var circle=document.createElement('div');
     circle.className='pin-circle';
     el.appendChild(circle);
+
+    if (spot.is_locked) {
+      var lockBadge = document.createElement('div');
+      lockBadge.className = 'pin-lock-badge';
+      lockBadge.innerText = '🔒';
+      el.appendChild(lockBadge);
+    }
 
     if(hasModel){
       var mv=document.createElement('model-viewer');
@@ -203,8 +232,16 @@ function buildMapboxHTML(spots) {
 
     var label=document.createElement('div');
     label.className='pin-label';
-    label.innerText=TYPE_LABEL[primaryType]||'QR';
-    label.style.background=TYPE_COLOR[primaryType]||TYPE_COLOR.qr;
+    if (spot.is_locked) {
+      label.innerText='🔒 LVL ' + (spot.required_level || 1);
+      label.style.background='#EF4444';
+    } else if (spot.is_qr) {
+      label.innerText=(TYPE_LABEL[primaryType]||'QR') + ' · L' + (spot.required_level || 1);
+      label.style.background=TYPE_COLOR[primaryType]||TYPE_COLOR.qr;
+    } else {
+      label.innerText=TYPE_LABEL[primaryType]||'PIN';
+      label.style.background=TYPE_COLOR[primaryType]||'#1A56DB';
+    }
     el.appendChild(label);
 
     var marker = new mapboxgl.Marker({element: el, anchor: 'bottom'})
@@ -424,6 +461,9 @@ function build3DViewerHTML(modelUrl) {
 export default function MapScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const [spots, setSpots] = useState([]);
+  const [profile, setProfile] = useState(null);
+  const userXp = profile?.xp || 0;
+  const userLevel = Math.floor(userXp / 100) + 1;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedSpot, setSelectedSpot] = useState(null);
@@ -499,10 +539,15 @@ export default function MapScreen({ navigation, route }) {
     }
   };
 
-  // ── Load spots ────────────────────────────────────────────────────────────
+  // ── Load spots & user profile ─────────────────────────────────────────────
   useEffect(() => {
-    Promise.all([getSpots(), getPublishedPromotions().catch(() => [])])
-      .then(([spotsData, promosData]) => {
+    Promise.all([
+      getSpots(),
+      getPublishedPromotions().catch(() => []),
+      authService.getProfile().catch(() => null),
+    ])
+      .then(([spotsData, promosData, profileData]) => {
+        if (profileData) setProfile(profileData);
         const parsedSpots = Array.isArray(spotsData) ? spotsData : (spotsData.results || []);
         const parsedPromos = Array.isArray(promosData) ? promosData : (promosData.results || []);
         
@@ -511,6 +556,8 @@ export default function MapScreen({ navigation, route }) {
           name: p.spot_name,
           location_name: 'User Promotion',
           feature_types: ['promotion'],
+          required_level: 1,
+          xp_reward: 50,
           model_3d: p.model_3d_file ? (p.model_3d_file.startsWith('http') ? p.model_3d_file : ORIGIN + p.model_3d_file) : null,
           image: p.image_file ? (p.image_file.startsWith('http') ? p.image_file : ORIGIN + p.image_file) : null
         }));
@@ -625,7 +672,7 @@ export default function MapScreen({ navigation, route }) {
     };
   }, [isNavigating]);
 
-  const mapboxHTML = useMemo(() => buildMapboxHTML(spots), [spots]);
+  const mapboxHTML = useMemo(() => buildMapboxHTML(spots, userLevel), [spots, userLevel]);
 
   // ── WebView message handler ───────────────────────────────────────────────
   const handleMessage = (event) => {
@@ -774,121 +821,142 @@ export default function MapScreen({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Tourist Map</Text>
-        <Text style={styles.headerSubtitle}>Discover Zamboanga's Cultural Heritage</Text>
-      </View>
+    <ImageBackground
+      source={require('../../reference/VINTA.jpeg')}
+      style={styles.bgImage}
+      resizeMode="cover"
+    >
+      <View style={styles.bgOverlay} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      <View style={styles.mapContainer}>
-        {isNavigating && cameraPerm?.granted && (
-          <ARNavigationOverlay
-            icon={{
-              id: selectedSpot.id,
-              name: selectedSpot.name,
-              tagline: selectedSpot.description || '',
-              about: '',
-              significance: '',
-              color: getBadgeConfig(selectedSpot.feature_types?.[0] || 'qr').color,
-              glow: getBadgeConfig(selectedSpot.feature_types?.[0] || 'qr').color + '55',
-              model_3d: selectedSpot.model_3d
-                ? String(selectedSpot.model_3d).replace(/^http:\/\//, 'https://')
-                : null
-            }}
-            spot={selectedSpot}
-            userLocation={userLocation}
-            hideBottomPanel={true}
-            onClose={() => {
-              setIsNavigating(false);
-            }}
-          />
-        )}
-        
-        {loading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator color={COLORS.accent} size="large" />
-            <Text style={styles.loadingText}>Loading map spots…</Text>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        {/* ── Header ── */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>INTERACTIVE MAP</Text>
+            <Text style={styles.headerSubtitle}>Discover Zamboanga's Cultural Heritage</Text>
           </View>
-        ) : error ? (
-          <View style={styles.centered}>
-            <Ionicons name="warning-outline" size={40} color={COLORS.accent} />
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={styles.headerLevelChip}>
+            <Ionicons name="shield-checkmark" size={13} color={COLORS.gold} />
+            <Text style={styles.headerLevelText}>LVL {userLevel}</Text>
           </View>
-        ) : (
-          <Animated.View 
-            pointerEvents="auto" 
-            style={isNavigating ? [styles.mapAsBottomSheet, { transform: [{ translateY: slideAnim }] }] : styles.fullMapContainer}
-            {...(isNavigating ? panResponder.panHandlers : {})}
-          >
-            {isNavigating && (
-              <View style={styles.dragHandleContainer}>
-                <View style={styles.dragHandle} />
-              </View>
-            )}
-            <WebView
-              ref={webviewRef}
-              source={{ html: mapboxHTML, baseUrl: 'https://localhost' }}
-              style={styles.webview}
-              onMessage={handleMessage}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              originWhitelist={['*']}
-              scrollEnabled={false}
-              mixedContentMode="always"
-              allowUniversalAccessFromFileURLs={true}
+        </View>
+
+        <View style={styles.mapContainer}>
+          {isNavigating && cameraPerm?.granted && (
+            <ARNavigationOverlay
+              icon={{
+                id: selectedSpot.id,
+                name: selectedSpot.name,
+                tagline: selectedSpot.description || '',
+                about: '',
+                significance: '',
+                color: getBadgeConfig(selectedSpot.feature_types?.[0] || 'qr').color,
+                glow: getBadgeConfig(selectedSpot.feature_types?.[0] || 'qr').color + '55',
+                model_3d: selectedSpot.model_3d
+                  ? String(selectedSpot.model_3d).replace(/^http:\/\//, 'https://')
+                  : null
+              }}
+              spot={selectedSpot}
+              userLocation={userLocation}
+              hideBottomPanel={true}
+              onClose={() => {
+                setIsNavigating(false);
+              }}
             />
-          </Animated.View>
-        )}
+          )}
 
-        {/* Legend */}
-        {!loading && !error && (
-          <View style={styles.legend}>
-            {[
-              { color: '#1A56DB', label: 'QR Scan', icon: 'qr-code-outline' },
-              { color: '#10B981', label: 'AR Exhibit', icon: 'cube-outline' },
-              { color: '#FBBF24', label: 'Catch Zone', icon: 'trophy-outline' },
-              { color: '#EC4899', label: 'Promotion', icon: 'star-outline' },
-            ].map(item => (
-              <View key={item.label} style={styles.legendRow}>
-                <View style={[styles.legendIconDot, { backgroundColor: item.color, shadowColor: item.color, shadowOpacity: 0.8, shadowRadius: 4, elevation: 3 }]}>
-                  <Ionicons name={item.icon} size={9} color="#fff" />
-                </View>
-                <Text style={styles.legendText}>{item.label}</Text>
-              </View>
-            ))}
-            <View style={styles.legendDivider} />
-            <Text style={styles.legendCount}>{spots.filter(s => s.latitude && s.longitude).length} spots</Text>
-          </View>
-        )}
-
-        {/* My Location FAB */}
-        {!loading && !error && (
-          <TouchableOpacity style={styles.myLocationBtn} onPress={handleMyLocation} activeOpacity={0.8}>
-            <Ionicons name="locate" size={20} color={COLORS.accent} />
-          </TouchableOpacity>
-        )}
-
-        {/* Route Info Banner (slides down from top of map) */}
-        <Animated.View style={[styles.routeBanner, { transform: [{ translateY: routeBannerAnim }] }]}>
-          <View style={styles.routeBannerInner}>
-            <View style={styles.routeBannerLeft}>
-              <Ionicons name="navigate" size={16} color="#3B82F6" />
-              <Text style={styles.routeBannerDist}>{routeInfo?.distKm} km</Text>
-              <View style={styles.routeBannerDivider} />
-              <Ionicons name="time-outline" size={14} color="#64748B" />
-              <Text style={styles.routeBannerTime}>{routeInfo?.mins} min</Text>
+          {loading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator color={COLORS.gold} size="large" />
+              <Text style={styles.loadingText}>Loading map spots…</Text>
             </View>
-            <TouchableOpacity onPress={handleClearRoute} style={styles.routeBannerClose}>
-              <Text style={styles.routeBannerCloseText}>{isNavigating ? 'Exit' : 'Clear'}</Text>
+          ) : error ? (
+            <View style={styles.centered}>
+              <Ionicons name="warning-outline" size={40} color={COLORS.gold} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : (
+            <Animated.View
+              pointerEvents="auto"
+              style={isNavigating ? [styles.mapAsBottomSheet, { transform: [{ translateY: slideAnim }] }] : styles.fullMapContainer}
+              {...(isNavigating ? panResponder.panHandlers : {})}
+            >
+              {isNavigating && (
+                <View style={styles.dragHandleContainer}>
+                  <View style={styles.dragHandle} />
+                </View>
+              )}
+              <WebView
+                ref={webviewRef}
+                source={{ html: mapboxHTML, baseUrl: 'https://localhost' }}
+                style={styles.webview}
+                onMessage={handleMessage}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+                originWhitelist={['*']}
+                scrollEnabled={false}
+                mixedContentMode="always"
+                allowUniversalAccessFromFileURLs={true}
+              />
+            </Animated.View>
+          )}
+
+          {/* ── Legend (glass card) ── */}
+          {!loading && !error && (
+            <View style={styles.legend}>
+              {[
+                { color: '#1A56DB', label: 'QR Scan',   icon: 'qr-code-outline' },
+                { color: '#10B981', label: 'AR Exhibit', icon: 'cube-outline' },
+                { color: '#FBBF24', label: 'Catch Zone', icon: 'trophy-outline' },
+                { color: '#EC4899', label: 'Promotion',  icon: 'star-outline' },
+              ].map(item => (
+                <View key={item.label} style={styles.legendRow}>
+                  <View style={[styles.legendIconDot, { backgroundColor: item.color, shadowColor: item.color, shadowOpacity: 0.9, shadowRadius: 5, elevation: 4 }]}>
+                    <Ionicons name={item.icon} size={9} color="#fff" />
+                  </View>
+                  <Text style={styles.legendText}>{item.label}</Text>
+                </View>
+              ))}
+              <View style={styles.legendDivider} />
+              <Text style={styles.legendCount}>{spots.filter(s => s.latitude && s.longitude).length} spots</Text>
+            </View>
+          )}
+
+          {/* ── My Location FAB ── */}
+          {!loading && !error && (
+            <TouchableOpacity style={styles.myLocationBtn} onPress={handleMyLocation} activeOpacity={0.8}>
+              <Ionicons name="locate" size={20} color={COLORS.teal} />
             </TouchableOpacity>
-          </View>
-        </Animated.View>
-      </View>
+          )}
+
+          {/* ── Route Info Banner ── */}
+          <Animated.View style={[styles.routeBanner, { transform: [{ translateY: routeBannerAnim }] }]}>
+            <View style={styles.routeBannerInner}>
+              <View style={styles.routeBannerLeft}>
+                <Ionicons name="navigate" size={16} color={COLORS.teal} />
+                <Text style={styles.routeBannerDist}>{routeInfo?.distKm} km</Text>
+                <View style={styles.routeBannerDivider} />
+                <Ionicons name="time-outline" size={14} color="rgba(191,215,255,0.7)" />
+                <Text style={styles.routeBannerTime}>{routeInfo?.mins} min</Text>
+              </View>
+              <TouchableOpacity onPress={handleClearRoute} style={styles.routeBannerClose}>
+                <Text style={styles.routeBannerCloseText}>{isNavigating ? 'Exit' : 'Clear'}</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
 
       {/* ── Bottom Sheet Card ── */}
+
       {selectedSpot && !isNavigating && (() => {
         const primaryType = (selectedSpot.feature_types && selectedSpot.feature_types[0]) || 'qr';
         const badge = getBadgeConfig(primaryType);
+        const isQr = (selectedSpot.feature_types || []).includes('qr');
+        const reqLvl = selectedSpot.required_level || 1;
+        const isLocked = isQr && (reqLvl > userLevel);
+        const xpReward = selectedSpot.xp_reward || 50;
+
         return (
           <Animated.View
             {...panResponder.panHandlers}
@@ -907,10 +975,33 @@ export default function MapScreen({ navigation, route }) {
               </View>
             </TouchableOpacity>
 
-            {/* Badge */}
-            <View style={[styles.spotTypeBadge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
-              <Ionicons name={badge.icon} size={10} color={badge.color} style={{ marginRight: 4 }} />
-              <Text style={[styles.spotTypeBadgeText, { color: badge.color }]}>{badge.label}</Text>
+            {/* Badge & Status Row */}
+            <View style={styles.badgeRow}>
+              <View style={[styles.spotTypeBadge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
+                <Ionicons name={badge.icon} size={10} color={badge.color} style={{ marginRight: 4 }} />
+                <Text style={[styles.spotTypeBadgeText, { color: badge.color }]}>{badge.label}</Text>
+              </View>
+
+              {isQr && (
+                <>
+                  {isLocked ? (
+                    <View style={styles.lockedBadgePill}>
+                      <Ionicons name="lock-closed" size={10} color="#EF4444" style={{ marginRight: 4 }} />
+                      <Text style={styles.lockedBadgeText}>LOCKED · LVL {reqLvl}</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.unlockedBadgePill}>
+                      <Ionicons name="checkmark-circle" size={10} color={COLORS.teal} style={{ marginRight: 4 }} />
+                      <Text style={styles.unlockedBadgeText}>UNLOCKED · LVL {reqLvl}</Text>
+                    </View>
+                  )}
+
+                  <View style={styles.xpRewardPill}>
+                    <Ionicons name="sparkles" size={10} color={COLORS.gold} style={{ marginRight: 4 }} />
+                    <Text style={styles.xpRewardPillText}>+{xpReward} XP</Text>
+                  </View>
+                </>
+              )}
             </View>
 
             {/* Name */}
@@ -921,6 +1012,26 @@ export default function MapScreen({ navigation, route }) {
               <View style={styles.locationRow}>
                 <Ionicons name="location-sharp" size={13} color={COLORS.accent} />
                 <Text style={styles.spotLocation}>{selectedSpot.location_name}</Text>
+              </View>
+            )}
+
+            {/* ── Level Lock Alert Banner ── */}
+            {isLocked && (
+              <View style={styles.lockedAlertCard}>
+                <View style={styles.lockedAlertTop}>
+                  <Ionicons name="lock-closed" size={15} color="#EF4444" />
+                  <Text style={styles.lockedAlertTitle}>SPOT IS LEVEL LOCKED</Text>
+                </View>
+                <Text style={styles.lockedAlertText}>
+                  This QR scan spot is locked! In order for you to unlock and scan this location, reach{' '}
+                  <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Explorer Level {reqLvl}</Text>{' '}
+                  by collecting XP in other features.
+                </Text>
+                <View style={styles.lockedAlertFooter}>
+                  <Text style={styles.lockedAlertXpHint}>
+                    Your Level: <Text style={{ color: '#D97706', fontWeight: 'bold' }}>Level {userLevel}</Text> ({userXp % 100}/100 XP)
+                  </Text>
+                </View>
               </View>
             )}
 
@@ -992,328 +1103,358 @@ export default function MapScreen({ navigation, route }) {
         onClose={() => setErrorModal(prev => ({ ...prev, visible: false }))}
       />
 
-      {/* ── Proximity Popup ── */}
+      {/* ── Proximity Modal (centered) ── */}
       {proximitySpot && (() => {
         const pType = (proximitySpot.feature_types && proximitySpot.feature_types[0]) || 'qr';
         const pBadge = getBadgeConfig(pType);
         const typeEmoji = pType === 'ar' ? '📷' : pType === 'catch' ? '🏆' : pType === 'promotion' ? '📣' : '🔍';
         return (
-          <Animated.View
-            style={[styles.proximityPopup, { transform: [{ translateY: proximityAnim }] }]}
-            pointerEvents="box-none"
+          <Modal
+            transparent
+            animationType="fade"
+            visible={!!proximitySpot}
+            onRequestClose={() => hideProximityPopup(true)}
           >
-            {/* Colored top accent line */}
-            <View style={[styles.proximityAccentBar, { backgroundColor: pBadge.color }]} />
+            <View style={styles.proximityModalOverlay}>
+              <View style={styles.proximityPopup}>
+                {/* Colored top accent line */}
+                <View style={[styles.proximityAccentBar, { backgroundColor: pBadge.color }]} />
 
-            <View style={styles.proximityInner}>
-              {/* Icon circle + badge */}
-              <View style={[styles.proximityIconCircle, { backgroundColor: pBadge.bg, borderColor: pBadge.border }]}>
-                <Text style={styles.proximityIconEmoji}>{typeEmoji}</Text>
-              </View>
+                <View style={styles.proximityInner}>
+                  {/* Icon circle */}
+                  <View style={[styles.proximityIconCircle, { backgroundColor: pBadge.bg, borderColor: pBadge.border }]}>
+                    <Text style={styles.proximityIconEmoji}>{typeEmoji}</Text>
+                  </View>
 
-              <View style={styles.proximityContent}>
-                {/* Badge label */}
-                <View style={[styles.proximityBadge, { backgroundColor: pBadge.bg, borderColor: pBadge.border }]}>
-                  <Ionicons name={pBadge.icon} size={9} color={pBadge.color} />
-                  <Text style={[styles.proximityBadgeText, { color: pBadge.color }]}>{pBadge.label}</Text>
-                </View>
+                  <View style={styles.proximityContent}>
+                    {/* Badge label */}
+                    <View style={[styles.proximityBadge, { backgroundColor: pBadge.bg, borderColor: pBadge.border }]}>
+                      <Ionicons name={pBadge.icon} size={8} color={pBadge.color} />
+                      <Text style={[styles.proximityBadgeText, { color: pBadge.color }]}>{pBadge.label}</Text>
+                    </View>
 
-                {/* Spot name in pixel font */}
-                <Text style={styles.proximitySpotName} numberOfLines={1}>{proximitySpot.name}</Text>
+                    {/* Spot name */}
+                    <Text style={styles.proximitySpotName} numberOfLines={1}>{proximitySpot.name}</Text>
 
-                {/* Teaser */}
-                <Text style={styles.proximityDesc} numberOfLines={2}>
-                  Want to know about this place? See description inside.
-                </Text>
+                    {/* Teaser */}
+                    <Text style={styles.proximityDesc} numberOfLines={2}>
+                      You're nearby! Tap below to view this spot's details.
+                    </Text>
 
-                {/* Actions row */}
-                <View style={styles.proximityActionsRow}>
-                  <TouchableOpacity
-                    style={[styles.proximityGotItBtn, { backgroundColor: pBadge.color }]}
-                    activeOpacity={0.85}
-                    onPress={() => hideProximityPopup(true)}
-                  >
-                    <Text style={styles.proximityGotItText}>Got it!</Text>
-                  </TouchableOpacity>
+                    {/* Actions row */}
+                    <View style={styles.proximityActionsRow}>
+                      <TouchableOpacity
+                        style={[styles.proximityGotItBtn, { backgroundColor: pBadge.color }]}
+                        activeOpacity={0.85}
+                        onPress={() => hideProximityPopup(true)}
+                      >
+                        <Text style={styles.proximityGotItText}>Got it!</Text>
+                      </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={styles.proximityViewBtn}
-                    activeOpacity={0.85}
-                    onPress={() => {
-                      hideProximityPopup(true);
-                      // Open the spot's bottom sheet card
-                      setSelectedSpot(proximitySpot);
-                      Animated.spring(slideAnim, {
-                        toValue: 0, useNativeDriver: true, tension: 65, friction: 10,
-                      }).start();
-                    }}
-                  >
-                    <Ionicons name="eye-outline" size={13} color={pBadge.color} />
-                    <Text style={[styles.proximityViewText, { color: pBadge.color }]}>See Details</Text>
-                  </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.proximityViewBtn}
+                        activeOpacity={0.85}
+                        onPress={() => {
+                          hideProximityPopup(true);
+                          setSelectedSpot(proximitySpot);
+                          Animated.spring(slideAnim, {
+                            toValue: 0, useNativeDriver: true, tension: 65, friction: 10,
+                          }).start();
+                        }}
+                      >
+                        <Ionicons name="eye-outline" size={12} color={pBadge.color} />
+                        <Text style={[styles.proximityViewText, { color: pBadge.color }]}>See Details</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
               </View>
             </View>
-          </Animated.View>
+          </Modal>
         );
       })()}
     </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+  bgImage:   { flex: 1 },
+  bgOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,10,38,0.82)' },
+  container: { flex: 1, backgroundColor: 'transparent' },
+
+  // ── Header ────────────────────────────────────────────────────────────────
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    backgroundColor: COLORS.bg,
+    backgroundColor: 'rgba(8,20,60,0.72)',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: 'rgba(99,179,237,0.22)',
   },
-  headerTitle: { fontFamily: FONTS.bold, fontSize: SIZES.fontLg, color: COLORS.text },
-  headerSubtitle: { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: COLORS.textSub, marginTop: 4 },
-  mapContainer: { flex: 1, position: 'relative', overflow: 'hidden', backgroundColor: COLORS.bg },
-  fullMapContainer: { flex: 1, backgroundColor: COLORS.bg },
-  webview: { flex: 1, backgroundColor: 'transparent' },
+  headerTitle: {
+    fontFamily: FONTS.pixel || FONTS.bold,
+    fontSize: 13,
+    color: '#fff',
+    letterSpacing: 1.2,
+    textShadowColor: COLORS.accent + '88',
+    textShadowRadius: 6,
+  },
+  headerSubtitle: {
+    fontFamily: FONTS.medium,
+    fontSize: 10,
+    color: 'rgba(191,215,255,0.65)',
+    marginTop: 2,
+  },
+  headerLevelChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(245,158,11,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.45)',
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  headerLevelText: {
+    fontFamily: FONTS.bold,
+    fontSize: 11,
+    color: COLORS.gold,
+    letterSpacing: 0.8,
+  },
+
+  // ── Map ───────────────────────────────────────────────────────────────────
+  mapContainer:    { flex: 1, position: 'relative', overflow: 'hidden' },
+  fullMapContainer:{ flex: 1, backgroundColor: 'transparent' },
+  webview:         { flex: 1, backgroundColor: 'transparent' },
+
   dragHandleContainer: {
     width: '100%',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(8,20,60,0.92)',
     paddingTop: 12,
     paddingBottom: 8,
     borderTopLeftRadius: RADIUS.lg,
     borderTopRightRadius: RADIUS.lg,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(99,179,237,0.25)',
   },
   mapAsBottomSheet: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
+    left: 0, right: 0, bottom: 0,
     height: NAV_MAP_HEIGHT,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(8,20,60,0.95)',
     borderTopLeftRadius: RADIUS.lg,
     borderTopRightRadius: RADIUS.lg,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(99,179,237,0.3)',
     elevation: 20,
     zIndex: 9999,
-    shadowColor: '#000',
+    shadowColor: COLORS.accent,
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
     overflow: 'hidden',
   },
   miniMapContainer: {
     position: 'absolute',
     bottom: CARD_HEIGHT + 20,
     right: 20,
-    width: 140,
-    height: 180,
-    backgroundColor: '#EEF3FF',
+    width: 140, height: 180,
+    backgroundColor: 'rgba(8,20,60,0.85)',
     opacity: 0.99,
     borderRadius: RADIUS.md,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
+    borderWidth: 1.5,
+    borderColor: 'rgba(99,179,237,0.3)',
+    shadowColor: COLORS.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 99,
-    zIndex: 9999
+    zIndex: 9999,
   },
-  miniMapWebview: { flex: 1, backgroundColor: '#EEF3FF' },
+  miniMapWebview: { flex: 1, backgroundColor: 'transparent' },
+
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: SPACING.xl },
-  loadingText: { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: COLORS.textMuted, marginTop: SPACING.sm },
-  errorText: { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: COLORS.textSub, marginTop: SPACING.sm, textAlign: 'center' },
+  loadingText: { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: 'rgba(191,215,255,0.7)', marginTop: SPACING.sm },
+  errorText:   { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: 'rgba(191,215,255,0.7)', marginTop: SPACING.sm, textAlign: 'center' },
 
-  // Legend
+  // ── Legend (glass card, top-right) ────────────────────────────────────────
   legend: {
-    position: 'absolute', top: 16, right: 16,
-    backgroundColor: '#FFFFFF', borderRadius: RADIUS.sm,
+    position: 'absolute', top: 14, right: 14,
+    backgroundColor: 'rgba(8,20,60,0.82)',
+    borderRadius: RADIUS.md,
     paddingVertical: 10, paddingHorizontal: 12,
-    borderWidth: 1, borderColor: '#C3D8FF',
-    shadowColor: '#1A56DB', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.10, shadowRadius: 6, elevation: 4,
+    borderWidth: 1, borderColor: 'rgba(99,179,237,0.28)',
+    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25, shadowRadius: 8, elevation: 6,
   },
-  legendRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  legendIconDot: { width: 16, height: 16, borderRadius: 8, marginRight: 7, justifyContent: 'center', alignItems: 'center' },
-  legendText: { fontFamily: FONTS.medium, fontSize: 11, color: '#1E293B' },
-  legendCount: { fontFamily: FONTS.regular, fontSize: 10, color: '#64748B', marginTop: 2, textAlign: 'right' },
-  legendDivider: { height: 1, backgroundColor: '#C3D8FF', marginVertical: 6 },
+  legendRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
+  legendIconDot:{ width: 16, height: 16, borderRadius: 8, marginRight: 7, justifyContent: 'center', alignItems: 'center' },
+  legendText:   { fontFamily: FONTS.medium, fontSize: 11, color: 'rgba(191,215,255,0.9)' },
+  legendCount:  { fontFamily: FONTS.regular, fontSize: 10, color: 'rgba(191,215,255,0.5)', marginTop: 2, textAlign: 'right' },
+  legendDivider:{ height: 1, backgroundColor: 'rgba(99,179,237,0.25)', marginVertical: 5 },
 
-  // My Location FAB
+  // ── My Location FAB ───────────────────────────────────────────────────────
   myLocationBtn: {
     position: 'absolute', bottom: 16, right: 16,
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: '#FFFFFF',
+    width: 46, height: 46, borderRadius: 23,
+    backgroundColor: 'rgba(8,20,60,0.85)',
     justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: '#C3D8FF',
-    shadowColor: '#1A56DB', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15, shadowRadius: 6, elevation: 5,
+    borderWidth: 1.5, borderColor: 'rgba(99,179,237,0.4)',
+    shadowColor: COLORS.teal,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5, shadowRadius: 8, elevation: 6,
   },
 
-  // Route Banner
+  // ── Route Banner ──────────────────────────────────────────────────────────
   routeBanner: {
     position: 'absolute', top: 0, left: 0, right: 0,
     paddingHorizontal: 16, paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1, borderBottomColor: '#DBEAFE',
-    shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12, shadowRadius: 8, elevation: 6,
+    backgroundColor: 'rgba(8,20,60,0.95)',
+    borderBottomWidth: 1, borderBottomColor: 'rgba(99,179,237,0.25)',
+    shadowColor: COLORS.teal, shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3, shadowRadius: 8, elevation: 6,
   },
   routeBannerInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  routeBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  routeBannerDist: { fontFamily: FONTS.bold, fontSize: 15, color: '#3B82F6' },
-  routeBannerDivider: { width: 1, height: 14, backgroundColor: '#CBD5E1', marginHorizontal: 4 },
-  routeBannerTime: { fontFamily: FONTS.medium, fontSize: 13, color: '#64748B' },
+  routeBannerLeft:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  routeBannerDist:  { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.teal },
+  routeBannerDivider: { width: 1, height: 12, backgroundColor: 'rgba(99,179,237,0.3)', marginHorizontal: 4 },
+  routeBannerTime:    { fontFamily: FONTS.medium, fontSize: 11, color: 'rgba(191,215,255,0.7)' },
   routeBannerClose: {
     paddingHorizontal: 14, paddingVertical: 6,
-    backgroundColor: '#EFF6FF', borderRadius: 8,
-    borderWidth: 1, borderColor: '#BFDBFE',
+    backgroundColor: 'rgba(99,179,237,0.15)', borderRadius: 8,
+    borderWidth: 1, borderColor: 'rgba(99,179,237,0.35)',
   },
-  routeBannerCloseText: { fontFamily: FONTS.bold, fontSize: 12, color: '#3B82F6' },
+  routeBannerCloseText: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.teal },
 
-  // Bottom Sheet
+  // ── Bottom Sheet (glass card) ─────────────────────────────────────────────
   bottomSheet: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    backgroundColor: 'rgba(8,20,60,0.96)',
+    borderTopLeftRadius: 26, borderTopRightRadius: 26,
     paddingHorizontal: SPACING.lg, paddingTop: 12,
-    borderTopWidth: 1, borderTopColor: '#C3D8FF',
-    shadowColor: '#1A56DB', shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.12, shadowRadius: 18, elevation: 20,
+    borderTopWidth: 1.5, borderTopColor: 'rgba(99,179,237,0.3)',
+    shadowColor: COLORS.accent,
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.35, shadowRadius: 20, elevation: 24,
   },
-  dragHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#C3D8FF', alignSelf: 'center', marginBottom: 16 },
+  dragHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: 'rgba(99,179,237,0.5)',
+    alignSelf: 'center', marginBottom: 14,
+  },
   cardClose: { position: 'absolute', top: 20, right: 20 },
   cardCloseCircle: {
     width: 30, height: 30, borderRadius: 15,
-    backgroundColor: '#EEF3FF', justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: '#C3D8FF',
+    backgroundColor: 'rgba(99,179,237,0.15)',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(99,179,237,0.35)',
   },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
   spotTypeBadge: {
     flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start',
-    borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4,
-    borderWidth: 1, marginBottom: 10,
+    borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1,
   },
-  spotTypeBadgeText: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1 },
-  spotName: { fontFamily: FONTS.bold, fontSize: 20, color: COLORS.text, marginBottom: 6, paddingRight: 36, lineHeight: 26 },
-  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 },
-  spotLocation: { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: COLORS.accent, flexShrink: 1 },
-  divider: { height: 1, backgroundColor: '#C3D8FF', marginBottom: 10 },
-  spotDesc: { fontFamily: FONTS.regular, fontSize: SIZES.fontSm, color: COLORS.textSub, lineHeight: 20, marginBottom: 14 },
+  spotTypeBadgeText: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 0.5 },
+  lockedBadgePill: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(239,68,68,0.15)', borderColor: 'rgba(239,68,68,0.45)',
+    borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4,
+  },
+  lockedBadgeText:   { fontFamily: FONTS.bold, fontSize: 10, color: '#EF4444', letterSpacing: 0.5 },
+  unlockedBadgePill: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(16,185,129,0.15)', borderColor: 'rgba(16,185,129,0.4)',
+    borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4,
+  },
+  unlockedBadgeText: { fontFamily: FONTS.bold, fontSize: 10, color: '#10B981', letterSpacing: 0.5 },
+  xpRewardPill: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(245,158,11,0.15)', borderColor: 'rgba(245,158,11,0.4)',
+    borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4,
+  },
+  xpRewardPillText: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.gold, letterSpacing: 0.5 },
+  lockedAlertCard: {
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderColor: 'rgba(239,68,68,0.35)',
+    borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 12,
+  },
+  lockedAlertTop:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  lockedAlertTitle:  { fontFamily: FONTS.bold, fontSize: 12, color: '#EF4444', letterSpacing: 0.5 },
+  lockedAlertText:   { fontFamily: FONTS.regular, fontSize: 12, color: 'rgba(191,215,255,0.8)', lineHeight: 17, marginBottom: 6 },
+  lockedAlertFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  lockedAlertXpHint: { fontFamily: FONTS.medium, fontSize: 11, color: 'rgba(191,215,255,0.6)' },
+  spotName:          { fontFamily: FONTS.bold, fontSize: 16, color: '#fff', marginBottom: 5, paddingRight: 36, lineHeight: 22 },
+  locationRow:       { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 },
+  spotLocation:      { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: COLORS.teal, flexShrink: 1 },
+  divider:           { height: 1, backgroundColor: 'rgba(99,179,237,0.2)', marginBottom: 10 },
+  spotDesc:          { fontFamily: FONTS.regular, fontSize: SIZES.fontSm, color: 'rgba(191,215,255,0.7)', lineHeight: 20, marginBottom: 14 },
 
-  // Directions Button
+  // ── Directions Button ─────────────────────────────────────────────────────
   directionsBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#3B82F6',
+    backgroundColor: COLORS.accent,
     borderRadius: 14, paddingVertical: 14,
-    shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
+    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5, shadowRadius: 12, elevation: 8,
   },
-  directionsBtnLoading: { backgroundColor: '#93C5FD' },
-  directionsBtnText: { fontFamily: FONTS.bold, fontSize: 15, color: '#FFFFFF' },
+  directionsBtnLoading: { backgroundColor: 'rgba(26,86,219,0.5)' },
+  directionsBtnText:    { fontFamily: FONTS.bold, fontSize: 13, color: '#FFFFFF' },
 
-  // ── Proximity Popup ───────────────────────────────────────────────────────
-  proximityPopup: {
-    position: 'absolute',
-    bottom: 20,
-    left: 16,
-    right: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: RADIUS.lg,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-    elevation: 30,
-    zIndex: 9999,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  proximityAccentBar: {
-    height: 3,
-    width: '100%',
-  },
-  proximityInner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 14,
-    gap: 12,
-  },
-  proximityIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 1.5,
+  // ── Proximity Modal (centered) ────────────────────────────────────────────
+  proximityModalOverlay: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    flexShrink: 0,
+    backgroundColor: 'rgba(4,10,38,0.70)',
+    paddingHorizontal: 24,
   },
-  proximityIconEmoji: {
-    fontSize: 22,
+  proximityPopup: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: 'rgba(8,20,60,0.97)',
+    borderRadius: RADIUS.lg, overflow: 'hidden',
+    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5, shadowRadius: 20, elevation: 30,
+    borderWidth: 1.5, borderColor: 'rgba(99,179,237,0.35)',
   },
-  proximityContent: {
-    flex: 1,
+  proximityAccentBar:  { height: 3, width: '100%' },
+  proximityInner:      { flexDirection: 'row', alignItems: 'flex-start', padding: 14, gap: 12 },
+  proximityIconCircle: {
+    width: 44, height: 44, borderRadius: 22,
+    borderWidth: 1.5, justifyContent: 'center', alignItems: 'center', flexShrink: 0,
   },
+  proximityIconEmoji: { fontSize: 20 },
+  proximityContent:   { flex: 1 },
   proximityBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-start',
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    marginBottom: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-start',
+    borderRadius: RADIUS.pill, borderWidth: 1,
+    paddingVertical: 2, paddingHorizontal: 7, marginBottom: 5,
   },
-  proximityBadgeText: {
-    fontFamily: FONTS.bold,
-    fontSize: 9,
-    letterSpacing: 1,
-  },
+  proximityBadgeText: { fontFamily: FONTS.bold, fontSize: 8, letterSpacing: 0.8 },
   proximitySpotName: {
-    fontFamily: FONTS.pixel,
-    fontSize: 9,
-    color: COLORS.text,
-    lineHeight: 15,
-    marginBottom: 5,
+    fontFamily: FONTS.bold,
+    fontSize: 13, color: '#fff', lineHeight: 18, marginBottom: 4,
   },
   proximityDesc: {
-    fontFamily: FONTS.regular,
-    fontSize: 11,
-    color: COLORS.textSub,
-    lineHeight: 16,
-    marginBottom: 10,
+    fontFamily: FONTS.regular, fontSize: 10,
+    color: 'rgba(191,215,255,0.65)', lineHeight: 15, marginBottom: 10,
   },
-  proximityActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  proximityGotItBtn: {
-    borderRadius: RADIUS.pill,
-    paddingVertical: 7,
-    paddingHorizontal: 16,
-  },
-  proximityGotItText: {
-    fontFamily: FONTS.bold,
-    fontSize: 11,
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
+  proximityActionsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  proximityGotItBtn: { borderRadius: RADIUS.pill, paddingVertical: 6, paddingHorizontal: 14 },
+  proximityGotItText: { fontFamily: FONTS.bold, fontSize: 10, color: '#fff', letterSpacing: 0.4 },
   proximityViewBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingVertical: 6, paddingHorizontal: 10,
+    borderRadius: RADIUS.pill, borderWidth: 1,
+    borderColor: 'rgba(99,179,237,0.35)',
   },
-  proximityViewText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 11,
-    letterSpacing: 0.3,
-  },
+  proximityViewText: { fontFamily: FONTS.semiBold, fontSize: 10, letterSpacing: 0.3 },
 });
+
+

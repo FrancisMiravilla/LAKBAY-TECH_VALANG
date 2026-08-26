@@ -9,11 +9,12 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Circle, Defs, LinearGradient, Stop, Polygon } from 'react-native-svg';
-import { COLORS, FONTS, RADIUS } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import VintaStripe from '../components/VintaStripe';
 import { authService } from '../api/authService';
 import { getMyScans, getSpots, getARTargets, ORIGIN } from '../api/qrService';
@@ -148,8 +149,8 @@ function XPRing({ size, progressPct, level, rank, currentLevelXp }) {
               <Stop offset="1" stopColor="#FBBF24" stopOpacity="1" />
             </LinearGradient>
             <LinearGradient id="trackGrad" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor={COLORS.accentBorder} stopOpacity="0.3" />
-              <Stop offset="1" stopColor={COLORS.border} stopOpacity="0.15" />
+              <Stop offset="0" stopColor="rgba(99,179,237,0.35)" stopOpacity="0.3" />
+              <Stop offset="1" stopColor="rgba(99,179,237,0.15)" stopOpacity="0.15" />
             </LinearGradient>
           </Defs>
           <Circle cx={center} cy={center} r={radius} stroke="url(#trackGrad)" strokeWidth={strokeWidth} fill="transparent" />
@@ -168,7 +169,7 @@ function XPRing({ size, progressPct, level, rank, currentLevelXp }) {
         </Svg>
         <View style={styles.ringInner}>
           <Text style={styles.rankIcon}>{rank.icon}</Text>
-          <Text style={[styles.levelLabel, { color: COLORS.textMuted }]}>LEVEL</Text>
+          <Text style={[styles.levelLabel, { color: 'rgba(191,215,255,0.7)' }]}>LEVEL</Text>
           <Text style={[styles.levelNumber, { color: rank.color }]}>{level}</Text>
           <Text style={[styles.rankTitle, { color: rank.color }]}>{rank.title}</Text>
         </View>
@@ -196,9 +197,9 @@ function MilestonedBar({ pct, color }) {
               left: `${m * 100}%`,
               width: 10, height: 10,
               borderRadius: 5,
-              backgroundColor: achieved ? color : COLORS.bgSurface,
+              backgroundColor: achieved ? color : 'rgba(8,20,60,0.9)',
               borderWidth: 2,
-              borderColor: achieved ? color : COLORS.border,
+              borderColor: achieved ? color : 'rgba(99,179,237,0.4)',
               marginLeft: -5,
             }} />
           );
@@ -267,18 +268,6 @@ function QuestCard({ icon, title, sub, pct, color, questLabel }) {
   );
 }
 
-// ─── Locked Badge ────────────────────────────────────────────────────────────
-function LockedBadge() {
-  return (
-    <View style={styles.lockedBadgeWrap}>
-      <HexBadge size={76} borderColor={COLORS.border} glowColor="rgba(100,116,139,0.2)">
-        <Text style={{ fontSize: 26, opacity: 0.5 }}>🔒</Text>
-      </HexBadge>
-      <Text style={styles.lockedLabel}>Locked</Text>
-    </View>
-  );
-}
-
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function BadgesScreen() {
   const [profile, setProfile]                   = useState(null);
@@ -286,6 +275,7 @@ export default function BadgesScreen() {
   const [totalSpots, setTotalSpots]             = useState(12);
   const [loading, setLoading]                   = useState(true);
   const [collectedModels, setCollectedModels]   = useState([]);
+  const [caughtIcons, setCaughtIcons]           = useState([]);
   const [activeTab, setActiveTab]               = useState('progress');
 
   useFocusEffect(
@@ -293,26 +283,60 @@ export default function BadgesScreen() {
       let isActive = true;
       const fetchData = async () => {
         try {
-          const [p, s, spotsData, collectedModelsStr, arTargetsData] = await Promise.all([
+          const [p, s, spotsData, collectedModelsStr, arTargetsData, caughtIconsStr, storedUid, storedCatchUid] = await Promise.all([
             authService.getProfile(),
             getMyScans(),
             getSpots().catch(() => []),
             SecureStore.getItemAsync('collected_models').catch(() => null),
             getARTargets().catch(() => []),
+            SecureStore.getItemAsync('caught_icons').catch(() => null),
+            SecureStore.getItemAsync('collected_models_uid').catch(() => null),
+            SecureStore.getItemAsync('caught_icons_uid').catch(() => null),
           ]);
           if (isActive) {
             setProfile(p);
             setScans(s?.scans || []);
             if (spotsData?.length > 0) setTotalSpots(spotsData.length);
+
+            const currentUid = String(p?.id || '');
+
+            // ── AR collected models ──
             if (collectedModelsStr) {
-              let storedModels = JSON.parse(collectedModelsStr);
-              const targets = Array.isArray(arTargetsData) ? arTargetsData : (arTargetsData?.results || []);
-              storedModels = storedModels.map(m => {
-                const t = targets.find(t => t.id === m.id);
-                if (t && t.model_3d) m.model_3d = resolveModelUrl(t.model_3d);
-                return m;
-              });
-              setCollectedModels(storedModels);
+              if (!storedUid || storedUid === currentUid) {
+                let storedModels = JSON.parse(collectedModelsStr);
+                const targets = Array.isArray(arTargetsData) ? arTargetsData : (arTargetsData?.results || []);
+                storedModels = storedModels.map(m => {
+                  const t = targets.find(t => t.id === m.id);
+                  if (t && t.model_3d) m.model_3d = resolveModelUrl(t.model_3d);
+                  return m;
+                });
+                setCollectedModels(storedModels);
+                if (!storedUid && currentUid) {
+                  SecureStore.setItemAsync('collected_models_uid', currentUid).catch(() => {});
+                }
+              } else {
+                await SecureStore.deleteItemAsync('collected_models');
+                await SecureStore.deleteItemAsync('collected_models_uid');
+                setCollectedModels([]);
+              }
+            } else {
+              setCollectedModels([]);
+            }
+
+            // ── Caught icons (Catch & Win) ──
+            if (caughtIconsStr) {
+              if (!storedCatchUid || storedCatchUid === currentUid) {
+                setCaughtIcons(JSON.parse(caughtIconsStr));
+                if (!storedCatchUid && currentUid) {
+                  SecureStore.setItemAsync('caught_icons_uid', currentUid).catch(() => {});
+                }
+              } else {
+                await SecureStore.deleteItemAsync('caught_icons');
+                await SecureStore.deleteItemAsync('caught_icons_uid');
+                setCaughtIcons([]);
+              }
+            } else {
+              setCaughtIcons([]);
             }
           }
         } catch (err) {
@@ -332,22 +356,23 @@ export default function BadgesScreen() {
   const progressPct    = currentLevelXp / 100;
   const rank           = getRank(level);
 
-  const scansCount = scans.length;
-  const arDone     = scans.filter(s => s.unlock_type === 'ar').length;
-  const pctQR      = totalSpots > 0 ? scansCount / totalSpots : 0;
-  const pctAR      = arDone / 5;
+  const scansCount     = scans.length;
+  const arDone         = collectedModels.length;
+  const collectedCount = caughtIcons.length;
+  const pctQR          = totalSpots > 0 ? scansCount / totalSpots : 0;
+  const pctAR          = Math.min(1, arDone / 5);
 
   const STATS = [
     { icon: '⚡', value: xp.toLocaleString(),               label: 'XP Earned',   color: COLORS.gold    },
     { icon: '🔍', value: scansCount.toString(),              label: 'QR Scanned',  color: COLORS.teal    },
     { icon: '📸', value: arDone.toString(),                  label: 'AR Explored', color: COLORS.accent  },
-    { icon: '🏅', value: collectedModels.length.toString(),  label: 'Collected',   color: '#E05A47'      },
+    { icon: '🏅', value: collectedCount.toString(),          label: 'Collected',   color: '#E05A47'      },
   ];
 
   const QUESTS = [
-    { icon: '🔍', title: 'QR Explorer',   questLabel: 'QUEST', sub: `${scansCount} / ${totalSpots} locations scanned`,           pct: pctQR,                         color: COLORS.teal   },
-    { icon: '📸', title: 'AR Adventurer', questLabel: 'QUEST', sub: `${arDone} / 5 museum AR experiences`,                       pct: pctAR,                         color: COLORS.accent },
-    { icon: '🏆', title: 'Collector',     questLabel: 'QUEST', sub: `${collectedModels.length} / 4 cultural symbols caught`,      pct: collectedModels.length / 4,    color: COLORS.gold   },
+    { icon: '🔍', title: 'QR Explorer',   questLabel: 'QUEST', sub: `${scansCount} / ${totalSpots} locations scanned`,           pct: pctQR,                       color: COLORS.teal   },
+    { icon: '📸', title: 'AR Adventurer', questLabel: 'QUEST', sub: `${arDone} / 5 museum AR experiences`,                       pct: pctAR,                       color: COLORS.accent },
+    { icon: '🏆', title: 'Collector',     questLabel: 'QUEST', sub: `${collectedCount} / 4 cultural symbols caught`,              pct: Math.min(1, collectedCount / 4), color: COLORS.gold   },
   ];
 
   const MILESTONES = [
@@ -360,231 +385,318 @@ export default function BadgesScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
-        <Text style={{ fontFamily: FONTS.medium, color: COLORS.textMuted, marginTop: 12 }}>Loading your journey...</Text>
-      </View>
+      <ImageBackground
+        source={require('../../reference/VINTA.jpeg')}
+        style={styles.bgImage}
+        resizeMode="cover"
+      >
+        <View style={styles.bgOverlay} />
+        <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color={COLORS.gold} />
+          <Text style={{ fontFamily: FONTS.medium, color: 'rgba(191,215,255,0.85)', marginTop: 12 }}>Syncing your journey...</Text>
+        </SafeAreaView>
+      </ImageBackground>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.navy} />
+    <ImageBackground
+      source={require('../../reference/VINTA.jpeg')}
+      style={styles.bgImage}
+      resizeMode="cover"
+    >
+      <View style={styles.bgOverlay} />
 
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>My Journey</Text>
-          <Text style={styles.headerSub}>Track your Zamboanga explorations</Text>
-        </View>
-        <View style={[styles.rankPill, { borderColor: rank.color + '88', backgroundColor: rank.color + '18' }]}>
-          <Text style={styles.rankPillIcon}>{rank.icon}</Text>
-          <Text style={[styles.rankPillText, { color: rank.color }]}>{rank.title}</Text>
-        </View>
-      </View>
-      <VintaStripe height={5} />
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-
-        {/* ── XP Hero ── */}
-        <View style={styles.heroSection}>
-          <View style={styles.heroBg} />
-          <XPRing size={160} progressPct={progressPct} level={level} rank={rank} currentLevelXp={currentLevelXp} />
-          <View style={[styles.milestoneRibbon, { borderColor: nextMilestone.color + '55', backgroundColor: nextMilestone.color + '12' }]}>
-            <Text style={styles.milestoneRibbonIcon}>🎯</Text>
-            <Text style={[styles.milestoneRibbonText, { color: nextMilestone.color }]}>
-              {xp >= nextMilestone.xpNeeded
-                ? 'All milestones reached!'
-                : `${nextMilestone.xpNeeded - xp} XP until ${nextMilestone.reward}`}
-            </Text>
+        {/* ── Header ── */}
+        <View style={styles.header}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle}>MY JOURNEY</Text>
+            <Text style={styles.headerSub}>EXPEDITION RANKS &amp; TROPHIES</Text>
+          </View>
+          <View style={[styles.rankPill, { borderColor: rank.color + '88', backgroundColor: rank.color + '22' }]}>
+            <Text style={styles.rankPillIcon}>{rank.icon}</Text>
+            <Text style={[styles.rankPillText, { color: rank.color }]}>{rank.title}</Text>
           </View>
         </View>
+        <VintaStripe height={3} />
 
-        {/* ── Stats ── */}
-        <View style={styles.statsSection}>
-          <View style={styles.statsGrid}>
-            {STATS.map(s => (
-              <StatCard key={s.label} icon={s.icon} value={s.value} label={s.label} color={s.color} />
-            ))}
-          </View>
-        </View>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
-        {/* ── Tab Switcher ── */}
-        <View style={styles.tabBar}>
-          {[
-            { key: 'progress',   label: '⚔️  Quests'     },
-            { key: 'collection', label: '🧩  Collection' },
-          ].map(tab => (
-            <TouchableOpacity
-              key={tab.key}
-              style={[styles.tabBtn, activeTab === tab.key && styles.tabBtnActive]}
-              onPress={() => setActiveTab(tab.key)}
-              activeOpacity={0.75}
-            >
-              <Text style={[styles.tabBtnText, activeTab === tab.key && styles.tabBtnTextActive]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* ── Quests Tab ── */}
-        {activeTab === 'progress' && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Active Quests</Text>
-              <View style={styles.sectionBadge}>
-                <Text style={styles.sectionBadgeText}>{QUESTS.filter(q => q.pct < 1).length} active</Text>
+          {/* ── XP Hero Glass Section ── */}
+          <View style={styles.heroSection}>
+            <View style={styles.heroGlassCard}>
+              <XPRing size={160} progressPct={progressPct} level={level} rank={rank} currentLevelXp={currentLevelXp} />
+              <View style={[styles.milestoneRibbon, { borderColor: nextMilestone.color + '55', backgroundColor: nextMilestone.color + '18' }]}>
+                <Text style={styles.milestoneRibbonIcon}>🎯</Text>
+                <Text style={[styles.milestoneRibbonText, { color: nextMilestone.color }]}>
+                  {xp >= nextMilestone.xpNeeded
+                    ? 'All milestones reached!'
+                    : `${nextMilestone.xpNeeded - xp} XP until ${nextMilestone.reward}`}
+                </Text>
               </View>
             </View>
-            {QUESTS.map(q => (
-              <QuestCard key={q.title} {...q} />
-            ))}
+          </View>
 
-            {/* XP Milestones */}
-            <View style={styles.milestoneSection}>
-              <Text style={[styles.sectionTitle, { marginBottom: 12 }]}>XP Milestones</Text>
-              {MILESTONES.map((m, i) => {
-                const achieved = xp >= m.xpNeeded;
-                return (
-                  <View key={i} style={[styles.milestoneRow, i === MILESTONES.length - 1 && { borderBottomWidth: 0 }]}>
-                    <View style={[styles.milestoneDot, { backgroundColor: achieved ? m.color : COLORS.bgSurface, borderColor: achieved ? m.color : COLORS.border }]}>
-                      {achieved && <Text style={{ fontSize: 10 }}>✓</Text>}
-                    </View>
-                    <View style={{ flex: 1, marginHorizontal: 12 }}>
-                      <Text style={[styles.milestoneReward, { color: achieved ? m.color : COLORS.textSub }]}>{m.reward}</Text>
-                      <Text style={styles.milestoneXp}>{m.xpNeeded.toLocaleString()} XP required</Text>
-                    </View>
-                    {achieved ? (
-                      <View style={[styles.achievedPill, { backgroundColor: m.color + '22', borderColor: m.color + '66' }]}>
-                        <Text style={[styles.achievedText, { color: m.color }]}>Earned!</Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.milestoneGap}>-{(m.xpNeeded - xp).toLocaleString()} XP</Text>
-                    )}
-                  </View>
-                );
-              })}
+          {/* ── Stats ── */}
+          <View style={styles.statsSection}>
+            <View style={styles.statsGrid}>
+              {STATS.map(s => (
+                <StatCard key={s.label} icon={s.icon} value={s.value} label={s.label} color={s.color} />
+              ))}
             </View>
           </View>
-        )}
 
-        {/* ── Collection Tab ── */}
-        {activeTab === 'collection' && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Collected Models</Text>
-              <View style={[styles.sectionBadge, { backgroundColor: COLORS.goldSoft, borderColor: COLORS.gold + '55' }]}>
-                <Text style={[styles.sectionBadgeText, { color: COLORS.gold }]}>{collectedModels.length} Collected</Text>
+          {/* ── Tab Switcher ── */}
+          <View style={styles.tabBar}>
+            {[
+              { key: 'progress',   label: '⚔️  Quests'     },
+              { key: 'collection', label: '🧩  Collection' },
+            ].map(tab => (
+              <TouchableOpacity
+                key={tab.key}
+                style={[styles.tabBtn, activeTab === tab.key && styles.tabBtnActive]}
+                onPress={() => setActiveTab(tab.key)}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.tabBtnText, activeTab === tab.key && styles.tabBtnTextActive]}>
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* ── Quests Tab ── */}
+          {activeTab === 'progress' && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Active Quests</Text>
+                <View style={styles.sectionBadge}>
+                  <Text style={styles.sectionBadgeText}>{QUESTS.filter(q => q.pct < 1).length} active</Text>
+                </View>
               </View>
-            </View>
+              {QUESTS.map(q => (
+                <QuestCard key={q.title} {...q} />
+              ))}
 
-            {collectedModels.length > 0 ? (
-              <View style={styles.badgesGrid}>
-                {collectedModels.map((b, idx) => {
-                  const rarityStr = (b.rarity || 'common').toUpperCase();
-                  const rarityColor = b.color || (rarityStr === 'LEGENDARY' ? '#F59E0B' : rarityStr === 'MYTHICAL' ? '#A855F7' : rarityStr === 'RARE' ? '#3B82F6' : '#10B981');
+              {/* XP Milestones */}
+              <View style={styles.milestoneSection}>
+                <Text style={[styles.sectionTitle, { marginBottom: 12 }]}>XP Milestones</Text>
+                {MILESTONES.map((m, i) => {
+                  const achieved = xp >= m.xpNeeded;
                   return (
-                  <View key={b.id || b.name || idx} style={styles.badgeItem}>
-                    <HexBadge size={84} borderColor={rarityColor} glowColor={rarityColor + '33'}>
-                      {b.model_3d ? (
-                        <View pointerEvents="none" style={{ width: 58, height: 58, borderRadius: 29, overflow: 'hidden' }}>
-                          <WebView
-                            source={{ html: build3DViewerHTML(b.model_3d) }}
-                            style={{ flex: 1, backgroundColor: 'transparent' }}
-                            javaScriptEnabled
-                            originWhitelist={['*']}
-                            scrollEnabled={false}
-                          />
+                    <View key={i} style={[styles.milestoneRow, i === MILESTONES.length - 1 && { borderBottomWidth: 0 }]}>
+                      <View style={[styles.milestoneDot, { backgroundColor: achieved ? m.color : 'rgba(255,255,255,0.06)', borderColor: achieved ? m.color : 'rgba(99,179,237,0.3)' }]}>
+                        {achieved && <Text style={{ fontSize: 10, color: '#fff' }}>✓</Text>}
+                      </View>
+                      <View style={{ flex: 1, marginHorizontal: 12 }}>
+                        <Text style={[styles.milestoneReward, { color: achieved ? m.color : 'rgba(255,255,255,0.7)' }]}>{m.reward}</Text>
+                        <Text style={styles.milestoneXp}>{m.xpNeeded.toLocaleString()} XP required</Text>
+                      </View>
+                      {achieved ? (
+                        <View style={[styles.achievedPill, { backgroundColor: m.color + '22', borderColor: m.color + '66' }]}>
+                          <Text style={[styles.achievedText, { color: m.color }]}>Earned!</Text>
                         </View>
                       ) : (
-                        <Text style={styles.badgeEmoji}>{b.emoji || '🏺'}</Text>
+                        <Text style={styles.milestoneGap}>-{(m.xpNeeded - xp).toLocaleString()} XP</Text>
                       )}
-                    </HexBadge>
-                    <View style={[styles.rarityStrip, { backgroundColor: rarityColor }]} />
-                    <Text style={styles.badgeLabel} numberOfLines={1}>{b.name}</Text>
-                    <Text style={[styles.badgeRarity, { color: rarityColor }]}>✦ {rarityStr}</Text>
-                    <Text style={{ fontSize: 9, fontFamily: FONTS.medium, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>
-                      Building {b.building || 'S1'} · Slot #{b.slot_number || 1}/10
-                    </Text>
-                  </View>
+                    </View>
                   );
                 })}
               </View>
-            ) : (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateEmoji}>🗺️</Text>
-                <Text style={styles.emptyStateTitle}>No models yet</Text>
-                <Text style={styles.emptyStateSub}>
-                  Explore Zamboanga's cultural sites and scan AR markers to collect 3D models!
-                </Text>
-                <View style={styles.emptyHint}>
-                  <Text style={styles.emptyHintText}>💡 Scan AR markers at museums to unlock models</Text>
+            </View>
+          )}
+
+          {/* ── Collection Tab ── */}
+          {activeTab === 'collection' && (
+            <View style={styles.section}>
+
+              {/* ── Catch & Win Collection ── */}
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>🏆 Catch &amp; Win</Text>
+                <View style={[styles.sectionBadge, { backgroundColor: 'rgba(251,191,36,0.18)', borderColor: 'rgba(251,191,36,0.45)' }]}>
+                  <Text style={[styles.sectionBadgeText, { color: COLORS.gold }]}>{caughtIcons.length} / 4</Text>
                 </View>
               </View>
-            )}
-          </View>
-        )}
 
-        <View style={{ height: 50 }} />
-      </ScrollView>
-    </SafeAreaView>
+              {caughtIcons.length > 0 ? (
+                <View style={styles.badgesGrid}>
+                  {caughtIcons.map((b, idx) => {
+                    const iconColor = b.color || '#A855F7';
+                    return (
+                      <View key={String(b.id) + idx} style={styles.badgeItem}>
+                        <HexBadge size={84} borderColor={iconColor} glowColor={iconColor + '33'}>
+                          {b.model_3d ? (
+                            <View pointerEvents="none" style={{ width: 58, height: 58, borderRadius: 29, overflow: 'hidden' }}>
+                              <WebView
+                                source={{ html: build3DViewerHTML(b.model_3d) }}
+                                style={{ flex: 1, backgroundColor: 'transparent' }}
+                                javaScriptEnabled
+                                originWhitelist={['*']}
+                                scrollEnabled={false}
+                              />
+                            </View>
+                          ) : (
+                            <Text style={styles.badgeEmoji}>🏺</Text>
+                          )}
+                        </HexBadge>
+                        <View style={[styles.rarityStrip, { backgroundColor: iconColor }]} />
+                        <Text style={styles.badgeLabel} numberOfLines={1}>{b.name}</Text>
+                        <Text style={[styles.badgeRarity, { color: iconColor }]}>✦ CAUGHT</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateEmoji}>🎯</Text>
+                  <Text style={styles.emptyStateTitle}>No icons caught yet</Text>
+                  <Text style={styles.emptyStateSub}>
+                    Visit the 4 cultural icon spots around Zamboanga City to catch them!
+                  </Text>
+                  <View style={styles.emptyHint}>
+                    <Text style={styles.emptyHintText}>💡 Go to Catch &amp; Win to start collecting</Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Divider */}
+              <View style={{ height: 1, backgroundColor: 'rgba(99,179,237,0.15)', marginVertical: 20 }} />
+
+              {/* ── AR Exhibit Collection ── */}
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>📸 AR Exhibit</Text>
+                <View style={[styles.sectionBadge, { backgroundColor: 'rgba(26,86,219,0.22)', borderColor: 'rgba(99,179,237,0.45)' }]}>
+                  <Text style={[styles.sectionBadgeText, { color: COLORS.accent }]}>{collectedModels.length} Scanned</Text>
+                </View>
+              </View>
+
+              {collectedModels.length > 0 ? (
+                <View style={styles.badgesGrid}>
+                  {collectedModels.map((b, idx) => {
+                    const rarityStr = (b.rarity || 'common').toUpperCase();
+                    const rarityColor = b.color || (rarityStr === 'LEGENDARY' ? '#F59E0B' : rarityStr === 'MYTHICAL' ? '#A855F7' : rarityStr === 'RARE' ? '#3B82F6' : '#10B981');
+                    return (
+                      <View key={b.id || b.name || idx} style={styles.badgeItem}>
+                        <HexBadge size={84} borderColor={rarityColor} glowColor={rarityColor + '33'}>
+                          {b.model_3d ? (
+                            <View pointerEvents="none" style={{ width: 58, height: 58, borderRadius: 29, overflow: 'hidden' }}>
+                              <WebView
+                                source={{ html: build3DViewerHTML(b.model_3d) }}
+                                style={{ flex: 1, backgroundColor: 'transparent' }}
+                                javaScriptEnabled
+                                originWhitelist={['*']}
+                                scrollEnabled={false}
+                              />
+                            </View>
+                          ) : (
+                            <Text style={styles.badgeEmoji}>{b.emoji || '🎨'}</Text>
+                          )}
+                        </HexBadge>
+                        <View style={[styles.rarityStrip, { backgroundColor: rarityColor }]} />
+                        <Text style={styles.badgeLabel} numberOfLines={1}>{b.name}</Text>
+                        <Text style={[styles.badgeRarity, { color: rarityColor }]}>✦ {rarityStr}</Text>
+                        <Text style={{ fontSize: 9, fontFamily: FONTS.medium, color: 'rgba(191,215,255,0.7)', marginTop: 1 }}>
+                          Building {b.building || 'S1'} · Slot #{b.slot_number || 1}/10
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateEmoji}>🗺️</Text>
+                  <Text style={styles.emptyStateTitle}>No AR models yet</Text>
+                  <Text style={styles.emptyStateSub}>
+                    Scan AR markers at the National Museum exhibits to collect 3D models!
+                  </Text>
+                  <View style={styles.emptyHint}>
+                    <Text style={styles.emptyHintText}>💡 Scan AR markers at museums to unlock models</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+
+          <View style={{ height: 50 }} />
+        </ScrollView>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+  bgImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  bgOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(4, 10, 38, 0.85)',
+  },
+  container: { flex: 1, backgroundColor: 'transparent' },
 
   // Header
   header: {
-    height: 72,
-    backgroundColor: COLORS.navy,
+    height: 64,
+    backgroundColor: 'rgba(8, 20, 60, 0.70)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(99, 179, 237, 0.20)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   headerTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 21,
-    color: '#fff',
-    letterSpacing: 0.5,
+    fontFamily: FONTS.pixel,
+    fontSize: 11,
+    color: '#FFFFFF',
+    letterSpacing: 2,
+    lineHeight: 18,
   },
   headerSub: {
-    fontFamily: FONTS.regular,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.55)',
+    fontFamily: FONTS.medium,
+    fontSize: 9,
+    color: 'rgba(191,215,255,0.70)',
+    letterSpacing: 1.5,
     marginTop: 1,
   },
   rankPill: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: RADIUS.pill,
     paddingHorizontal: 10,
     paddingVertical: 5,
     gap: 5,
   },
-  rankPillIcon: { fontSize: 14 },
-  rankPillText: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 0.5 },
+  rankPillIcon: { fontSize: 13 },
+  rankPillText: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 0.5 },
 
   scroll: { paddingBottom: 20 },
 
   // Hero
   heroSection: {
     alignItems: 'center',
-    paddingTop: 28,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
   },
-  heroBg: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0,
-    height: 200,
-    backgroundColor: COLORS.bgCardAlt,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+  heroGlassCard: {
+    width: '100%',
+    backgroundColor: 'rgba(8, 20, 60, 0.60)',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 179, 237, 0.25)',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    overflow: 'hidden',
+    ...SHADOW.accent,
   },
   ringInner: {
     position: 'absolute',
@@ -592,17 +704,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     top: 0, bottom: 0, left: 0, right: 0,
   },
-  rankIcon: { fontSize: 20, marginBottom: -2 },
+  rankIcon: { fontSize: 22, marginBottom: -2 },
   levelLabel: {
     fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: COLORS.textMuted,
+    fontSize: 9,
     letterSpacing: 3,
   },
   levelNumber: {
     fontFamily: FONTS.black,
-    fontSize: 50,
-    lineHeight: 56,
+    fontSize: 48,
+    lineHeight: 52,
   },
   rankTitle: {
     fontFamily: FONTS.semiBold,
@@ -612,9 +723,9 @@ const styles = StyleSheet.create({
   },
   xpSubtext: {
     fontFamily: FONTS.medium,
-    fontSize: 13,
-    color: COLORS.textMuted,
-    marginTop: 14,
+    fontSize: 12,
+    color: 'rgba(191,215,255,0.80)',
+    marginTop: 12,
     letterSpacing: 0.4,
   },
   milestoneRibbon: {
@@ -625,64 +736,56 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     gap: 8,
-    marginTop: 12,
+    marginTop: 14,
   },
-  milestoneRibbonIcon: { fontSize: 14 },
-  milestoneRibbonText: { fontFamily: FONTS.semiBold, fontSize: 12, letterSpacing: 0.3 },
+  milestoneRibbonIcon: { fontSize: 13 },
+  milestoneRibbonText: { fontFamily: FONTS.semiBold, fontSize: 11, letterSpacing: 0.3 },
 
   // Stats
-  statsSection: { paddingHorizontal: 16, marginBottom: 18, marginTop: 8 },
+  statsSection: { paddingHorizontal: 16, marginBottom: 16 },
   statsGrid: { flexDirection: 'row', gap: 8 },
   statCard: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.sm,
+    backgroundColor: 'rgba(8, 20, 60, 0.60)',
+    borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(99, 179, 237, 0.22)',
     overflow: 'hidden',
-    shadowColor: '#1A56DB',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    ...SHADOW.accent,
   },
-  statTopBar: { height: 4 },
+  statTopBar: { height: 3 },
   statCardBody: { paddingVertical: 10, paddingHorizontal: 6, alignItems: 'center' },
-  statIcon: { fontSize: 18, marginBottom: 3 },
-  statValue: { fontFamily: FONTS.black, fontSize: 20, lineHeight: 24 },
-  statLabel: { fontFamily: FONTS.medium, fontSize: 9, color: COLORS.textMuted, textAlign: 'center', marginTop: 3, letterSpacing: 0.3 },
+  statIcon: { fontSize: 16, marginBottom: 2 },
+  statValue: { fontFamily: FONTS.black, fontSize: 18, lineHeight: 22 },
+  statLabel: { fontFamily: FONTS.medium, fontSize: 9, color: 'rgba(191,215,255,0.70)', textAlign: 'center', marginTop: 2, letterSpacing: 0.3 },
 
   // Tabs
   tabBar: {
     flexDirection: 'row',
     marginHorizontal: 16,
-    marginBottom: 18,
-    backgroundColor: COLORS.bgSurface,
-    borderRadius: RADIUS.md,
+    marginBottom: 16,
+    backgroundColor: 'rgba(8, 20, 60, 0.50)',
+    borderRadius: RADIUS.pill,
     padding: 4,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(99, 179, 237, 0.20)',
   },
   tabBtn: {
     flex: 1,
-    paddingVertical: 9,
-    borderRadius: RADIUS.sm,
+    paddingVertical: 8,
+    borderRadius: RADIUS.pill,
     alignItems: 'center',
   },
   tabBtnActive: {
-    backgroundColor: COLORS.navy,
-    shadowColor: COLORS.navy,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
+    backgroundColor: COLORS.accent,
+    ...SHADOW.accent,
   },
   tabBtnText: {
     fontFamily: FONTS.semiBold,
-    fontSize: 13,
-    color: COLORS.textMuted,
+    fontSize: 12,
+    color: 'rgba(191,215,255,0.60)',
     letterSpacing: 0.3,
   },
-  tabBtnTextActive: { color: '#fff' },
+  tabBtnTextActive: { color: '#FFFFFF', fontFamily: FONTS.bold },
 
   // Section
   section: { paddingHorizontal: 16, gap: 12 },
@@ -694,69 +797,65 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: FONTS.bold,
-    fontSize: 16,
-    color: COLORS.text,
+    fontSize: 15,
+    color: '#FFFFFF',
     letterSpacing: 0.3,
   },
   sectionBadge: {
-    backgroundColor: COLORS.accentSoft,
+    backgroundColor: 'rgba(26,86,219,0.20)',
     borderWidth: 1,
-    borderColor: COLORS.accentBorder,
+    borderColor: 'rgba(99,179,237,0.35)',
     borderRadius: RADIUS.pill,
     paddingHorizontal: 10,
     paddingVertical: 3,
   },
   sectionBadgeText: {
     fontFamily: FONTS.bold,
-    fontSize: 11,
+    fontSize: 10,
     color: COLORS.accent,
     letterSpacing: 0.3,
   },
 
   // Quest Card
   questCard: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(8, 20, 60, 0.60)',
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(99, 179, 237, 0.22)',
     padding: 16,
-    shadowColor: '#1A56DB',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    elevation: 3,
     overflow: 'hidden',
+    ...SHADOW.accent,
   },
   questCardComplete: {
     borderColor: COLORS.teal + '55',
-    backgroundColor: COLORS.teal + '08',
+    backgroundColor: 'rgba(16, 185, 129, 0.10)',
   },
   completedBadge: {
     position: 'absolute',
     top: 10, right: 10,
-    backgroundColor: COLORS.teal + '22',
+    backgroundColor: 'rgba(16,185,129,0.20)',
     borderWidth: 1,
-    borderColor: COLORS.teal + '66',
+    borderColor: 'rgba(16,185,129,0.50)',
     borderRadius: RADIUS.pill,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
   completedBadgeText: {
     fontFamily: FONTS.bold,
-    fontSize: 9,
+    fontSize: 8,
     color: COLORS.teal,
     letterSpacing: 1,
   },
   questHeader: { flexDirection: 'row', alignItems: 'center' },
   questIconWrap: {
-    width: 44, height: 44,
+    width: 42, height: 42,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  questIcon: { fontSize: 22 },
-  questTitle: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.text },
+  questIcon: { fontSize: 20 },
+  questTitle: { fontFamily: FONTS.bold, fontSize: 13, color: '#FFFFFF' },
   questTypePill: {
     borderWidth: 1,
     borderRadius: RADIUS.pill,
@@ -764,53 +863,54 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   questTypeText: { fontFamily: FONTS.bold, fontSize: 8, letterSpacing: 1 },
-  questSub: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
-  questPct: { fontFamily: FONTS.black, fontSize: 16 },
+  questSub: { fontFamily: FONTS.regular, fontSize: 11, color: 'rgba(191,215,255,0.70)', marginTop: 2 },
+  questPct: { fontFamily: FONTS.black, fontSize: 14 },
 
   // Progress bar
   progressBarBg: {
-    height: 10,
-    backgroundColor: COLORS.bgSurface,
-    borderRadius: 5,
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 4,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: 'rgba(99,179,237,0.20)',
   },
-  progressBarFill: { height: '100%', borderRadius: 5 },
+  progressBarFill: { height: '100%', borderRadius: 4 },
 
   // Milestone track
   milestoneSection: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(8, 20, 60, 0.60)',
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(99, 179, 237, 0.22)',
     padding: 16,
     marginTop: 4,
+    ...SHADOW.accent,
   },
   milestoneRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
+    borderBottomColor: 'rgba(99, 179, 237, 0.15)',
   },
   milestoneDot: {
-    width: 24, height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
+    width: 22, height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  milestoneReward: { fontFamily: FONTS.semiBold, fontSize: 13 },
-  milestoneXp: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textMuted, marginTop: 1 },
+  milestoneReward: { fontFamily: FONTS.semiBold, fontSize: 12 },
+  milestoneXp: { fontFamily: FONTS.regular, fontSize: 10, color: 'rgba(191,215,255,0.65)', marginTop: 1 },
   achievedPill: {
     borderWidth: 1,
     borderRadius: RADIUS.pill,
     paddingHorizontal: 9,
     paddingVertical: 3,
   },
-  achievedText: { fontFamily: FONTS.bold, fontSize: 10 },
-  milestoneGap: { fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textFaint },
+  achievedText: { fontFamily: FONTS.bold, fontSize: 9 },
+  milestoneGap: { fontFamily: FONTS.medium, fontSize: 10, color: 'rgba(191,215,255,0.50)' },
 
   // Badges grid
   badgesGrid: {
@@ -820,62 +920,58 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingTop: 8,
   },
-  badgeItem: { alignItems: 'center', width: 90 },
-  rarityStrip: { height: 3, width: 50, borderRadius: 2, marginTop: 6, marginBottom: 4 },
-  badgeEmoji: { fontSize: 32 },
+  badgeItem: { alignItems: 'center', width: 92 },
+  rarityStrip: { height: 3, width: 44, borderRadius: 2, marginTop: 6, marginBottom: 4 },
+  badgeEmoji: { fontSize: 30 },
   badgeLabel: {
     fontFamily: FONTS.bold,
     fontSize: 11,
-    color: COLORS.textSub,
+    color: '#FFFFFF',
     textAlign: 'center',
   },
   badgeRarity: {
     fontFamily: FONTS.semiBold,
-    fontSize: 9,
-    color: COLORS.gold,
+    fontSize: 8.5,
     letterSpacing: 1.5,
     marginTop: 2,
-  },
-  lockedBadgeWrap: { alignItems: 'center', width: 90 },
-  lockedLabel: {
-    fontFamily: FONTS.medium,
-    fontSize: 11,
-    color: COLORS.textFaint,
-    marginTop: 8,
   },
 
   // Empty state
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 32,
     paddingHorizontal: 20,
+    backgroundColor: 'rgba(8, 20, 60, 0.45)',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 179, 237, 0.18)',
   },
-  emptyStateEmoji: { fontSize: 56, marginBottom: 16 },
+  emptyStateEmoji: { fontSize: 48, marginBottom: 12 },
   emptyStateTitle: {
     fontFamily: FONTS.bold,
-    fontSize: 20,
-    color: COLORS.text,
-    marginBottom: 8,
+    fontSize: 16,
+    color: '#FFFFFF',
+    marginBottom: 6,
   },
   emptyStateSub: {
     fontFamily: FONTS.regular,
-    fontSize: 13,
-    color: COLORS.textMuted,
+    fontSize: 12,
+    color: 'rgba(191,215,255,0.75)',
     textAlign: 'center',
-    lineHeight: 19,
+    lineHeight: 18,
   },
   emptyHint: {
-    marginTop: 20,
-    backgroundColor: COLORS.goldSoft,
+    marginTop: 16,
+    backgroundColor: 'rgba(251,191,36,0.12)',
     borderWidth: 1,
-    borderColor: COLORS.gold + '55',
-    borderRadius: RADIUS.md,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderColor: 'rgba(251,191,36,0.35)',
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
   },
   emptyHintText: {
     fontFamily: FONTS.semiBold,
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.gold,
     textAlign: 'center',
   },

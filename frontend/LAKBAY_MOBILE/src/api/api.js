@@ -51,6 +51,14 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         await SecureStore.deleteItemAsync('accessToken');
         await SecureStore.deleteItemAsync('refreshToken');
+        await SecureStore.deleteItemAsync('offline_fullName');
+        await SecureStore.deleteItemAsync('offline_email');
+        await SecureStore.deleteItemAsync('offline_explorerName');
+        await SecureStore.deleteItemAsync('offline_character');
+        await SecureStore.deleteItemAsync('collected_models');
+        await SecureStore.deleteItemAsync('collected_models_uid');
+        await SecureStore.deleteItemAsync('caught_icons');
+        await SecureStore.deleteItemAsync('caught_icons_uid');
         return Promise.reject(refreshError);
       }
     }

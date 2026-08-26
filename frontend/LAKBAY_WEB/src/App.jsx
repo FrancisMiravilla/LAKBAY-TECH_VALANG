@@ -220,6 +220,8 @@ const normalizeSpot = (s) => ({
   hook: s.hook || '',
   feature_types: s.feature_types || [],
   model_3d: s.model_3d || null,
+  required_level: s.required_level || 1,
+  xp_reward: s.xp_reward || 50,
   images: [s.image, s.image2, s.image3].filter(img => img).map(img => {
     if (img.startsWith('/media')) return `http://localhost:8000${img}`;
     return img;
@@ -286,6 +288,8 @@ function App() {
     featureTypes: ['qr'],
     images: ['', '', ''],
     model_3d: null,
+    required_level: 1,
+    xp_reward: 50,
     is_featured: false,
   });
 
@@ -993,11 +997,13 @@ function App() {
         image2: newSpot.images[1] || null,
         image3: newSpot.images[2] || null,
         model_3d: newSpot.model_3d || null,
+        required_level: parseInt(newSpot.required_level) || 1,
+        xp_reward: parseInt(newSpot.xp_reward) || 50,
         is_featured: newSpot.is_featured,
       });
       setSpots(prev => [...prev, normalizeSpot(data)]);
       setIsAddSpotModalOpen(false);
-      setNewSpot({ name: '', location_name: '', latitude: '', longitude: '', description: '', historical_background: '', cultural_significance: '', fun_fact: '', hook: '', featureTypes: ['qr'], images: ['', '', ''], model_3d: null, is_featured: false });
+      setNewSpot({ name: '', location_name: '', latitude: '', longitude: '', description: '', historical_background: '', cultural_significance: '', fun_fact: '', hook: '', featureTypes: ['qr'], images: ['', '', ''], model_3d: null, required_level: 1, xp_reward: 50, is_featured: false });
       setNotifications(prev => [{ id: Date.now(), text: `Spot "${data.name}" created.`, time: 'Just now' }, ...prev]);
     } catch (err) {
       console.error(err);
@@ -1019,6 +1025,8 @@ function App() {
         fun_fact: editingSpot.fun_fact || '',
         hook: (editingSpot.feature_types || []).includes('catch') ? (editingSpot.hook || '') : '',
         feature_types: editingSpot.feature_types || [],
+        required_level: parseInt(editingSpot.required_level) || 1,
+        xp_reward: parseInt(editingSpot.xp_reward) || 50,
         ...(editingSpot.images?.[0]?.startsWith('data:') && { image: editingSpot.images[0] }),
         ...(editingSpot.images?.[1]?.startsWith('data:') && { image2: editingSpot.images[1] }),
         ...(editingSpot.images?.[2]?.startsWith('data:') && { image3: editingSpot.images[2] }),
@@ -1931,6 +1939,8 @@ function App() {
                     <tr>
                       <th>Spot Name</th>
                       <th>Location</th>
+                      <th>Req. Level</th>
+                      <th>XP Reward</th>
                       <th>Status</th>
                       <th>Actions</th>
                     </tr>
@@ -1938,7 +1948,7 @@ function App() {
                   <tbody>
                     {filteredSpots.filter(s => s.is_featured).length === 0 ? (
                       <tr>
-                        <td colSpan="4" style={{textAlign: 'center', padding: '32px 0', color: 'var(--text-secondary)'}}>
+                        <td colSpan="6" style={{textAlign: 'center', padding: '32px 0', color: 'var(--text-secondary)'}}>
                           No feature places match the filters or search query.
                         </td>
                       </tr>
@@ -1947,6 +1957,24 @@ function App() {
                         <tr key={spot.id}>
                           <td style={{fontWeight: 700, color: 'var(--text-title)'}}>{spot.name}</td>
                           <td>{spot.location}</td>
+                          <td>
+                            {spot.feature_types?.includes('qr') ? (
+                              <span className="badge" style={{ backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#0284C7', border: '1px solid rgba(56, 189, 248, 0.35)', fontWeight: 700 }}>
+                                LVL {spot.required_level || 1}
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>—</span>
+                            )}
+                          </td>
+                          <td>
+                            {spot.feature_types?.includes('qr') ? (
+                              <span className="badge" style={{ backgroundColor: 'rgba(251, 191, 36, 0.15)', color: '#D97706', border: '1px solid rgba(251, 191, 36, 0.35)', fontWeight: 700 }}>
+                                +{spot.xp_reward || 50} XP
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>—</span>
+                            )}
+                          </td>
                           <td>
                             {(() => {
                               const cfg = PIN_TYPE_CONFIG[(spot.feature_types && spot.feature_types[0]) || 'qr'] || PIN_TYPE_CONFIG.qr;
@@ -2341,7 +2369,7 @@ function App() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingBottom: '16px', borderBottom: '1px solid var(--card-border)' }}>
 
                       {/* Feature type badges */}
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                         {(selectedMapPin.feature_types || []).map(t => (
                           <span key={t} style={{ fontSize: '10px', fontWeight: 800, padding: '4px 10px', borderRadius: '6px', backgroundColor: PIN_TYPE_CONFIG[t]?.color + '22', color: PIN_TYPE_CONFIG[t]?.color, border: `1px solid ${PIN_TYPE_CONFIG[t]?.color}55`, display: 'flex', alignItems: 'center', gap: '4px' }}>
                             {t === 'qr' && <QrCode size={11} />}
@@ -2350,6 +2378,16 @@ function App() {
                             {PIN_TYPE_CONFIG[t]?.label}
                           </span>
                         ))}
+                        {(selectedMapPin.feature_types || []).includes('qr') && (
+                          <>
+                            <span style={{ fontSize: '10px', fontWeight: 800, padding: '4px 10px', borderRadius: '6px', backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#0284C7', border: '1px solid rgba(56, 189, 248, 0.35)' }}>
+                              🔒 UNLOCK LVL {selectedMapPin.required_level || 1}
+                            </span>
+                            <span style={{ fontSize: '10px', fontWeight: 800, padding: '4px 10px', borderRadius: '6px', backgroundColor: 'rgba(251, 191, 36, 0.15)', color: '#D97706', border: '1px solid rgba(251, 191, 36, 0.35)' }}>
+                              ⚡ +{selectedMapPin.xp_reward || 50} XP
+                            </span>
+                          </>
+                        )}
                       </div>
 
                       {/* Name */}
@@ -3746,7 +3784,28 @@ function App() {
                     </>
                   )}
 
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gridColumn: newSpot.featureTypes?.includes('catch') ? '1 / -1' : 'auto' }}>
+                  {newSpot.featureTypes?.includes('qr') && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', gridColumn: '1 / -1' }}>
+                      <div className="form-group">
+                        <label className="form-label" style={{ color: PIN_TYPE_CONFIG.qr.color }}>Unlock Level Required <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(Explorer Level for QR Scan)</span></label>
+                        <input type="number" min="1" max="50" className="form-input" placeholder="e.g. 1 (Unlocked immediately) or 6"
+                          value={newSpot.required_level || 1} onChange={(e) => setNewSpot({...newSpot, required_level: parseInt(e.target.value) || 1})} required={newSpot.featureTypes?.includes('qr')} />
+                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                          Users must reach this Explorer Level to unlock QR scanning and view full lore for this spot.
+                        </p>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label" style={{ color: PIN_TYPE_CONFIG.qr.color }}>XP Reward <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(Awarded on QR Scan)</span></label>
+                        <input type="number" min="10" step="5" className="form-input" placeholder="e.g. 50 XP"
+                          value={newSpot.xp_reward || 50} onChange={(e) => setNewSpot({...newSpot, xp_reward: parseInt(e.target.value) || 50})} required={newSpot.featureTypes?.includes('qr')} />
+                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                          Experience points (XP) credited to explorer profile upon first successful QR scan.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gridColumn: '1 / -1' }}>
                     <label className="form-label">Visibility Options</label>
                     <div style={{ marginTop: '8px', padding: '16px', border: '1px solid var(--card-border)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <input type="checkbox" id="isFeatured" style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
@@ -3958,7 +4017,28 @@ function App() {
                     </>
                   )}
 
-                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gridColumn: editingSpot.feature_types?.includes('catch') ? '1 / -1' : 'auto' }}>
+                  {editingSpot.feature_types?.includes('qr') && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', gridColumn: '1 / -1' }}>
+                      <div className="form-group">
+                        <label className="form-label" style={{ color: PIN_TYPE_CONFIG.qr.color }}>Unlock Level Required <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(Explorer Level for QR Scan)</span></label>
+                        <input type="number" min="1" max="50" className="form-input" placeholder="e.g. 1 or 6"
+                          value={editingSpot.required_level || 1} onChange={(e) => setEditingSpot({...editingSpot, required_level: parseInt(e.target.value) || 1})} required={editingSpot.feature_types?.includes('qr')} />
+                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                          Users must reach this Explorer Level to unlock QR scanning and view full lore for this spot.
+                        </p>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label" style={{ color: PIN_TYPE_CONFIG.qr.color }}>XP Reward <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(Awarded on QR Scan)</span></label>
+                        <input type="number" min="10" step="5" className="form-input" placeholder="e.g. 50 XP"
+                          value={editingSpot.xp_reward || 50} onChange={(e) => setEditingSpot({...editingSpot, xp_reward: parseInt(e.target.value) || 50})} required={editingSpot.feature_types?.includes('qr')} />
+                        <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                          Experience points (XP) credited to explorer profile upon first successful QR scan.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gridColumn: '1 / -1' }}>
                     <label className="form-label">Visibility Options</label>
                     <div style={{ marginTop: '8px', padding: '16px', border: '1px solid var(--card-border)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <input type="checkbox" id="editIsFeatured" style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--accent-primary)' }}

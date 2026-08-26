@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity,
   StatusBar, ScrollView, ActivityIndicator,
-  Animated, Dimensions, Modal, Platform,
+  Animated, Dimensions, Modal, Platform, ImageBackground,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
@@ -13,7 +13,9 @@ import { WebView } from 'react-native-webview';
 import * as SecureStore from 'expo-secure-store';
 import { useApp } from '../context/AppContext';
 import { getCatchIcons, getSpots, ORIGIN } from '../api/qrService';
+import { authService } from '../api/authService';
 import ErrorModal from '../components/ErrorModal';
+import VintaStripe from '../components/VintaStripe';
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -734,14 +736,16 @@ export default function CatchScreen({ navigation }) {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   const [collectedModelIds, setCollectedModelIds] = useState(new Set());
+  const [caughtIcons, setCaughtIcons] = useState([]);
 
   // ── Load data & collected models ───────────────────────────────────────────
   useEffect(() => {
-    SecureStore.getItemAsync('collected_models')
+    SecureStore.getItemAsync('caught_icons')
       .then(str => {
         if (str) {
           try {
             const arr = JSON.parse(str);
+            setCaughtIcons(arr);
             const ids = new Set(arr.map(m => String(m.id || m.name)));
             setCollectedModelIds(ids);
           } catch {}
@@ -878,9 +882,35 @@ export default function CatchScreen({ navigation }) {
     setNearbySpot(null);
   }, [nearbySpot]);
 
-  const handleARContinue = useCallback(() => {
+  const handleARContinue = useCallback(async () => {
     setArVisible(false);
     if (arIcon) {
+      // Save caught icon to SecureStore so BadgesScreen can show it in Collection
+      try {
+        const existingStr = await SecureStore.getItemAsync('caught_icons');
+        let caught = existingStr ? JSON.parse(existingStr) : [];
+        const alreadyCaught = caught.some(c => String(c.id) === String(arIcon.id));
+        if (!alreadyCaught) {
+          caught.push({
+            id: arIcon.id,
+            name: arIcon.name,
+            model_3d: arIcon.model_3d || null,
+            color: arIcon.color || '#A855F7',
+            tagline: arIcon.tagline || '',
+          });
+          await SecureStore.setItemAsync('caught_icons', JSON.stringify(caught));
+          // Tag the cache with the current user's ID so stale data from other users is ignored
+          try {
+            const profile = await authService.getProfile();
+            if (profile?.id) {
+              await SecureStore.setItemAsync('caught_icons_uid', String(profile.id));
+            }
+          } catch (_) {}
+        }
+      } catch (e) {
+        console.warn('[CatchScreen] Failed to save caught icon:', e);
+      }
+
       addNotification({
         type: 'catch',
         icon: '✨',
@@ -892,273 +922,335 @@ export default function CatchScreen({ navigation }) {
   }, [arIcon, arSpot, navigation, addNotification]);
 
   // ── Render ──────────────────────────────────────────────────────────────────
+  const totalCatchIcons = icons.length > 0 ? icons.length : 4;
+  const caughtCount = caughtIcons.length;
+  const progressPct = totalCatchIcons > 0 ? (caughtCount / totalCatchIcons) * 100 : 0;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+    <ImageBackground
+      source={require('../../reference/VINTA.jpeg')}
+      style={styles.bgImage}
+      resizeMode="cover"
+    >
+      <View style={styles.bgOverlay} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Ionicons name="sparkles" size={20} color={COLORS.gold} style={{ marginRight: 6 }} />
-          <View>
-            <Text style={styles.logoTitle}>LAKBAY</Text>
-            <Text style={styles.logoSub}>ZAMBOANGA CITY</Text>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+
+        {/* ── Header ── */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Ionicons name="sparkles" size={18} color={COLORS.gold} style={{ marginRight: 6 }} />
+            <View>
+              <Text style={styles.logoTitle}>LAKBAY</Text>
+              <Text style={styles.logoSub}>ZAMBOANGA CITY</Text>
+            </View>
           </View>
-        </View>
-        <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('Notifications')}>
-          <Ionicons name="notifications-outline" size={20} color="#FFF" />
-          {notifs.some(n => !n.read) && <View style={styles.unreadBadge} />}
-        </TouchableOpacity>
-      </View>
-
-      {/* Sub Header */}
-      <View style={styles.subHeader}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={20} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.subHeaderTitle}>CATCH</Text>
-        {/* GPS Status pill */}
-        <View style={[styles.gpsPill, userLocation ? styles.gpsPillActive : styles.gpsPillInactive]}>
-          <View style={[styles.gpsDot, { backgroundColor: userLocation ? '#22C55E' : '#94A3B8' }]} />
-          <Text style={styles.gpsPillText}>
-            {userLocation
-              ? (userLocation.accuracy ? `GPS ±${Math.round(userLocation.accuracy)}m` : 'GPS ON')
-              : 'GPS...'}
-          </Text>
-        </View>
-      </View>
-
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.accent} />
-          <Text style={styles.loadingText}>Loading cultural icons…</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={42} color={COLORS.textMuted} />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => {
-            setLoading(true); setError(null);
-            Promise.all([getCatchIcons(), getSpots()])
-              .then(([iconData, spotData]) => {
-              const iconList = (Array.isArray(iconData) ? iconData : (iconData.results || [])).map(normalizeIcon);
-              const spotList = (Array.isArray(spotData) ? spotData : (spotData.results || [])).filter(s => {
-                if (!s.latitude || !s.longitude) return false;
-                if (Array.isArray(s.feature_types)) {
-                  return s.feature_types.some(f => f.toLowerCase().includes('catch'));
-                } else if (typeof s.feature_types === 'string') {
-                  return s.feature_types.toLowerCase().includes('catch');
-                }
-                return false;
-              });
-              setIcons(iconList);
-              setCatchSpots(spotList);
-              })
-              .catch(() => setError('Could not load catch data.'))
-              .finally(() => setLoading(false));
-          }}>
-            <Text style={styles.retryText}>Retry</Text>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => navigation.navigate('Notifications')}>
+            <Ionicons name="notifications-outline" size={20} color="#FFF" />
+            {notifs.some(n => !n.read) && <View style={styles.unreadBadge} />}
           </TouchableOpacity>
         </View>
-      ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        <VintaStripe height={3} />
 
-          {/* GPS Proximity Info Banner */}
-          <View style={styles.infoBanner}>
-            <Ionicons name="location" size={16} color="#3B82F6" style={{ marginRight: 8 }} />
-            <Text style={styles.infoBannerText}>
-              Walk within <Text style={styles.infoBannerBold}>{CATCH_RADIUS_METERS}m</Text> of a catch spot to unlock AR catch mode.
+        {/* ── Sub Header / Tactical HUD ── */}
+        <View style={styles.subHeader}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.8}>
+            <Ionicons name="arrow-back" size={20} color="#FFF" />
+          </TouchableOpacity>
+          <View style={styles.subHeaderTitleWrap}>
+            <Ionicons name="trophy" size={13} color={COLORS.gold} />
+            <Text style={styles.subHeaderTitle}>COLLECT &amp; WIN</Text>
+          </View>
+          {/* GPS Status pill */}
+          <View style={[styles.gpsPill, userLocation ? styles.gpsPillActive : styles.gpsPillInactive]}>
+            <View style={[styles.gpsDot, { backgroundColor: userLocation ? '#22C55E' : '#94A3B8' }]} />
+            <Text style={styles.gpsPillText}>
+              {userLocation
+                ? (userLocation.accuracy ? `GPS ±${Math.round(userLocation.accuracy)}m` : 'GPS LOCKED')
+                : 'GPS SEARCHING...'}
             </Text>
           </View>
-
-          {/* Catch Spots Map Preview */}
-          {catchSpots.length > 0 && (
-            <View style={styles.spotsCard}>
-              <View style={styles.sectionRow}>
-                <View style={styles.accentBar} />
-                <Text style={styles.sectionTitle}>Nearby Catch Zones</Text>
-              </View>
-              {catchSpots.map(spot => {
-                const dist = userLocation
-                  ? haversineDistance(userLocation.lat, userLocation.lng, spot.latitude, spot.longitude)
-                  : null;
-                const inRange = dist !== null && dist <= CATCH_RADIUS_METERS;
-                return (
-                  <TouchableOpacity 
-                    key={spot.id} 
-                    style={[styles.spotRow, inRange && styles.spotRowActive]}
-                    activeOpacity={inRange ? 0.7 : 1}
-                    onPress={() => {
-                      if (inRange) {
-                        let matchedIcon = null;
-                        if (icons.length > 0) {
-                          matchedIcon =
-                            icons.find(i => spot.name && i.name && spot.name.toLowerCase().includes(i.name.toLowerCase())) ||
-                            icons.find(i => spot.description && i.name && spot.description.toLowerCase().includes(i.name.toLowerCase())) ||
-                            icons[0];
-                        }
-                        
-                        if (!matchedIcon && spot.model_3d) {
-                          matchedIcon = {
-                            id: 'spot-icon-' + spot.id,
-                            name: spot.name || 'Unknown',
-                            model_3d: spot.model_3d,
-                            color: '#F59E0B',
-                            glow: '#F59E0B55'
-                          };
-                        }
-
-                        if (matchedIcon) {
-                          openAR(matchedIcon, spot);
-                        } else {
-                          showErr('No Icon', 'Could not load a 3D model for this spot.', 'warning');
-                        }
-                      }
-                    }}
-                  >
-                    <View style={[styles.spotDot, { backgroundColor: inRange ? '#22C55E' : '#64748B' }]} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.spotName}>{spot.name}</Text>
-                      <Text style={styles.spotLoc}>{spot.location_name}</Text>
-                    </View>
-                    {dist !== null && (
-                      <Text style={[styles.spotDist, inRange && { color: '#22C55E' }]}>
-                        {dist < 1000 ? `${Math.round(dist)}m` : `${(dist / 1000).toFixed(1)}km`}
-                      </Text>
-                    )}
-                    {inRange && (
-                      <View style={styles.inRangeBadge}>
-                        <Text style={styles.inRangeBadgeText}>TAP TO CATCH</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-
-          {/* Progress */}
-          <View style={styles.progressCard}>
-            <View style={styles.progressTopRow}>
-              <Text style={styles.progressLabel}>Collection Progress</Text>
-              <Text style={styles.progressValue}>
-                <Text style={styles.progressCaught}>0</Text>
-                {' '}/ {icons.filter(icon => icon.name.toLowerCase() !== 'curacha').length}
-              </Text>
-            </View>
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: '0%' }]} />
-            </View>
-          </View>
-
-          {/* Section heading */}
-          <View style={styles.sectionRow}>
-            <View style={styles.accentBar} />
-            <Text style={styles.sectionTitle}>How to Catch</Text>
-          </View>
-          <Text style={styles.sectionSub}>
-            Follow these steps to build your collection of Zamboanga's cultural heritage.
-          </Text>
-
-          {/* Guide Steps */}
-          <View style={{ marginTop: 10, gap: 12, marginBottom: 20 }}>
-            {[
-              { icon: 'map-outline', title: '1. Find Catch Zones', desc: 'Explore the map to discover areas where cultural icons spawn.' },
-              { icon: 'walk-outline', title: '2. Get Close', desc: 'Walk to the location until you are within catching range (30 meters).' },
-              { icon: 'camera-outline', title: '3. Capture in AR', desc: 'Tap the prompt to open your camera and capture the icon in Augmented Reality!' },
-              { icon: 'library-outline', title: '4. Collect & Learn', desc: 'Build your collection and learn the history and significance of each icon.' },
-            ].map((step, idx) => (
-              <View key={idx} style={{
-                flexDirection: 'row',
-                backgroundColor: COLORS.bgCard,
-                borderRadius: RADIUS.md,
-                padding: 16,
-                borderWidth: 1,
-                borderColor: COLORS.border,
-                alignItems: 'center',
-                gap: 16,
-                ...SHADOW.card
-              }}>
-                <View style={{
-                  width: 48, height: 48,
-                  borderRadius: 24,
-                  backgroundColor: COLORS.accent + '15',
-                  justifyContent: 'center', alignItems: 'center'
-                }}>
-                  <Ionicons name={step.icon} size={24} color={COLORS.accent} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: FONTS.bold, fontSize: 15, color: COLORS.text, marginBottom: 4 }}>
-                    {step.title}
-                  </Text>
-                  <Text style={{ fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textSub, lineHeight: 18 }}>
-                    {step.desc}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </ScrollView>
-      )}
-
-      {/* ── Proximity Bottom Sheet ── */}
-      {nearbySpot && (
-        <ProximitySheet
-          spot={nearbySpot.spot}
-          icon={nearbySpot.icon}
-          distanceM={nearbySpot.distanceM}
-          isAlreadyCaught={
-            collectedModelIds.has(String(nearbySpot.spot.id)) ||
-            collectedModelIds.has(String(nearbySpot.icon.name)) ||
-            collectedModelIds.has(String(nearbySpot.icon.id)) ||
-            collectedModelIds.has(String(nearbySpot.spot.name))
-          }
-          onCatch={() => openAR(nearbySpot.icon, nearbySpot.spot)}
-          onDismiss={handleProximityDismiss}
-        />
-      )}
-
-      {/* ── AR Fullscreen Overlay ── */}
-      <Modal visible={arVisible} animationType="fade" statusBarTranslucent onRequestClose={() => setArVisible(false)}>
-        <View style={{ flex: 1, backgroundColor: '#000' }}>
-          {arIcon && (
-            <ARCatchOverlay
-              icon={arIcon}
-              spot={arSpot}
-              userLocation={userLocation}
-              onContinue={handleARContinue}
-              onClose={() => setArVisible(false)}
-            />
-          )}
         </View>
-      </Modal>
 
-      {/* ── Error Modal ── */}
-      <ErrorModal
-        visible={errorModal.visible}
-        type={errorModal.type}
-        title={errorModal.title}
-        message={errorModal.message}
-        onClose={() => setErrorModal(prev => ({ ...prev, visible: false }))}
-      />
-    </SafeAreaView>
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={COLORS.gold} />
+            <Text style={styles.loadingText}>Calibrating Cultural GPS Radar…</Text>
+          </View>
+        ) : error ? (
+          <View style={styles.center}>
+            <Ionicons name="cloud-offline-outline" size={44} color="rgba(191,215,255,0.6)" />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={() => {
+              setLoading(true); setError(null);
+              Promise.all([getCatchIcons(), getSpots()])
+                .then(([iconData, spotData]) => {
+                  const iconList = (Array.isArray(iconData) ? iconData : (iconData.results || [])).map(normalizeIcon);
+                  const spotList = (Array.isArray(spotData) ? spotData : (spotData.results || [])).filter(s => {
+                    if (!s.latitude || !s.longitude) return false;
+                    if (Array.isArray(s.feature_types)) {
+                      return s.feature_types.some(f => f.toLowerCase().includes('catch'));
+                    } else if (typeof s.feature_types === 'string') {
+                      return s.feature_types.toLowerCase().includes('catch');
+                    }
+                    return false;
+                  });
+                  setIcons(iconList);
+                  setCatchSpots(spotList);
+                })
+                .catch(() => setError('Could not load catch data.'))
+                .finally(() => setLoading(false));
+            }}>
+              <Text style={styles.retryText}>RETRY EXPEDITION</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+            {/* ── Mission Proximity Radar Banner ── */}
+            <View style={styles.infoBanner}>
+              <View style={styles.infoIconCircle}>
+                <Ionicons name="radar-outline" size={20} color={COLORS.gold} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.infoBannerEyebrow}>PROXIMITY RADAR ACTIVE</Text>
+                <Text style={styles.infoBannerText}>
+                  Walk within <Text style={styles.infoBannerBold}>{CATCH_RADIUS_METERS}m</Text> of a landmark to engage AR Catch Mode and collect 3D cultural icons!
+                </Text>
+              </View>
+            </View>
+
+            {/* ── Collection Progress Card ── */}
+            <View style={styles.progressCard}>
+              <View style={styles.progressTopRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="medal-outline" size={16} color={COLORS.gold} />
+                  <Text style={styles.progressLabel}>CATCH COLLECTION</Text>
+                </View>
+                <View style={styles.progressCountBadge}>
+                  <Text style={styles.progressCaught}>{caughtCount}</Text>
+                  <Text style={styles.progressTotal}> / {totalCatchIcons} ICONS</Text>
+                </View>
+              </View>
+              <View style={styles.progressBarBg}>
+                <View style={[styles.progressBarFill, { width: `${progressPct}%` }]} />
+              </View>
+              <View style={styles.progressFooter}>
+                <Text style={styles.progressSubText}>
+                  {caughtCount === totalCatchIcons
+                    ? '🎉 Master Collector Trophy Achieved!'
+                    : `Collect ${totalCatchIcons - caughtCount} more icons to complete the set (+80 XP each)`}
+                </Text>
+              </View>
+            </View>
+
+            {/* ── Catch Spots Radar Preview ── */}
+            {catchSpots.length > 0 && (
+              <View style={styles.spotsCard}>
+                <View style={styles.sectionRow}>
+                  <View style={styles.accentBar} />
+                  <Text style={styles.sectionTitle}>Nearby Catch Targets</Text>
+                </View>
+
+                <View style={{ gap: 10, marginTop: 10 }}>
+                  {catchSpots.map(spot => {
+                    const dist = userLocation
+                      ? haversineDistance(userLocation.lat, userLocation.lng, spot.latitude, spot.longitude)
+                      : null;
+                    const inRange = dist !== null && dist <= CATCH_RADIUS_METERS;
+                    return (
+                      <TouchableOpacity 
+                        key={spot.id} 
+                        style={[styles.spotRow, inRange && styles.spotRowActive]}
+                        activeOpacity={inRange ? 0.75 : 1}
+                        onPress={() => {
+                          if (inRange) {
+                            let matchedIcon = null;
+                            if (icons.length > 0) {
+                              matchedIcon =
+                                icons.find(i => spot.name && i.name && spot.name.toLowerCase().includes(i.name.toLowerCase())) ||
+                                icons.find(i => spot.description && i.name && spot.description.toLowerCase().includes(i.name.toLowerCase())) ||
+                                icons[0];
+                            }
+                            
+                            if (!matchedIcon && spot.model_3d) {
+                              matchedIcon = {
+                                id: 'spot-icon-' + spot.id,
+                                name: spot.name || 'Unknown',
+                                model_3d: spot.model_3d,
+                                color: '#F59E0B',
+                                glow: '#F59E0B55'
+                              };
+                            }
+
+                            if (matchedIcon) {
+                              openAR(matchedIcon, spot);
+                            } else {
+                              showErr('No Icon', 'Could not load a 3D model for this spot.', 'warning');
+                            }
+                          }
+                        }}
+                      >
+                        <View style={[styles.spotDotWrap, { backgroundColor: inRange ? 'rgba(34,197,94,0.20)' : 'rgba(255,255,255,0.06)' }]}>
+                          <View style={[styles.spotDot, { backgroundColor: inRange ? '#22C55E' : COLORS.accent }]} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.spotName}>{spot.name}</Text>
+                          <Text style={styles.spotLoc} numberOfLines={1}>{spot.location_name || 'Zamboanga City'}</Text>
+                        </View>
+                        {dist !== null && (
+                          <Text style={[styles.spotDist, inRange && { color: '#22C55E' }]}>
+                            {dist < 1000 ? `${Math.round(dist)}m` : `${(dist / 1000).toFixed(1)}km`}
+                          </Text>
+                        )}
+                        {inRange && (
+                          <View style={styles.inRangeBadge}>
+                            <Text style={styles.inRangeBadgeText}>TAP TO CATCH</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* ── Field Guide / How to Catch ── */}
+            <View style={styles.guideCard}>
+              <View style={styles.sectionRow}>
+                <View style={[styles.accentBar, { backgroundColor: COLORS.gold }]} />
+                <Text style={styles.sectionTitle}>Expedition Protocol</Text>
+              </View>
+              <Text style={styles.sectionSub}>
+                Follow these 4 tactical steps to capture Zamboanga's rare cultural artifacts.
+              </Text>
+
+              <View style={{ gap: 10 }}>
+                {[
+                  { icon: 'map-outline',      num: '1', color: COLORS.accent, title: 'Locate Target Zones', desc: 'Scan the live map radar to find designated spawn zones.' },
+                  { icon: 'walk-outline',     num: '2', color: COLORS.teal,   title: 'Approach Within 30m', desc: 'Navigate until your proximity sensor turns green.' },
+                  { icon: 'camera-outline',   num: '3', color: COLORS.gold,   title: 'Engage AR Camera',    desc: 'Align your phone to project and capture the 3D model.' },
+                  { icon: 'library-outline',  num: '4', color: '#A855F7',     title: 'Claim Lore & +80 XP', desc: 'Unlock historical background, lore, and collector badges.' },
+                ].map((step, idx) => (
+                  <View key={idx} style={styles.guideStepRow}>
+                    <View style={[styles.guideStepIconWrap, { backgroundColor: step.color + '22', borderColor: step.color + '55' }]}>
+                      <Ionicons name={step.icon} size={20} color={step.color} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.guideStepTitle}>
+                        {step.num}. {step.title}
+                      </Text>
+                      <Text style={styles.guideStepDesc}>
+                        {step.desc}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+          </ScrollView>
+        )}
+
+        {/* ── Proximity Bottom Sheet ── */}
+        {nearbySpot && (
+          <ProximitySheet
+            spot={nearbySpot.spot}
+            icon={nearbySpot.icon}
+            distanceM={nearbySpot.distanceM}
+            isAlreadyCaught={
+              collectedModelIds.has(String(nearbySpot.spot.id)) ||
+              collectedModelIds.has(String(nearbySpot.icon.name)) ||
+              collectedModelIds.has(String(nearbySpot.icon.id)) ||
+              collectedModelIds.has(String(nearbySpot.spot.name))
+            }
+            onCatch={() => openAR(nearbySpot.icon, nearbySpot.spot)}
+            onDismiss={handleProximityDismiss}
+          />
+        )}
+
+        {/* ── AR Fullscreen Overlay ── */}
+        <Modal visible={arVisible} animationType="fade" statusBarTranslucent onRequestClose={() => setArVisible(false)}>
+          <View style={{ flex: 1, backgroundColor: '#000' }}>
+            {arIcon && (
+              <ARCatchOverlay
+                icon={arIcon}
+                spot={arSpot}
+                userLocation={userLocation}
+                onContinue={handleARContinue}
+                onClose={() => setArVisible(false)}
+              />
+            )}
+          </View>
+        </Modal>
+
+        {/* ── Error Modal ── */}
+        <ErrorModal
+          visible={errorModal.visible}
+          type={errorModal.type}
+          title={errorModal.title}
+          message={errorModal.message}
+          onClose={() => setErrorModal(prev => ({ ...prev, visible: false }))}
+        />
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+  bgImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  bgOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(4, 10, 38, 0.85)',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
 
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, height: 60, backgroundColor: COLORS.navy,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    height: 64,
+    backgroundColor: 'rgba(8, 20, 60, 0.70)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(99, 179, 237, 0.20)',
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center' },
-  logoTitle: { fontFamily: FONTS.pixel, fontSize: 9, color: '#FFF', letterSpacing: 1, lineHeight: 16 },
-  logoSub: { fontFamily: FONTS.medium, fontSize: 8, color: 'rgba(255,255,255,0.65)', letterSpacing: 1 },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logoTitle: {
+    fontFamily: FONTS.pixel,
+    fontSize: 10,
+    color: '#FFFFFF',
+    letterSpacing: 2,
+    lineHeight: 18,
+  },
+  logoSub: {
+    fontFamily: FONTS.medium,
+    fontSize: 9,
+    color: 'rgba(191,215,255,0.70)',
+    letterSpacing: 2,
+    marginTop: 1,
+  },
   headerBtn: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
   },
   unreadBadge: {
     position: 'absolute',
@@ -1173,95 +1265,332 @@ const styles = StyleSheet.create({
   },
 
   subHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, height: 48, backgroundColor: COLORS.navyMid,
-    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.08)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    height: 52,
+    backgroundColor: 'rgba(8, 20, 60, 0.50)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(99, 179, 237, 0.15)',
   },
-  backBtn: { width: 32, height: 32, justifyContent: 'center', alignItems: 'flex-start' },
-  subHeaderTitle: { fontFamily: FONTS.bold, fontSize: 14, color: '#FFF', letterSpacing: 1 },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  subHeaderTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  subHeaderTitle: {
+    fontFamily: FONTS.pixel,
+    fontSize: 10,
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
   gpsPill: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 20, borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
   },
-  gpsPillActive: { backgroundColor: '#22C55E18', borderColor: '#22C55E66' },
-  gpsPillInactive: { backgroundColor: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.15)' },
-  gpsDot: { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
-  gpsPillText: { fontFamily: FONTS.bold, fontSize: 10, color: '#FFF', letterSpacing: 0.5 },
+  gpsPillActive: {
+    backgroundColor: 'rgba(34,197,94,0.18)',
+    borderColor: 'rgba(34,197,94,0.45)',
+  },
+  gpsPillInactive: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  gpsDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  gpsPillText: {
+    fontFamily: FONTS.bold,
+    fontSize: 9,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
 
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
-  loadingText: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMuted, marginTop: 8 },
-  errorText: { fontFamily: FONTS.semiBold, fontSize: 13, color: COLORS.textMuted, textAlign: 'center' },
-  retryBtn: { marginTop: 8, paddingHorizontal: 24, paddingVertical: 10, borderRadius: RADIUS.md, backgroundColor: COLORS.accent },
-  retryText: { fontFamily: FONTS.bold, fontSize: 13, color: '#FFF' },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    gap: 12,
+  },
+  loadingText: {
+    fontFamily: FONTS.medium,
+    fontSize: 13,
+    color: 'rgba(191,215,255,0.85)',
+    marginTop: 8,
+  },
+  errorText: {
+    fontFamily: FONTS.semiBold,
+    fontSize: 13,
+    color: 'rgba(191,215,255,0.75)',
+    textAlign: 'center',
+  },
+  retryBtn: {
+    marginTop: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: RADIUS.pill,
+    backgroundColor: COLORS.accent,
+    ...SHADOW.accent,
+  },
+  retryText: {
+    fontFamily: FONTS.bold,
+    fontSize: 11,
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
 
-  scroll: { padding: 16, paddingBottom: 40 },
+  scroll: {
+    padding: 16,
+    paddingBottom: 40,
+  },
 
   infoBanner: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#EFF6FF', borderRadius: RADIUS.sm,
-    padding: 12, marginBottom: 16,
-    borderWidth: 1, borderColor: '#BFDBFE',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(8, 20, 60, 0.62)',
+    borderRadius: RADIUS.lg,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.35)',
+    gap: 14,
+    ...SHADOW.accent,
   },
-  infoBannerText: { flex: 1, fontFamily: FONTS.regular, fontSize: 12, color: '#1E40AF', lineHeight: 18 },
-  infoBannerBold: { fontFamily: FONTS.bold },
+  infoIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(251,191,36,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoBannerEyebrow: {
+    fontFamily: FONTS.bold,
+    fontSize: 9,
+    color: COLORS.gold,
+    letterSpacing: 1.5,
+    marginBottom: 2,
+  },
+  infoBannerText: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: 'rgba(191,215,255,0.85)',
+    lineHeight: 18,
+  },
+  infoBannerBold: {
+    fontFamily: FONTS.bold,
+    color: '#FFFFFF',
+  },
 
   spotsCard: {
-    backgroundColor: COLORS.bgCard, borderRadius: RADIUS.md,
-    borderWidth: 1, borderColor: COLORS.border,
-    padding: 16, marginBottom: 16, ...SHADOW.card,
+    backgroundColor: 'rgba(8, 20, 60, 0.60)',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 179, 237, 0.25)',
+    padding: 18,
+    marginBottom: 16,
+    ...SHADOW.accent,
   },
   spotRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(99,179,237,0.15)',
   },
-  spotRowActive: { backgroundColor: '#22C55E0A', borderRadius: 8, paddingHorizontal: 8 },
-  spotDot: { width: 8, height: 8, borderRadius: 4 },
-  spotName: { fontFamily: FONTS.semiBold, fontSize: 13, color: COLORS.text },
-  spotLoc: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
-  spotDist: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMuted },
+  spotRowActive: {
+    backgroundColor: 'rgba(34,197,94,0.15)',
+    borderColor: 'rgba(34,197,94,0.45)',
+  },
+  spotDotWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  spotDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  spotName: {
+    fontFamily: FONTS.bold,
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+  spotLoc: {
+    fontFamily: FONTS.regular,
+    fontSize: 11,
+    color: 'rgba(191,215,255,0.70)',
+    marginTop: 2,
+  },
+  spotDist: {
+    fontFamily: FONTS.bold,
+    fontSize: 12,
+    color: 'rgba(191,215,255,0.75)',
+  },
   inRangeBadge: {
-    backgroundColor: '#22C55E22', borderRadius: 6,
-    paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: '#22C55E66',
+    backgroundColor: '#22C55E',
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  inRangeBadgeText: { fontFamily: FONTS.bold, fontSize: 9, color: '#22C55E', letterSpacing: 0.5 },
+  inRangeBadgeText: {
+    fontFamily: FONTS.bold,
+    fontSize: 9,
+    color: '#08143C',
+    letterSpacing: 0.5,
+  },
 
   progressCard: {
-    backgroundColor: COLORS.bgCard, borderRadius: RADIUS.md,
-    padding: 16, marginBottom: 24,
-    borderWidth: 1, borderColor: COLORS.border, ...SHADOW.card,
+    backgroundColor: 'rgba(8, 20, 60, 0.60)',
+    borderRadius: RADIUS.lg,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 179, 237, 0.25)',
+    ...SHADOW.accent,
   },
-  progressTopRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  progressLabel: { fontFamily: FONTS.semiBold, fontSize: 13, color: COLORS.text },
-  progressValue: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.textMuted },
-  progressCaught: { color: COLORS.accent },
-  progressBarBg: { height: 6, backgroundColor: COLORS.bgSurface, borderRadius: 3, overflow: 'hidden' },
-  progressBarFill: { height: '100%', backgroundColor: COLORS.accent, borderRadius: 3 },
-
-  sectionRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  accentBar: { width: 3, height: 18, backgroundColor: COLORS.accent, borderRadius: 2, marginRight: 10 },
-  sectionTitle: { fontFamily: FONTS.bold, fontSize: 17, color: COLORS.text },
-  sectionSub: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMuted, marginBottom: 20, lineHeight: 18 },
-
-  emptyBox: { alignItems: 'center', gap: 10, paddingVertical: 40 },
-  emptyText: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMuted, textAlign: 'center' },
-
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  iconCard: {
-    width: '47.5%', backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.md, padding: 16, borderWidth: 1,
-    overflow: 'hidden', position: 'relative', ...SHADOW.card,
+  progressTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  cardGlow: { position: 'absolute', top: -30, right: -30, width: 100, height: 100, borderRadius: 50, opacity: 0.25 },
-  modelRing: {
-    width: 56, height: 56, borderRadius: 28,
-    borderWidth: 1.5, justifyContent: 'center', alignItems: 'center', marginBottom: 12,
+  progressLabel: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: COLORS.gold,
+    letterSpacing: 1.5,
   },
-  iconName: { fontFamily: FONTS.bold, fontSize: 16, marginBottom: 4 },
-  iconTagline: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textMuted, lineHeight: 16, marginBottom: 14 },
-  arrowBtn: {
-    alignSelf: 'flex-start', width: 28, height: 28, borderRadius: 14,
-    borderWidth: 1, justifyContent: 'center', alignItems: 'center',
+  progressCountBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(251,191,36,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.35)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.pill,
+  },
+  progressCaught: {
+    fontFamily: FONTS.black,
+    fontSize: 12,
+    color: COLORS.gold,
+  },
+  progressTotal: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.70)',
+  },
+  progressBarBg: {
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: COLORS.gold,
+    borderRadius: 4,
+  },
+  progressFooter: {
+    marginTop: 8,
+  },
+  progressSubText: {
+    fontFamily: FONTS.medium,
+    fontSize: 11,
+    color: 'rgba(191,215,255,0.75)',
+  },
+
+  guideCard: {
+    backgroundColor: 'rgba(8, 20, 60, 0.60)',
+    borderRadius: RADIUS.lg,
+    padding: 18,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 179, 237, 0.25)',
+    ...SHADOW.accent,
+  },
+  sectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  accentBar: {
+    width: 3,
+    height: 18,
+    backgroundColor: COLORS.accent,
+    borderRadius: 2,
+    marginRight: 10,
+  },
+  sectionTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    color: '#FFFFFF',
+  },
+  sectionSub: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: 'rgba(191,215,255,0.75)',
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  guideStepRow: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: RADIUS.md,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(99,179,237,0.15)',
+    alignItems: 'center',
+    gap: 14,
+  },
+  guideStepIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  guideStepTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 13,
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  guideStepDesc: {
+    fontFamily: FONTS.regular,
+    fontSize: 11,
+    color: 'rgba(191,215,255,0.70)',
+    lineHeight: 16,
   },
 });
 

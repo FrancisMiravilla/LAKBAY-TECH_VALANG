@@ -101,16 +101,32 @@ class ValidateQRView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        spot = marker.spot
+        user_xp = request.user.xp or 0
+        user_level = (user_xp // 100) + 1
+        req_level = getattr(spot, 'required_level', 1) or 1
+        xp_reward = getattr(spot, 'xp_reward', 50) or 50
+
+        # Enforce explorer level requirement
+        if user_level < req_level:
+            return Response({
+                'valid': False,
+                'locked': True,
+                'required_level': req_level,
+                'user_level': user_level,
+                'spot_name': spot.name,
+                'error': f'This spot is locked! In order for you to unlock, reach Level {req_level} by collecting more XP in other features (Your Level: {user_level}).'
+            }, status=status.HTTP_403_FORBIDDEN)
+
         _, created = QRScan.objects.get_or_create(user=request.user, qr_marker=marker)
         already_scanned = not created
 
         if created:
             QRMarker.objects.filter(pk=marker.pk).update(scan_count=F('scan_count') + 1)
-            # Award 50 XP for scanning a new QR code
-            request.user.__class__.objects.filter(pk=request.user.pk).update(xp=F('xp') + 50)
+            # Award custom XP for scanning this spot
+            request.user.__class__.objects.filter(pk=request.user.pk).update(xp=F('xp') + xp_reward)
             request.user.refresh_from_db(fields=['xp'])
 
-        spot = marker.spot
         image_url = request.build_absolute_uri(spot.image.url) if spot.image else None
         image2_url = request.build_absolute_uri(spot.image2.url) if getattr(spot, 'image2', None) else None
         image3_url = request.build_absolute_uri(spot.image3.url) if getattr(spot, 'image3', None) else None
@@ -122,6 +138,7 @@ class ValidateQRView(APIView):
             'unlock_type': marker.unlock_type,
             'bonus_creature': marker.bonus_creature,
             'has_trivia': has_trivia,
+            'xp_awarded': xp_reward if created else 0,
             'spot': {
                 'id': spot.id,
                 'name': spot.name,
@@ -129,6 +146,8 @@ class ValidateQRView(APIView):
                 'image': image_url,
                 'image2': image2_url,
                 'image3': image3_url,
+                'required_level': req_level,
+                'xp_reward': xp_reward,
                 'description': spot.description,
                 'historical': {
                     'label': 'HISTORICAL BACKGROUND',

@@ -4,7 +4,8 @@ from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, SpotBadge, T
 
 @admin.register(CulturalSpot)
 class CulturalSpotAdmin(admin.ModelAdmin):
-    list_display = ('name', 'location_name', 'latitude', 'longitude')
+    list_display = ('name', 'location_name', 'required_level', 'xp_reward', 'latitude', 'longitude')
+    list_filter = ('required_level', 'is_featured')
     search_fields = ('name', 'location_name')
 
 

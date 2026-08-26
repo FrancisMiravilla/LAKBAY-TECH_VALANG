@@ -418,9 +418,17 @@ export default function ViroARScanner({ navigation }) {
           emoji: rarityTheme.emoji || '🎨',
           color: rarityTheme.color,
           model_3d: target.model_3d ? resolveModelUrl(target.model_3d) : null,
+          source: 'ar',
         });
         await SecureStore.setItemAsync('collected_models', JSON.stringify(models));
-        
+        // Tag the cache with the current user's ID so stale data from other users is ignored
+        try {
+          const profile = await authService.getProfile();
+          if (profile?.id) {
+            await SecureStore.setItemAsync('collected_models_uid', String(profile.id));
+          }
+        } catch (_) {}
+
         // Award XP live to user profile
         authService.adjustXP(earnedXP).catch(err => console.warn('Failed to award AR XP:', err));
       } else {

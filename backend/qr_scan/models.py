@@ -24,6 +24,8 @@ class CulturalSpot(models.Model):
         null=True, blank=True,
     )
     is_featured = models.BooleanField(default=False)
+    required_level = models.PositiveIntegerField(default=1, help_text="Minimum explorer level required to unlock/scan this spot")
+    xp_reward = models.PositiveIntegerField(default=50, help_text="XP awarded to user upon scanning this spot")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

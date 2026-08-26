@@ -9,6 +9,7 @@ import {
   Animated,
   Easing,
   Dimensions,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -193,17 +194,24 @@ export default function CatchDetailsScreen({ route, navigation }) {
   })();
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor="#07071A" />
+    <ImageBackground
+      source={require('../../reference/VINTA.jpeg')}
+      style={styles.bgImage}
+      resizeMode="cover"
+    >
+      <View style={styles.bgOverlay} />
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ── HERO SECTION ── */}
-        <View style={styles.hero}>
-          <SafeAreaView edges={['top']} style={styles.heroTopSafe}>
+      <View style={styles.root}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* ── HERO SECTION ── */}
+          <View style={styles.hero}>
+            <SafeAreaView edges={['top']} style={styles.heroTopSafe}>
             <View style={styles.heroTopRow}>
               <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
                 <Ionicons name="chevron-back" size={22} color="#FFF" />
@@ -398,23 +406,33 @@ export default function CatchDetailsScreen({ route, navigation }) {
 
       </ScrollView>
     </View>
-  );
+  </ImageBackground>
+);
 }
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#07071A' },
+  bgImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  bgOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(4, 10, 38, 0.85)',
+  },
+  root: { flex: 1, backgroundColor: 'transparent' },
   scrollContent: { paddingBottom: 40 },
 
   // ── Hero ──
   hero: {
-    backgroundColor: '#0D0D24',
+    backgroundColor: 'rgba(8, 20, 60, 0.55)',
     paddingBottom: 28,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     overflow: 'hidden',
     borderBottomWidth: 1,
-    borderColor: 'rgba(168,85,247,0.2)',
+    borderColor: 'rgba(99, 179, 237, 0.25)',
   },
   heroTopSafe: { paddingHorizontal: 16 },
   heroTopRow: {
@@ -510,14 +528,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(8, 20, 60, 0.65)',
     borderRadius: RADIUS.md,
     marginHorizontal: 20,
     marginTop: 16,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(251, 191, 36, 0.35)',
     gap: 16,
   },
   xpLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -535,14 +553,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(8, 20, 60, 0.50)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(99, 179, 237, 0.18)',
     position: 'relative',
   },
   tabActive: {
-    backgroundColor: 'rgba(168,85,247,0.18)',
-    borderColor: 'rgba(168,85,247,0.5)',
+    backgroundColor: 'rgba(26, 86, 219, 0.25)',
+    borderColor: 'rgba(99, 179, 237, 0.55)',
   },
   tabLabel: { fontFamily: FONTS.semiBold, fontSize: 13, color: 'rgba(255,255,255,0.4)' },
   tabLabelActive: { color: '#FFF' },
@@ -552,21 +570,21 @@ const styles = StyleSheet.create({
     left: 10,
     right: 10,
     height: 2,
-    backgroundColor: '#A855F7',
+    backgroundColor: COLORS.accent,
     borderRadius: 2,
   },
 
   // ── Lore card ──
   loreCard: {
-    backgroundColor: '#111128',
+    backgroundColor: 'rgba(8, 20, 60, 0.65)',
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: 'rgba(168,85,247,0.25)',
+    borderColor: 'rgba(99, 179, 237, 0.25)',
     padding: 22,
     marginTop: 14,
     position: 'relative',
     overflow: 'hidden',
-    shadowColor: '#A855F7',
+    shadowColor: COLORS.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
@@ -580,7 +598,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderTopWidth: 2,
     borderLeftWidth: 2,
-    borderColor: 'rgba(168,85,247,0.5)',
+    borderColor: 'rgba(99, 179, 237, 0.5)',
     borderTopLeftRadius: RADIUS.lg,
   },
   loreCornerBR: {
@@ -591,7 +609,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderBottomWidth: 2,
     borderRightWidth: 2,
-    borderColor: 'rgba(168,85,247,0.5)',
+    borderColor: 'rgba(99, 179, 237, 0.5)',
     borderBottomRightRadius: RADIUS.lg,
   },
   loreLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 },
@@ -599,12 +617,12 @@ const styles = StyleSheet.create({
 
   // ── AR Description Card (replaces tabs when isAR=true) ──
   arDescCard: {
-    backgroundColor: '#111128',
+    backgroundColor: 'rgba(8, 20, 60, 0.65)',
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: 'rgba(168,85,247,0.25)',
+    borderColor: 'rgba(99, 179, 237, 0.25)',
     padding: 22,
-    shadowColor: '#A855F7',
+    shadowColor: COLORS.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
@@ -614,7 +632,7 @@ const styles = StyleSheet.create({
   loreBody: {
     fontFamily: FONTS.regular,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.78)',
+    color: 'rgba(255,255,255,0.85)',
     lineHeight: 24,
   },
 
@@ -622,17 +640,17 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', marginTop: 20, marginHorizontal: 20, gap: 10 },
   statCard: {
     flex: 1,
-    backgroundColor: '#111128',
+    backgroundColor: 'rgba(8, 20, 60, 0.60)',
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(99, 179, 237, 0.20)',
     alignItems: 'center',
     paddingVertical: 16,
     gap: 6,
   },
   statCardCenter: {
-    borderColor: 'rgba(251,191,36,0.25)',
-    backgroundColor: 'rgba(251,191,36,0.06)',
+    borderColor: 'rgba(251,191,36,0.35)',
+    backgroundColor: 'rgba(251,191,36,0.10)',
   },
   statValue: { fontFamily: FONTS.bold, fontSize: 13, color: '#FFF' },
   statLabel: { fontFamily: FONTS.regular, fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5 },
