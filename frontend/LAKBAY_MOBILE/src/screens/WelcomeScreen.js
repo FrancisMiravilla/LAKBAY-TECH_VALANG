@@ -24,7 +24,6 @@ export default function WelcomeScreen({ navigation }) {
   const fade      = useRef(new Animated.Value(0)).current;
   const slideUp   = useRef(new Animated.Value(40)).current;
   const badgePop  = useRef(new Animated.Value(0.6)).current;
-  const glowPulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -32,34 +31,23 @@ export default function WelcomeScreen({ navigation }) {
       Animated.timing(slideUp, { toValue: 0, duration: 800, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
       Animated.spring(badgePop, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }),
     ]).start();
-
-    // Looping glow behind the emblem
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowPulse, { toValue: 1, duration: 1800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(glowPulse, { toValue: 0, duration: 1800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    ).start();
   }, []);
-
-  const glowScale = glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.15] });
-  const glowOpacity = glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.7] });
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" translucent />
 
       <ImageBackground
-        source={require('../assets/zamboanga.jpg')}
+        source={require('../../reference/VINTA.jpeg')}
         style={styles.bg}
         resizeMode="cover"
       >
         {/* Dark cinematic gradient so text stays readable */}
         <LinearGradient
           colors={[
-            'rgba(12,36,97,0.35)',
-            'rgba(12,36,97,0.55)',
-            'rgba(6,18,49,0.94)',
+            'rgba(12,36,97,0.45)',
+            'rgba(6,18,49,0.75)',
+            'rgba(4,10,38,0.95)',
           ]}
           locations={[0, 0.45, 1]}
           style={StyleSheet.absoluteFill}
@@ -79,12 +67,6 @@ export default function WelcomeScreen({ navigation }) {
 
         {/* ── Hero emblem ───────────────────────────────────────── */}
         <View style={styles.heroWrap}>
-          <Animated.View
-            style={[
-              styles.glow,
-              { opacity: glowOpacity, transform: [{ scale: glowScale }] },
-            ]}
-          />
           <Animated.Image
             source={require('../assets/lakbay_icon_glyph.png')}
             resizeMode="contain"
@@ -165,11 +147,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: SCREEN_H * 0.02,
-  },
-  glow: {
-    position: 'absolute',
-    width: 220, height: 220, borderRadius: 110,
-    backgroundColor: COLORS.gold,
   },
   logoImg: { width: 132, height: 132 },
 

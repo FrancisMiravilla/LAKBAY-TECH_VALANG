@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { authService } from '../api/authService';
+import { streakService } from '../api/streakService';
 import ErrorModal from '../components/ErrorModal';
 import VintaStripe from '../components/VintaStripe';
 
@@ -15,7 +16,6 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail]           = useState('');
   const [password, setPassword]     = useState('');
   const [showPass, setShowPass]     = useState(false);
-  const [streakClaimed, setStreakClaimed] = useState(false);
   const [loading, setLoading]       = useState(false);
   const [errorModal, setErrorModal] = useState({ visible: false, type: 'error', title: '', message: '' });
   const [heroFade]  = useState(() => new Animated.Value(0));
@@ -35,7 +35,9 @@ export default function LoginScreen({ navigation }) {
     try {
       const result = await authService.login(email, password);
       if (result && result.access) {
-        navigation.replace('MainTabs');
+        // Record today's login streak
+        await streakService.recordLoginStreak();
+        navigation.replace('MainTabs', { showDailyStreak: true });
       }
     } catch (error) {
       setLoading(false);
@@ -45,12 +47,6 @@ export default function LoginScreen({ navigation }) {
 
   const handleGoogle = () => {
     showErr('Google Sign-In', 'Google authentication will be integrated with the backend.', 'info');
-  };
-
-  const handleClaimStreak = () => {
-    if (streakClaimed) return;
-    setStreakClaimed(true);
-    showErr('🔥 Streak Claimed!', 'You earned +50 XP for your 12-day login streak!', 'success');
   };
 
   return (
@@ -97,26 +93,6 @@ export default function LoginScreen({ navigation }) {
 
           <Text style={styles.heading}>Welcome Back</Text>
           <Text style={styles.subHeading}>Your journey in the City of Flowers awaits.</Text>
-
-          {/* Daily Streak Banner */}
-          <TouchableOpacity
-            style={[styles.streakBanner, streakClaimed && styles.streakBannerClaimed]}
-            activeOpacity={0.85}
-            onPress={handleClaimStreak}
-          >
-            <View style={styles.streakIconWrap}>
-              <Ionicons name="flame" size={22} color="#fff" />
-            </View>
-            <View style={styles.streakText}>
-              <Text style={styles.streakTitle}>Daily Streak: 12 Days!</Text>
-              <Text style={styles.streakDesc}>
-                {streakClaimed ? '✅ +50 XP claimed for today' : 'Claim 50 XP for logging in today'}
-              </Text>
-            </View>
-            <View style={[styles.claimBtn, streakClaimed && styles.claimBtnDone]}>
-              <Text style={styles.claimBtnText}>{streakClaimed ? 'Done' : 'Claim'}</Text>
-            </View>
-          </TouchableOpacity>
 
           {/* Email */}
           <Text style={styles.label}>Email Address</Text>

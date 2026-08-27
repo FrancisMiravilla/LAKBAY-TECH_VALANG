@@ -17,6 +17,7 @@ import ARScannedScreen from '../screens/ARScannedScreen';
 import QRScannedScreen from '../screens/QRScannedScreen';
 import NotificationScreen from '../screens/NotificationScreen';
 import BadgesScreen from '../screens/BadgesScreen';
+import LoadingScreen from '../screens/LoadingScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import CreateAccountScreen from '../screens/CreateAccountScreen';
@@ -103,13 +104,16 @@ function MainTabs({ route }) {
 export default function AppNavigator() {
   return (
     <Stack.Navigator
-      initialRouteName="Welcome"
+      initialRouteName="Loading"
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: COLORS.bg },
       }}
     >
-{/* ── Auth ── */}
+      {/* ── Loading / Splash ── */}
+      <Stack.Screen name="Loading"         component={LoadingScreen} />
+
+      {/* ── Auth ── */}
       <Stack.Screen name="Welcome"         component={WelcomeScreen} />
       <Stack.Screen name="Login"           component={LoginScreen} />
       <Stack.Screen name="CreateAccount"   component={CreateAccountScreen} />

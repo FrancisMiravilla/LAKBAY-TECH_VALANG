@@ -7,6 +7,7 @@ import {
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import CustomModal from '../components/CustomModal';
+import DailyStreakModal from '../components/DailyStreakModal';
 import VintaStripe from '../components/VintaStripe';
 import OnboardingTour from '../components/OnboardingTour';
 import { WebView } from 'react-native-webview';
@@ -14,6 +15,7 @@ import { useApp } from '../context/AppContext';
 import { getSpots, ORIGIN } from '../api/qrService';
 import { getPublishedPromotions } from '../api/promotionService';
 import { authService } from '../api/authService';
+import { streakService } from '../api/streakService';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 
@@ -123,6 +125,9 @@ export default function HomeScreen({ navigation, route }) {
   const [featuredPlaces, setFeaturedPlaces] = useState([]);
   const [promotedPlaces, setPromotedPlaces] = useState([]);
   const [showTour, setShowTour] = useState(false);
+  const [streakData, setStreakData] = useState({ streak: 1, claimedToday: false, canClaim: false });
+  const [streakModalVisible, setStreakModalVisible] = useState(false);
+  const [claimingStreak, setClaimingStreak] = useState(false);
   const { notifs, addNotification } = useApp();
   const prevSpotCountRef = useRef(0);
 
@@ -156,8 +161,45 @@ export default function HomeScreen({ navigation, route }) {
     };
     fetchSpotsAndPromotions();
     const interval = setInterval(fetchSpotsAndPromotions, 15000);
+
+    // Check login streak and show modal if eligible
+    const checkStreak = async () => {
+      try {
+        const streakInfo = await streakService.recordLoginStreak();
+        setStreakData(streakInfo);
+        if (streakInfo.canClaim) {
+          setTimeout(() => {
+            setStreakModalVisible(true);
+          }, 700);
+        }
+      } catch (err) {
+        console.log('Streak check error:', err);
+      }
+    };
+    checkStreak();
+
     return () => clearInterval(interval);
   }, []);
+
+  const handleClaimStreak = async () => {
+    setClaimingStreak(true);
+    try {
+      const res = await streakService.claimStreakReward(streakData.streak);
+      setClaimingStreak(false);
+      if (res.success) {
+        setStreakData(prev => ({ ...prev, claimedToday: true, canClaim: false }));
+        setProfile(prev => prev ? { ...prev, xp: (prev.xp || 0) + 10 } : prev);
+        addNotification({
+          type: 'xp',
+          icon: '🔥',
+          title: 'Daily Streak Bonus!',
+          sub: `You claimed +10 XP for Day ${streakData.streak} login streak!`,
+        });
+      }
+    } catch (e) {
+      setClaimingStreak(false);
+    }
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -549,6 +591,15 @@ export default function HomeScreen({ navigation, route }) {
             setModalVisible(false);
             if (selectedQa) navigation.navigate(selectedQa.route);
           }}
+        />
+
+        <DailyStreakModal
+          visible={streakModalVisible}
+          streak={streakData.streak}
+          claimed={streakData.claimedToday}
+          loading={claimingStreak}
+          onClaim={handleClaimStreak}
+          onClose={() => setStreakModalVisible(false)}
         />
 
         <OnboardingTour

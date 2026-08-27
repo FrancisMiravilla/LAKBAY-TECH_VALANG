@@ -5,6 +5,7 @@ import {
   ActivityIndicator, Dimensions, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { authService } from '../api/authService';
 import ErrorModal from '../components/ErrorModal';
@@ -66,7 +67,7 @@ export default function CharacterSelectScreen({ navigation }) {
   const [errorModal, setErrorModal]      = useState({ visible: false, type: 'error', title: '', message: '' });
   const showErr = (title, message, type = 'error') => setErrorModal({ visible: true, type, title, message });
 
-  const selected = CHARACTERS[currentIndex];
+  const selected = CHARACTERS[currentIndex] || CHARACTERS[0];
 
   const goTo = (index) => {
     if (index < 0 || index >= CHARACTERS.length) return;
@@ -82,6 +83,8 @@ export default function CharacterSelectScreen({ navigation }) {
     setLoading(true);
     try {
       await authService.characterSetup(selected.id, explorerName.trim());
+      await SecureStore.setItemAsync('offline_character', selected.id);
+      await SecureStore.setItemAsync('offline_explorerName', explorerName.trim());
       navigation.replace('MainTabs', { showOnboarding: true });
     } catch (error) {
       const errorData = error.response?.data || error;
@@ -149,7 +152,15 @@ export default function CharacterSelectScreen({ navigation }) {
             renderItem={renderCharacter}
             onMomentumScrollEnd={(e) => {
               const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
-              setCurrentIndex(index);
+              if (index >= 0 && index < CHARACTERS.length) {
+                setCurrentIndex(index);
+              }
+            }}
+            onScrollEndDrag={(e) => {
+              const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+              if (index >= 0 && index < CHARACTERS.length) {
+                setCurrentIndex(index);
+              }
             }}
             getItemLayout={(_, index) => ({
               length: SCREEN_W,

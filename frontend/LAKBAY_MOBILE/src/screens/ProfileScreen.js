@@ -23,7 +23,8 @@ const getRank = (level) => {
 };
 
 const getCharacterDetails = (charId) => {
-  switch (charId) {
+  const id = String(charId || '').toLowerCase().trim();
+  switch (id) {
     case 'mando': return { name: 'Kuya Mando',    image: require('../assets/characters/lila.jpg'),  zoom: 1.15 };
     case 'bela':  return { name: 'Ate Bela',       image: require('../assets/characters/new.jpg'),   zoom: 1.15 };
     case 'lila':  return { name: 'Ate Lila',       image: require('../assets/characters/ricky.jpg'), zoom: 1.4  };
@@ -310,7 +311,7 @@ export default function ProfileScreen({ navigation }) {
   const rank         = getRank(level);
   const scansCount   = scans.length;
   const arDone       = collectedModels.length;
-  const charDetails  = getCharacterDetails(profile?.character);
+  const charDetails  = getCharacterDetails(profile?.chosen_character || profile?.character);
 
   return (
     <ImageBackground
