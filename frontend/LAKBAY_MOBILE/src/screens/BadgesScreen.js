@@ -17,7 +17,7 @@ import Svg, { Circle, Defs, LinearGradient, Stop, Polygon } from 'react-native-s
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import VintaStripe from '../components/VintaStripe';
 import { authService } from '../api/authService';
-import { getMyScans, getSpots, getARTargets, ORIGIN } from '../api/qrService';
+import { getMyScans, getSpots, getARTargets, getMilestones, ORIGIN } from '../api/qrService';
 import * as SecureStore from 'expo-secure-store';
 import { WebView } from 'react-native-webview';
 
@@ -53,13 +53,27 @@ function build3DViewerHTML(modelUrl) {
 </html>`;
 }
 
-// ─── Rank System ──────────────────────────────────────────────────────────────
-const getRank = (level) => {
-  if (level >= 20) return { title: 'Legendary', icon: '👑', color: '#FF6B00', glow: 'rgba(255,107,0,0.4)' };
-  if (level >= 15) return { title: 'Master',    icon: '💎', color: '#9B59B6', glow: 'rgba(155,89,182,0.4)' };
-  if (level >= 10) return { title: 'Expert',    icon: '⚡', color: '#FBBF24', glow: 'rgba(251,191,36,0.4)' };
-  if (level >= 5)  return { title: 'Adventurer',icon: '🗺️', color: '#10B981', glow: 'rgba(16,185,129,0.4)' };
-  return              { title: 'Explorer',   icon: '🧭', color: '#1A56DB', glow: 'rgba(26,86,219,0.4)' };
+// ─── Default Option 2: Maritime & Vinta Expedition Milestones ──────────────────
+export const DEFAULT_MILESTONES = [
+  { tier: 1, name: 'Coastal Scout', tagline: 'Testing the tides along R.T. Lim Boulevard.', min_xp: 0, max_xp: 150, icon: 'compass', color: '#1A56DB' },
+  { tier: 2, name: 'Vinta Helmsman', tagline: 'Hoisting the multicolored sails of discovery.', min_xp: 151, max_xp: 400, icon: 'navigation', color: '#38BDF8' },
+  { tier: 3, name: 'Strait Navigator', tagline: 'Mapping the historical trade routes of Mindanao.', min_xp: 401, max_xp: 800, icon: 'map', color: '#10B981' },
+  { tier: 4, name: 'Harbor Sentinel', tagline: 'Guarding the maritime gateway to Paseo del Mar.', min_xp: 801, max_xp: 1400, icon: 'shield', color: '#FBBF24' },
+  { tier: 5, name: 'Archipelago Voyager', tagline: 'Braving all landmark currents and hidden stories.', min_xp: 1401, max_xp: 2200, icon: 'anchor', color: '#9B59B6' },
+  { tier: 6, name: 'Admiral of the Western Seas', tagline: 'Commands the full maritime legacy of Zamboanga.', min_xp: 2201, max_xp: null, icon: 'crown', color: '#FF6B00' },
+];
+
+export const getMilestoneEmoji = (iconName) => {
+  switch (iconName) {
+    case 'navigation': return '⛵';
+    case 'map': return '🗺️';
+    case 'shield': return '🛡️';
+    case 'anchor': return '⚓';
+    case 'crown': return '👑';
+    case 'award': return '🏅';
+    case 'compass':
+    default: return '🧭';
+  }
 };
 
 // ─── Hexagon Badge SVG ────────────────────────────────────────────────────────
@@ -276,6 +290,7 @@ export default function BadgesScreen() {
   const [loading, setLoading]                   = useState(true);
   const [collectedModels, setCollectedModels]   = useState([]);
   const [caughtIcons, setCaughtIcons]           = useState([]);
+  const [milestones, setMilestones]             = useState(DEFAULT_MILESTONES);
   const [activeTab, setActiveTab]               = useState('progress');
 
   useFocusEffect(
@@ -283,7 +298,7 @@ export default function BadgesScreen() {
       let isActive = true;
       const fetchData = async () => {
         try {
-          const [p, s, spotsData, collectedModelsStr, arTargetsData, caughtIconsStr, storedUid, storedCatchUid] = await Promise.all([
+          const [p, s, spotsData, collectedModelsStr, arTargetsData, caughtIconsStr, storedUid, storedCatchUid, milestonesData] = await Promise.all([
             authService.getProfile(),
             getMyScans(),
             getSpots().catch(() => []),
@@ -292,11 +307,17 @@ export default function BadgesScreen() {
             SecureStore.getItemAsync('caught_icons').catch(() => null),
             SecureStore.getItemAsync('collected_models_uid').catch(() => null),
             SecureStore.getItemAsync('caught_icons_uid').catch(() => null),
+            getMilestones().catch(() => DEFAULT_MILESTONES),
           ]);
           if (isActive) {
             setProfile(p);
             setScans(s?.scans || []);
             if (spotsData?.length > 0) setTotalSpots(spotsData.length);
+            if (Array.isArray(milestonesData) && milestonesData.length > 0) {
+              setMilestones(milestonesData.sort((a, b) => (a.tier || 0) - (b.tier || 0)));
+            } else if (milestonesData?.results && Array.isArray(milestonesData.results)) {
+              setMilestones(milestonesData.results.sort((a, b) => (a.tier || 0) - (b.tier || 0)));
+            }
 
             const currentUid = String(p?.id || '');
 
@@ -354,7 +375,28 @@ export default function BadgesScreen() {
   const level          = Math.floor(xp / 100) + 1;
   const currentLevelXp = xp % 100;
   const progressPct    = currentLevelXp / 100;
-  const rank           = getRank(level);
+
+  const activeMilestones = milestones && milestones.length > 0 ? milestones : DEFAULT_MILESTONES;
+
+  // Determine current milestone tier (where min_xp <= xp <= max_xp)
+  const currentMilestone = activeMilestones.find(m => 
+    xp >= m.min_xp && (m.max_xp === null || m.max_xp === undefined || xp <= m.max_xp)
+  ) || (xp < (activeMilestones[0]?.min_xp || 0) ? activeMilestones[0] : activeMilestones[activeMilestones.length - 1]);
+
+  // Determine next milestone tier (first tier whose min_xp > xp)
+  const nextMilestone = activeMilestones.find(m => (m.min_xp > 0 && xp < m.min_xp) || (m.max_xp !== null && xp < m.max_xp && m !== currentMilestone)) || null;
+
+  const milestoneColor = currentMilestone.color || '#1A56DB';
+  const milestoneEmoji = getMilestoneEmoji(currentMilestone.icon);
+
+  const rank = {
+    title: currentMilestone.name,
+    icon: milestoneEmoji,
+    color: milestoneColor,
+    glow: milestoneColor + '55',
+    tier: currentMilestone.tier,
+    tagline: currentMilestone.tagline
+  };
 
   const scansCount     = scans.length;
   const arDone         = collectedModels.length;
@@ -374,14 +416,6 @@ export default function BadgesScreen() {
     { icon: '📸', title: 'AR Adventurer', questLabel: 'QUEST', sub: `${arDone} / 5 museum AR experiences`,                       pct: pctAR,                       color: COLORS.accent },
     { icon: '🏆', title: 'Collector',     questLabel: 'QUEST', sub: `${collectedCount} / 4 cultural symbols caught`,              pct: Math.min(1, collectedCount / 4), color: COLORS.gold   },
   ];
-
-  const MILESTONES = [
-    { xpNeeded: 100,  reward: '🗺️ Explorer Badge', color: '#1A56DB' },
-    { xpNeeded: 500,  reward: '⚡ Expert Title',    color: '#FBBF24' },
-    { xpNeeded: 1000, reward: '💎 Master Crown',    color: '#9B59B6' },
-    { xpNeeded: 2000, reward: '👑 Legendary Rank',  color: '#FF6B00' },
-  ];
-  const nextMilestone = MILESTONES.find(m => xp < m.xpNeeded) || MILESTONES[MILESTONES.length - 1];
 
   if (loading) {
     return (
@@ -429,14 +463,20 @@ export default function BadgesScreen() {
           <View style={styles.heroSection}>
             <View style={styles.heroGlassCard}>
               <XPRing size={160} progressPct={progressPct} level={level} rank={rank} currentLevelXp={currentLevelXp} />
-              <View style={[styles.milestoneRibbon, { borderColor: nextMilestone.color + '55', backgroundColor: nextMilestone.color + '18' }]}>
-                <Text style={styles.milestoneRibbonIcon}>🎯</Text>
-                <Text style={[styles.milestoneRibbonText, { color: nextMilestone.color }]}>
-                  {xp >= nextMilestone.xpNeeded
-                    ? 'All milestones reached!'
-                    : `${nextMilestone.xpNeeded - xp} XP until ${nextMilestone.reward}`}
+              <View style={[styles.milestoneRibbon, { borderColor: (nextMilestone ? (nextMilestone.color || '#1A56DB') : milestoneColor) + '55', backgroundColor: (nextMilestone ? (nextMilestone.color || '#1A56DB') : milestoneColor) + '18' }]}>
+                <Text style={styles.milestoneRibbonIcon}>{nextMilestone ? getMilestoneEmoji(nextMilestone.icon) : '👑'}</Text>
+                <Text style={[styles.milestoneRibbonText, { color: nextMilestone ? (nextMilestone.color || '#38BDF8') : COLORS.gold }]}>
+                  {nextMilestone
+                    ? `${(nextMilestone.min_xp > xp ? nextMilestone.min_xp - xp : (nextMilestone.max_xp ? nextMilestone.max_xp - xp : 0))} XP until Tier ${nextMilestone.tier}: ${nextMilestone.name}`
+                    : 'Max Expedition Rank Achieved! 👑'}
                 </Text>
               </View>
+
+              {currentMilestone.tagline ? (
+                <Text style={{ fontSize: 12, fontStyle: 'italic', color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginTop: 8, paddingHorizontal: 16 }}>
+                  {`"${currentMilestone.tagline}"`}
+                </Text>
+              ) : null}
             </View>
           </View>
 
@@ -483,24 +523,48 @@ export default function BadgesScreen() {
 
               {/* XP Milestones */}
               <View style={styles.milestoneSection}>
-                <Text style={[styles.sectionTitle, { marginBottom: 12 }]}>XP Milestones</Text>
-                {MILESTONES.map((m, i) => {
-                  const achieved = xp >= m.xpNeeded;
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <Text style={styles.sectionTitle}>XP Milestone Tiers</Text>
+                  <View style={[styles.sectionBadge, { backgroundColor: milestoneColor + '22', borderColor: milestoneColor + '66' }]}>
+                    <Text style={[styles.sectionBadgeText, { color: milestoneColor }]}>Tier {currentMilestone.tier}</Text>
+                  </View>
+                </View>
+                {activeMilestones.map((m, i) => {
+                  const isCurrent = m.id ? m.id === currentMilestone.id : m.tier === currentMilestone.tier;
+                  const isEarned = xp >= m.min_xp;
+                  const itemColor = m.color || '#1A56DB';
+                  const itemEmoji = getMilestoneEmoji(m.icon);
                   return (
-                    <View key={i} style={[styles.milestoneRow, i === MILESTONES.length - 1 && { borderBottomWidth: 0 }]}>
-                      <View style={[styles.milestoneDot, { backgroundColor: achieved ? m.color : 'rgba(255,255,255,0.06)', borderColor: achieved ? m.color : 'rgba(99,179,237,0.3)' }]}>
-                        {achieved && <Text style={{ fontSize: 10, color: '#fff' }}>✓</Text>}
+                    <View key={m.id || i} style={[styles.milestoneRow, i === activeMilestones.length - 1 && { borderBottomWidth: 0 }, isCurrent && { backgroundColor: itemColor + '12', borderRadius: 12, paddingHorizontal: 8, marginHorizontal: -8 }]}>
+                      <View style={[styles.milestoneDot, { backgroundColor: isEarned ? itemColor : 'rgba(255,255,255,0.06)', borderColor: isEarned ? itemColor : 'rgba(99,179,237,0.3)' }]}>
+                        <Text style={{ fontSize: 13 }}>{isEarned ? itemEmoji : '🔒'}</Text>
                       </View>
                       <View style={{ flex: 1, marginHorizontal: 12 }}>
-                        <Text style={[styles.milestoneReward, { color: achieved ? m.color : 'rgba(255,255,255,0.7)' }]}>{m.reward}</Text>
-                        <Text style={styles.milestoneXp}>{m.xpNeeded.toLocaleString()} XP required</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <Text style={[styles.milestoneReward, { color: isEarned ? itemColor : 'rgba(255,255,255,0.7)', fontWeight: 'bold' }]}>
+                            Tier {m.tier}: {m.name}
+                          </Text>
+                          {isCurrent && (
+                            <View style={{ backgroundColor: itemColor + '33', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, borderWidth: 1, borderColor: itemColor + '77' }}>
+                              <Text style={{ fontSize: 9, color: itemColor, fontWeight: 'bold' }}>CURRENT</Text>
+                            </View>
+                          )}
+                        </View>
+                        {m.tagline ? (
+                          <Text style={{ fontSize: 11, fontStyle: 'italic', color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
+                            {`"${m.tagline}"`}
+                          </Text>
+                        ) : null}
+                        <Text style={styles.milestoneXp}>
+                          {m.min_xp} – {m.max_xp !== null && m.max_xp !== undefined ? `${m.max_xp} XP` : '∞ XP'}
+                        </Text>
                       </View>
-                      {achieved ? (
-                        <View style={[styles.achievedPill, { backgroundColor: m.color + '22', borderColor: m.color + '66' }]}>
-                          <Text style={[styles.achievedText, { color: m.color }]}>Earned!</Text>
+                      {isEarned ? (
+                        <View style={[styles.achievedPill, { backgroundColor: itemColor + '22', borderColor: itemColor + '66' }]}>
+                          <Text style={[styles.achievedText, { color: itemColor }]}>Earned!</Text>
                         </View>
                       ) : (
-                        <Text style={styles.milestoneGap}>-{(m.xpNeeded - xp).toLocaleString()} XP</Text>
+                        <Text style={styles.milestoneGap}>-{(m.min_xp - xp).toLocaleString()} XP</Text>
                       )}
                     </View>
                   );

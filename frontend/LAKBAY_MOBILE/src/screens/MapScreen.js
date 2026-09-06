@@ -61,8 +61,11 @@ function buildMapboxHTML(spots, userLevel = 1) {
     html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
     #map{width:100%;height:100%;background:transparent;}
     .pin{
-      position:relative;
+      position:absolute !important;
+      top:0;
+      left:0;
       cursor:pointer;
+      will-change:transform;
       transition:width 0.15s,height 0.15s;
     }
     .pin-circle{
@@ -244,9 +247,10 @@ function buildMapboxHTML(spots, userLevel = 1) {
     }
     el.appendChild(label);
 
-    var marker = new mapboxgl.Marker({element: el, anchor: 'bottom'})
+    var marker = new mapboxgl.Marker({element: el, anchor: 'center'})
       .setLngLat([spot.longitude, spot.latitude])
       .addTo(map);
+
       
     el.addEventListener('click', function(){
       if(selectedId!==null&&pinEls[selectedId]) pinEls[selectedId].classList.remove('selected');
@@ -257,6 +261,23 @@ function buildMapboxHTML(spots, userLevel = 1) {
       );
     });
   });
+
+  // Fit bounds to show all spots on load
+  if (spots.length > 0) {
+    var bounds = new mapboxgl.LngLatBounds();
+    spots.forEach(function(spot){
+      if (spot.longitude && spot.latitude) {
+        bounds.extend([spot.longitude, spot.latitude]);
+      }
+    });
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, {
+        padding: { top: 90, bottom: 90, left: 45, right: 45 },
+        maxZoom: 13,
+        duration: 0
+      });
+    }
+  }
 
   // Show user location dot
   var currentHeading = 0;
@@ -580,10 +601,10 @@ export default function MapScreen({ navigation, route }) {
         const coords = { lat: loc.coords.latitude, lng: loc.coords.longitude, accuracy: loc.coords.accuracy };
         setUserLocation(coords);
 
-        // Immediately show user location pin on map
+        // Immediately show user location pin on map without overriding initial fitBounds zoom
         webviewRef.current?.injectJavaScript(`
           window.dispatchEvent(new MessageEvent('message',{
-            data: JSON.stringify({ type: 'SHOW_USER', lat: ${coords.lat}, lng: ${coords.lng} })
+            data: JSON.stringify({ type: 'UPDATE_LOCATION', lat: ${coords.lat}, lng: ${coords.lng} })
           }));
           true;
         `);
@@ -645,12 +666,32 @@ export default function MapScreen({ navigation, route }) {
     if (isNavigating) {
       (async () => {
         locationSub.current = await Location.watchPositionAsync({ accuracy: Location.Accuracy.High, timeInterval: 1000, distanceInterval: 1 }, (loc) => {
+          const newCoords = { lat: loc.coords.latitude, lng: loc.coords.longitude, accuracy: loc.coords.accuracy };
+          setUserLocation(newCoords);
+
           webviewRef.current?.injectJavaScript(`
             window.dispatchEvent(new MessageEvent('message',{
               data: JSON.stringify({ type: 'UPDATE_LOCATION', lat: ${loc.coords.latitude}, lng: ${loc.coords.longitude} })
             }));
             true;
           `);
+
+          // Continuous proximity check during AR navigation
+          setSpots(currentSpots => {
+            const nearby = currentSpots.find(s =>
+              s.latitude && s.longitude &&
+              haversineMetres(newCoords.lat, newCoords.lng, parseFloat(s.latitude), parseFloat(s.longitude)) <= PROXIMITY_RADIUS_M
+            );
+            setProximitySpot(prev => {
+              if (nearby && (!prev || prev.id !== nearby.id)) {
+                return nearby;
+              } else if (!nearby && prev) {
+                return null;
+              }
+              return prev;
+            });
+            return currentSpots;
+          });
         });
         headingSub.current = await Location.watchHeadingAsync((hdg) => {
           const h = hdg.trueHeading >= 0 ? hdg.trueHeading : hdg.magHeading;
@@ -846,20 +887,33 @@ export default function MapScreen({ navigation, route }) {
           {isNavigating && cameraPerm?.granted && (
             <ARNavigationOverlay
               icon={{
-                id: selectedSpot.id,
-                name: selectedSpot.name,
-                tagline: selectedSpot.description || '',
+                id: selectedSpot?.id,
+                name: selectedSpot?.name,
+                tagline: selectedSpot?.description || '',
                 about: '',
                 significance: '',
-                color: getBadgeConfig(selectedSpot.feature_types?.[0] || 'qr').color,
-                glow: getBadgeConfig(selectedSpot.feature_types?.[0] || 'qr').color + '55',
-                model_3d: selectedSpot.model_3d
+                color: getBadgeConfig(selectedSpot?.feature_types?.[0] || 'qr').color,
+                glow: getBadgeConfig(selectedSpot?.feature_types?.[0] || 'qr').color + '55',
+                model_3d: selectedSpot?.model_3d
                   ? String(selectedSpot.model_3d).replace(/^http:\/\//, 'https://')
                   : null
               }}
               spot={selectedSpot}
+              nearbySpot={proximitySpot}
               userLocation={userLocation}
-              hideBottomPanel={true}
+              hideBottomPanel={false}
+              onInspectSpot={(spotToInspect) => {
+                if (spotToInspect) {
+                  setSelectedSpot(spotToInspect);
+                  Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 10 }).start();
+                }
+              }}
+              onContinue={() => {
+                setIsNavigating(false);
+                if (selectedSpot) {
+                  Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 10 }).start();
+                }
+              }}
               onClose={() => {
                 setIsNavigating(false);
               }}
@@ -1103,8 +1157,8 @@ export default function MapScreen({ navigation, route }) {
         onClose={() => setErrorModal(prev => ({ ...prev, visible: false }))}
       />
 
-      {/* ── Proximity Modal (centered) ── */}
-      {proximitySpot && (() => {
+      {/* ── Proximity Modal (centered — shown only on 2D map, not in AR navigation) ── */}
+      {!isNavigating && proximitySpot && (() => {
         const pType = (proximitySpot.feature_types && proximitySpot.feature_types[0]) || 'qr';
         const pBadge = getBadgeConfig(pType);
         const typeEmoji = pType === 'ar' ? '📷' : pType === 'catch' ? '🏆' : pType === 'promotion' ? '📣' : '🔍';

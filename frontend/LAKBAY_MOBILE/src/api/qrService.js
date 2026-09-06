@@ -41,3 +41,6 @@ export const awardSpotBadge = (spotId) =>
 
 export const getARTargets = () =>
   qrClient.get('/api/qr/ar-targets/').then((r) => r.data);
+
+export const getMilestones = () =>
+  qrClient.get('/api/qr/milestones/').then((r) => r.data);

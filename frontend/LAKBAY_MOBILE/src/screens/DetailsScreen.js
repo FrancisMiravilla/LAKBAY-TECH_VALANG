@@ -1,359 +1,321 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, Alert, Image, Dimensions } from 'react-native';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
-
-const { width: SCREEN_W } = Dimensions.get('window');
+import {
+  StyleSheet, Text, View, ScrollView, TouchableOpacity,
+  StatusBar, Alert, Image, ImageBackground,
+} from 'react-native';
+import { FONTS, RADIUS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 
-const CATEGORY_COLORS = {
-  Historical: COLORS.accent,
-  Beaches:    '#38BDF8',
-  Culture:    COLORS.teal,
-  Nature:     '#34D399',
-  default:    COLORS.gold,
+// ── Feature type config ───────────────────────────────────────────────────────
+const FEATURE_CONFIG = {
+  qr:    { label: 'QR SCAN',    color: '#10B981', icon: 'qr-code-outline', emoji: '🔍' },
+  ar:    { label: 'AR EXHIBIT', color: '#1A56DB', icon: 'camera-outline',  emoji: '📷' },
+  catch: { label: 'CATCH',      color: '#FBBF24', icon: 'trophy-outline',  emoji: '🏆' },
 };
-
-// Per-category rich info
-const CATEGORY_INFO = {
-  Historical: {
-    overview: `A cornerstone of Zamboanga City's 400-year history. This landmark witnessed the Spanish colonial era, Islamic influence, and the resilient spirit of the Zamboangueño people. Walking its grounds is a living lesson in Philippine heritage.`,
-    highlights: [
-      { icon: 'business-outline',      label: 'Spanish Colonial Era' },
-      { icon: 'book-outline',          label: 'Cultural Museum' },
-      { icon: 'camera-outline',        label: 'Iconic Photo Spot' },
-      { icon: 'heart-outline',         label: 'Religious Shrine' },
-    ],
-    funFact: '⚔️  Fort Pilar was built in 1635 by the Spanish to defend against Dutch and Moro raids — it has stood for nearly 400 years.',
-  },
-  Beaches: {
-    overview: `One of the Philippines' most extraordinary natural wonders. Santa Cruz Island is renowned for its rare blush-pink coral sand — a color found in only a handful of beaches worldwide. The island sits within a protected marine sanctuary, making it a haven for snorkeling and nature lovers.`,
-    highlights: [
-      { icon: 'sunny-outline',         label: 'Pink Sand Beach' },
-      { icon: 'fish-outline',          label: 'Marine Sanctuary' },
-      { icon: 'boat-outline',          label: 'Island Hopping' },
-      { icon: 'water-outline',         label: 'Snorkeling' },
-    ],
-    funFact: '🌸  The pink hue comes from crushed red organ-pipe coral mixed with white sand — a rare geological phenomenon.',
-  },
-  Culture: {
-    overview: `Zamboanga City is a tapestry of three rich cultures — Chavacano, Tausug, and Yakan — each with its own language, traditions, and artforms. From hand-woven textiles to floating villages, every corner tells a story of heritage, resilience, and community pride.`,
-    highlights: [
-      { icon: 'color-palette-outline', label: 'Traditional Weaving' },
-      { icon: 'people-outline',        label: 'Indigenous Peoples' },
-      { icon: 'musical-notes-outline', label: 'Folk Music & Dance' },
-      { icon: 'restaurant-outline',    label: 'Chavacano Cuisine' },
-    ],
-    funFact: '🗣️  Chavacano is the only Spanish-based creole language in Asia — spoken natively by Zamboangueños for over 400 years.',
-  },
-  Nature: {
-    overview: `Beyond its city life, Zamboanga is blessed with breathtaking natural scenery — from cascading highland waterfalls to lush parks. These natural spaces offer both adventure and tranquility, deeply intertwined with the local communities that call them home.`,
-    highlights: [
-      { icon: 'leaf-outline',          label: 'Lush Scenery' },
-      { icon: 'trail-sign-outline',    label: 'Scenic Trails' },
-      { icon: 'camera-outline',        label: 'Photography' },
-      { icon: 'compass-outline',       label: 'Adventure Spots' },
-    ],
-    funFact: '🌿  Zamboanga City is sometimes called the "City of Flowers" for its abundant bougainvillea blooms that line its streets.',
-  },
-};
-
-const VISIT_TIPS = [
-  { icon: 'time-outline',       label: 'Best Time',   value: 'Oct – Apr (Dry Season)' },
-  { icon: 'people-outline',     label: 'For',         value: 'Families, Solo, Groups'  },
-  { icon: 'language-outline',   label: 'Language',    value: 'Chavacano · Filipino · English' },
-];
 
 export default function DetailsScreen({ route, navigation }) {
+  const [imgError, setImgError] = useState(false);
+
   const destination = route?.params?.destination || {
-    title: 'Fort Pilar', location: 'Zamboanga City, Philippines',
-    rating: '4.8', price: 'Free', category: 'Historical',
+    title: 'Fort Pilar',
+    location: 'Zamboanga City, Philippines',
+    rating: '4.8', xp_reward: 50, required_level: 1,
+    description: 'A 17th-century Spanish military defense fortress and a major religious landmark.',
   };
 
-  const catColor = CATEGORY_COLORS[destination.category] || CATEGORY_COLORS.default;
-  const baseInfo = CATEGORY_INFO[destination.category]   || CATEGORY_INFO.Culture;
-  
-  const info = {
-    ...baseInfo,
-    overview: destination.description || baseInfo.overview,
-    funFact: destination.fun_fact || destination.funFact || baseInfo.funFact,
-  };
+  const featureTypes = destination.feature_types || [];
+  const primaryType  = featureTypes[0] || 'qr';
+  const ftCfg        = FEATURE_CONFIG[primaryType] || FEATURE_CONFIG.qr;
+  const accent       = ftCfg.color;
+  const xpReward     = destination.xp_reward || 50;
+
+  const images  = (destination.images || []).filter(Boolean);
+  const heroUri = images[0] || destination.image || null;
+
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+    <ImageBackground
+      source={heroUri && !imgError ? { uri: heroUri } : null}
+      style={styles.root}
+      blurRadius={heroUri && !imgError ? 22 : 0}
+      onError={() => setImgError(true)}
+    >
+      <View style={styles.bgOverlay} />
 
-      {/* ── Header ─────────────────────────────────────────────────── */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation && navigation.goBack()}>
-          <Ionicons name="arrow-back" size={18} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Destination Info</Text>
-        <TouchableOpacity
-          style={styles.shareBtn}
-          onPress={() => Alert.alert('Share', `Share ${destination.title} with friends!`)}
-        >
-          <Ionicons name="share-social-outline" size={18} color={COLORS.text} />
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-
-        {/* ── Hero Banner ────────────────────────────────────────────── */}
-        <View style={styles.banner}>
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: COLORS.bgSurface }]} />
-          <View style={[styles.heroBlobTop,    { backgroundColor: catColor }]} />
-          <View style={[styles.heroBlobBottom, { backgroundColor: COLORS.bg }]} />
-
-          <View style={styles.bannerContent}>
-            {destination.images && destination.images.filter(img => img).length > 0 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} snapToInterval={SCREEN_W - 40} decelerationRate="fast" style={{ width: SCREEN_W, flexGrow: 0, marginBottom: 20 }} contentContainerStyle={{ paddingHorizontal: 20 }}>
-                {destination.images.filter(img => img).map((imgUrl, idx) => (
-                  <Image key={idx} source={{ uri: imgUrl }} style={{ width: SCREEN_W - 40, height: 220, borderRadius: RADIUS.md, marginRight: idx === destination.images.filter(img => img).length - 1 ? 0 : 16, backgroundColor: COLORS.card }} resizeMode="cover" />
-                ))}
-              </ScrollView>
-            ) : (
-              <View style={[styles.emojiGlowRing, { borderColor: catColor + '55', shadowColor: catColor }]}>
-                <View style={[styles.emojiInnerRing, { backgroundColor: catColor + '22' }]}>
-                  <Text style={styles.bannerEmoji}>🌴</Text>
-                </View>
-              </View>
-            )}
-            <Text style={styles.bannerTitle}>{destination.title}</Text>
-            <View style={[styles.categoryPill, { borderColor: catColor, backgroundColor: catColor + '22' }]}>
-              <Text style={[styles.categoryPillText, { color: catColor }]}>{destination.category}</Text>
-            </View>
-          </View>
-
-          {/* Rating badge */}
-          <View style={styles.ratingBadge}>
-            <Ionicons name="star" size={12} color={COLORS.gold} style={{ marginRight: 4 }} />
-            <Text style={styles.ratingText}>{destination.rating}</Text>
-          </View>
-        </View>
-
-        {/* ── Content ───────────────────────────────────────────────── */}
-        <View style={styles.content}>
-
-          {/* Location + Entry Row */}
-          <View style={styles.metaRow}>
-            <View style={styles.metaChip}>
-              <Ionicons name="location-outline" size={13} color={COLORS.gold} />
-              <Text style={styles.metaChipText}>{destination.location}</Text>
-            </View>
-            {destination.price && (
-              <View style={styles.metaChip}>
-                <Ionicons name="ticket-outline" size={13} color={COLORS.teal} />
-                <Text style={[styles.metaChipText, { color: COLORS.teal }]}>
-                  {destination.price === 'Free' ? 'Free Entry' : `Entry: ${destination.price}`}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          <Text style={styles.titleText}>{destination.title}</Text>
-
-          {/* Overview */}
-          <Text style={styles.sectionTitle}>About this Place</Text>
-          <Text style={styles.desc}>{info.overview}</Text>
-
-          {/* Promote Button */}
-          <TouchableOpacity 
-            style={styles.promoteBtn}
-            onPress={() => navigation.navigate('Promote', { spotName: destination.title })}
-          >
-            <Ionicons name="megaphone-outline" size={20} color="#FFF" />
-            <Text style={styles.promoteBtnText}>Promote this Spot!</Text>
+        {/* ── Header ─────────────────────────────────────────── */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation?.goBack()}>
+            <Ionicons name="arrow-back" size={20} color="#FFF" />
           </TouchableOpacity>
-
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={styles.headerLabel}>QUEST DETAILS</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => Alert.alert('Share', `Share ${destination.title} with friends!`)}
+          >
+            <Ionicons name="share-social-outline" size={20} color="#FFF" />
+          </TouchableOpacity>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+          {/* ── Hero Card ────────────────────────────────────── */}
+          <View style={styles.heroCard}>
+            {heroUri && !imgError ? (
+              <Image
+                source={{ uri: heroUri }}
+                style={styles.heroImg}
+                resizeMode="cover"
+                onError={() => setImgError(true)}
+              />
+            ) : (
+              <View style={[styles.heroFallback, { backgroundColor: accent + '22' }]}>
+                <Text style={styles.heroEmoji}>{ftCfg.emoji}</Text>
+              </View>
+            )}
+
+            {/* Bottom gradient */}
+            <View style={styles.heroGradient} />
+
+            {/* Feature badge — top left */}
+            <View style={[styles.featureBadge, { backgroundColor: accent + '22', borderColor: accent + '88' }]}>
+              <View style={[styles.featureDot, { backgroundColor: accent }]} />
+              <Text style={[styles.featureBadgeText, { color: accent }]}>
+                {ftCfg.emoji}  {ftCfg.label}
+              </Text>
+            </View>
+
+            {/* XP badge — top right */}
+            <View style={styles.xpBadge}>
+              <Ionicons name="sparkles" size={11} color="#FBBF24" />
+              <Text style={styles.xpBadgeText}>+{xpReward} XP</Text>
+            </View>
+
+            {/* Title block inside hero */}
+            <View style={styles.heroBottom}>
+              <Text style={styles.heroTitle}>{destination.title}</Text>
+              {destination.location ? (
+                <View style={styles.heroLocRow}>
+                  <Ionicons name="location-outline" size={12} color={accent} />
+                  <Text style={[styles.heroLoc, { color: accent }]} numberOfLines={1}>
+                    {destination.location}
+                  </Text>
+                </View>
+              ) : null}
+              {featureTypes.length > 0 && (
+                <View style={styles.featureTagsRow}>
+                  {featureTypes.slice(0, 3).map((ft) => {
+                    const c = (FEATURE_CONFIG[ft] || FEATURE_CONFIG.qr).color;
+                    const l = (FEATURE_CONFIG[ft] || FEATURE_CONFIG.qr).label;
+                    return (
+                      <View key={ft} style={[styles.featureTag, { borderColor: c + '66', backgroundColor: c + '18' }]}>
+                        <Text style={[styles.featureTagText, { color: c }]}>{l}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* ── Stats Row ──────────────────────────────────────── */}
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Ionicons name="star" size={16} color="#FBBF24" />
+              <Text style={styles.statValue}>{destination.rating || '4.8'}</Text>
+              <Text style={styles.statLabel}>RATING</Text>
+            </View>
+            <View style={styles.statDiv} />
+            <View style={styles.statItem}>
+              <Ionicons name="flash" size={16} color={accent} />
+              <Text style={[styles.statValue, { color: accent }]}>+{xpReward}</Text>
+              <Text style={styles.statLabel}>XP REWARD</Text>
+            </View>
+            <View style={styles.statDiv} />
+            <View style={styles.statItem}>
+              <Ionicons name="shield-checkmark-outline" size={16} color="#10B981" />
+              <Text style={[styles.statValue, { color: '#10B981' }]}>
+                Lv {destination.required_level || 1}
+              </Text>
+              <Text style={styles.statLabel}>REQUIRED</Text>
+            </View>
+          </View>
+
+          <View style={styles.body}>
+
+
+            {/* ── About This Spot ─────────────────────────────── */}
+            <View style={styles.secHeader}>
+              <View style={[styles.secAccent, { backgroundColor: accent }]} />
+              <Text style={styles.secTitle}>ABOUT THIS SPOT</Text>
+            </View>
+            <View style={[styles.descCard, { borderColor: accent + '25' }]}>
+              <Text style={styles.descText}>{destination.description || 'Discover this amazing spot in Zamboanga City. Complete the quest to learn more!'}</Text>
+            </View>
+
+            {/* ── Gallery Strip ──────────────────────────────── */}
+            {images.length > 1 && (
+              <>
+                <View style={styles.secHeader}>
+                  <View style={[styles.secAccent, { backgroundColor: accent }]} />
+                  <Text style={styles.secTitle}>GALLERY</Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 10, paddingBottom: 4 }}
+                >
+                  {images.map((uri, idx) => (
+                    <Image
+                      key={idx}
+                      source={{ uri }}
+                      style={styles.galleryImg}
+                      resizeMode="cover"
+                    />
+                  ))}
+                </ScrollView>
+              </>
+            )}
+
+          </View>
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </SafeAreaView>
+    </ImageBackground>
   );
 }
 
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+  root:      { flex: 1, backgroundColor: '#060D25' },
+  bgOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4,10,32,0.55)' },
+
+  safe:      { flex: 1 },
 
   // ── Header ──────────────────────────────────────────────────────────
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 16, height: 58,
-    backgroundColor: COLORS.bg,
-    borderBottomWidth: 1, borderBottomColor: COLORS.accentBorder,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, height: 56,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(99,179,237,0.15)',
   },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: COLORS.bgCard, justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: COLORS.border,
-  },
-  shareBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: COLORS.bgCard, justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: COLORS.border,
-  },
-  headerTitle: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.text },
-
-  scroll: { paddingBottom: 40 },
-
-  // ── Hero Banner ──────────────────────────────────────────────────────
-  banner: {
-    height: 300, position: 'relative',
-    overflow: 'hidden', justifyContent: 'center', alignItems: 'center',
-  },
-  heroBlobTop: {
-    position: 'absolute', top: -60, right: -60,
-    width: 220, height: 220, borderRadius: 110, opacity: 0.2,
-  },
-  heroBlobBottom: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: 80, opacity: 0.85,
-  },
-  bannerContent: { alignItems: 'center', paddingHorizontal: 24 },
-  emojiGlowRing: {
-    width: 110, height: 110, borderRadius: 55,
-    borderWidth: 2, justifyContent: 'center', alignItems: 'center',
-    marginBottom: 16,
-    shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.5, shadowRadius: 20, elevation: 10,
-  },
-  emojiInnerRing: {
-    width: 92, height: 92, borderRadius: 46,
+  iconBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center', alignItems: 'center',
   },
-  bannerEmoji:   { fontSize: 44 },
-  bannerTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 13,
-    color: COLORS.text,
-    textAlign: 'center',
-    marginBottom: 10,
-    lineHeight: 24,
+  headerLabel: {
+    fontFamily: FONTS.bold, fontSize: 10,
+    color: 'rgba(191,215,255,0.60)', letterSpacing: 2.5,
   },
-  categoryPill: {
-    borderRadius: RADIUS.pill, borderWidth: 1,
-    paddingVertical: 4, paddingHorizontal: 14,
-  },
-  categoryPillText: { fontFamily: FONTS.semiBold, fontSize: 11, letterSpacing: 0.5 },
-  ratingBadge: {
-    position: 'absolute', bottom: 16, right: 16,
-    backgroundColor: COLORS.bgCard, flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 6, paddingHorizontal: 12,
-    borderRadius: RADIUS.pill, borderWidth: 1, borderColor: COLORS.border,
-  },
-  ratingText: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.text },
 
-  // ── Content ──────────────────────────────────────────────────────────
-  content: { paddingHorizontal: 20, paddingTop: 20 },
+  scroll: { paddingBottom: 24 },
 
-  metaRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 12 },
-  metaChip: {
+  // ── Hero Card ────────────────────────────────────────────────────────
+  heroCard: {
+    marginHorizontal: 16, marginTop: 12,
+    borderRadius: RADIUS.lg, overflow: 'hidden',
+    borderWidth: 1, borderColor: 'rgba(99,179,237,0.22)',
+    height: 260, backgroundColor: 'rgba(8,20,56,0.85)',
+  },
+  heroImg:     { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  heroFallback:{ ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center' },
+  heroEmoji:   { fontSize: 60 },
+  heroGradient:{
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: 90,
+    backgroundColor: 'rgba(4,10,32,0.72)',
+  },
+
+
+  featureBadge: {
+    position: 'absolute', top: 12, left: 12,
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: COLORS.bgCard, borderRadius: RADIUS.pill,
-    borderWidth: 1, borderColor: COLORS.border,
-    paddingVertical: 5, paddingHorizontal: 12,
+    borderWidth: 1, borderRadius: RADIUS.pill,
+    paddingHorizontal: 10, paddingVertical: 5,
   },
-  metaChipText: {
-    fontFamily: FONTS.semiBold, fontSize: 11, color: COLORS.gold,
-  },
+  featureDot:       { width: 6, height: 6, borderRadius: 3 },
+  featureBadgeText: { fontFamily: FONTS.bold, fontSize: 9, letterSpacing: 0.8 },
 
-  titleText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 13,
-    color: COLORS.text,
-    marginBottom: 20,
-    lineHeight: 24,
+  xpBadge: {
+    position: 'absolute', top: 12, right: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(251,191,36,0.18)',
+    borderWidth: 1, borderColor: 'rgba(251,191,36,0.60)',
+    borderRadius: RADIUS.pill, paddingHorizontal: 10, paddingVertical: 5,
   },
-  sectionTitle: {
-    fontFamily: FONTS.bold, fontSize: 14, color: COLORS.text,
-    marginTop: 24, marginBottom: 12,
-    textTransform: 'uppercase', letterSpacing: 0.8,
-  },
-  desc: {
-    fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textSub, lineHeight: 22,
-  },
-  promoteBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: COLORS.teal, padding: 16, borderRadius: RADIUS.md, marginTop: 24,
-    elevation: 3, shadowColor: COLORS.teal, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
-  },
-  promoteBtnText: {
-    fontFamily: FONTS.bold, fontSize: 15, color: '#FFF',
-  },
+  xpBadgeText: { fontFamily: FONTS.bold, fontSize: 10, color: '#FBBF24', letterSpacing: 0.5 },
 
-  // ── Highlights Grid ──────────────────────────────────────────────────
-  highlightsGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 10,
+  heroBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 14 },
+  heroTitle: {
+    fontFamily: FONTS.pixel, fontSize: 11, color: '#FFFFFF',
+    lineHeight: 20, marginBottom: 4,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
-  highlightCard: {
-    width: '47%',
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    padding: 12,
-    alignItems: 'center',
-    gap: 8,
+  heroLocRow:    { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
+  heroLoc:       { fontFamily: FONTS.semiBold, fontSize: 11 },
+  featureTagsRow:{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  featureTag: {
+    borderWidth: 1, borderRadius: RADIUS.pill,
+    paddingHorizontal: 8, paddingVertical: 3,
   },
-  highlightIconCircle: {
-    width: 44, height: 44, borderRadius: 22,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  highlightLabel: {
-    fontFamily: FONTS.semiBold, fontSize: 11, color: COLORS.text, textAlign: 'center',
-  },
+  featureTagText: { fontFamily: FONTS.bold, fontSize: 8, letterSpacing: 0.8 },
 
-  // ── Fun Fact ─────────────────────────────────────────────────────────
-  funFactCard: {
-    marginTop: 20,
-    backgroundColor: COLORS.bgCard,
+  // ── Stats Row ────────────────────────────────────────────────────────
+  statsRow: {
+    flexDirection: 'row', alignItems: 'center',
+    marginHorizontal: 16, marginTop: 12,
+    backgroundColor: 'rgba(8,20,56,0.92)',
     borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderLeftWidth: 4,
+    borderWidth: 1, borderColor: 'rgba(99,179,237,0.18)',
+    paddingVertical: 14,
+  },
+  statItem:  { flex: 1, alignItems: 'center', gap: 3 },
+  statValue: { fontFamily: FONTS.bold, fontSize: 16, color: '#FFF' },
+  statLabel: { fontFamily: FONTS.bold, fontSize: 7, color: '#64748B', letterSpacing: 1.2 },
+  statDiv:   { width: 1, height: 36, backgroundColor: 'rgba(255,255,255,0.08)' },
+
+  body: { paddingHorizontal: 16 },
+
+  // ── Section headers ──────────────────────────────────────────────────
+  secHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginTop: 22, marginBottom: 10,
+  },
+  secAccent: { width: 3, height: 14, borderRadius: 2 },
+  secTitle:  {
+    fontFamily: FONTS.bold, fontSize: 9,
+    color: 'rgba(191,215,255,0.60)', letterSpacing: 2,
+  },
+
+
+  // ── Description Card ─────────────────────────────────────────────────
+  descCard: {
+    backgroundColor: 'rgba(8,20,56,0.82)',
+    borderRadius: RADIUS.md, borderWidth: 1,
     padding: 16,
   },
-  funFactLabel: {
-    fontFamily: FONTS.bold, fontSize: 11, color: COLORS.gold,
-    textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6,
-  },
-  funFactText: {
-    fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textSub, lineHeight: 20,
+  descText: {
+    fontFamily: FONTS.medium, fontSize: 13,
+    color: '#E2E8F0', lineHeight: 22,
   },
 
-  // ── Visit Tips ───────────────────────────────────────────────────────
-  visitTipsCard: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    overflow: 'hidden',
-  },
-  visitTipRow: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 13,
-  },
-  visitTipBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  visitTipLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  visitTipLabel: {
-    fontFamily: FONTS.semiBold, fontSize: 12, color: COLORS.textMuted,
-  },
-  visitTipValue: {
-    fontFamily: FONTS.medium, fontSize: 12, color: COLORS.text,
-    flexShrink: 1, textAlign: 'right', maxWidth: '55%',
+
+
+  // ── Gallery ──────────────────────────────────────────────────────────
+  galleryImg: {
+    width: 160, height: 100, borderRadius: RADIUS.sm,
+    backgroundColor: 'rgba(8,20,56,0.60)',
   },
 
-  // ── Cultural Note ────────────────────────────────────────────────────
-  culturalNote: {
-    marginTop: 20,
-    backgroundColor: COLORS.accentSoft,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.accentBorder,
-    padding: 14,
-  },
-  culturalNoteText: {
-    fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textSub, lineHeight: 19,
-  },
+
+
 });
+

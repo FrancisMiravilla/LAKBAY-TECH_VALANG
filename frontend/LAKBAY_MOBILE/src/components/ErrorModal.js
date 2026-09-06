@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   // ── Overlay ──────────────────────────────────────────────────────
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(10, 18, 40, 0.72)',
+    backgroundColor: 'rgba(2, 6, 23, 0.85)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 28,
@@ -199,20 +199,20 @@ const styles = StyleSheet.create({
   // ── Card ─────────────────────────────────────────────────────────
   card: {
     width: Math.min(SCREEN_WIDTH - 56, 360),
-    backgroundColor: COLORS.bgCard,
+    backgroundColor: 'rgba(8, 20, 56, 0.98)',
     borderRadius: RADIUS.lg,
     paddingTop: 36,
     paddingHorizontal: 24,
     paddingBottom: 24,
     alignItems: 'center',
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: COLORS.accentBorder,
+    borderWidth: 1.5,
+    borderColor: 'rgba(99, 179, 237, 0.35)',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 20 },
-        shadowOpacity: 0.28,
+        shadowOpacity: 0.5,
         shadowRadius: 32,
       },
       android: { elevation: 16 },
@@ -238,9 +238,9 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: COLORS.bgSurface,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: 'rgba(255, 255, 255, 0.20)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: FONTS.bold,
     fontSize: 20,
-    color: COLORS.text,
+    color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 10,
     letterSpacing: -0.2,
@@ -283,9 +283,9 @@ const styles = StyleSheet.create({
 
   // ── Message ───────────────────────────────────────────────────────
   message: {
-    fontFamily: FONTS.regular,
+    fontFamily: FONTS.medium,
     fontSize: 14,
-    color: COLORS.textMuted,
+    color: '#E2E8F0',
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 0,
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   // ── Divider ───────────────────────────────────────────────────────
   divider: {
     height: 1,
-    backgroundColor: COLORS.borderLight,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
     width: '110%',
     marginTop: 22,
     marginBottom: 18,
@@ -313,15 +313,15 @@ const styles = StyleSheet.create({
     height: 46,
     borderRadius: RADIUS.pill,
     borderWidth: 1,
-    borderColor: COLORS.accentBorder,
-    backgroundColor: COLORS.bgSurface,
+    borderColor: 'rgba(255, 255, 255, 0.20)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   ghostBtnText: {
     fontFamily: FONTS.semiBold,
     fontSize: 15,
-    color: COLORS.textSub,
+    color: '#E2E8F0',
   },
 
   solidBtn: {

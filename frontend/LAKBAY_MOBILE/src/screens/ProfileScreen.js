@@ -14,12 +14,13 @@ import { getMyScans, getSpots, getARTargets } from '../api/qrService';
 import VintaStripe from '../components/VintaStripe';
 
 // ─── Rank helpers ─────────────────────────────────────────────────────────────
-const getRank = (level) => {
-  if (level >= 20) return { title: 'Legendary', icon: '👑', color: '#FF6B00', glow: 'rgba(255,107,0,0.35)' };
-  if (level >= 15) return { title: 'Master',    icon: '💎', color: '#9B59B6', glow: 'rgba(155,89,182,0.35)' };
-  if (level >= 10) return { title: 'Expert',    icon: '⚡', color: '#FBBF24', glow: 'rgba(251,191,36,0.35)' };
-  if (level >= 5)  return { title: 'Adventurer',icon: '🗺️', color: '#10B981', glow: 'rgba(16,185,129,0.35)' };
-  return              { title: 'Explorer',   icon: '🧭', color: COLORS.accent, glow: 'rgba(26,86,219,0.35)' };
+const getRank = (xp) => {
+  if (xp >= 2201) return { title: 'Admiral of the Western Seas', icon: '👑', color: '#FF6B00', glow: 'rgba(255,107,0,0.35)' };
+  if (xp >= 1401) return { title: 'Archipelago Voyager',        icon: '⚓', color: '#9B59B6', glow: 'rgba(155,89,182,0.35)' };
+  if (xp >= 801)  return { title: 'Harbor Sentinel',            icon: '🛡️', color: '#FBBF24', glow: 'rgba(251,191,36,0.35)' };
+  if (xp >= 401)  return { title: 'Strait Navigator',           icon: '🗺️', color: '#10B981', glow: 'rgba(16,185,129,0.35)' };
+  if (xp >= 151)  return { title: 'Vinta Helmsman',             icon: '⛵', color: '#38BDF8', glow: 'rgba(56,189,248,0.35)' };
+  return                 { title: 'Coastal Scout',              icon: '🧭', color: COLORS.accent, glow: 'rgba(26,86,219,0.35)' };
 };
 
 const getCharacterDetails = (charId) => {
@@ -308,7 +309,7 @@ export default function ProfileScreen({ navigation }) {
   const level        = Math.floor(xp / 100) + 1;
   const levelXp      = xp % 100;
   const progressPct  = levelXp / 100;
-  const rank         = getRank(level);
+  const rank         = getRank(xp);
   const scansCount   = scans.length;
   const arDone       = collectedModels.length;
   const charDetails  = getCharacterDetails(profile?.chosen_character || profile?.character);

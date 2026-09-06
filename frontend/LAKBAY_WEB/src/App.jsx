@@ -41,7 +41,10 @@ import {
   Scan,
   Store,
   Settings as SettingsIcon,
-  Coins
+  Coins,
+  Navigation,
+  Anchor,
+  Crown
 } from 'lucide-react'
 
 import './App.css'
@@ -699,33 +702,86 @@ function App() {
   const [reviewingQuiz, setReviewingQuiz] = useState(null);
   const [creatures] = useState(INITIAL_CREATURES);
   const [exhibits] = useState(INITIAL_EXHIBITS);
-  const [badges, setBadges] = useState(INITIAL_BADGES);
+  const [badges, setBadges] = useState([]);
   const [isAddBadgeModalOpen, setIsAddBadgeModalOpen] = useState(false);
-  const [newBadge, setNewBadge] = useState({
+  const [editingBadge, setEditingBadge] = useState(null);
+  const [badgeFormData, setBadgeFormData] = useState({
     name: '',
-    desc: '',
-    reqQR: 0,
-    reqAR: 0,
-    reqCatch: 0,
-    iconName: 'award'
+    tagline: '',
+    tier: 1,
+    min_xp: 0,
+    max_xp: '',
+    icon: 'compass',
+    color: '#1A56DB'
   });
 
-  const handleAddBadge = (e) => {
+  const handleOpenAddBadgeModal = (badge = null) => {
+    if (badge) {
+      setEditingBadge(badge);
+      setBadgeFormData({
+        name: badge.name || '',
+        tagline: badge.tagline || '',
+        tier: badge.tier || 1,
+        min_xp: badge.min_xp ?? 0,
+        max_xp: badge.max_xp !== null && badge.max_xp !== undefined ? badge.max_xp : '',
+        icon: badge.icon || 'compass',
+        color: badge.color || '#1A56DB'
+      });
+    } else {
+      setEditingBadge(null);
+      const maxTier = badges.length > 0 ? Math.max(...badges.map(b => b.tier || 1)) : 0;
+      const lastItem = [...badges].sort((a, b) => (b.tier || 0) - (a.tier || 0))[0];
+      const nextMinXp = lastItem && lastItem.max_xp ? lastItem.max_xp + 1 : 0;
+      setBadgeFormData({
+        name: '',
+        tagline: '',
+        tier: maxTier + 1,
+        min_xp: nextMinXp,
+        max_xp: '',
+        icon: 'compass',
+        color: '#1A56DB'
+      });
+    }
+    setIsAddBadgeModalOpen(true);
+  };
+
+  const handleSaveBadge = async (e) => {
     e.preventDefault();
-    setBadges([
-      ...badges,
-      {
-        id: Date.now(),
-        name: newBadge.name,
-        desc: newBadge.desc || `Earned by completing: ${newBadge.reqQR} QR, ${newBadge.reqAR} AR, ${newBadge.reqCatch} Catches`,
-        reqQR: Number(newBadge.reqQR),
-        reqAR: Number(newBadge.reqAR),
-        reqCatch: Number(newBadge.reqCatch),
-        iconName: newBadge.iconName
+    try {
+      const payload = {
+        name: badgeFormData.name,
+        tagline: badgeFormData.tagline,
+        tier: Number(badgeFormData.tier) || 1,
+        min_xp: Number(badgeFormData.min_xp) || 0,
+        max_xp: badgeFormData.max_xp !== '' && badgeFormData.max_xp !== null ? Number(badgeFormData.max_xp) : null,
+        icon: badgeFormData.icon || 'compass',
+        color: badgeFormData.color || '#1A56DB'
+      };
+
+      if (editingBadge) {
+        const { data } = await qrService.updateMilestone(editingBadge.id, payload);
+        setBadges(prev => prev.map(b => b.id === editingBadge.id ? data : b).sort((a, b) => a.tier - b.tier));
+      } else {
+        const { data } = await qrService.createMilestone(payload);
+        setBadges(prev => [...prev, data].sort((a, b) => a.tier - b.tier));
       }
-    ]);
-    setIsAddBadgeModalOpen(false);
-    setNewBadge({ name: '', desc: '', reqQR: 0, reqAR: 0, reqCatch: 0, iconName: 'award' });
+      setIsAddBadgeModalOpen(false);
+      setEditingBadge(null);
+    } catch (err) {
+      console.error('Error saving milestone badge:', err);
+      showError(err?.response?.data ? JSON.stringify(err.response.data) : 'Failed to save milestone badge', 'Milestone Error');
+    }
+  };
+
+  const handleDeleteBadge = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this XP milestone badge?')) return;
+    try {
+      await qrService.deleteMilestone(id);
+      setBadges(prev => prev.filter(b => b.id !== id));
+    } catch (err) {
+      console.error('Error deleting milestone badge:', err);
+      showError('Failed to delete milestone badge', 'Delete Error');
+    }
   };
   const [activities] = useState(INITIAL_ACTIVITIES);
   
@@ -824,6 +880,11 @@ function App() {
     qrService.getARTargets().then(({ data }) => {
       const items = Array.isArray(data) ? data : (data.results || []);
       setArTargets(items);
+    }).catch(console.error);
+
+    qrService.getMilestones().then(({ data }) => {
+      const items = Array.isArray(data) ? data : (data.results || []);
+      setBadges(items.sort((a, b) => (a.tier || 0) - (b.tier || 0)));
     }).catch(console.error);
 
     // Fetch pending quizzes for Review Module
@@ -2211,39 +2272,171 @@ function App() {
           {activeTab === 'badges' && (
             <section className="content-card" style={{gap: '24px'}}>
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px'}}>
-                <h3 className="card-title">
-                  <Award className="card-title-icon" size={18} />
-                  User Achievement Badges Configuration
-                </h3>
+                <div>
+                  <h3 className="card-title">
+                    <Award className="card-title-icon" size={18} />
+                    XP Milestone Badges &amp; Tiers Configuration
+                  </h3>
+                  <p style={{fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px'}}>
+                    Configure progressive milestone ranks, badges, and taglines displayed across mobile and web.
+                  </p>
+                </div>
                 <button 
                   className="btn btn-primary"
-                  onClick={() => setIsAddBadgeModalOpen(true)}
+                  onClick={() => handleOpenAddBadgeModal()}
                 >
                   <Plus size={16} />
-                  Add New Badge
+                  Add New Milestone Badge
                 </button>
               </div>
 
-              <div className="badges-grid">
-                {badges.map(bd => (
-                  <div key={bd.id} className="badge-card">
-                    <div className="badge-icon-wrapper">
-                      {bd.iconName === 'map' ? <Map size={28} /> :
-                       bd.iconName === 'compass' ? <Compass size={28} /> :
-                       bd.iconName === 'shield' ? <Shield size={28} /> :
-                       <Award size={28} />}
-                    </div>
-                    <div className="badge-info">
-                      <h4 className="badge-title">{bd.name}</h4>
-                      <span className="badge-desc">{bd.desc}</span>
-                      <div style={{marginTop: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap'}}>
-                        {bd.reqQR > 0 && <span className="badge" style={{backgroundColor: 'var(--accent-gold)', color: 'black', fontSize: '10px'}}>QR: {bd.reqQR}</span>}
-                        {bd.reqAR > 0 && <span className="badge" style={{backgroundColor: 'var(--accent-pink)', color: 'white', fontSize: '10px'}}>AR: {bd.reqAR}</span>}
-                        {bd.reqCatch > 0 && <span className="badge" style={{backgroundColor: '#14B8A6', color: 'white', fontSize: '10px'}}>Catch: {bd.reqCatch}</span>}
+              {/* Visual Progression Summary */}
+              {badges.length > 0 && (
+                <div style={{
+                  backgroundColor: 'var(--bg-surface, rgba(26,86,219,0.06))',
+                  border: '1px solid var(--card-border)',
+                  borderRadius: '16px',
+                  padding: '16px 20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  overflowX: 'auto'
+                }}>
+                  <span style={{fontSize: '12px', fontWeight: 'bold', color: 'var(--accent-blue)', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap'}}>
+                    Active Path:
+                  </span>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'nowrap'}}>
+                    {badges.map((b, idx) => (
+                      <div key={b.id || idx} style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <div style={{
+                          backgroundColor: b.color ? `${b.color}22` : 'rgba(255,255,255,0.08)',
+                          border: `1px solid ${b.color || 'var(--card-border)'}`,
+                          borderRadius: '20px',
+                          padding: '4px 12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          <span style={{fontSize: '11px', fontWeight: 'bold', color: b.color || 'var(--text-title)'}}>
+                            T{b.tier || (idx + 1)}: {b.name}
+                          </span>
+                          <span style={{fontSize: '10px', color: 'var(--text-muted)'}}>
+                            ({b.min_xp}–{b.max_xp !== null && b.max_xp !== undefined ? `${b.max_xp}` : '∞'} XP)
+                          </span>
+                        </div>
+                        {idx < badges.length - 1 && <span style={{color: 'var(--text-muted)', fontSize: '12px'}}>→</span>}
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+              )}
+
+              <div className="badges-grid">
+                {badges.length === 0 ? (
+                  <div style={{gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--text-secondary)'}}>
+                    No milestone badges created yet. Click "Add New Milestone Badge" above to create one!
+                  </div>
+                ) : (
+                  badges.map((bd, idx) => {
+                    const badgeColor = bd.color || '#1A56DB';
+                    return (
+                      <div key={bd.id || idx} className="badge-card" style={{position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '14px', borderLeft: `4px solid ${badgeColor}`}}>
+                        <div style={{display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px'}}>
+                          <div style={{display: 'flex', alignItems: 'center', gap: '14px'}}>
+                            <div className="badge-icon-wrapper" style={{
+                              backgroundColor: `${badgeColor}18`,
+                              borderColor: `${badgeColor}55`,
+                              color: badgeColor,
+                              width: '54px',
+                              height: '54px',
+                              borderRadius: '16px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              border: '1.5px solid'
+                            }}>
+                              {bd.icon === 'navigation' ? <Navigation size={26} /> :
+                               bd.icon === 'map' ? <Map size={26} /> :
+                               bd.icon === 'shield' ? <Shield size={26} /> :
+                               bd.icon === 'anchor' ? <Anchor size={26} /> :
+                               bd.icon === 'crown' ? <Crown size={26} /> :
+                               bd.icon === 'award' ? <Award size={26} /> :
+                               <Compass size={26} />}
+                            </div>
+
+                            <div>
+                              <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px'}}>
+                                <span style={{
+                                  backgroundColor: `${badgeColor}22`,
+                                  color: badgeColor,
+                                  border: `1px solid ${badgeColor}66`,
+                                  fontSize: '10px',
+                                  fontWeight: 'bold',
+                                  padding: '2px 8px',
+                                  borderRadius: '6px',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.5px'
+                                }}>
+                                  Tier {bd.tier || (idx + 1)}
+                                </span>
+                              </div>
+                              <h4 className="badge-title" style={{fontSize: '16px', fontWeight: 'bold', color: 'var(--text-title)', margin: 0}}>{bd.name}</h4>
+                            </div>
+                          </div>
+
+                          <div style={{display: 'flex', gap: '6px'}}>
+                            <button
+                              className="btn btn-secondary"
+                              style={{padding: '6px 10px', fontSize: '11px'}}
+                              onClick={() => handleOpenAddBadgeModal(bd)}
+                              title="Edit Milestone Badge"
+                            >
+                              <Edit size={14} />
+                            </button>
+                            <button
+                              className="btn btn-secondary"
+                              style={{padding: '6px 10px', fontSize: '11px', color: 'var(--accent-red, #EF4444)'}}
+                              onClick={() => handleDeleteBadge(bd.id)}
+                              title="Delete Milestone Badge"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {bd.tagline && (
+                          <div style={{
+                            backgroundColor: 'rgba(0,0,0,0.03)',
+                            border: '1px solid var(--card-border)',
+                            borderRadius: '10px',
+                            padding: '10px 12px',
+                            fontSize: '12px',
+                            fontStyle: 'italic',
+                            color: 'var(--text-secondary)'
+                          }}>
+                            "{bd.tagline}"
+                          </div>
+                        )}
+
+                        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid var(--card-border)'}}>
+                          <span style={{fontSize: '12px', color: 'var(--text-secondary)'}}>XP Range</span>
+                          <span style={{
+                            backgroundColor: 'var(--accent-gold-soft, rgba(251,191,36,0.15))',
+                            color: 'var(--accent-gold-dark, #D97706)',
+                            border: '1px solid rgba(251,191,36,0.35)',
+                            padding: '3px 10px',
+                            borderRadius: '8px',
+                            fontSize: '11px',
+                            fontWeight: 'bold'
+                          }}>
+                            ⚡ {bd.min_xp} – {bd.max_xp !== null && bd.max_xp !== undefined ? `${bd.max_xp} XP` : '∞ (Max)'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </section>
           )}
@@ -4193,87 +4386,118 @@ function App() {
         </div>
       )}
 
-      {/* ADD BADGE MODAL */}
+      {/* ADD / EDIT MILESTONE BADGE MODAL */}
       {isAddBadgeModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-card">
+          <div className="modal-card" style={{maxWidth: '540px'}}>
             <div className="modal-header">
-              <h3 className="modal-title">Create New Badge</h3>
-              <button className="close-btn" onClick={() => setIsAddBadgeModalOpen(false)}>
+              <h3 className="modal-title">
+                <Award size={18} style={{ marginRight: '8px', color: 'var(--accent-gold)' }} />
+                {editingBadge ? 'Edit XP Milestone Badge' : 'Create New XP Milestone Badge'}
+              </h3>
+              <button className="close-btn" onClick={() => { setIsAddBadgeModalOpen(false); setEditingBadge(null); }}>
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleAddBadge}>
-              <div className="modal-body">
+            <form onSubmit={handleSaveBadge}>
+              <div className="modal-body" style={{gap: '16px'}}>
                 <div className="form-group">
-                  <label className="form-label">Badge Name</label>
+                  <label className="form-label">Badge Name <span style={{color: 'var(--accent-red)'}}>*</span></label>
                   <input 
                     type="text" 
                     className="form-input" 
-                    placeholder="e.g. Master Explorer"
-                    value={newBadge.name}
-                    onChange={(e) => setNewBadge({...newBadge, name: e.target.value})}
+                    placeholder="e.g. Coastal Scout, Vinta Helmsman"
+                    value={badgeFormData.name}
+                    onChange={(e) => setBadgeFormData({...badgeFormData, name: e.target.value})}
                     required 
                   />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Badge Description (Optional)</label>
+                  <label className="form-label">Milestone Tagline <span style={{color: 'var(--accent-red)'}}>*</span></label>
                   <textarea 
                     className="form-input" 
-                    placeholder="Describe how to earn this badge... (Auto-generated if left blank)"
-                    value={newBadge.desc}
-                    onChange={(e) => setNewBadge({...newBadge, desc: e.target.value})}
-                    rows={3}
+                    placeholder="e.g. Testing the tides along R.T. Lim Boulevard."
+                    value={badgeFormData.tagline}
+                    onChange={(e) => setBadgeFormData({...badgeFormData, tagline: e.target.value})}
+                    rows={2}
+                    required
                   />
                 </div>
 
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px'}}>
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px'}}>
                   <div className="form-group">
-                    <label className="form-label">Req. QR Scans</label>
+                    <label className="form-label">Tier Level</label>
                     <input 
                       type="number" 
                       className="form-input" 
-                      min="0"
-                      value={newBadge.reqQR}
-                      onChange={(e) => setNewBadge({...newBadge, reqQR: e.target.value})}
+                      min="1"
+                      value={badgeFormData.tier}
+                      onChange={(e) => setBadgeFormData({...badgeFormData, tier: e.target.value})}
+                      required
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Req. AR Visits</label>
+                    <label className="form-label">Min XP</label>
                     <input 
                       type="number" 
                       className="form-input" 
                       min="0"
-                      value={newBadge.reqAR}
-                      onChange={(e) => setNewBadge({...newBadge, reqAR: e.target.value})}
+                      value={badgeFormData.min_xp}
+                      onChange={(e) => setBadgeFormData({...badgeFormData, min_xp: e.target.value})}
+                      required
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Req. Catches</label>
+                    <label className="form-label">Max XP (Optional)</label>
                     <input 
                       type="number" 
                       className="form-input" 
                       min="0"
-                      value={newBadge.reqCatch}
-                      onChange={(e) => setNewBadge({...newBadge, reqCatch: e.target.value})}
+                      placeholder="Blank for Max"
+                      value={badgeFormData.max_xp}
+                      onChange={(e) => setBadgeFormData({...badgeFormData, max_xp: e.target.value})}
                     />
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Badge Icon Type</label>
-                  <select 
-                    className="form-input" 
-                    value={newBadge.iconName}
-                    onChange={(e) => setNewBadge({...newBadge, iconName: e.target.value})}
-                  >
-                    <option value="award">Award (Default)</option>
-                    <option value="map">Map</option>
-                    <option value="compass">Compass</option>
-                    <option value="shield">Shield</option>
-                  </select>
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px'}}>
+                  <div className="form-group">
+                    <label className="form-label">Badge Icon Type</label>
+                    <select 
+                      className="form-input" 
+                      value={badgeFormData.icon}
+                      onChange={(e) => setBadgeFormData({...badgeFormData, icon: e.target.value})}
+                    >
+                      <option value="compass">🧭 Compass (Scout)</option>
+                      <option value="navigation">⛵ Navigation / Vinta</option>
+                      <option value="map">🗺️ Map / Navigator</option>
+                      <option value="shield">🛡️ Shield / Sentinel</option>
+                      <option value="anchor">⚓ Anchor / Voyager</option>
+                      <option value="crown">👑 Crown / Admiral</option>
+                      <option value="award">🏅 Award / Medal</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Badge Accent Color</label>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                      <input 
+                        type="color" 
+                        value={badgeFormData.color || '#1A56DB'}
+                        onChange={(e) => setBadgeFormData({...badgeFormData, color: e.target.value})}
+                        style={{width: '40px', height: '38px', borderRadius: '8px', border: '1px solid var(--card-border)', cursor: 'pointer', padding: '2px'}}
+                      />
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        value={badgeFormData.color}
+                        onChange={(e) => setBadgeFormData({...badgeFormData, color: e.target.value})}
+                        placeholder="#1A56DB"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -4281,12 +4505,12 @@ function App() {
                 <button 
                   type="button" 
                   className="btn btn-secondary" 
-                  onClick={() => setIsAddBadgeModalOpen(false)}
+                  onClick={() => { setIsAddBadgeModalOpen(false); setEditingBadge(null); }}
                 >
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Create Badge
+                  {editingBadge ? 'Save Changes' : 'Create Milestone Badge'}
                 </button>
               </div>
             </form>

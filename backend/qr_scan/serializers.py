@@ -2,7 +2,7 @@ import base64
 import uuid
 from django.core.files.base import ContentFile
 from rest_framework import serializers
-from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, TriviaAttempt, CulturalIcon, ARTarget
+from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, TriviaAttempt, CulturalIcon, ARTarget, MilestoneBadge
 from .glb_utils import strip_incompatible_extensions
 class Base64ImageField(serializers.ImageField):
     def to_internal_value(self, data):
@@ -126,4 +126,15 @@ class ARTargetSerializer(serializers.ModelSerializer):
             'id', 'name', 'description', 'building', 'slot_number',
             'rarity', 'hint', 'image', 'model_3d',
             'spot_id', 'spot_name', 'created_at',
+        )
+
+
+class MilestoneBadgeSerializer(serializers.ModelSerializer):
+    badge_image = Base64ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model = MilestoneBadge
+        fields = (
+            'id', 'name', 'tagline', 'tier', 'min_xp', 'max_xp',
+            'icon', 'color', 'badge_image', 'created_at'
         )

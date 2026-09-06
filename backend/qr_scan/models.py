@@ -164,6 +164,24 @@ class SpotBadge(models.Model):
         unique_together = ('user', 'spot')
 
 
+class MilestoneBadge(models.Model):
+    name = models.CharField(max_length=150)
+    tagline = models.CharField(max_length=300, blank=True)
+    tier = models.PositiveIntegerField(default=1)
+    min_xp = models.PositiveIntegerField(default=0)
+    max_xp = models.PositiveIntegerField(null=True, blank=True)
+    icon = models.CharField(max_length=50, default='compass')
+    color = models.CharField(max_length=30, default='#1A56DB')
+    badge_image = models.ImageField(upload_to='milestone_badges/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['tier', 'min_xp']
+
+    def __str__(self):
+        return f"Tier {self.tier}: {self.name} ({self.min_xp} - {self.max_xp or '∞'} XP)"
+
+
 class TriviaAttempt(models.Model):
     user = models.ForeignKey('accounts.CustomUser', on_delete=models.CASCADE, related_name='trivia_attempts')
     spot = models.ForeignKey(CulturalSpot, on_delete=models.CASCADE, related_name='trivia_attempts')

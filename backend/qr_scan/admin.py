@@ -1,5 +1,12 @@
 from django.contrib import admin
-from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, SpotBadge, TriviaAttempt
+from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, SpotBadge, TriviaAttempt, MilestoneBadge, CulturalIcon, ARTarget
+
+
+@admin.register(MilestoneBadge)
+class MilestoneBadgeAdmin(admin.ModelAdmin):
+    list_display = ('tier', 'name', 'tagline', 'min_xp', 'max_xp', 'icon', 'color')
+    list_filter = ('tier',)
+    search_fields = ('name', 'tagline')
 
 
 @admin.register(CulturalSpot)

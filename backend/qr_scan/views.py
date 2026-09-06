@@ -9,15 +9,28 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions, viewsets
 from groq import Groq
-from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, SpotBadge, TriviaAttempt, CulturalIcon, ARTarget
+from .models import (
+    CulturalSpot, QRMarker, QRScan, TriviaQuestion, SpotBadge,
+    TriviaAttempt, CulturalIcon, ARTarget, MilestoneBadge
+)
 from .serializers import (
     CulturalSpotSerializer, QRMarkerSerializer,
     TriviaQuestionSerializer, TriviaQuestionAdminSerializer,
-    CulturalIconSerializer, ARTargetSerializer
+    CulturalIconSerializer, ARTargetSerializer, MilestoneBadgeSerializer
 )
 
 XP_PER_QUIZ = 50
 PASS_THRESHOLD = 0.6  # 60% correct to pass
+
+
+class MilestoneBadgeViewSet(viewsets.ModelViewSet):
+    queryset = MilestoneBadge.objects.all().order_by('tier', 'min_xp')
+    serializer_class = MilestoneBadgeSerializer
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
 
 
 class CulturalIconViewSet(viewsets.ModelViewSet):

@@ -34,6 +34,7 @@ import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
 import { getARTargets, ORIGIN } from '../api/qrService';
 import { authService } from '../api/authService';
+import ARGuideCenterPopup from '../components/ARGuideCenterPopup';
 
 // Resolve a model path into an absolute https URL Viro can load.
 const resolveModelUrl = (m) => {
@@ -256,9 +257,9 @@ export default function ViroARScanner({ navigation }) {
     },
   ];
   const [rewardModalData, setRewardModalData] = useState(null);
-  const [activeHintBanner, setActiveHintBanner] = useState(null);
+  const [showGuideCenterPopup, setShowGuideCenterPopup] = useState(false);
+  const [activeGuideTarget, setActiveGuideTarget] = useState(null);
   const [showHintModal, setShowHintModal] = useState(false);
-  const hintBannerAnim = React.useRef(new Animated.Value(-120)).current;
   const glowAnim = React.useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
@@ -282,7 +283,7 @@ export default function ViroARScanner({ navigation }) {
     }
   }, [rewardModalData]);
 
-  // Hint auto-popup: If tourist hasn't found art in 12s, popup a clue
+  // Hint auto-popup: If tourist hasn't found art in 12s, popup the 3D Character Guide in the center
   React.useEffect(() => {
     if (!sceneMountReady || arStatus !== 'ready' || loading || arTargets.length === 0) return;
     
@@ -292,13 +293,8 @@ export default function ViroARScanner({ navigation }) {
     const timer = setTimeout(() => {
       if (!detectedSpot && !rewardModalData) {
         const chosen = targetsWithHints[Math.floor(Math.random() * targetsWithHints.length)];
-        setActiveHintBanner(chosen);
-        Animated.spring(hintBannerAnim, {
-          toValue: 0,
-          friction: 6,
-          tension: 50,
-          useNativeDriver: true,
-        }).start();
+        setActiveGuideTarget(chosen);
+        setShowGuideCenterPopup(true);
       }
     }, 12000);
 
@@ -484,8 +480,8 @@ export default function ViroARScanner({ navigation }) {
       local_model: localModelPath || target.local_model || (target.model_3d ? resolveModelUrl(target.model_3d) : null)
     });
 
-    // Dismiss any active hint banner when target is found
-    setActiveHintBanner(null);
+    // Dismiss any active 3D hint popup when target is found
+    setShowGuideCenterPopup(false);
 
     if (target.model_3d) {
       if (loadedModelsRef.current.has(target.id)) {
@@ -634,32 +630,33 @@ export default function ViroARScanner({ navigation }) {
           <Ionicons name="chevron-back" size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>AR Scanner</Text>
-        <TouchableOpacity onPress={() => setShowHintModal(true)} style={styles.hintHeaderBtn}>
+        <TouchableOpacity
+          onPress={() => {
+            const targetsWithHints = arTargets.filter(t => t.hint && t.hint.trim().length > 0);
+            if (targetsWithHints.length > 0) {
+              setActiveGuideTarget(targetsWithHints[0]);
+            }
+            setShowGuideCenterPopup(true);
+          }}
+          style={styles.hintHeaderBtn}
+        >
           <Ionicons name="bulb" size={18} color={COLORS.gold} />
-          <Text style={styles.hintHeaderBtnText}>Hints</Text>
+          <Text style={styles.hintHeaderBtnText}>3D Clue</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Floating Hint Pop-up Banner (Appears when tourist needs help finding art) */}
-      {activeHintBanner && (
-        <Animated.View style={[styles.hintBanner, { transform: [{ translateY: hintBannerAnim }] }]}>
-          <View style={styles.hintBannerIconCircle}>
-            <Ionicons name="bulb" size={20} color="#FFF" />
-          </View>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-              <Text style={styles.hintBannerTitle}>Need a Hint?</Text>
-              <Text style={styles.hintBannerSlot}>Building {activeHintBanner.building || 'S1'} · Slot #{activeHintBanner.slot_number || 1}</Text>
-            </View>
-            <Text style={styles.hintBannerText} numberOfLines={2}>
-              "{activeHintBanner.hint}"
-            </Text>
-          </View>
-          <TouchableOpacity onPress={() => setActiveHintBanner(null)} style={styles.hintBannerClose}>
-            <Ionicons name="close" size={18} color="rgba(255,255,255,0.7)" />
-          </TouchableOpacity>
-        </Animated.View>
-      )}
+      {/* 3D Guide Character Hologram Pop-out (Center of Screen) */}
+      <ARGuideCenterPopup
+        visible={showGuideCenterPopup}
+        onClose={() => setShowGuideCenterPopup(false)}
+        arTargets={arTargets}
+        activeTarget={activeGuideTarget}
+        onOpenFullList={() => {
+          setShowGuideCenterPopup(false);
+          setShowHintModal(true);
+        }}
+        rarityThemes={RARITY_THEME}
+      />
 
       {/* Viro React AR Camera View */}
       <View style={styles.cameraContainer}>

@@ -43,6 +43,11 @@ const qrService = {
   updateTriviaQuestion: (id, data) => adminClient.patch(`/api/qr/trivia-questions/${id}/`, data),
   deleteTriviaQuestion: (id)     => adminClient.delete(`/api/qr/trivia-questions/${id}/`),
 
+  getMilestones: ()              => adminClient.get('/api/qr/milestones/'),
+  createMilestone: (data)        => adminClient.post('/api/qr/milestones/', data),
+  updateMilestone: (id, data)    => adminClient.patch(`/api/qr/milestones/${id}/`, data),
+  deleteMilestone: (id)          => adminClient.delete(`/api/qr/milestones/${id}/`),
+
   generateAITrivia: (type, id, count = 5) => {
     let endpoint = 'spots';
     let targetId = id;

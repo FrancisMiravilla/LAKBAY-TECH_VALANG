@@ -7,7 +7,7 @@ from .views import (
     CulturalIconViewSet, GenerateIconAITriviaView, GenerateARAITriviaView,
     IconTriviaView, SubmitIconTriviaView,
     TriviaReviewListView, TriviaReviewActionView,
-    ARTargetViewSet
+    ARTargetViewSet, MilestoneBadgeViewSet
 )
 
 router = DefaultRouter()
@@ -16,6 +16,7 @@ router.register(r'markers', QRMarkerViewSet, basename='markers')
 router.register(r'trivia-questions', TriviaQuestionViewSet, basename='trivia-questions')
 router.register(r'catch-icons', CulturalIconViewSet, basename='catch-icons')
 router.register(r'ar-targets', ARTargetViewSet, basename='ar-targets')
+router.register(r'milestones', MilestoneBadgeViewSet, basename='milestones')
 
 urlpatterns = [
     path('', include(router.urls)),
