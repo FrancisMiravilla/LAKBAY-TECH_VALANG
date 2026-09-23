@@ -111,15 +111,20 @@ export default function ARGuideCenterPopup({
     };
   }, [modelUrl]);
 
-  // Set active target index when modal opens with a specific target
+  // Set active target index only when modal first opens — not on every re-render
+  // (previously re-ran on validTargets changes, causing arrow navigation to reset to index 0)
   useEffect(() => {
-    if (activeTarget && validTargets.length > 0) {
+    if (visible && activeTarget && validTargets.length > 0) {
       const idx = validTargets.findIndex((t) => t.id === activeTarget.id);
       if (idx !== -1) {
         setCurrentIndex(idx);
       }
     }
-  }, [activeTarget, validTargets]);
+    // Reset to 0 when modal closes so it opens fresh next time
+    if (!visible) {
+      setCurrentIndex(0);
+    }
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Modal open/close animation
   useEffect(() => {

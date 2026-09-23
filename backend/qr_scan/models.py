@@ -213,3 +213,26 @@ class CulturalIcon(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class UserActivityLog(models.Model):
+    ACTIVITY_TYPES = (
+        ('scan', 'QR Scan'),
+        ('catch', 'AR Catch'),
+        ('ar', 'AR Exhibit Visit'),
+        ('badge', 'Badge Unlocked'),
+    )
+    user = models.ForeignKey(
+        'accounts.CustomUser',
+        on_delete=models.CASCADE,
+        related_name='activity_logs'
+    )
+    activity_type = models.CharField(max_length=20, choices=ACTIVITY_TYPES)
+    title = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} {self.title} ({self.activity_type})"

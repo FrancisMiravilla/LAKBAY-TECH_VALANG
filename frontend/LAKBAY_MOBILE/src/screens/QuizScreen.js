@@ -48,6 +48,18 @@ function buildViewerHTML(modelUrl) {
 
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
 
+// ─── Gamified wrong-answer messages (rotated randomly, no correct answer revealed) ──
+const WRONG_ANSWER_MESSAGES = [
+  { icon: '🎯', line1: 'Not quite, Explorer!', line2: 'Every great adventurer misses a shot — reload and try again!' },
+  { icon: '🧩', line1: 'Hmm, close but no cigar!', line2: 'The answer is still out there waiting — give it another shot!' },
+  { icon: '⚔️', line1: 'Quest failed… this round!', line2: 'A true champion doesn\'t give up. Retry and conquer!' },
+  { icon: '🔍', line1: 'Your instincts need recalibrating!', line2: 'Look deeper, think harder — you\'ve got this!' },
+  { icon: '💡', line1: 'Interesting guess, but not the one!', line2: 'Shake it off and come back stronger, Explorer!' },
+  { icon: '🗺️', line1: 'Wrong path, but keep exploring!', line2: 'Every wrong turn teaches you the right one. Try again!' },
+  { icon: '🎮', line1: 'Oops! Wrong move!', line2: 'Even legends respawn. Step back up and try again!' },
+  { icon: '🌟', line1: 'Not this time, brave one!', line2: 'Stars aren\'t born overnight — keep pushing!' },
+];
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function QuizScreen({ navigation, route }) {
   const icon     = route.params?.icon     ?? null;
@@ -73,6 +85,7 @@ export default function QuizScreen({ navigation, route }) {
   const [streak, setStreak]                 = useState(0);
   const [maxStreak, setMaxStreak]           = useState(0);
   const [floatingToast, setFloatingToast]   = useState(null); // { text, color, iconName }
+  const [wrongMessage, setWrongMessage]     = useState(null); // randomly picked on wrong answer
 
   // Animations
   const toastFadeAnim  = useRef(new Animated.Value(0)).current;
@@ -188,6 +201,11 @@ export default function QuizScreen({ navigation, route }) {
 
     } else {
       setStreak(0);
+
+      // Pick a random gamified retry message
+      const msg = WRONG_ANSWER_MESSAGES[Math.floor(Math.random() * WRONG_ANSWER_MESSAGES.length)];
+      setWrongMessage(msg);
+
       const currentTotalXP = (userProfile?.xp ?? 0);
 
       if (currentTotalXP === 0 && sessionXP === 0) {
@@ -207,7 +225,8 @@ export default function QuizScreen({ navigation, route }) {
         setSelectedOption(null);
         setIsCorrect(null);
         setFloatingToast(null);
-      }, 1600);
+        setWrongMessage(null);
+      }, 2200);
     }
   };
 
@@ -448,8 +467,6 @@ export default function QuizScreen({ navigation, route }) {
         <View style={styles.options}>
           {currentQ.choices.map((option, idx) => {
             const isSelected = selectedOption === option;
-            const isCorrectAnswer = option === currentQ.choices[currentQ.correct_index];
-            const showCorrect = selectedOption !== null && isCorrectAnswer && !isCorrect;
             const letter = OPTION_LETTERS[idx] || String(idx + 1);
 
             let cardBg = '#111126';
@@ -473,13 +490,6 @@ export default function QuizScreen({ navigation, route }) {
               letterColor = '#FFF';
               textColor = '#FFF';
               rightIcon = <Ionicons name="close-circle" size={22} color="#EF4444" />;
-            } else if (showCorrect) {
-              cardBg = '#064E3B';
-              cardBorder = '#10B981';
-              letterBg = '#10B981';
-              letterColor = '#FFF';
-              textColor = '#FFF';
-              rightIcon = <Ionicons name="checkmark-circle" size={22} color="#10B981" />;
             }
 
             return (
@@ -502,9 +512,11 @@ export default function QuizScreen({ navigation, route }) {
           })}
         </View>
 
-        {/* ── Explanation & Next Question Banner ── */}
+        {/* ── Explanation & Next / Wrong-Answer Retry Banner ── */}
         {selectedOption !== null && (
           <View style={styles.feedback}>
+
+            {/* ── CORRECT: show cultural insight + next button ── */}
             {isCorrect && currentQ.explanation ? (
               <View style={styles.explanationBox}>
                 <Ionicons name="bulb" size={20} color="#FBBF24" style={{ marginTop: 2 }} />
@@ -523,6 +535,18 @@ export default function QuizScreen({ navigation, route }) {
                 <Ionicons name="arrow-forward" size={18} color="#FFF" />
               </TouchableOpacity>
             )}
+
+            {/* ── WRONG: gamified retry message, no correct answer shown ── */}
+            {!isCorrect && wrongMessage && (
+              <View style={styles.wrongBox}>
+                <Text style={styles.wrongIcon}>{wrongMessage.icon}</Text>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.wrongTitle}>{wrongMessage.line1}</Text>
+                  <Text style={styles.wrongDesc}>{wrongMessage.line2}</Text>
+                </View>
+              </View>
+            )}
+
           </View>
         )}
       </ScrollView>
@@ -708,6 +732,21 @@ const styles = StyleSheet.create({
   },
   explanationTitle: { fontFamily: FONTS.bold, fontSize: 11, color: '#FBBF24', letterSpacing: 1, marginBottom: 4 },
   explanationText: { fontFamily: FONTS.medium, fontSize: 13, color: '#CBD5E1', lineHeight: 20 },
+
+  // Wrong-answer gamified retry card
+  wrongBox: {
+    flexDirection: 'row',
+    backgroundColor: '#2D0A0A',
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+  },
+  wrongIcon: { fontSize: 28, lineHeight: 34 },
+  wrongTitle: { fontFamily: FONTS.bold, fontSize: 13, color: '#FCA5A5', marginBottom: 4, letterSpacing: 0.3 },
+  wrongDesc:  { fontFamily: FONTS.medium, fontSize: 12, color: '#94A3B8', lineHeight: 18 },
   nextBtn: {
     flexDirection: 'row', backgroundColor: '#10B981', paddingVertical: 16,
     borderRadius: 28, justifyContent: 'center', alignItems: 'center',

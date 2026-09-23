@@ -67,6 +67,8 @@ const qrService = {
   getPendingQuizzes: () => adminClient.get('/api/qr/trivia-review/'),
   reviewQuizAction: (id, actionData) => adminClient.put(`/api/qr/trivia-review/${id}/`, actionData),
 
+  getDashboardStats: () => adminClient.get('/api/qr/dashboard-stats/'),
+
   getMediaUrl: (path) => {
     if (!path) return null;
     if (path.startsWith('data:')) return path;

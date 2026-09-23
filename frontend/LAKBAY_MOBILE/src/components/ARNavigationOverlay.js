@@ -5,6 +5,8 @@ import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { Svg, Polygon, Path, Circle, G, Defs, LinearGradient, Stop, Line } from 'react-native-svg';
+import * as SecureStore from 'expo-secure-store';
+import { authService } from '../api/authService';
 import { ORIGIN } from '../api/qrService';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
 const FALLBACK_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
@@ -38,6 +40,13 @@ function computeBearing(lat1, lon1, lat2, lon2) {
     Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon);
   return (toDeg(Math.atan2(y, x)) + 360) % 360;
 }
+
+const resolveModelUrl = (m) => {
+  if (!m) return null;
+  if (m.startsWith('data:')) return m;
+  if (m.startsWith('http')) return m;
+  return `${ORIGIN}${m}`;
+};
 
 function normalizeIcon(raw, idx) {
   const color = raw.color || FALLBACK_COLORS[idx % FALLBACK_COLORS.length];
@@ -635,6 +644,7 @@ export default function ARNavigationOverlay({
   onInspectSpot,
   onClose,
   hideBottomPanel = false,
+  showCelebration = true,
 }) {
   // Check if we are passing by a nearby spot or at the destination spot
   const activeSpot = nearbySpot || spot;
@@ -652,6 +662,12 @@ export default function ARNavigationOverlay({
   const floatAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const celebPopAnim = useRef(new Animated.Value(0)).current;
+
+  // Dismiss state for the model popup modal — resets each time a new model appears
+  const [modalDismissed, setModalDismissed] = useState(false);
+  useEffect(() => {
+    if (show3DModel) setModalDismissed(false);
+  }, [show3DModel]);
 
   // ── Live compass heading ──────────────────────────────────────────────────
   const [deviceHeading, setDeviceHeading] = useState(null);
@@ -724,8 +740,49 @@ export default function ARNavigationOverlay({
         friction: 8,
         useNativeDriver: true,
       }).start();
+
+      // Auto-save discovered model to SecureStore so BadgesScreen shows it
+      (async () => {
+        try {
+          const itemToSave = activeSpot || icon;
+          if (!itemToSave) return;
+          const existingStr = await SecureStore.getItemAsync('caught_icons');
+          let caught = existingStr ? JSON.parse(existingStr) : [];
+          const itemName = itemToSave.name || icon?.name || spot?.name;
+          const alreadyCaught = caught.some(c =>
+            String(c.id) === String(itemToSave.id) ||
+            (c.name && itemName && c.name.toLowerCase() === itemName.toLowerCase())
+          );
+          if (!alreadyCaught) {
+            const raw = itemToSave.model_3d || activeModel;
+            const newEntry = {
+              id: itemToSave.id || (spot ? 'spot-icon-' + spot.id : Date.now()),
+              name: itemName || 'Cultural Model',
+              model_3d: resolveModelUrl(raw),
+              color: icon?.color || '#10B981',
+              tagline: itemToSave.location_name || itemToSave.description || icon?.tagline || '',
+              date_caught: new Date().toISOString(),
+            };
+            caught.push(newEntry);
+            await SecureStore.setItemAsync('caught_icons', JSON.stringify(caught));
+
+            try {
+              const profile = await authService.getProfile();
+              if (profile?.id) {
+                await SecureStore.setItemAsync('caught_icons_uid', String(profile.id));
+              }
+            } catch (_) {}
+
+            try {
+              await authService.adjustXP(150);
+            } catch (_) {}
+          }
+        } catch (e) {
+          console.warn('[ARNavigationOverlay] Failed to auto-save caught model:', e);
+        }
+      })();
     }
-  }, [show3DModel]);
+  }, [show3DModel, activeSpot, spot, icon, activeModel]);
 
   const displayTitle = isEncounteringNearby
     ? nearbySpot.name
@@ -786,75 +843,100 @@ export default function ARNavigationOverlay({
       </View>
 
       {/* ════════════════════════════════════════
-          TOP LABEL  — spot name + subtitle
+          TOP LABEL — only shown while navigating (no model)
       ════════════════════════════════════════ */}
-      <View style={arStyles.topLabel}>
-        <View style={[arStyles.rarityBadge, { borderColor: displayColor + '99', backgroundColor: displayColor + '25' }]}>
-          <Ionicons name={isEncounteringNearby ? 'sparkles' : 'diamond'} size={9} color={displayColor} />
-          <Text style={[arStyles.rarityText, { color: displayColor }]}>
-            {isEncounteringNearby ? 'NEARBY ENCOUNTER' : 'CULTURAL SPOT'}
-          </Text>
-          <Ionicons name={isEncounteringNearby ? 'sparkles' : 'diamond'} size={9} color={displayColor} />
-        </View>
-        <Text style={arStyles.arTitle} numberOfLines={1}>{displayTitle}</Text>
-        <View style={arStyles.subtitleRow}>
-          <Ionicons
-            name={show3DModel ? 'cube' : showArrow ? 'arrow-up-circle' : 'radio-button-on'}
-            size={12}
-            color={show3DModel ? '#10B981' : '#FBBF24'}
-            style={{ marginRight: 5 }}
-          />
-          <Text style={arStyles.arSubtitle}>
-            {show3DModel
-              ? (isEncounteringNearby ? `Passing ${displayTitle} (${Math.round(nearbyDistanceM || 20)}m)` : "3D Model in Sight — Look around!")
-              : (showArrow ? 'Follow the navigation reticle' : "You're here — look around!")}
-          </Text>
-        </View>
-      </View>
-
-      {/* ── Celebration Confetti & Banner (when 3D model appears) ── */}
-      {show3DModel && (
-        <>
-          <ConfettiCannon />
-          <Animated.View style={[arStyles.celebrationCard, { transform: [{ scale: celebPopAnim }] }]}>
-            <View style={arStyles.celebrationGlow} />
-            <View style={arStyles.celebrationHeader}>
-              <Ionicons name="sparkles" size={14} color="#FBBF24" />
-              <Text style={arStyles.celebrationKicker}>
-                {isEncounteringNearby ? 'NEARBY SPOT DISCOVERED!' : 'DESTINATION REACHED!'}
-              </Text>
-              <Ionicons name="sparkles" size={14} color="#FBBF24" />
-            </View>
-            <Text style={arStyles.celebrationCongrats}>CONGRATS!</Text>
-            <Text style={arStyles.celebrationTitle}>
-              You have caught <Text style={arStyles.celebrationSpotName}>"{displayTitle}"</Text>
+      {!show3DModel && (
+        <View style={arStyles.topLabel}>
+          <View style={[arStyles.rarityBadge, { borderColor: displayColor + '99', backgroundColor: displayColor + '25' }]}>
+            <Ionicons name="diamond" size={9} color={displayColor} />
+            <Text style={[arStyles.rarityText, { color: displayColor }]}>CULTURAL SPOT</Text>
+            <Ionicons name="diamond" size={9} color={displayColor} />
+          </View>
+          <Text style={arStyles.arTitle} numberOfLines={1}>{displayTitle}</Text>
+          <View style={arStyles.subtitleRow}>
+            <Ionicons
+              name={showArrow ? 'arrow-up-circle' : 'radio-button-on'}
+              size={12}
+              color="#FBBF24"
+              style={{ marginRight: 5 }}
+            />
+            <Text style={arStyles.arSubtitle}>
+              {showArrow ? 'Follow the navigation reticle' : "You're here — look around!"}
             </Text>
-            <View style={arStyles.celebrationXpPill}>
-              <Ionicons name="flash" size={11} color="#FBBF24" />
-              <Text style={arStyles.celebrationXpText}>+150 XP DISCOVERY BONUS</Text>
-            </View>
-          </Animated.View>
-        </>
+          </View>
+        </View>
       )}
 
-      {/* ── Floating 3D model (When passing nearby spot or at destination) ── */}
-      {show3DModel && (
-        <Animated.View style={[arStyles.modelWrap, { transform: [{ translateY: floatAnim }] }]}>
-          <WebView
-            source={{ html: buildARViewerHTML(activeModel) }}
-            style={arStyles.modelWebview}
-            javaScriptEnabled
-            originWhitelist={['*']}
-            scrollEnabled={false}
-            backgroundColor="transparent"
-            allowsTransparency
-          />
-          <View style={[arStyles.modelGlow, { backgroundColor: displayColor + '30', shadowColor: displayColor }]} />
+      {/* ── Celebration Confetti (when 3D model appears) ── */}
+      {show3DModel && showCelebration && <ConfettiCannon />}
+
+      {/* ════════════════════════════════════════
+          COMPACT MODEL POPUP — centered on screen
+      ════════════════════════════════════════ */}
+      {show3DModel && !modalDismissed && (
+        <Animated.View style={[arStyles.modelModal, { transform: [{ scale: celebPopAnim }] }]}>
+          {/* Accent top bar */}
+          <View style={[arStyles.modelModalAccent, { backgroundColor: displayColor }]} />
+
+          {/* Header: badge only */}
+          <View style={arStyles.modelModalHeader}>
+            <View style={[arStyles.modelModalBadge, { backgroundColor: displayColor + '25', borderColor: displayColor + '88' }]}>
+              <Ionicons name={isEncounteringNearby ? 'sparkles' : 'location'} size={10} color={displayColor} />
+              <Text style={[arStyles.modelModalBadgeText, { color: displayColor }]}>
+                {isEncounteringNearby ? 'PASSING BY' : 'ARRIVED'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Row: 3D viewer + text side by side */}
+          <View style={arStyles.modelModalBody}>
+            {/* Mini 3D viewer */}
+            <Animated.View style={[arStyles.modelModalViewer, { transform: [{ translateY: floatAnim }] }]}>
+              <WebView
+                source={{ html: buildARViewerHTML(activeModel) }}
+                style={arStyles.modelModalWebview}
+                javaScriptEnabled
+                originWhitelist={['*']}
+                scrollEnabled={false}
+                backgroundColor="transparent"
+                allowsTransparency
+              />
+              <View style={[arStyles.modelModalGlow, { backgroundColor: displayColor + '30', shadowColor: displayColor }]} />
+            </Animated.View>
+
+            {/* Text side */}
+            <View style={arStyles.modelModalTextCol}>
+              <Text style={arStyles.modelModalTitle} numberOfLines={2}>{displayTitle}</Text>
+              <Text style={arStyles.modelModalSubtitle}>
+                {isEncounteringNearby
+                  ? `Passing by — ${Math.round(nearbyDistanceM || 20)}m away`
+                  : 'You have arrived!'}
+              </Text>
+              {!!displayTagline && (
+                <View style={arStyles.modelModalLocationRow}>
+                  <Ionicons name="location-outline" size={11} color={displayColor} />
+                  <Text style={[arStyles.modelModalLocation, { color: displayColor }]} numberOfLines={2}>
+                    {displayTagline}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Got it button */}
+          <TouchableOpacity
+            style={[arStyles.modelModalGotIt, { backgroundColor: displayColor }]}
+            onPress={() => setModalDismissed(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="checkmark-circle" size={15} color="#fff" />
+            <Text style={arStyles.modelModalGotItText}>Got it</Text>
+          </TouchableOpacity>
         </Animated.View>
       )}
 
-      {/* ── Directional Arrow (when navigating and not obstructed by arrived model) ── */}
-      {showArrow && (
+      {/* ── Directional Arrow — hidden while model modal is open; resumes after "Got it" ── */}
+      {showArrow && (!show3DModel || modalDismissed) && (
         <DirectionArrow
           relativeBearing={relativeBearing}
           targetBearing={targetBearing}
@@ -863,6 +945,7 @@ export default function ARNavigationOverlay({
           color={displayColor}
         />
       )}
+
 
       {/* ════════════════════════════════════════
           BOTTOM PANEL
@@ -1026,10 +1109,11 @@ const arStyles = StyleSheet.create({
     letterSpacing: 2,
   },
   arTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 24,
+    fontFamily: FONTS.pixel,
+    fontSize: 14,
     color: '#FFF',
     marginBottom: 6,
+    lineHeight: 22,
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 6,
@@ -1044,7 +1128,144 @@ const arStyles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
   },
 
-  // ── 3D model ──
+  // ── Unified model modal (pops up when 3D model is in range) ──
+  modelModal: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: '30%',
+    left: 24,
+    right: 24,
+    backgroundColor: 'rgba(6, 10, 32, 0.96)',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 20,
+    zIndex: 30,
+  },
+  modelModalAccent: {
+    height: 3,
+    width: '100%',
+  },
+  modelModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  modelModalBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  modelModalBadgeText: {
+    fontFamily: FONTS.bold,
+    fontSize: 9,
+    letterSpacing: 1.5,
+  },
+  modelModalXpPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(251,191,36,0.15)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.35)',
+  },
+  modelModalXpText: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: '#FBBF24',
+  },
+  // Horizontal row: mini viewer + text column
+  modelModalBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+    gap: 12,
+  },
+  modelModalViewer: {
+    width: W * 0.30,
+    height: W * 0.30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modelModalWebview: {
+    width: W * 0.30,
+    height: W * 0.30,
+    backgroundColor: 'transparent',
+  },
+  modelModalGlow: {
+    position: 'absolute',
+    bottom: -8,
+    width: W * 0.20,
+    height: 16,
+    borderRadius: 50,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.7,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modelModalTextCol: {
+    flex: 1,
+    gap: 4,
+  },
+  modelModalTitle: {
+    fontFamily: FONTS.pixel,
+    fontSize: 11,
+    color: '#FFFFFF',
+    lineHeight: 18,
+  },
+  modelModalSubtitle: {
+    fontFamily: FONTS.regular,
+    fontSize: 11,
+    color: 'rgba(191,215,255,0.75)',
+    lineHeight: 16,
+  },
+  modelModalLocationRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 4,
+    marginTop: 6,
+  },
+  modelModalLocation: {
+    flex: 1,
+    fontFamily: FONTS.semiBold,
+    fontSize: 10,
+    lineHeight: 15,
+  },
+  // Got it dismiss button
+  modelModalGotIt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginHorizontal: 14,
+    marginBottom: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  modelModalGotItText: {
+    fontFamily: FONTS.bold,
+    fontSize: 13,
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+
+
   modelWrap: {
     position: 'absolute',
     top: H * 0.22,
@@ -1238,10 +1459,11 @@ const arStyles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   celebrationCongrats: {
-    fontFamily: FONTS.bold,
-    fontSize: 20,
+    fontFamily: FONTS.pixel,
+    fontSize: 14,
     color: '#FFFFFF',
     letterSpacing: 0.5,
+    lineHeight: 22,
   },
   celebrationTitle: {
     fontFamily: FONTS.medium,
@@ -1251,8 +1473,9 @@ const arStyles = StyleSheet.create({
     lineHeight: 18,
   },
   celebrationSpotName: {
-    fontFamily: FONTS.bold,
+    fontFamily: FONTS.pixel,
     color: '#FBBF24',
+    fontSize: 11,
   },
   celebrationXpPill: {
     flexDirection: 'row',

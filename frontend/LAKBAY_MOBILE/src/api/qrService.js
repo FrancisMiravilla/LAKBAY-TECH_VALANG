@@ -44,3 +44,7 @@ export const getARTargets = () =>
 
 export const getMilestones = () =>
   qrClient.get('/api/qr/milestones/').then((r) => r.data);
+
+export const logActivity = (activityType, title) =>
+  qrClient.post('/api/qr/log-activity/', { activity_type: activityType, title }).then((r) => r.data).catch(() => null);
+

@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
   },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4, 10, 38, 0.82)',
+    backgroundColor: 'rgba(8, 20, 60, 0.38)',
   },
   container: {
     flex: 1,
@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   heroGlass: {
-    backgroundColor: 'rgba(8, 20, 60, 0.58)',
+    backgroundColor: 'rgba(8, 20, 60, 0.82)',
     borderWidth: 1,
     borderColor: 'rgba(99, 179, 237, 0.25)',
     borderRadius: RADIUS.lg,
@@ -840,7 +840,7 @@ const styles = StyleSheet.create({
   },
   qaCard: {
     flex: 1,
-    backgroundColor: 'rgba(8, 20, 60, 0.62)',
+    backgroundColor: 'rgba(8, 20, 60, 0.82)',
     borderRadius: RADIUS.md,
     borderWidth: 1,
     padding: 14,
@@ -1068,7 +1068,7 @@ const styles = StyleSheet.create({
 
   // ── Welcome Glass Banner ───────────────────────────────────────────────
   welcomeGlass: {
-    backgroundColor: 'rgba(8, 20, 60, 0.58)',
+    backgroundColor: 'rgba(8, 20, 60, 0.82)',
     borderWidth: 1,
     borderColor: 'rgba(99, 179, 237, 0.22)',
     borderRadius: RADIUS.lg,

@@ -30,14 +30,10 @@ function build3DViewerHTML(modelUrl) {
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <script type="module"
-    src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"
-    integrity="sha384-NxrHiuPcsJaRbXc9EoFTt5OZ6WPVqKeDgcnykGs3spXmq0J7hbbGGlyUkrGuoJoA"
-    crossorigin="anonymous">
-  </script>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    html,body { width:100%; height:100%; background:#0A0A1A; overflow:hidden; }
+    html,body { width:100%; height:100%; background:transparent; overflow:hidden; }
     model-viewer { width:100%; height:100%; --progress-bar-color:transparent; }
   </style>
 </head>
@@ -49,7 +45,7 @@ function build3DViewerHTML(modelUrl) {
     bounds="tight"
     exposure="1.2"
     shadow-intensity="1"
-    style="width:100%;height:100%"
+    style="width:100%;height:100%;background:transparent;"
   ></model-viewer>
 </body>
 </html>`;

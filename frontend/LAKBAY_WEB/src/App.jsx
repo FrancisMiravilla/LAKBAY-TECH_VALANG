@@ -700,8 +700,14 @@ function App() {
   const [pendingQuizzes, setPendingQuizzes] = useState([]);
   const [isReviewQuizModalOpen, setIsReviewQuizModalOpen] = useState(false);
   const [reviewingQuiz, setReviewingQuiz] = useState(null);
-  const [creatures] = useState(INITIAL_CREATURES);
+  const [creatures] = useState(INITIAL_CREATURES); // kept for fallback
   const [exhibits] = useState(INITIAL_EXHIBITS);
+
+  // ── Real dashboard stats from backend ─────────────────────────────────────
+  const [dashboardStats, setDashboardStats] = useState(null);
+
+  const [activities] = useState(INITIAL_ACTIVITIES); // fallback if API has no data yet
+
   const [badges, setBadges] = useState([]);
   const [isAddBadgeModalOpen, setIsAddBadgeModalOpen] = useState(false);
   const [editingBadge, setEditingBadge] = useState(null);
@@ -783,9 +789,9 @@ function App() {
       showError('Failed to delete milestone badge', 'Delete Error');
     }
   };
-  const [activities] = useState(INITIAL_ACTIVITIES);
   
   // Authentication State
+
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginCredentials, setLoginCredentials] = useState({ email: '', password: '' });
@@ -893,17 +899,30 @@ function App() {
         setPendingQuizzes(data || []);
       }).catch(console.error);
     }
+
+    // ── Fetch real aggregated dashboard stats ────────────────────────────
+    qrService.getDashboardStats().then(({ data }) => {
+      setDashboardStats(data);
+      // Populate notifications from recent activity
+      if (data.recent_activity && data.recent_activity.length > 0) {
+        const notifs = data.recent_activity.slice(0, 5).map((act, i) => ({
+          id: i + 1,
+          text: act.text,
+          time: new Date(act.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }));
+        setNotifications(notifs);
+      }
+    }).catch(console.error);
+
   }, [isAuthenticated, currentUser]);
 
   // Search/Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
 
-  // Notifications
-  const [notifications, setNotifications] = useState([
-    { id: 1, text: 'Vinta boat registration V-206 pending verification.', time: '10m ago' },
-    { id: 2, text: 'Daily app metrics update compiled successfully.', time: '1h ago' }
-  ]);
+  // Notifications — populated from real activity via getDashboardStats
+  const [notifications, setNotifications] = useState([]);
+
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
 
 
@@ -943,21 +962,44 @@ function App() {
   const [editingQr, setEditingQr] = useState(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  // Stats Calculations
+  // Stats — prefer real aggregated data from backend, fall back to local computation
   const stats = useMemo(() => {
-    const totalUsers = users.length;
-    const totalQRScans = qrcodes.reduce((sum, q) => sum + q.scanCount, 0);
-    const totalCatches = creatures.reduce((sum, c) => sum + c.catchesCount, 0);
-    // Let's compute total AR visits as the sum of spots visits that are active (excluding Paseo) or mock it
-    const totalARVisits = spots.reduce((sum, s) => sum + s.visits, 0);
-
+    if (dashboardStats) {
+      return {
+        totalUsers:    dashboardStats.total_users,
+        totalQRScans:  dashboardStats.total_qr_scans,
+        totalCatches:  dashboardStats.total_catches,
+        totalARVisits: dashboardStats.total_ar_visits,
+      };
+    }
+    // Fallback while stats are loading
     return {
-      totalUsers,
-      totalQRScans,
-      totalCatches,
-      totalARVisits
+      totalUsers:    users.length,
+      totalQRScans:  qrcodes.reduce((sum, q) => sum + (q.scanCount || 0), 0),
+      totalCatches:  0,
+      totalARVisits: 0,
     };
-  }, [users, qrcodes, creatures, spots]);
+  }, [dashboardStats, users, qrcodes]);
+
+  // Bar chart spot visits — from API when available, fallback to local spots (will be 0)
+  const spotVisitsForChart = useMemo(() => {
+    if (dashboardStats?.spot_visits?.length) return dashboardStats.spot_visits;
+    return spots.map(s => ({ id: s.id, name: s.name, visits: s.visits || 0 }));
+  }, [dashboardStats, spots]);
+
+  // Activity feed — from API when available, fallback to INITIAL_ACTIVITIES
+  const activityFeed = useMemo(() => {
+    if (dashboardStats?.recent_activity?.length) {
+      return dashboardStats.recent_activity.map((act, i) => ({
+        id: i + 1,
+        type: act.type || 'scan',
+        text: act.text,
+        time: new Date(act.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }));
+    }
+    return activities;
+  }, [dashboardStats, activities]);
+
 
   // Filtered Spots list based on Search
   const filteredSpots = useMemo(() => {
@@ -1933,18 +1975,21 @@ function App() {
                     <div className="chart-grid-line" style={{bottom: '50%'}}></div>
                     <div className="chart-grid-line" style={{bottom: '75%'}}></div>
                     
-                    {/* Bars based on spots visits */}
-                    {spots.slice(0, 5).map((spot) => {
-                      // Normalize percentage height against highest visit spot (Paseo has 55000)
-                      const pctHeight = Math.max(8, (spot.visits / 55000) * 100);
-                      return (
-                        <div key={spot.id} className="chart-bar-item">
-                          <div className="chart-tooltip">{spot.visits.toLocaleString()} visits</div>
-                          <div className="chart-bar" style={{height: `${pctHeight}%`}}></div>
-                          <span className="chart-bar-label" title={spot.name}>{spot.name.split(' ')[0]}</span>
-                        </div>
-                      );
-                    })}
+                    {/* Bars based on real scan counts per spot */}
+                    {(() => {
+                      const chartData = spotVisitsForChart.slice(0, 7);
+                      const maxVisits = Math.max(...chartData.map(s => s.visits), 1);
+                      return chartData.map((spot) => {
+                        const pctHeight = Math.max(8, (spot.visits / maxVisits) * 100);
+                        return (
+                          <div key={spot.id} className="chart-bar-item">
+                            <div className="chart-tooltip">{spot.visits.toLocaleString()} scans</div>
+                            <div className="chart-bar" style={{height: `${pctHeight}%`}}></div>
+                            <span className="chart-bar-label" title={spot.name}>{spot.name.split(' ')[0]}</span>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
 
                   <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)'}}>
@@ -1963,7 +2008,11 @@ function App() {
                   </div>
 
                   <div className="activity-feed">
-                    {activities.map(act => (
+                    {activityFeed.length === 0 ? (
+                      <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '24px 0', fontSize: '13px' }}>
+                        No recent activity yet. Activity will appear here as users scan QR codes.
+                      </div>
+                    ) : activityFeed.map(act => (
                       <div key={act.id} className="activity-item">
                         <div className={`activity-icon-wrapper ${act.type}`}>
                           {act.type === 'scan' && <QrCode size={16} />}

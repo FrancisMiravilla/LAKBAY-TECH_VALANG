@@ -902,6 +902,7 @@ export default function MapScreen({ navigation, route }) {
               nearbySpot={proximitySpot}
               userLocation={userLocation}
               hideBottomPanel={false}
+              showCelebration={false}
               onInspectSpot={(spotToInspect) => {
                 if (spotToInspect) {
                   setSelectedSpot(spotToInspect);
@@ -1157,76 +1158,7 @@ export default function MapScreen({ navigation, route }) {
         onClose={() => setErrorModal(prev => ({ ...prev, visible: false }))}
       />
 
-      {/* ── Proximity Modal (centered — shown only on 2D map, not in AR navigation) ── */}
-      {!isNavigating && proximitySpot && (() => {
-        const pType = (proximitySpot.feature_types && proximitySpot.feature_types[0]) || 'qr';
-        const pBadge = getBadgeConfig(pType);
-        const typeEmoji = pType === 'ar' ? '📷' : pType === 'catch' ? '🏆' : pType === 'promotion' ? '📣' : '🔍';
-        return (
-          <Modal
-            transparent
-            animationType="fade"
-            visible={!!proximitySpot}
-            onRequestClose={() => hideProximityPopup(true)}
-          >
-            <View style={styles.proximityModalOverlay}>
-              <View style={styles.proximityPopup}>
-                {/* Colored top accent line */}
-                <View style={[styles.proximityAccentBar, { backgroundColor: pBadge.color }]} />
 
-                <View style={styles.proximityInner}>
-                  {/* Icon circle */}
-                  <View style={[styles.proximityIconCircle, { backgroundColor: pBadge.bg, borderColor: pBadge.border }]}>
-                    <Text style={styles.proximityIconEmoji}>{typeEmoji}</Text>
-                  </View>
-
-                  <View style={styles.proximityContent}>
-                    {/* Badge label */}
-                    <View style={[styles.proximityBadge, { backgroundColor: pBadge.bg, borderColor: pBadge.border }]}>
-                      <Ionicons name={pBadge.icon} size={8} color={pBadge.color} />
-                      <Text style={[styles.proximityBadgeText, { color: pBadge.color }]}>{pBadge.label}</Text>
-                    </View>
-
-                    {/* Spot name */}
-                    <Text style={styles.proximitySpotName} numberOfLines={1}>{proximitySpot.name}</Text>
-
-                    {/* Teaser */}
-                    <Text style={styles.proximityDesc} numberOfLines={2}>
-                      You're nearby! Tap below to view this spot's details.
-                    </Text>
-
-                    {/* Actions row */}
-                    <View style={styles.proximityActionsRow}>
-                      <TouchableOpacity
-                        style={[styles.proximityGotItBtn, { backgroundColor: pBadge.color }]}
-                        activeOpacity={0.85}
-                        onPress={() => hideProximityPopup(true)}
-                      >
-                        <Text style={styles.proximityGotItText}>Got it!</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.proximityViewBtn}
-                        activeOpacity={0.85}
-                        onPress={() => {
-                          hideProximityPopup(true);
-                          setSelectedSpot(proximitySpot);
-                          Animated.spring(slideAnim, {
-                            toValue: 0, useNativeDriver: true, tension: 65, friction: 10,
-                          }).start();
-                        }}
-                      >
-                        <Ionicons name="eye-outline" size={12} color={pBadge.color} />
-                        <Text style={[styles.proximityViewText, { color: pBadge.color }]}>See Details</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            </View>
-          </Modal>
-        );
-      })()}
     </SafeAreaView>
     </ImageBackground>
   );

@@ -17,7 +17,7 @@ import Svg, { Circle, Defs, LinearGradient, Stop, Polygon } from 'react-native-s
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import VintaStripe from '../components/VintaStripe';
 import { authService } from '../api/authService';
-import { getMyScans, getSpots, getARTargets, getMilestones, ORIGIN } from '../api/qrService';
+import { getMyScans, getSpots, getARTargets, getCatchIcons, getMilestones, ORIGIN } from '../api/qrService';
 import * as SecureStore from 'expo-secure-store';
 import { WebView } from 'react-native-webview';
 
@@ -298,9 +298,9 @@ export default function BadgesScreen() {
       let isActive = true;
       const fetchData = async () => {
         try {
-          const [p, s, spotsData, collectedModelsStr, arTargetsData, caughtIconsStr, storedUid, storedCatchUid, milestonesData] = await Promise.all([
-            authService.getProfile(),
-            getMyScans(),
+          const [p, s, spotsData, collectedModelsStr, arTargetsData, caughtIconsStr, storedUid, storedCatchUid, milestonesData, catchIconsData] = await Promise.all([
+            authService.getProfile().catch(() => null),
+            getMyScans().catch(() => ({ scans: [] })),
             getSpots().catch(() => []),
             SecureStore.getItemAsync('collected_models').catch(() => null),
             getARTargets().catch(() => []),
@@ -308,6 +308,7 @@ export default function BadgesScreen() {
             SecureStore.getItemAsync('collected_models_uid').catch(() => null),
             SecureStore.getItemAsync('caught_icons_uid').catch(() => null),
             getMilestones().catch(() => DEFAULT_MILESTONES),
+            getCatchIcons().catch(() => []),
           ]);
           if (isActive) {
             setProfile(p);
@@ -322,22 +323,25 @@ export default function BadgesScreen() {
             const currentUid = String(p?.id || '');
 
             // ── AR collected models ──
-            if (collectedModelsStr) {
-              if (!storedUid || storedUid === currentUid) {
+            if (storedUid && currentUid && storedUid !== currentUid) {
+              await SecureStore.deleteItemAsync('collected_models');
+              await SecureStore.deleteItemAsync('collected_models_uid');
+              setCollectedModels([]);
+            } else if (collectedModelsStr) {
+              try {
                 let storedModels = JSON.parse(collectedModelsStr);
                 const targets = Array.isArray(arTargetsData) ? arTargetsData : (arTargetsData?.results || []);
                 storedModels = storedModels.map(m => {
-                  const t = targets.find(t => t.id === m.id);
+                  const t = targets.find(t => t.id === m.id || t.name === m.name);
                   if (t && t.model_3d) m.model_3d = resolveModelUrl(t.model_3d);
+                  else if (m.model_3d) m.model_3d = resolveModelUrl(m.model_3d);
                   return m;
                 });
                 setCollectedModels(storedModels);
                 if (!storedUid && currentUid) {
                   SecureStore.setItemAsync('collected_models_uid', currentUid).catch(() => {});
                 }
-              } else {
-                await SecureStore.deleteItemAsync('collected_models');
-                await SecureStore.deleteItemAsync('collected_models_uid');
+              } catch {
                 setCollectedModels([]);
               }
             } else {
@@ -345,15 +349,34 @@ export default function BadgesScreen() {
             }
 
             // ── Caught icons (Catch & Win) ──
-            if (caughtIconsStr) {
-              if (!storedCatchUid || storedCatchUid === currentUid) {
-                setCaughtIcons(JSON.parse(caughtIconsStr));
+            if (storedCatchUid && currentUid && storedCatchUid !== currentUid) {
+              await SecureStore.deleteItemAsync('caught_icons');
+              await SecureStore.deleteItemAsync('caught_icons_uid');
+              setCaughtIcons([]);
+            } else if (caughtIconsStr) {
+              try {
+                let parsedCaught = JSON.parse(caughtIconsStr);
+                const allCatchIcons = Array.isArray(catchIconsData) ? catchIconsData : (catchIconsData?.results || []);
+                const allSpots = Array.isArray(spotsData) ? spotsData : (spotsData?.results || []);
+
+                parsedCaught = parsedCaught.map(c => {
+                  let model = c.model_3d;
+                  if (!model) {
+                    const matchIcon = allCatchIcons.find(i => i.id === c.id || (i.name && c.name && i.name.toLowerCase() === c.name.toLowerCase()));
+                    if (matchIcon && matchIcon.model_3d) model = matchIcon.model_3d;
+                    const matchSpot = allSpots.find(s => s.id === c.id || (s.name && c.name && s.name.toLowerCase() === c.name.toLowerCase()));
+                    if (matchSpot && matchSpot.model_3d) model = matchSpot.model_3d;
+                  }
+                  return {
+                    ...c,
+                    model_3d: resolveModelUrl(model),
+                  };
+                });
+                setCaughtIcons(parsedCaught);
                 if (!storedCatchUid && currentUid) {
                   SecureStore.setItemAsync('caught_icons_uid', currentUid).catch(() => {});
                 }
-              } else {
-                await SecureStore.deleteItemAsync('caught_icons');
-                await SecureStore.deleteItemAsync('caught_icons_uid');
+              } catch {
                 setCaughtIcons([]);
               }
             } else {

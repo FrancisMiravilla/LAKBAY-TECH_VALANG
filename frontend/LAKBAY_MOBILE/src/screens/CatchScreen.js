@@ -4,6 +4,7 @@ import {
   StatusBar, ScrollView, ActivityIndicator,
   Animated, Dimensions, Modal, Platform, ImageBackground,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,7 +13,7 @@ import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
 import * as SecureStore from 'expo-secure-store';
 import { useApp } from '../context/AppContext';
-import { getCatchIcons, getSpots, ORIGIN } from '../api/qrService';
+import { getCatchIcons, getSpots, ORIGIN, logActivity } from '../api/qrService';
 import { authService } from '../api/authService';
 import ErrorModal from '../components/ErrorModal';
 import VintaStripe from '../components/VintaStripe';
@@ -27,6 +28,13 @@ const MAX_GPS_ACCURACY_METERS = 50;  // ignore GPS fixes less precise than this 
 const FALLBACK_COLORS = ['#E91E8C', '#38BDF8', '#FBBF24', '#10B981'];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+const resolveModelUrl = (m) => {
+  if (!m) return null;
+  if (m.startsWith('data:')) return m;
+  if (m.startsWith('http')) return m;
+  return `${ORIGIN}${m}`;
+};
+
 function haversineDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000; // Earth radius in metres
   const toRad = (d) => (d * Math.PI) / 180;
@@ -644,7 +652,7 @@ function ConfettiCannon() {
 }
 
 // ─── AR Camera Overlay ───────────────────────────────────────────────────────
-function ARCatchOverlay({ icon, spot, userLocation, onContinue, onClose }) {
+function ARCatchOverlay({ icon, spot, userLocation, onModelFound, onContinue, onClose }) {
   const activeModel = (spot && spot.model_3d) 
     ? (spot.model_3d.startsWith('http') || spot.model_3d.startsWith('data:') ? spot.model_3d : `${ORIGIN}${spot.model_3d}`) 
     : icon.model_3d;
@@ -716,6 +724,7 @@ function ARCatchOverlay({ icon, spot, userLocation, onContinue, onClose }) {
         friction: 8,
         useNativeDriver: true,
       }).start();
+      onModelFound?.(icon, spot);
     }
   }, [showArrow]);
 
@@ -990,21 +999,26 @@ export default function CatchScreen({ navigation }) {
   const [collectedModelIds, setCollectedModelIds] = useState(new Set());
   const [caughtIcons, setCaughtIcons] = useState([]);
 
-  // ── Load data & collected models ───────────────────────────────────────────
-  useEffect(() => {
-    SecureStore.getItemAsync('caught_icons')
-      .then(str => {
-        if (str) {
-          try {
-            const arr = JSON.parse(str);
-            setCaughtIcons(arr);
-            const ids = new Set(arr.map(m => String(m.id || m.name)));
-            setCollectedModelIds(ids);
-          } catch {}
-        }
-      })
-      .catch(() => {});
+  // ── Load caught icons & sync with SecureStore ─────────────────────────────
+  useFocusEffect(
+    useCallback(() => {
+      SecureStore.getItemAsync('caught_icons')
+        .then(str => {
+          if (str) {
+            try {
+              const arr = JSON.parse(str);
+              setCaughtIcons(arr);
+              const ids = new Set(arr.map(m => String(m.id || m.name)));
+              setCollectedModelIds(ids);
+            } catch {}
+          }
+        })
+        .catch(() => {});
+    }, [])
+  );
 
+  // ── Load spots and icons from API ──────────────────────────────────────────
+  useEffect(() => {
     Promise.all([getCatchIcons(), getSpots()])
       .then(([iconData, spotData]) => {
         const iconList = (Array.isArray(iconData) ? iconData : (iconData.results || [])).map(normalizeIcon);
@@ -1134,44 +1148,67 @@ export default function CatchScreen({ navigation }) {
     setNearbySpot(null);
   }, [nearbySpot]);
 
+  const handleModelFound = useCallback(async (iconToSave, spotToSave) => {
+    const targetIcon = iconToSave || arIcon;
+    const targetSpot = spotToSave || arSpot;
+    if (!targetIcon) return;
+    try {
+      const existingStr = await SecureStore.getItemAsync('caught_icons');
+      let caught = existingStr ? JSON.parse(existingStr) : [];
+      const alreadyCaught = caught.some(c => 
+        String(c.id) === String(targetIcon.id) || 
+        (c.name && targetIcon.name && c.name.toLowerCase() === targetIcon.name.toLowerCase()) ||
+        (targetSpot && c.name && targetSpot.name && c.name.toLowerCase() === targetSpot.name.toLowerCase())
+      );
+      if (!alreadyCaught) {
+        const rawModel = targetIcon.model_3d || targetSpot?.model_3d || null;
+        const newEntry = {
+          id: targetIcon.id || (targetSpot ? 'spot-icon-' + targetSpot.id : Date.now()),
+          name: targetIcon.name || targetSpot?.name || 'Cultural Model',
+          model_3d: resolveModelUrl(rawModel),
+          color: targetIcon.color || '#A855F7',
+          tagline: targetIcon.tagline || targetSpot?.description || '',
+          date_caught: new Date().toISOString(),
+        };
+        caught.push(newEntry);
+        await SecureStore.setItemAsync('caught_icons', JSON.stringify(caught));
+        
+        setCaughtIcons(caught);
+        setCollectedModelIds(new Set(caught.map(m => String(m.id || m.name))));
+
+        try {
+          const profile = await authService.getProfile();
+          if (profile?.id) {
+            await SecureStore.setItemAsync('caught_icons_uid', String(profile.id));
+          }
+        } catch (_) {}
+
+        try {
+          await authService.adjustXP(150);
+        } catch (_) {}
+
+        // Log to backend for admin recent activity feed
+        logActivity('catch', `caught "${newEntry.name}" in AR`);
+
+        addNotification({
+          type: 'catch',
+          icon: '✨',
+          title: 'Model Caught!',
+          sub: `${newEntry.name} caught and added to your Badges collection! +150 XP`,
+        });
+      }
+    } catch (e) {
+      console.warn('[CatchScreen] Failed to auto-save caught icon:', e);
+    }
+  }, [arIcon, arSpot, addNotification]);
+
   const handleARContinue = useCallback(async () => {
     setArVisible(false);
     if (arIcon) {
-      // Save caught icon to SecureStore so BadgesScreen can show it in Collection
-      try {
-        const existingStr = await SecureStore.getItemAsync('caught_icons');
-        let caught = existingStr ? JSON.parse(existingStr) : [];
-        const alreadyCaught = caught.some(c => String(c.id) === String(arIcon.id));
-        if (!alreadyCaught) {
-          caught.push({
-            id: arIcon.id,
-            name: arIcon.name,
-            model_3d: arIcon.model_3d || null,
-            color: arIcon.color || '#A855F7',
-            tagline: arIcon.tagline || '',
-          });
-          await SecureStore.setItemAsync('caught_icons', JSON.stringify(caught));
-          // Tag the cache with the current user's ID so stale data from other users is ignored
-          try {
-            const profile = await authService.getProfile();
-            if (profile?.id) {
-              await SecureStore.setItemAsync('caught_icons_uid', String(profile.id));
-            }
-          } catch (_) {}
-        }
-      } catch (e) {
-        console.warn('[CatchScreen] Failed to save caught icon:', e);
-      }
-
-      addNotification({
-        type: 'catch',
-        icon: '✨',
-        title: 'Catch Complete!',
-        sub: `${arIcon.name} captured successfully — +80 XP`,
-      });
+      await handleModelFound(arIcon, arSpot);
       navigation.navigate('CatchDetails', { icon: arIcon, spot: arSpot });
     }
-  }, [arIcon, arSpot, navigation, addNotification]);
+  }, [arIcon, arSpot, navigation, handleModelFound]);
 
   // ── Render ──────────────────────────────────────────────────────────────────
   const totalCatchIcons = icons.length > 0 ? icons.length : 4;
@@ -1430,6 +1467,7 @@ export default function CatchScreen({ navigation }) {
                 icon={arIcon}
                 spot={arSpot}
                 userLocation={userLocation}
+                onModelFound={handleModelFound}
                 onContinue={handleARContinue}
                 onClose={() => setArVisible(false)}
               />

@@ -7,7 +7,8 @@ from .views import (
     CulturalIconViewSet, GenerateIconAITriviaView, GenerateARAITriviaView,
     IconTriviaView, SubmitIconTriviaView,
     TriviaReviewListView, TriviaReviewActionView,
-    ARTargetViewSet, MilestoneBadgeViewSet
+    ARTargetViewSet, MilestoneBadgeViewSet,
+    DashboardStatsView, LogActivityView,
 )
 
 router = DefaultRouter()
@@ -40,4 +41,9 @@ urlpatterns = [
     # Tourist Guide Review
     path('trivia-review/', TriviaReviewListView.as_view(), name='trivia_review_list'),
     path('trivia-review/<int:pk>/', TriviaReviewActionView.as_view(), name='trivia_review_action'),
+
+    # Admin Dashboard Stats & Activity Logging
+    path('dashboard-stats/', DashboardStatsView.as_view(), name='dashboard_stats'),
+    path('log-activity/', LogActivityView.as_view(), name='log_activity'),
 ]
+

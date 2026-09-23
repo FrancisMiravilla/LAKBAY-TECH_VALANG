@@ -1,17 +1,20 @@
 import json
 import random
+import datetime
 from html import escape
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.db.models import F
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions, viewsets
 from groq import Groq
 from .models import (
     CulturalSpot, QRMarker, QRScan, TriviaQuestion, SpotBadge,
-    TriviaAttempt, CulturalIcon, ARTarget, MilestoneBadge
+    TriviaAttempt, CulturalIcon, ARTarget, MilestoneBadge,
+    UserActivityLog
 )
 from .serializers import (
     CulturalSpotSerializer, QRMarkerSerializer,
@@ -139,6 +142,11 @@ class ValidateQRView(APIView):
             # Award custom XP for scanning this spot
             request.user.__class__.objects.filter(pk=request.user.pk).update(xp=F('xp') + xp_reward)
             request.user.refresh_from_db(fields=['xp'])
+            UserActivityLog.objects.create(
+                user=request.user,
+                activity_type='scan',
+                title=f"scanned QR Code at {spot.name}"
+            )
 
         image_url = request.build_absolute_uri(spot.image.url) if spot.image else None
         image2_url = request.build_absolute_uri(spot.image2.url) if getattr(spot, 'image2', None) else None
@@ -204,7 +212,16 @@ class SpotTriviaView(APIView):
         all_questions = list(TriviaQuestion.objects.filter(spot=spot, status='approved'))
 
         if not all_questions:
-            return Response({'error': 'Quiz is currently unavailable. Please try again later.'}, status=status.HTTP_404_NOT_FOUND)
+            # Fallback to any questions created for this spot if approved filter is empty
+            all_questions = list(TriviaQuestion.objects.filter(spot=spot))
+
+        if not all_questions:
+            return Response({
+                'spot_id': spot.id,
+                'spot_name': spot.name,
+                'questions': [],
+                'message': 'No trivia questions available for this spot yet.'
+            }, status=status.HTTP_200_OK)
 
         random.shuffle(all_questions)
         serializer = TriviaQuestionSerializer(all_questions, many=True)
@@ -212,7 +229,7 @@ class SpotTriviaView(APIView):
             'spot_id': spot.id,
             'spot_name': spot.name,
             'questions': serializer.data,
-        })
+        }, status=status.HTTP_200_OK)
 
 
 class SubmitTriviaView(APIView):
@@ -268,6 +285,11 @@ class SubmitTriviaView(APIView):
                 request.user.refresh_from_db(fields=['xp'])
                 xp_earned = XP_PER_QUIZ
                 badge_awarded = True
+                UserActivityLog.objects.create(
+                    user=request.user,
+                    activity_type='badge',
+                    title=f"unlocked \"{spot.name}\" Badge"
+                )
 
         return Response({
             'score': score,
@@ -769,7 +791,15 @@ class IconTriviaView(APIView):
         all_questions = list(TriviaQuestion.objects.filter(icon=icon, status='approved'))
 
         if not all_questions:
-            return Response({'error': 'Quiz is currently unavailable. Please try again later.'}, status=status.HTTP_404_NOT_FOUND)
+            all_questions = list(TriviaQuestion.objects.filter(icon=icon))
+
+        if not all_questions:
+            return Response({
+                'icon_id': icon.id,
+                'icon_name': icon.name,
+                'questions': [],
+                'message': 'No trivia questions available for this icon yet.'
+            }, status=status.HTTP_200_OK)
 
         random.shuffle(all_questions)
         serializer = TriviaQuestionSerializer(all_questions, many=True)
@@ -777,7 +807,7 @@ class IconTriviaView(APIView):
             'icon_id': icon.id,
             'icon_name': icon.name,
             'questions': serializer.data,
-        })
+        }, status=status.HTTP_200_OK)
 
 
 class SubmitIconTriviaView(APIView):
@@ -871,3 +901,116 @@ class TriviaReviewActionView(APIView):
             return Response(TriviaQuestionAdminSerializer(q).data)
             
         return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LogActivityView(APIView):
+    """
+    Mobile endpoint to log user activities (catch, ar visit, etc.).
+    POST /api/qr/log-activity/
+    Body: {"activity_type": "catch"|"ar", "title": "caught Curacha Spirit in AR"}
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        activity_type = request.data.get('activity_type', 'scan')
+        title = (request.data.get('title') or '').strip()
+        if not title:
+            return Response({'error': 'title is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # De-duplicate identical logs within 15 seconds
+        cutoff = timezone.now() - datetime.timedelta(seconds=15)
+        exists = UserActivityLog.objects.filter(
+            user=request.user,
+            activity_type=activity_type,
+            title=title,
+            created_at__gte=cutoff
+        ).exists()
+
+        if not exists:
+            UserActivityLog.objects.create(
+                user=request.user,
+                activity_type=activity_type,
+                title=title
+            )
+
+        return Response({'status': 'ok'})
+
+
+class DashboardStatsView(APIView):
+    """
+    Admin-only endpoint that returns aggregated dashboard stats.
+    GET /api/qr/dashboard-stats/
+    """
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        from django.db.models import Count, Sum
+        from accounts.models import CustomUser
+
+        # ── Stat cards ──────────────────────────────────────────────────────
+        total_users    = CustomUser.objects.filter(is_staff=False).count()
+        total_qr_scans = QRMarker.objects.aggregate(t=Sum('scan_count'))['t'] or 0
+        total_catches  = UserActivityLog.objects.filter(activity_type='catch').count()
+        total_ar_visits = UserActivityLog.objects.filter(activity_type='ar').count() + QRScan.objects.count()
+
+        # ── Per-spot scan counts for bar chart ──────────────────────────────
+        spot_scans = (
+            CulturalSpot.objects
+            .annotate(scan_total=Sum('qr_markers__scan_count'))
+            .values('id', 'name', 'scan_total')
+            .order_by('-scan_total')
+        )
+        spot_visits = [
+            {
+                'id': s['id'],
+                'name': s['name'],
+                'visits': s['scan_total'] or 0,
+            }
+            for s in spot_scans
+        ]
+
+        # ── Recent activity feed ───────────────────────────────────────────
+        activity_logs = (
+            UserActivityLog.objects
+            .select_related('user')
+            .order_by('-created_at')[:15]
+        )
+        activity = []
+        for log in activity_logs:
+            user_name = log.user.get_full_name() or log.user.username or log.user.email
+            activity.append({
+                'type': log.activity_type,
+                'text': f"{user_name} {log.title}",
+                'time': log.created_at.isoformat(),
+            })
+
+        # Backfill with QRScan if activity log has few items
+        if len(activity) < 5:
+            existing_times = {a['time'] for a in activity}
+            recent_scans = (
+                QRScan.objects
+                .select_related('user', 'qr_marker__spot')
+                .order_by('-scanned_at')[:10]
+            )
+            for scan in recent_scans:
+                iso_time = scan.scanned_at.isoformat()
+                if iso_time in existing_times:
+                    continue
+                spot_name = scan.qr_marker.spot.name if scan.qr_marker and scan.qr_marker.spot else 'Unknown Spot'
+                user_name = scan.user.get_full_name() or scan.user.username or scan.user.email
+                activity.append({
+                    'type': 'scan',
+                    'text': f'{user_name} scanned QR Code at {spot_name}',
+                    'time': iso_time,
+                })
+            activity = sorted(activity, key=lambda x: x['time'], reverse=True)[:15]
+
+        return Response({
+            'total_users':     total_users,
+            'total_qr_scans':  total_qr_scans,
+            'total_catches':   total_catches,
+            'total_ar_visits': total_ar_visits,
+            'spot_visits':     spot_visits,
+            'recent_activity': activity,
+        })
+

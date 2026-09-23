@@ -32,7 +32,7 @@ import { COLORS, FONTS, RADIUS } from '../constants/theme';
 
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
-import { getARTargets, ORIGIN } from '../api/qrService';
+import { getARTargets, ORIGIN, logActivity } from '../api/qrService';
 import { authService } from '../api/authService';
 import ARGuideCenterPopup from '../components/ARGuideCenterPopup';
 
@@ -427,6 +427,9 @@ export default function ViroARScanner({ navigation }) {
 
         // Award XP live to user profile
         authService.adjustXP(earnedXP).catch(err => console.warn('Failed to award AR XP:', err));
+
+        // Log to backend for admin recent activity feed
+        logActivity('ar', `discovered "${target.name || 'Museum Artwork'}" in AR Exhibit`);
       } else {
         wasAlreadyCollected = true;
       }

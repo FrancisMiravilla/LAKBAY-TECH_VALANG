@@ -230,30 +230,34 @@ export default function ProfileScreen({ navigation }) {
 
       const currentUid = String(data?.id || '');
 
-      if (collectedModelsStr) {
-        if (!storedUid || storedUid === currentUid) {
+      if (storedUid && currentUid && storedUid !== currentUid) {
+        await SecureStore.deleteItemAsync('collected_models');
+        await SecureStore.deleteItemAsync('collected_models_uid');
+        setCollectedModels([]);
+      } else if (collectedModelsStr) {
+        try {
           setCollectedModels(JSON.parse(collectedModelsStr));
           if (!storedUid && currentUid) {
             SecureStore.setItemAsync('collected_models_uid', currentUid).catch(() => {});
           }
-        } else {
-          await SecureStore.deleteItemAsync('collected_models');
-          await SecureStore.deleteItemAsync('collected_models_uid');
+        } catch {
           setCollectedModels([]);
         }
       } else {
         setCollectedModels([]);
       }
 
-      if (caughtIconsStr) {
-        if (!storedCatchUid || storedCatchUid === currentUid) {
+      if (storedCatchUid && currentUid && storedCatchUid !== currentUid) {
+        await SecureStore.deleteItemAsync('caught_icons');
+        await SecureStore.deleteItemAsync('caught_icons_uid');
+        setCaughtIcons([]);
+      } else if (caughtIconsStr) {
+        try {
           setCaughtIcons(JSON.parse(caughtIconsStr));
           if (!storedCatchUid && currentUid) {
             SecureStore.setItemAsync('caught_icons_uid', currentUid).catch(() => {});
           }
-        } else {
-          await SecureStore.deleteItemAsync('caught_icons');
-          await SecureStore.deleteItemAsync('caught_icons_uid');
+        } catch {
           setCaughtIcons([]);
         }
       } else {
