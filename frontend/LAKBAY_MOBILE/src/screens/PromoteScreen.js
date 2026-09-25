@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   Image, ScrollView, Alert, Dimensions, Animated, ImageBackground, StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -101,6 +102,7 @@ const STEPS = [
   { num: 1, label: 'Details'  },
   { num: 2, label: 'Location' },
   { num: 3, label: 'Media'    },
+  { num: 4, label: 'Submit'   },
 ];
 
 function StepIndicator({ current }) {
@@ -237,7 +239,7 @@ export default function PromoteScreen({ route, navigation }) {
   const isEditable = !passedSpotName;
 
   // Derive current step for stepper
-  const currentStep = !spotName.trim() || !description.trim() ? 1 : !location ? 2 : 3;
+  const currentStep = !spotName.trim() || !description.trim() ? 1 : !location ? 2 : (!imageUri && !glbUri) ? 3 : 4;
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -260,31 +262,79 @@ export default function PromoteScreen({ route, navigation }) {
     }
   };
 
-  const handleSubmit = async () => {
-    if (!spotName.trim())   return Alert.alert('Missing Info', 'Please provide a spot name.');
-    if (!description.trim()) return Alert.alert('Missing Info', 'Please provide a description.');
-    if (!location)          return Alert.alert('Missing Info', 'Please pin a location on the map.');
+  const validateForm = () => {
+    if (!spotName.trim()) {
+      Alert.alert('Missing Info', 'Please provide a spot or landmark name.');
+      return false;
+    }
+    if (!description.trim()) {
+      Alert.alert('Missing Info', 'Please provide a description.');
+      return false;
+    }
+    if (!location) {
+      Alert.alert('Missing Info', 'Please pin a location on the map.');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmitPromotion = async () => {
+    if (!validateForm()) return;
 
     setSubmitting(true);
     try {
-      await submitPromotion(spotName.trim(), description.trim(), imageUri, glbUri, location.lat, location.lng, isPlace);
-      Alert.alert('Submitted! 🎉', 'Your promotion has been submitted for review!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            if (isEditable) {
-              setSpotName(''); setDescription(''); setImageUri(null);
-              setGlbUri(null); setGlbName(null); setLocation(null); setIsPlace(false);
-            } else {
-              navigation.goBack();
-            }
+      await submitPromotion(
+        spotName.trim(),
+        description.trim(),
+        imageUri,
+        glbUri,
+        location.lat,
+        location.lng,
+        isPlace,
+        false // use_coins = false (submits for Admin Review)
+      );
+      Alert.alert(
+        'Submitted for Review! 🎉',
+        'Your landmark promotion has been submitted to the admin team for review.\n\nYou do not need to pay yet. Once the admin approves your spot, you will receive a notification and can pay coins to publish it live!',
+        [
+          {
+            text: 'View My Promotions',
+            onPress: () => {
+              if (isEditable) {
+                setSpotName('');
+                setDescription('');
+                setImageUri(null);
+                setGlbUri(null);
+                setGlbName(null);
+                setLocation(null);
+                setIsPlace(false);
+              }
+              navigation.navigate('MyPromotions');
+            },
           },
-        },
-      ]);
+          {
+            text: 'OK',
+            onPress: () => {
+              if (isEditable) {
+                setSpotName('');
+                setDescription('');
+                setImageUri(null);
+                setGlbUri(null);
+                setGlbName(null);
+                setLocation(null);
+                setIsPlace(false);
+              } else {
+                navigation.goBack();
+              }
+            },
+          },
+        ]
+      );
     } catch (e) {
       let errMsg = 'Failed to submit promotion.';
-      if (e.response?.data)  errMsg = JSON.stringify(e.response.data);
-      else if (e.message)    errMsg = e.message;
+      if (e.response?.data?.detail) errMsg = e.response.data.detail;
+      else if (e.response?.data?.error) errMsg = e.response.data.error;
+      else if (e.message) errMsg = e.message;
       Alert.alert('Error', errMsg);
     } finally {
       setSubmitting(false);
@@ -488,29 +538,74 @@ export default function PromoteScreen({ route, navigation }) {
             </View>
           </View>
 
-          {/* ── Submit ── */}
-          <TouchableOpacity
-            style={[styles.submitBtn, submitting && { opacity: 0.7 }]}
-            onPress={handleSubmit}
-            disabled={submitting}
-            activeOpacity={0.85}
-          >
-            {submitting ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Ionicons name="hourglass-outline" size={20} color="#08143C" />
-                <Text style={styles.submitText}>Transmitting Data...</Text>
+          {/* ── Section: Review & Submit ── */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionCardHeader}>
+              <View style={[styles.sectionNum, currentStep === 4 && styles.sectionNumDone]}>
+                <Text style={styles.sectionNumText}>4</Text>
               </View>
-            ) : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Ionicons name="paper-plane" size={18} color="#08143C" />
-                <Text style={styles.submitText}>Submit for Review</Text>
+              <Text style={styles.sectionCardTitle}>Review & Submit</Text>
+              <View style={styles.reviewBadge}>
+                <Ionicons name="shield-checkmark-outline" size={12} color={COLORS.teal} />
+                <Text style={styles.reviewBadgeText}>Admin Curated</Text>
               </View>
-            )}
-          </TouchableOpacity>
+            </View>
+
+            <Text style={styles.reviewIntroText}>
+              Your promotion will first be reviewed by our curation team to verify coordinates and content accuracy.
+            </Text>
+
+            {/* How it works info card */}
+            <View style={styles.workflowCard}>
+              <View style={styles.workflowStep}>
+                <View style={styles.workflowStepNum}><Text style={styles.workflowStepNumText}>1</Text></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.workflowStepTitle}>Submit for Review (Free)</Text>
+                  <Text style={styles.workflowStepSub}>Submit your spot details and media. No payment or coins required yet.</Text>
+                </View>
+              </View>
+
+              <View style={styles.workflowStep}>
+                <View style={styles.workflowStepNum}><Text style={styles.workflowStepNumText}>2</Text></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.workflowStepTitle}>Admin Approval & Notification</Text>
+                  <Text style={styles.workflowStepSub}>Once approved by admins, you will receive an in-app notification.</Text>
+                </View>
+              </View>
+
+              <View style={styles.workflowStep}>
+                <View style={styles.workflowStepNum}><Text style={styles.workflowStepNumText}>3</Text></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.workflowStepTitle}>Pay with Coins & Publish</Text>
+                  <Text style={styles.workflowStepSub}>In My Promotions, pay 50 coins to publish your landmark live on the World Map!</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Primary Action Button */}
+            <TouchableOpacity
+              style={[styles.submitReviewBtn, submitting && { opacity: 0.7 }]}
+              onPress={handleSubmitPromotion}
+              disabled={submitting}
+              activeOpacity={0.85}
+            >
+              {submitting ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <ActivityIndicator size="small" color="#08143C" />
+                  <Text style={styles.submitReviewBtnText}>Submitting to Admin Queue...</Text>
+                </View>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="paper-plane" size={18} color="#08143C" />
+                  <Text style={styles.submitReviewBtnText}>Submit Landmark for Review</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.footerNote}>
-            <Ionicons name="shield-checkmark-outline" size={14} color="rgba(191,215,255,0.6)" />
-            <Text style={styles.footerNoteText}>Verified by LAKBAY admins before appearing live on the map</Text>
+            <Ionicons name="information-circle-outline" size={14} color="rgba(191,215,255,0.6)" />
+            <Text style={styles.footerNoteText}>Coins are only deducted after your promotion has been approved.</Text>
           </View>
 
           <View style={{ height: 36 }} />
@@ -546,6 +641,7 @@ export default function PromoteScreen({ route, navigation }) {
             </SafeAreaView>
           </View>
         )}
+
       </SafeAreaView>
     </ImageBackground>
   );
@@ -830,5 +926,55 @@ const styles = StyleSheet.create({
   },
   modalConfirmText: {
     fontFamily: FONTS.bold, fontSize: 12, color: '#08143C',
+  },
+
+  // ── Coin Section Styles ──
+  // ── Review & Submit Section Styles ──
+  reviewBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1, borderColor: 'rgba(16, 185, 129, 0.40)',
+    borderRadius: RADIUS.pill, paddingHorizontal: 8, paddingVertical: 2,
+  },
+  reviewBadgeText: {
+    fontFamily: FONTS.bold, fontSize: 10, color: COLORS.teal, letterSpacing: 0.5,
+  },
+  reviewIntroText: {
+    fontFamily: FONTS.regular, fontSize: 12, color: 'rgba(191,215,255,0.75)',
+    marginTop: 6, lineHeight: 18,
+  },
+  workflowCard: {
+    backgroundColor: 'rgba(8, 20, 60, 0.70)',
+    borderWidth: 1, borderColor: 'rgba(99, 179, 237, 0.20)',
+    borderRadius: RADIUS.md, padding: 14, marginTop: 14,
+    gap: 12,
+  },
+  workflowStep: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+  },
+  workflowStepNum: {
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: 'rgba(56, 189, 248, 0.20)',
+    borderWidth: 1, borderColor: '#38BDF8',
+    justifyContent: 'center', alignItems: 'center',
+    marginTop: 1,
+  },
+  workflowStepNumText: {
+    fontFamily: FONTS.bold, fontSize: 10, color: '#38BDF8',
+  },
+  workflowStepTitle: {
+    fontFamily: FONTS.bold, fontSize: 12, color: '#FFFFFF',
+  },
+  workflowStepSub: {
+    fontFamily: FONTS.regular, fontSize: 11, color: 'rgba(191,215,255,0.65)', marginTop: 2, lineHeight: 15,
+  },
+  submitReviewBtn: {
+    backgroundColor: COLORS.teal,
+    padding: 15, borderRadius: RADIUS.pill,
+    alignItems: 'center', marginTop: 14,
+    ...SHADOW.accent,
+  },
+  submitReviewBtnText: {
+    fontFamily: FONTS.bold, fontSize: 14, color: '#08143C', letterSpacing: 0.3,
   },
 });

@@ -36,12 +36,13 @@ export const getPublishedPromotions = async () => {
   return response.data;
 };
 
-export const submitPromotion = async (spotName, description, imageUri, glbUri, lat, lng, isPlace = false) => {
+export const submitPromotion = async (spotName, description, imageUri, glbUri, lat, lng, isPlace = false, useCoins = false) => {
   const formData = new FormData();
   formData.append('spot_name', spotName);
   formData.append('description', description);
   formData.append('is_place', isPlace ? 'true' : 'false');
-  
+  formData.append('use_coins', useCoins ? 'true' : 'false');
+
   if (lat !== undefined && lng !== undefined) {
     formData.append('latitude', lat);
     formData.append('longitude', lng);
@@ -70,5 +71,37 @@ export const submitPromotion = async (spotName, description, imageUri, glbUri, l
 
 export const publishPromotion = async (id) => {
   const response = await apiClient.post(`promotions/${id}/publish/`, {}, { baseURL: pBase });
+  return response.data;
+};
+
+// ── Coin Bundle QR Ph (Store Screen) ──
+export const createBundleQRPh = async (bundleId) => {
+  const response = await apiClient.post('create-bundle-qrph/', { bundle_id: bundleId }, { baseURL: pBase });
+  return response.data;
+};
+
+export const verifyBundlePayment = async (paymentIntentId) => {
+  const response = await apiClient.get(`verify-bundle-payment/${paymentIntentId}/`, { baseURL: pBase });
+  return response.data;
+};
+
+export const simulateTestBundlePayment = async (paymentIntentId) => {
+  const response = await apiClient.post('simulate-bundle-payment/', { payment_intent_id: paymentIntentId }, { baseURL: pBase });
+  return response.data;
+};
+
+// ── Spot Promotion QR Ph (Legacy/Direct) ──
+export const createPromotionQRPh = async (spotName) => {
+  const response = await apiClient.post('create-qrph/', { spot_name: spotName }, { baseURL: pBase });
+  return response.data;
+};
+
+export const verifyPromotionPayment = async (paymentIntentId) => {
+  const response = await apiClient.get(`verify-qrph/${paymentIntentId}/`, { baseURL: pBase });
+  return response.data;
+};
+
+export const simulateTestPayment = async (paymentIntentId) => {
+  const response = await apiClient.post('simulate-test-payment/', { payment_intent_id: paymentIntentId }, { baseURL: pBase });
   return response.data;
 };

@@ -13,7 +13,7 @@ import OnboardingTour from '../components/OnboardingTour';
 import { WebView } from 'react-native-webview';
 import { useApp } from '../context/AppContext';
 import { getSpots, ORIGIN } from '../api/qrService';
-import { getPublishedPromotions } from '../api/promotionService';
+import { getPublishedPromotions, getPromotions } from '../api/promotionService';
 import { authService } from '../api/authService';
 import { streakService } from '../api/streakService';
 
@@ -130,6 +130,7 @@ export default function HomeScreen({ navigation, route }) {
   const [claimingStreak, setClaimingStreak] = useState(false);
   const { notifs, addNotification } = useApp();
   const prevSpotCountRef = useRef(0);
+  const notifiedPromosRef = useRef(new Set());
 
   const bellRef    = useRef(null);
   const mapCardRef = useRef(null);
@@ -155,6 +156,27 @@ export default function HomeScreen({ navigation, route }) {
         const promoData = await getPublishedPromotions();
         const publishedPromos = Array.isArray(promoData) ? promoData : (promoData.results || []);
         setPromotedPlaces(publishedPromos.filter(p => p.is_place));
+
+        // Check for user promotions approved by admin
+        getPromotions().then(userPromos => {
+          const list = Array.isArray(userPromos) ? userPromos : (userPromos?.results || []);
+          list.forEach(p => {
+            if (p.status === 'APPROVED_PENDING_PAYMENT') {
+              const notifId = `promo-approved-${p.id}`;
+              if (!notifiedPromosRef.current.has(notifId)) {
+                notifiedPromosRef.current.add(notifId);
+                addNotification({
+                  id: notifId,
+                  type: 'promo',
+                  icon: '🎉',
+                  title: 'Promotion Approved!',
+                  sub: `"${p.spot_name}" was approved by admin! Tap to pay with coins & publish.`,
+                  screen: 'MyPromotions',
+                });
+              }
+            }
+          });
+        }).catch(() => {});
       } catch (e) {
         console.log('Home fetch error', e);
       }

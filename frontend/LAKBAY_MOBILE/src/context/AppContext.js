@@ -13,12 +13,18 @@ export function AppProvider({ children }) {
   const [notifs, setNotifs] = useState(INITIAL_NOTIFS);
 
   const addNotification = (notif) => {
-    setNotifs(prev => [{
-      id: Date.now(),
-      time: 'Just now',
-      read: false,
-      ...notif
-    }, ...prev]);
+    setNotifs(prev => {
+      if (notif?.id && prev.some(n => n.id === notif.id)) {
+        return prev;
+      }
+      const fallbackId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      return [{
+        id: fallbackId,
+        time: 'Just now',
+        read: false,
+        ...notif
+      }, ...prev];
+    });
   };
 
   const clearNotifications = () => setNotifs([]);
