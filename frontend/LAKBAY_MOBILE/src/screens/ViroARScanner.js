@@ -8,7 +8,7 @@ const { width: SCREEN_W } = Dimensions.get('window');
 const buildRewardViewerHTML = (modelUrl) => {
   if (!modelUrl) return null;
   const safe = String(modelUrl).replace(/["'<>&]/g, c => ({ '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
-  return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js" crossorigin="anonymous"></script><style>*{margin:0;padding:0;box-sizing:border-box;}html,body{width:100%;height:100%;background:transparent;overflow:hidden;}model-viewer{width:100%;height:100%;--progress-bar-color:transparent;}</style></head><body><model-viewer src="${safe}" auto-rotate camera-controls bounds="tight" exposure="1.3" shadow-intensity="0" style="width:100%;height:100%"></model-viewer></body></html>`;
+  return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js" crossorigin="anonymous"></script><style>*{margin:0;padding:0;box-sizing:border-box;}html,body{width:100%;height:100%;background:transparent;overflow:hidden;}model-viewer{width:100%;height:100%;--progress-bar-color:transparent;}</style></head><body><model-viewer src="${safe}" auto-rotate camera-controls bounds="tight" min-camera-orbit="auto auto 40%" camera-orbit="auto 75deg 80%" exposure="1.3" shadow-intensity="0" style="width:100%;height:100%"></model-viewer></body></html>`;
 };
 import {
   ViroARSceneNavigator,
@@ -90,43 +90,39 @@ export const RARITY_THEME = {
 // =========================================================================
 // 1. MANUAL SCALED MODEL (PINCH TO ZOOM & DRAG)
 // =========================================================================
-const ManualScaledModel = ({ source, onLoadStart, onLoadEnd, onError }) => {
-  const [scale, setScale] = useState(0.05); // Start small
-  const [position, setPosition] = useState([0, 0, -2]); // Start 2 meters away from camera
-  const [meshOffset, setMeshOffset] = useState([0, 0, 0]);
+const ManualScaledModel = ({
+  source,
+  scale = 0.25,
+  onScaleChange,
+  position = [0, -0.05, -1.2],
+  onPositionChange,
+  onLoadStart,
+  onLoadEnd,
+  onError,
+}) => {
+  const baseScaleRef = React.useRef(scale);
 
-  // Reset scale and position when scanning a new artwork
+  // Sync ref whenever scale changes from external controls
   React.useEffect(() => {
-    setScale(0.05);
-    setPosition([0, 0, -2]);
-    setMeshOffset([0, 0, 0]);
-  }, [source?.uri]);
+    baseScaleRef.current = scale;
+  }, [scale]);
 
-  const handlePinch = (pinchState, scaleFactor, source) => {
-    if (pinchState === 3) { // 3 means the pinch gesture ended
-      setScale(scale * scaleFactor);
+  const handlePinch = (pinchState, scaleFactor) => {
+    if (pinchState === 1) {
+      baseScaleRef.current = scale;
+    } else if (pinchState === 2 || pinchState === 3) {
+      const nextScale = Math.max(0.06, Math.min(Number((baseScaleRef.current * scaleFactor).toFixed(3)), 2.5));
+      if (onScaleChange) {
+        onScaleChange(nextScale);
+      }
     }
   };
 
-  const handleDrag = (dragToPos, source) => {
+  const handleDrag = (dragToPos) => {
     // Allows the user to literally drag the model with their finger into the perfect spot
-    setPosition([dragToPos[0], dragToPos[1], dragToPos[2]]);
-  };
-
-  const handleBoundingBoxUpdate = (evt) => {
-    // Only calculate once when the box is first valid
-    if (meshOffset[0] !== 0 || meshOffset[1] !== 0 || meshOffset[2] !== 0) return;
-    
-    const boundingBox = evt.boundingBox;
-    if (!boundingBox) return;
-    
-    const [min, max] = boundingBox;
-    const centerX = (max[0] + min[0]) / 2;
-    const centerY = (max[1] + min[1]) / 2;
-    const centerZ = (max[2] + min[2]) / 2;
-    
-    // Set the offset to explicitly pull the mesh origin back to its true visual center
-    setMeshOffset([-centerX, -centerY, -centerZ]);
+    if (onPositionChange) {
+      onPositionChange([dragToPos[0], dragToPos[1], dragToPos[2]]);
+    }
   };
 
   return (
@@ -141,11 +137,10 @@ const ManualScaledModel = ({ source, onLoadStart, onLoadEnd, onError }) => {
         <Viro3DObject
           source={source}
           type="GLB"
-          position={meshOffset}
+          position={[0, 0, 0]}
           onLoadStart={onLoadStart}
           onLoadEnd={onLoadEnd}
           onError={onError}
-          onBoundingBoxUpdate={handleBoundingBoxUpdate}
         />
       </ViroNode>
     </ViroNode>
@@ -186,9 +181,21 @@ const MuseumARScene = (props) => {
         <ViroARCamera>
           <ManualScaledModel
             source={{ uri: props.sceneNavigator.viroAppProps.detectedSpot.local_model }}
+            scale={props.sceneNavigator.viroAppProps.modelScale}
+            onScaleChange={props.sceneNavigator.viroAppProps.onModelScaleChange}
+            position={props.sceneNavigator.viroAppProps.modelPosition}
+            onPositionChange={props.sceneNavigator.viroAppProps.onModelPositionChange}
             onLoadStart={() => console.log('[AR] model load START:', props.sceneNavigator.viroAppProps.detectedSpot.name)}
             onLoadEnd={() => { console.log('[AR] model load END (success):', props.sceneNavigator.viroAppProps.detectedSpot.name); props.sceneNavigator.viroAppProps.onModelLoadEnd?.(props.sceneNavigator.viroAppProps.detectedSpot.id); }}
-            onError={(event) => { const msg = JSON.stringify(event?.nativeEvent); console.log('[AR] model load ERROR:', props.sceneNavigator.viroAppProps.detectedSpot.name, msg); props.sceneNavigator.viroAppProps.onModelError?.(msg); }}
+            onError={(event) => {
+              const msg = JSON.stringify(event?.nativeEvent);
+              console.log('[AR] model load ERROR:', props.sceneNavigator.viroAppProps.detectedSpot.name, msg);
+              const curLocal = props.sceneNavigator.viroAppProps.detectedSpot?.local_model;
+              if (curLocal && String(curLocal).startsWith('file://')) {
+                FileSystem.deleteAsync(curLocal, { idempotent: true }).catch(() => null);
+              }
+              props.sceneNavigator.viroAppProps.onModelError?.(msg);
+            }}
           />
         </ViroARCamera>
       ) : null}
@@ -212,6 +219,8 @@ ViroAnimations.registerAnimations({
 // =========================================================================
 export default function ViroARScanner({ navigation }) {
   const [detectedSpot, setDetectedSpot] = useState(null);
+  const [modelScale, setModelScale] = useState(0.25);
+  const [modelPosition, setModelPosition] = useState([0, -0.05, -1.2]);
   // On-screen 3D model status so we can see load progress/errors without the
   // native console: 'none' | 'loading' | 'loaded' | 'error'
   const [modelStatus, setModelStatus] = useState({ state: 'none', message: '' });
@@ -359,7 +368,8 @@ export default function ViroARScanner({ navigation }) {
           if (!t.model_3d) return;
           try {
             const remoteUrl = resolveModelUrl(t.model_3d);
-            const localDest = `${FileSystem.cacheDirectory}ar_target_${t.id}.glb`;
+            const remoteFileName = remoteUrl.split('/').pop()?.split('?')[0] || `model_${t.id}.glb`;
+            const localDest = `${FileSystem.cacheDirectory}ar_${t.id}_${remoteFileName}`;
             const info = await FileSystem.getInfoAsync(localDest);
             if (info.exists && info.size > 0) {
               t.local_model = localDest;
@@ -441,7 +451,8 @@ export default function ViroARScanner({ navigation }) {
     if (target.model_3d && (!localModelPath || localModelPath.startsWith('http'))) {
       try {
         const remoteUrl = resolveModelUrl(target.model_3d);
-        const localDest = `${FileSystem.cacheDirectory}ar_target_${target.id}.glb`;
+        const remoteFileName = remoteUrl.split('/').pop()?.split('?')[0] || `model_${target.id}.glb`;
+        const localDest = `${FileSystem.cacheDirectory}ar_${target.id}_${remoteFileName}`;
         const info = await FileSystem.getInfoAsync(localDest);
         if (info.exists && info.size > 0) {
           localModelPath = localDest;
@@ -485,6 +496,8 @@ export default function ViroARScanner({ navigation }) {
 
     // Dismiss any active 3D hint popup when target is found
     setShowGuideCenterPopup(false);
+    setModelScale(0.25);
+    setModelPosition([0, -0.05, -1.2]);
 
     if (target.model_3d) {
       if (loadedModelsRef.current.has(target.id)) {
@@ -684,7 +697,11 @@ export default function ViroARScanner({ navigation }) {
               onTargetLost: handleTargetLost,
               onModelLoadEnd: handleModelLoadEnd,
               onModelError: handleModelError,
-              detectedSpot: detectedSpot
+              detectedSpot: detectedSpot,
+              modelScale: modelScale,
+              onModelScaleChange: setModelScale,
+              modelPosition: modelPosition,
+              onModelPositionChange: setModelPosition,
             }}
             style={{ flex: 1 }}
             autofocus={true}
@@ -746,6 +763,39 @@ export default function ViroARScanner({ navigation }) {
           </View>
         </View>
       </Modal>
+
+      {/* Floating AR Model Size / Zoom Controls */}
+      {detectedSpot && (
+        <View style={styles.zoomControlContainer}>
+          <TouchableOpacity
+            style={styles.zoomBtn}
+            activeOpacity={0.7}
+            onPress={() => setModelScale(prev => Math.min(Number((prev + 0.08).toFixed(2)), 2.5))}
+          >
+            <Ionicons name="add" size={20} color="#FFF" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.zoomResetBadge}
+            activeOpacity={0.7}
+            onPress={() => {
+              setModelScale(0.25);
+              setModelPosition([0, -0.05, -1.2]);
+            }}
+          >
+            <Text style={styles.zoomResetText}>{Math.round((modelScale / 0.25) * 100)}%</Text>
+            <Text style={styles.zoomResetSub}>RESET</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.zoomBtn}
+            activeOpacity={0.7}
+            onPress={() => setModelScale(prev => Math.max(Number((prev - 0.08).toFixed(2)), 0.06))}
+          >
+            <Ionicons name="remove" size={20} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* React Native UI Overlay (Pops up when painting is detected) */}
       {detectedSpot && (
@@ -1071,13 +1121,13 @@ const rwStyles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     width: SCREEN_W - 100,
-    height: 200,
+    height: 225,
     borderRadius: 20,
     backgroundColor: 'rgba(168,85,247,0.18)',
   },
   modelCard: {
     width: SCREEN_W - 100,
-    height: 190,
+    height: 215,
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1.5,
@@ -1231,6 +1281,51 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  zoomControlContainer: {
+    position: 'absolute',
+    right: 16,
+    bottom: 270,
+    backgroundColor: 'rgba(15, 23, 42, 0.88)',
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(251, 191, 36, 0.45)',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 10,
+    zIndex: 30,
+  },
+  zoomBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoomResetBadge: {
+    paddingVertical: 3,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoomResetText: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: COLORS.gold,
+  },
+  zoomResetSub: {
+    fontFamily: FONTS.bold,
+    fontSize: 7,
+    color: 'rgba(255, 255, 255, 0.5)',
+    letterSpacing: 0.5,
+    marginTop: 1,
   },
   overlayUI: {
     position: 'absolute',

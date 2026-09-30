@@ -91,12 +91,37 @@ def strip_incompatible_extensions(data: bytes) -> bytes:
 
     required = set(gltf.get('extensionsRequired') or [])
     removable = INCOMPATIBLE_EXTENSIONS - required  # never drop required ones
-    if not removable:
-        return data
 
     changed = False
 
-    # Remove from each material's extensions block.
+    # 1. Normalize multi-scene glTF models from Blender.
+    # Viro's native glTF loader hardcodes scenes[0]. If Blender exports an empty
+    # default scene at index 0 while the actual artwork nodes are in scenes[1],
+    # Viro fails to load the model. Move the active scene with nodes to index 0.
+    scenes = gltf.get('scenes', [])
+    default_scene_idx = gltf.get('scene', 0)
+    if scenes:
+        active_scene = None
+        if 0 <= default_scene_idx < len(scenes) and scenes[default_scene_idx].get('nodes'):
+            active_scene = scenes[default_scene_idx]
+        else:
+            active_scene = next((s for s in scenes if s.get('nodes')), None)
+
+        if active_scene and (len(scenes) > 1 or default_scene_idx != 0 or not scenes[0].get('nodes')):
+            gltf['scenes'] = [active_scene]
+            gltf['scene'] = 0
+            changed = True
+
+    # 2. Normalize texture samplers: ensure min/mag filters are set to prevent -1 defaults in TinyGLTF.
+    for s in gltf.get('samplers', []):
+        if not s.get('magFilter'):
+            s['magFilter'] = 9729
+            changed = True
+        if not s.get('minFilter'):
+            s['minFilter'] = 9987
+            changed = True
+
+    # 3. Remove incompatible material extensions.
     for mat in gltf.get('materials', []):
         ext = mat.get('extensions')
         if not ext:
@@ -108,7 +133,7 @@ def strip_incompatible_extensions(data: bytes) -> bytes:
         if not ext:
             mat.pop('extensions', None)
 
-    # Remove from the top-level extensionsUsed list.
+    # Remove from top-level extensionsUsed list.
     used = gltf.get('extensionsUsed')
     if used:
         new_used = [e for e in used if e not in removable]

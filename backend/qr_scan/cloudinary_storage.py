@@ -15,9 +15,11 @@ class CloudinaryRawStorage(Storage):
 
     def _save(self, name, content):
         folder = os.path.dirname(name).replace('\\', '/')
+        filename = os.path.basename(name)
         result = cloudinary.uploader.upload(
             content,
             resource_type='raw',
+            public_id=filename,
             folder=folder or 'lakbay/models',
             overwrite=True,
             use_filename=True,
