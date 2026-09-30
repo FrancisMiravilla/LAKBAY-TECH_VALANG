@@ -953,18 +953,21 @@ class DashboardStatsView(APIView):
         total_catches  = UserActivityLog.objects.filter(activity_type='catch').count()
         total_ar_visits = UserActivityLog.objects.filter(activity_type='ar').count() + QRScan.objects.count()
 
+        from django.db.models.functions import Coalesce
+
         # ── Per-spot scan counts for bar chart ──────────────────────────────
         spot_scans = (
             CulturalSpot.objects
-            .annotate(scan_total=Sum('qr_markers__scan_count'))
-            .values('id', 'name', 'scan_total')
-            .order_by('-scan_total')
+            .annotate(scan_total=Coalesce(Sum('qr_markers__scan_count'), 0))
+            .values('id', 'name', 'is_featured', 'scan_total')
+            .order_by('-scan_total', 'name')
         )
         spot_visits = [
             {
                 'id': s['id'],
                 'name': s['name'],
-                'visits': s['scan_total'] or 0,
+                'is_featured': s['is_featured'],
+                'visits': s['scan_total'],
             }
             for s in spot_scans
         ]

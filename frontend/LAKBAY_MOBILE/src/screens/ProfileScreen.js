@@ -116,11 +116,11 @@ function StatPill({ icon, value, label, color }) {
   );
 }
 const statStyles = StyleSheet.create({
-  pill:     { flex: 1, alignItems: 'center', gap: 4 },
-  iconWrap: { width: 36, height: 36, borderRadius: 10, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
-  icon:     { fontSize: 16 },
-  value:    { fontFamily: FONTS.black, fontSize: 20 },
-  label:    { fontFamily: FONTS.medium, fontSize: 9, color: 'rgba(191,215,255,0.70)', letterSpacing: 0.3, textAlign: 'center' },
+  pill:     { flex: 1, alignItems: 'center', gap: 5 },
+  iconWrap: { width: 34, height: 34, borderRadius: 10, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
+  icon:     { fontSize: 15 },
+  value:    { fontFamily: FONTS.pixel, fontSize: 11, color: '#FFFFFF', lineHeight: 15 },
+  label:    { fontFamily: FONTS.pixel, fontSize: 6.5, color: 'rgba(191,215,255,0.70)', letterSpacing: 0.2, textAlign: 'center', lineHeight: 10, minHeight: 20 },
 });
 
 // ─── Menu Item ────────────────────────────────────────────────────────────────
@@ -160,27 +160,27 @@ function MenuItem({ item, onPress }) {
 const menuStyles = StyleSheet.create({
   row: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(8, 20, 60, 0.60)',
-    padding: 14, borderRadius: RADIUS.md,
-    borderWidth: 1, borderColor: 'rgba(99, 179, 237, 0.22)',
-    ...SHADOW.accent,
+    backgroundColor: '#08143C',
+    padding: 16, borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: '#1E3A8A',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2,
   },
-  rowDestructive: { borderColor: 'rgba(239,68,68,0.40)', backgroundColor: 'rgba(239,68,68,0.12)' },
+  rowDestructive: { borderColor: 'rgba(239,68,68,0.40)', backgroundColor: 'rgba(239,68,68,0.15)' },
   iconBox: {
     width: 38, height: 38, borderRadius: 10,
     borderWidth: 1, justifyContent: 'center', alignItems: 'center', marginRight: 14,
   },
   icon:  { fontSize: 18 },
-  label: { flex: 1, fontFamily: FONTS.semiBold, fontSize: 14, color: '#FFFFFF' },
+  label: { flex: 1, fontFamily: FONTS.pixel, fontSize: 10, color: '#FFFFFF', lineHeight: 16 },
   badge: {
     backgroundColor: COLORS.accent, borderRadius: RADIUS.pill,
     paddingHorizontal: 8, paddingVertical: 2, marginRight: 10,
   },
-  badgeText: { fontFamily: FONTS.bold, fontSize: 10, color: '#fff' },
+  badgeText: { fontFamily: FONTS.pixel, fontSize: 8, color: '#fff', lineHeight: 12 },
   chevronBox: {
     width: 26, height: 26, borderRadius: 13,
     backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1, borderColor: '#1E3A8A',
     justifyContent: 'center', alignItems: 'center',
   },
   chevronBoxDestructive: { backgroundColor: 'rgba(239,68,68,0.20)', borderColor: 'rgba(239,68,68,0.40)' },
@@ -316,6 +316,7 @@ export default function ProfileScreen({ navigation }) {
   const rank         = getRank(xp);
   const scansCount   = scans.length;
   const arDone       = collectedModels.length;
+  const caughtCount  = caughtIcons.length;
   const charDetails  = getCharacterDetails(profile?.chosen_character || profile?.character);
 
   return (
@@ -418,11 +419,13 @@ export default function ProfileScreen({ navigation }) {
 
                 {/* Stats row */}
                 <View style={styles.statsRow}>
-                  <StatPill icon="🔍" value={scansCount.toString()}  label="QR Scanned"  color={COLORS.teal}   />
+                  <StatPill icon="🔍" value={scansCount.toString()}  label="QR Scanned"    color={COLORS.teal}   />
                   <View style={styles.statDivider} />
-                  <StatPill icon="📸" value={arDone.toString()}       label="AR Explored" color={COLORS.accent} />
+                  <StatPill icon="📸" value={arDone.toString()}       label="AR Explored"   color={COLORS.accent} />
                   <View style={styles.statDivider} />
-                  <StatPill icon="⚡" value={xp.toLocaleString()}     label="Total XP"    color={COLORS.gold}   />
+                  <StatPill icon="🎯" value={caughtCount.toString()}  label="Models Caught" color="#E05A47"       />
+                  <View style={styles.statDivider} />
+                  <StatPill icon="⚡" value={xp.toLocaleString()}     label="Total XP"      color={COLORS.gold}   />
                 </View>
               </View>
 
@@ -513,11 +516,12 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   headerSub: {
-    fontFamily: FONTS.medium,
-    fontSize: 9,
+    fontFamily: FONTS.pixel,
+    fontSize: 7,
     color: 'rgba(191,215,255,0.70)',
-    letterSpacing: 1.5,
-    marginTop: 1,
+    letterSpacing: 1,
+    marginTop: 2,
+    lineHeight: 11,
   },
   headerBtn: {
     width: 38, height: 38, borderRadius: 19,
@@ -530,20 +534,23 @@ const styles = StyleSheet.create({
 
   // Hero Card
   heroCard: {
-    backgroundColor: 'rgba(8, 20, 60, 0.60)',
+    backgroundColor: '#08143C',
     marginHorizontal: 16, marginTop: 18,
     borderRadius: RADIUS.lg,
-    borderWidth: 1, borderColor: 'rgba(99, 179, 237, 0.25)',
+    borderWidth: 1, borderColor: '#1E3A8A',
     paddingBottom: 22,
     paddingTop: 24,
     alignItems: 'center',
-    overflow: 'hidden',
-    ...SHADOW.accent,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   heroBlobBg: {
     position: 'absolute',
     top: -40, width: 300, height: 300, borderRadius: 150,
-    opacity: 0.18,
+    opacity: 0,
   },
 
   // Avatar
@@ -560,8 +567,8 @@ const styles = StyleSheet.create({
   avatarImgClip: {
     width: 110, height: 110, borderRadius: 55,
     overflow: 'hidden',
-    borderWidth: 3, borderColor: 'rgba(99, 179, 237, 0.40)',
-    backgroundColor: 'rgba(8, 20, 60, 0.80)',
+    borderWidth: 3, borderColor: '#1E3A8A',
+    backgroundColor: '#0C2054',
   },
   rankBadge: {
     position: 'absolute', bottom: 2, right: 2,
@@ -572,21 +579,22 @@ const styles = StyleSheet.create({
 
   // Name / rank
   userName: {
-    fontFamily: FONTS.bold, fontSize: 20,
+    fontFamily: FONTS.pixel, fontSize: 13,
     color: '#FFFFFF', letterSpacing: 0.5,
-    marginBottom: 6,
+    marginBottom: 8, lineHeight: 20,
+    textAlign: 'center',
   },
   rankPill: {
     borderWidth: 1, borderRadius: RADIUS.pill,
     paddingHorizontal: 12, paddingVertical: 4,
   },
-  rankPillText: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 0.5 },
+  rankPillText: { fontFamily: FONTS.pixel, fontSize: 8, letterSpacing: 0.5, lineHeight: 12 },
   levelPill: {
     backgroundColor: COLORS.accent,
     borderRadius: RADIUS.pill,
     paddingHorizontal: 10, paddingVertical: 4,
   },
-  levelPillText: { fontFamily: FONTS.bold, fontSize: 11, color: '#fff', letterSpacing: 0.5 },
+  levelPillText: { fontFamily: FONTS.pixel, fontSize: 8, color: '#fff', letterSpacing: 0.5, lineHeight: 12 },
 
   // Explorer tag
   explorerTag: {
@@ -594,38 +602,38 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(251, 191, 36, 0.15)',
     borderWidth: 1, borderColor: 'rgba(251, 191, 36, 0.35)',
     borderRadius: RADIUS.pill,
-    paddingHorizontal: 16, paddingVertical: 5,
+    paddingHorizontal: 16, paddingVertical: 6,
   },
   explorerTagText: {
-    fontFamily: FONTS.semiBold, fontSize: 11,
-    color: COLORS.gold, letterSpacing: 1.2,
+    fontFamily: FONTS.pixel, fontSize: 8,
+    color: COLORS.gold, letterSpacing: 1, lineHeight: 12,
   },
 
   // Companion chip
   companionChip: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginTop: 12,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: RADIUS.pill,
-    borderWidth: 1, borderColor: 'rgba(99, 179, 237, 0.20)',
+    borderWidth: 1, borderColor: '#1E3A8A',
     paddingHorizontal: 12, paddingVertical: 6,
   },
   companionImgClip: {
     width: 22, height: 22, borderRadius: 11,
-    overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(99, 179, 237, 0.40)',
+    overflow: 'hidden', borderWidth: 1, borderColor: '#1E3A8A',
   },
-  companionText: { fontFamily: FONTS.medium, fontSize: 11, color: 'rgba(191,215,255,0.80)' },
+  companionText: { fontFamily: FONTS.pixel, fontSize: 8, color: 'rgba(191,215,255,0.85)', lineHeight: 12 },
 
   // XP bar
   xpBarSection: { width: '88%', marginTop: 16, gap: 6 },
   xpBarRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
-  xpBarLabel: { fontFamily: FONTS.medium, fontSize: 11, color: 'rgba(191,215,255,0.75)' },
+  xpBarLabel: { fontFamily: FONTS.pixel, fontSize: 8, color: 'rgba(191,215,255,0.75)', lineHeight: 12 },
   xpBarBg: {
     height: 10, backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 5, overflow: 'hidden',
-    borderWidth: 1, borderColor: 'rgba(99, 179, 237, 0.20)',
+    borderWidth: 1, borderColor: '#1E3A8A',
   },
   xpBarFill: {
     height: '100%', borderRadius: 5,
@@ -639,32 +647,36 @@ const styles = StyleSheet.create({
 
   // Stats row
   statsRow: {
-    flexDirection: 'row', width: '92%',
+    flexDirection: 'row', width: '96%',
     marginTop: 18, paddingTop: 16,
-    borderTopWidth: 1, borderTopColor: 'rgba(99, 179, 237, 0.15)',
+    borderTopWidth: 1, borderTopColor: '#1E3A8A',
     alignItems: 'center',
   },
   statDivider: {
-    width: 1, height: 32,
-    backgroundColor: 'rgba(99, 179, 237, 0.18)',
-    marginHorizontal: 6,
+    width: 1, height: 30,
+    backgroundColor: '#1E3A8A',
+    marginHorizontal: 3,
   },
 
   // Achievement teaser
   achievementTeaser: {
     marginHorizontal: 16, marginTop: 14,
-    backgroundColor: 'rgba(8, 20, 60, 0.65)',
+    backgroundColor: '#08143C',
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.35)',
+    borderColor: 'rgba(251, 191, 36, 0.40)',
     padding: 14,
     flexDirection: 'row', alignItems: 'center',
-    ...SHADOW.accent,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   achievementLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   achievementEmoji: { fontSize: 28 },
-  achievementTitle: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff', letterSpacing: 0.3 },
-  achievementSub:   { fontFamily: FONTS.regular, fontSize: 11, color: 'rgba(191,215,255,0.70)', marginTop: 2 },
+  achievementTitle: { fontFamily: FONTS.pixel, fontSize: 9, color: '#FFFFFF', letterSpacing: 0.3, lineHeight: 15 },
+  achievementSub:   { fontFamily: FONTS.pixel, fontSize: 7, color: 'rgba(191,215,255,0.70)', marginTop: 4, lineHeight: 11 },
   achievementChevron: {
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: 'rgba(251, 191, 36, 0.15)',
@@ -675,15 +687,15 @@ const styles = StyleSheet.create({
   // Menu
   menuSection: { paddingHorizontal: 16, marginTop: 18 },
   menuSectionTitle: {
-    fontFamily: FONTS.bold, fontSize: 10,
+    fontFamily: FONTS.pixel, fontSize: 8,
     color: COLORS.teal, letterSpacing: 1.5,
-    textTransform: 'uppercase', marginBottom: 10,
+    textTransform: 'uppercase', marginBottom: 10, lineHeight: 12,
   },
   menuGroup: { gap: 8 },
   menuSpacer: { height: 0 },
 
   // Footer
   footer: { alignItems: 'center', marginTop: 24, gap: 3 },
-  footerLogo: { fontFamily: FONTS.pixel, fontSize: 9, color: 'rgba(191,215,255,0.6)', letterSpacing: 2 },
-  footerVersion: { fontFamily: FONTS.regular, fontSize: 10, color: 'rgba(191,215,255,0.4)' },
+  footerLogo: { fontFamily: FONTS.pixel, fontSize: 9, color: '#94A3B8', letterSpacing: 2 },
+  footerVersion: { fontFamily: FONTS.pixel, fontSize: 7, color: '#CBD5E1', lineHeight: 11 },
 });

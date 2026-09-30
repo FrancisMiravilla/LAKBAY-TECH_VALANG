@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   // ── Overlay ──────────────────────────────────────────────────────
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+    backgroundColor: 'rgba(0, 0, 0, 0.50)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 28,
@@ -199,35 +199,35 @@ const styles = StyleSheet.create({
   // ── Card ─────────────────────────────────────────────────────────
   card: {
     width: Math.min(SCREEN_WIDTH - 56, 360),
-    backgroundColor: 'rgba(8, 20, 56, 0.98)',
+    backgroundColor: '#FFFFFF',
     borderRadius: RADIUS.lg,
     paddingTop: 36,
     paddingHorizontal: 24,
     paddingBottom: 24,
     alignItems: 'center',
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(99, 179, 237, 0.35)',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 20 },
-        shadowOpacity: 0.5,
-        shadowRadius: 32,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
       },
-      android: { elevation: 16 },
+      android: { elevation: 8 },
     }),
   },
 
-  // ── Glow bar ─────────────────────────────────────────────────────
+  // ── Glow bar (top accent stripe) ─────────────────────────────────
   glowBar: {
     position: 'absolute',
-    top: -30,
-    alignSelf: 'center',
-    width: 160,
-    height: 64,
-    borderRadius: 80,
-    opacity: 0.45,
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    borderTopLeftRadius: RADIUS.lg,
+    borderTopRightRadius: RADIUS.lg,
+    opacity: 1,
   },
 
   // ── Close (×) button ─────────────────────────────────────────────
@@ -238,9 +238,9 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.20)',
+    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: FONTS.bold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: '#1E293B',
     textAlign: 'center',
     marginBottom: 10,
     letterSpacing: -0.2,
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   message: {
     fontFamily: FONTS.medium,
     fontSize: 14,
-    color: '#E2E8F0',
+    color: '#475569',
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 0,
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   // ── Divider ───────────────────────────────────────────────────────
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: '#E2E8F0',
     width: '110%',
     marginTop: 22,
     marginBottom: 18,
@@ -313,15 +313,15 @@ const styles = StyleSheet.create({
     height: 46,
     borderRadius: RADIUS.pill,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.20)',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
   ghostBtnText: {
     fontFamily: FONTS.semiBold,
     fontSize: 15,
-    color: '#E2E8F0',
+    color: '#475569',
   },
 
   solidBtn: {
@@ -334,11 +334,11 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.22,
-        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.10,
+        shadowRadius: 6,
       },
-      android: { elevation: 5 },
+      android: { elevation: 3 },
     }),
   },
   solidBtnText: {

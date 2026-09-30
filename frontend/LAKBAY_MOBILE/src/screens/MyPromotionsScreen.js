@@ -6,12 +6,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import * as DocumentPicker from 'expo-document-picker';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import {
   getPromotions,
   publishPromotion,
   getPublishCost,
   getWallet,
+  attach3DModel,
 } from '../api/promotionService';
 import VintaStripe from '../components/VintaStripe';
 
@@ -36,6 +38,7 @@ export default function MyPromotionsScreen({ navigation }) {
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [insufficientModalVisible, setInsufficientModalVisible] = useState(false);
   const [selectedPromo, setSelectedPromo] = useState(null);
+  const [uploadingModelId, setUploadingModelId] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -95,6 +98,50 @@ export default function MyPromotionsScreen({ navigation }) {
       }
     } finally {
       setPublishing(false);
+    }
+  };
+
+  const handleQuickAttachModel = async (promo) => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: '*/*' });
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+      const asset = result.assets[0];
+      if (!asset.name.endsWith('.glb') && !asset.name.endsWith('.gltf')) {
+        Alert.alert('Invalid File', 'Please select a valid .glb or .gltf 3D model.');
+        return;
+      }
+
+      Alert.alert(
+        'Attach 3D Model',
+        `Attach "${asset.name}" to "${promo.spot_name}"?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Upload Model',
+            onPress: async () => {
+              setUploadingModelId(promo.id);
+              try {
+                await attach3DModel(promo.id, asset.uri);
+                Alert.alert(
+                  '3D Model Attached! 🎉',
+                  `"${asset.name}" has been attached to "${promo.spot_name}". Admin reviewers can now inspect the 3D model.`
+                );
+                fetchData();
+              } catch (err) {
+                console.log('Error attaching 3D model:', err.response?.data || err);
+                const errMsg = err.response?.data?.detail || err.message || 'Failed to attach 3D model.';
+                Alert.alert('Upload Failed', errMsg);
+              } finally {
+                setUploadingModelId(null);
+              }
+            },
+          },
+        ]
+      );
+    } catch (e) {
+      console.log('Document picker error:', e);
+      Alert.alert('Error', 'Could not open document picker.');
     }
   };
 
@@ -177,6 +224,59 @@ export default function MyPromotionsScreen({ navigation }) {
           <Text style={styles.description} numberOfLines={2}>
             {item.description}
           </Text>
+
+          {/* 3D Model Attachment Status & Quick Action */}
+          <View style={styles.modelStatusBox}>
+            <View style={styles.modelStatusLeft}>
+              <View style={[styles.modelStatusIconWrap, item.model_3d_file ? styles.modelStatusIconActive : styles.modelStatusIconPending]}>
+                <Ionicons
+                  name={item.model_3d_file ? "cube" : "cube-outline"}
+                  size={15}
+                  color={item.model_3d_file ? COLORS.teal : COLORS.gold}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modelStatusTitle, { color: item.model_3d_file ? COLORS.teal : COLORS.gold }]}>
+                  {item.model_3d_file ? '3D AR Model Attached' : '3D Model: Making in Progress'}
+                </Text>
+                <Text style={styles.modelStatusSub} numberOfLines={1}>
+                  {item.model_3d_file
+                    ? (item.model_3d_file.split('/').pop() || 'model.glb')
+                    : 'Done creating? Tap to add your 3D model now!'}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.quickModelBtn, item.model_3d_file && styles.quickModelBtnOutline]}
+              onPress={() => handleQuickAttachModel(item)}
+              disabled={uploadingModelId === item.id}
+              activeOpacity={0.8}
+            >
+              {uploadingModelId === item.id ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name={item.model_3d_file ? "swap-horizontal" : "add-circle"} size={12} color="#FFFFFF" />
+                  <Text style={styles.quickModelBtnText}>
+                    {item.model_3d_file ? 'Change' : '+ Add Model'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Card Actions Row: Edit Details */}
+          <View style={styles.cardActionsRow}>
+            <TouchableOpacity
+              style={styles.editCardBtn}
+              onPress={() => navigation.navigate('Promote', { editPromotion: item })}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="pencil" size={12} color="#38BDF8" />
+              <Text style={styles.editCardBtnText}>Edit Landmark & Media</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* 4-Stage Quest Stepper */}
           <View style={styles.stepperContainer}>
@@ -271,7 +371,7 @@ export default function MyPromotionsScreen({ navigation }) {
               </Text>
               <TouchableOpacity
                 style={styles.resubmitBtn}
-                onPress={() => navigation.navigate('Promote')}
+                onPress={() => navigation.navigate('Promote', { editPromotion: item })}
                 activeOpacity={0.85}
               >
                 <Ionicons name="create-outline" size={14} color="#FFFFFF" />
@@ -646,10 +746,14 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     padding: 14,
     borderRadius: RADIUS.lg,
-    backgroundColor: 'rgba(8, 20, 60, 0.65)',
+    backgroundColor: '#08143C',
     borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.25)',
-    ...SHADOW.card,
+    borderColor: '#1E3A8A',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   curatorTopRow: {
     flexDirection: 'row',
@@ -703,12 +807,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(4, 12, 38, 0.50)',
+    backgroundColor: '#0C2054',
     borderRadius: RADIUS.md,
     paddingVertical: 8,
     paddingHorizontal: 8,
     borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.15)',
+    borderColor: '#1E3A8A',
   },
   statPill: {
     alignItems: 'center',
@@ -728,7 +832,7 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 20,
-    backgroundColor: 'rgba(99, 179, 237, 0.20)',
+    backgroundColor: '#1E3A8A',
   },
 
   /* ── Content List ── */
@@ -739,18 +843,22 @@ const styles = StyleSheet.create({
   },
   card: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(8, 20, 60, 0.65)',
+    backgroundColor: '#08143C',
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.22)',
+    borderColor: '#1E3A8A',
     marginBottom: 14,
     overflow: 'hidden',
-    ...SHADOW.card,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   cardApprovedGlow: {
-    borderColor: 'rgba(251, 191, 36, 0.55)',
+    borderColor: 'rgba(251, 191, 36, 0.70)',
     shadowColor: COLORS.gold,
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.30,
     shadowRadius: 10,
     elevation: 4,
   },
@@ -798,7 +906,102 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: 'rgba(191, 215, 255, 0.75)',
     lineHeight: 18,
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+
+  /* ── 3D Model Status Box ── */
+  modelStatusBox: {
+    marginVertical: 6,
+    padding: 10,
+    borderRadius: RADIUS.md,
+    backgroundColor: '#0C2054',
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  modelStatusLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modelStatusIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modelStatusIconActive: {
+    backgroundColor: 'rgba(16, 185, 129, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.40)',
+  },
+  modelStatusIconPending: {
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.35)',
+  },
+  modelStatusTitle: {
+    fontFamily: FONTS.pixel,
+    fontSize: 7.5,
+    lineHeight: 12,
+  },
+  modelStatusSub: {
+    fontFamily: FONTS.regular,
+    fontSize: 10,
+    color: 'rgba(191, 215, 255, 0.70)',
+    marginTop: 2,
+  },
+  quickModelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.teal,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: RADIUS.pill,
+  },
+  quickModelBtnOutline: {
+    backgroundColor: 'rgba(26, 86, 219, 0.35)',
+    borderWidth: 1,
+    borderColor: '#38BDF8',
+  },
+  quickModelBtnText: {
+    fontFamily: FONTS.pixel,
+    fontSize: 6.5,
+    color: '#FFFFFF',
+    lineHeight: 10,
+  },
+
+  /* ── Card Action Row ── */
+  cardActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  editCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: RADIUS.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
+    flex: 1,
+  },
+  editCardBtnText: {
+    fontFamily: FONTS.pixel,
+    fontSize: 7.5,
+    color: '#38BDF8',
+    lineHeight: 12,
   },
 
   /* ── Quest Stepper ── */

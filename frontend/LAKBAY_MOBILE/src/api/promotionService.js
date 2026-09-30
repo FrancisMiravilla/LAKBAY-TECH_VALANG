@@ -69,6 +69,52 @@ export const submitPromotion = async (spotName, description, imageUri, glbUri, l
   return response.data;
 };
 
+export const updatePromotion = async (id, { spotName, description, imageUri, glbUri, lat, lng, isPlace }) => {
+  const formData = new FormData();
+  if (spotName !== undefined) formData.append('spot_name', spotName);
+  if (description !== undefined) formData.append('description', description);
+  if (isPlace !== undefined) formData.append('is_place', isPlace ? 'true' : 'false');
+
+  if (lat !== undefined && lng !== undefined) {
+    formData.append('latitude', lat);
+    formData.append('longitude', lng);
+  }
+
+  if (imageUri && !imageUri.startsWith('http')) {
+    const filename = imageUri.split('/').pop() || 'photo.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : `image/jpeg`;
+    formData.append('image_file', { uri: imageUri, name: filename, type });
+  }
+
+  if (glbUri && !glbUri.startsWith('http')) {
+    const filename = glbUri.split('/').pop() || 'model.glb';
+    formData.append('model_3d_file', { uri: glbUri, name: filename, type: 'model/gltf-binary' });
+  }
+
+  const response = await apiClient.patch(`promotions/${id}/`, formData, {
+    baseURL: pBase,
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+export const attach3DModel = async (id, glbUri) => {
+  const formData = new FormData();
+  const filename = glbUri.split('/').pop() || 'model.glb';
+  formData.append('model_3d_file', { uri: glbUri, name: filename, type: 'model/gltf-binary' });
+
+  const response = await apiClient.post(`promotions/${id}/attach_model/`, formData, {
+    baseURL: pBase,
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
 export const publishPromotion = async (id) => {
   const response = await apiClient.post(`promotions/${id}/publish/`, {}, { baseURL: pBase });
   return response.data;

@@ -418,14 +418,18 @@ const styles = StyleSheet.create({
   // Wallet Vault Card
   walletCard: {
     padding: 20,
-    backgroundColor: 'rgba(8, 20, 60, 0.65)',
+    backgroundColor: '#08143C',
     borderRadius: RADIUS.lg,
     borderWidth: 1,
     borderColor: 'rgba(251, 191, 36, 0.40)',
     marginBottom: 20,
     overflow: 'hidden',
     position: 'relative',
-    ...SHADOW.accent,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   walletGlowOrb: {
     position: 'absolute',
@@ -434,7 +438,7 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    opacity: 0,
   },
   walletHeaderRow: {
     flexDirection: 'row',
@@ -478,9 +482,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: COLORS.gold,
     letterSpacing: 1,
-    textShadowColor: 'rgba(251,191,36,0.4)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
   },
   walletCoinsLabel: {
     fontFamily: FONTS.bold,
@@ -503,12 +504,16 @@ const styles = StyleSheet.create({
   cardContainer: {
     width: (width - 44) / 2,
     height: 180,
-    backgroundColor: 'rgba(8, 20, 60, 0.65)',
+    backgroundColor: '#08143C',
     borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: 'rgba(99, 179, 237, 0.25)',
+    borderWidth: 1,
+    borderColor: '#1E3A8A',
     overflow: 'hidden',
-    ...SHADOW.accent,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   bundleBgImage: {
     width: '100%',
@@ -562,9 +567,9 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold, fontSize: 12, color: '#FFFFFF', textAlign: 'center',
   },
   buyBtnPill: {
-    backgroundColor: 'rgba(26, 86, 219, 0.35)',
+    backgroundColor: COLORS.accent,
     borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.40)',
+    borderColor: 'transparent',
     borderRadius: RADIUS.pill,
     paddingVertical: 3,
     paddingHorizontal: 10,
@@ -579,21 +584,26 @@ const styles = StyleSheet.create({
 
   // ── QR Ph Modal Styles ──
   qrModalBackdrop: {
-    flex: 1, backgroundColor: 'rgba(3, 7, 24, 0.92)',
+    flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.50)',
     justifyContent: 'center', alignItems: 'center', padding: 20,
   },
   qrModalCard: {
     width: '100%', maxWidth: 380, maxHeight: '90%',
-    backgroundColor: '#09153B',
+    backgroundColor: '#FFFFFF',
     borderRadius: RADIUS.lg,
-    borderWidth: 1.5, borderColor: 'rgba(99, 179, 237, 0.35)',
-    overflow: 'hidden', ...SHADOW.card,
+    borderWidth: 1, borderColor: '#E2E8F0',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
   },
   qrModalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: 'rgba(99, 179, 237, 0.15)',
-    backgroundColor: 'rgba(6, 14, 44, 0.80)',
+    borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
   },
   qrModalHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   qrPhIconWrap: {
@@ -601,11 +611,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center',
   },
   qrPhIconText: { fontFamily: FONTS.bold, fontSize: 12, color: '#FFFFFF' },
-  qrModalHeaderTitle: { fontFamily: FONTS.bold, fontSize: 14, color: '#FFFFFF' },
-  qrModalHeaderSub: { fontFamily: FONTS.regular, fontSize: 10, color: 'rgba(191,215,255,0.70)' },
+  qrModalHeaderTitle: { fontFamily: FONTS.bold, fontSize: 14, color: '#1E293B' },
+  qrModalHeaderSub: { fontFamily: FONTS.regular, fontSize: 10, color: '#64748B' },
   qrModalCloseBtn: {
     width: 30, height: 30, borderRadius: 15,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1, borderColor: '#E2E8F0',
     justifyContent: 'center', alignItems: 'center',
   },
 
@@ -614,26 +625,27 @@ const styles = StyleSheet.create({
   },
   qrBundlePill: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(251, 191, 36, 0.12)',
-    borderWidth: 1, borderColor: 'rgba(251, 191, 36, 0.35)',
+    backgroundColor: 'rgba(251, 191, 36, 0.10)',
+    borderWidth: 1, borderColor: 'rgba(251, 191, 36, 0.30)',
     borderRadius: RADIUS.pill, paddingHorizontal: 12, paddingVertical: 5,
     marginBottom: 8,
   },
-  qrBundlePillText: { fontFamily: FONTS.semiBold, fontSize: 12, color: COLORS.gold },
+  qrBundlePillText: { fontFamily: FONTS.semiBold, fontSize: 12, color: '#92400E' },
   qrAmountHeadline: {
-    fontFamily: FONTS.bold, fontSize: 28, color: '#FFFFFF', letterSpacing: 0.5,
+    fontFamily: FONTS.bold, fontSize: 28, color: '#1E293B', letterSpacing: 0.5,
   },
   qrAmountCurrency: { fontSize: 14, color: COLORS.teal },
   qrAmountSub: {
-    fontFamily: FONTS.regular, fontSize: 12, color: 'rgba(191,215,255,0.75)', marginTop: 2,
+    fontFamily: FONTS.regular, fontSize: 12, color: '#64748B', marginTop: 2,
   },
 
   qrCodeBox: {
     width: 220, height: 220, backgroundColor: '#FFFFFF',
     borderRadius: 16, padding: 10, marginVertical: 14,
     justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#38BDF8', shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
+    borderWidth: 1, borderColor: '#E2E8F0',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 8, elevation: 4,
   },
   qrImageElement: {
     width: '100%', height: '100%',
@@ -642,27 +654,27 @@ const styles = StyleSheet.create({
     alignItems: 'center', gap: 8,
   },
   qrLoadingText: {
-    fontFamily: FONTS.medium, fontSize: 11, color: '#08143C',
+    fontFamily: FONTS.medium, fontSize: 11, color: '#475569',
   },
 
   qrStatusBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: 'rgba(251, 191, 36, 0.15)',
-    borderWidth: 1, borderColor: 'rgba(251, 191, 36, 0.40)',
+    backgroundColor: 'rgba(251, 191, 36, 0.08)',
+    borderWidth: 1, borderColor: 'rgba(251, 191, 36, 0.30)',
     borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8,
     width: '100%', justifyContent: 'center', marginBottom: 12,
   },
   qrStatusText: {
-    fontFamily: FONTS.medium, fontSize: 11, color: COLORS.gold,
+    fontFamily: FONTS.medium, fontSize: 11, color: '#92400E',
   },
 
   qrInstructions: {
-    width: '100%', backgroundColor: 'rgba(8, 20, 60, 0.60)',
+    width: '100%', backgroundColor: '#F8FAFC',
     borderRadius: 8, padding: 10, gap: 4, marginBottom: 14,
-    borderWidth: 1, borderColor: 'rgba(99, 179, 237, 0.15)',
+    borderWidth: 1, borderColor: '#E2E8F0',
   },
   qrInstructionStep: {
-    fontFamily: FONTS.regular, fontSize: 11, color: 'rgba(191,215,255,0.75)',
+    fontFamily: FONTS.regular, fontSize: 11, color: '#475569',
   },
 
   qrVerifyBtn: {
@@ -671,13 +683,13 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill, marginBottom: 8,
   },
   qrVerifyBtnText: {
-    fontFamily: FONTS.bold, fontSize: 13, color: '#08143C',
+    fontFamily: FONTS.bold, fontSize: 13, color: '#FFFFFF',
   },
 
   qrSimulateBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
-    borderWidth: 1, borderColor: 'rgba(56, 189, 248, 0.40)',
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderWidth: 1, borderColor: 'rgba(16, 185, 129, 0.30)',
     width: '100%', padding: 10, borderRadius: RADIUS.pill, marginBottom: 10,
   },
   qrSimulateBtnText: {
@@ -685,20 +697,20 @@ const styles = StyleSheet.create({
   },
 
   qrCancelBtn: { padding: 6 },
-  qrCancelText: { fontFamily: FONTS.regular, fontSize: 11, color: 'rgba(191,215,255,0.50)' },
+  qrCancelText: { fontFamily: FONTS.regular, fontSize: 11, color: '#94A3B8' },
 
   // Success State
   qrSuccessWrap: {
     alignItems: 'center', padding: 24, gap: 10,
   },
   qrSuccessTitle: {
-    fontFamily: FONTS.bold, fontSize: 20, color: '#FFFFFF', marginTop: 4,
+    fontFamily: FONTS.bold, fontSize: 20, color: '#1E293B', marginTop: 4,
   },
   qrSuccessCoins: {
-    fontFamily: FONTS.bold, fontSize: 18, color: COLORS.gold,
+    fontFamily: FONTS.bold, fontSize: 18, color: '#92400E',
   },
   qrSuccessSub: {
-    fontFamily: FONTS.regular, fontSize: 12, color: 'rgba(191,215,255,0.80)',
+    fontFamily: FONTS.regular, fontSize: 12, color: '#64748B',
     textAlign: 'center', lineHeight: 18,
   },
   qrSuccessBtn: {
@@ -706,6 +718,6 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill, marginTop: 10,
   },
   qrSuccessBtnText: {
-    fontFamily: FONTS.bold, fontSize: 13, color: '#08143C',
+    fontFamily: FONTS.bold, fontSize: 13, color: '#FFFFFF',
   },
 });

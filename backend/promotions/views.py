@@ -4,6 +4,7 @@ import requests
 from django.conf import settings
 from django.db import transaction
 from rest_framework import viewsets, generics, views, status, serializers
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import action
@@ -55,6 +56,7 @@ class AppSettingViewSet(viewsets.ModelViewSet):
 class UserPromotionViewSet(viewsets.ModelViewSet):
     serializer_class = UserPromotionSerializer
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
         # Admin can see all, normal user sees only theirs or published ones
@@ -83,6 +85,29 @@ class UserPromotionViewSet(viewsets.ModelViewSet):
                 serializer.save(user=self.request.user, status='PUBLISHED')
         else:
             serializer.save(user=self.request.user, status='PENDING_REVIEW')
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        # If user updates a rejected promotion (e.g. adding their 3D model), resubmit for review
+        if instance.status == 'REJECTED':
+            serializer.save(status='PENDING_REVIEW', rejection_reason='')
+        else:
+            serializer.save()
+
+    @action(detail=True, methods=['post', 'patch'], parser_classes=[MultiPartParser, FormParser])
+    def attach_model(self, request, pk=None):
+        promotion = self.get_object()
+        model_file = request.FILES.get('model_3d_file')
+        if not model_file:
+            return Response({"detail": "No 3D model file provided."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        promotion.model_3d_file = model_file
+        if promotion.status == 'REJECTED':
+            promotion.status = 'PENDING_REVIEW'
+            promotion.rejection_reason = ''
+        promotion.save()
+        serializer = self.get_serializer(promotion)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def approve(self, request, pk=None):

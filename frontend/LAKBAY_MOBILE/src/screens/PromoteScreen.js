@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
-import { submitPromotion } from '../api/promotionService';
+import { submitPromotion, updatePromotion } from '../api/promotionService';
 import VintaStripe from '../components/VintaStripe';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -222,21 +222,28 @@ const uploadStyles = StyleSheet.create({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function PromoteScreen({ route, navigation }) {
-  const passedSpotName = route?.params?.spotName || '';
+  const editPromotion = route?.params?.editPromotion || route?.params?.promo || null;
+  const isEditing = !!editPromotion;
+  const passedSpotName = editPromotion?.spot_name || route?.params?.spotName || '';
 
   const [spotName,    setSpotName]    = useState(passedSpotName);
-  const [description, setDescription] = useState('');
-  const [imageUri,    setImageUri]    = useState(null);
-  const [glbUri,      setGlbUri]      = useState(null);
-  const [glbName,     setGlbName]     = useState(null);
-  const [isPlace,     setIsPlace]     = useState(false);
+  const [description, setDescription] = useState(editPromotion?.description || '');
+  const [imageUri,    setImageUri]    = useState(editPromotion?.image_file || null);
+  const [glbUri,      setGlbUri]      = useState(editPromotion?.model_3d_file || null);
+  const [glbName,     setGlbName]     = useState(
+    editPromotion?.model_3d_file ? editPromotion.model_3d_file.split('/').pop() : null
+  );
+  const [isPlace,     setIsPlace]     = useState(Boolean(editPromotion?.is_place));
   const [submitting,  setSubmitting]  = useState(false);
 
-  const [location,         setLocation]         = useState(null);
-  const [tempLocation,     setTempLocation]     = useState(null);
+  const initialLoc = (editPromotion?.latitude && editPromotion?.longitude)
+    ? { lat: parseFloat(editPromotion.latitude), lng: parseFloat(editPromotion.longitude) }
+    : null;
+  const [location,         setLocation]         = useState(initialLoc);
+  const [tempLocation,     setTempLocation]     = useState(initialLoc);
   const [mapModalVisible,  setMapModalVisible]  = useState(false);
 
-  const isEditable = !passedSpotName;
+  const isEditable = !passedSpotName || isEditing;
 
   // Derive current step for stepper
   const currentStep = !spotName.trim() || !description.trim() ? 1 : !location ? 2 : (!imageUri && !glbUri) ? 3 : 4;
@@ -283,55 +290,77 @@ export default function PromoteScreen({ route, navigation }) {
 
     setSubmitting(true);
     try {
-      await submitPromotion(
-        spotName.trim(),
-        description.trim(),
-        imageUri,
-        glbUri,
-        location.lat,
-        location.lng,
-        isPlace,
-        false // use_coins = false (submits for Admin Review)
-      );
-      Alert.alert(
-        'Submitted for Review! 🎉',
-        'Your landmark promotion has been submitted to the admin team for review.\n\nYou do not need to pay yet. Once the admin approves your spot, you will receive a notification and can pay coins to publish it live!',
-        [
-          {
-            text: 'View My Promotions',
-            onPress: () => {
-              if (isEditable) {
-                setSpotName('');
-                setDescription('');
-                setImageUri(null);
-                setGlbUri(null);
-                setGlbName(null);
-                setLocation(null);
-                setIsPlace(false);
-              }
-              navigation.navigate('MyPromotions');
+      if (isEditing) {
+        await updatePromotion(editPromotion.id, {
+          spotName: spotName.trim(),
+          description: description.trim(),
+          imageUri,
+          glbUri,
+          lat: location.lat,
+          lng: location.lng,
+          isPlace,
+        });
+        Alert.alert(
+          'Promotion Updated! 🎉',
+          'Your landmark promotion and 3D model have been updated successfully.',
+          [
+            {
+              text: 'View My Promotions',
+              onPress: () => navigation.navigate('MyPromotions'),
             },
-          },
-          {
-            text: 'OK',
-            onPress: () => {
-              if (isEditable) {
-                setSpotName('');
-                setDescription('');
-                setImageUri(null);
-                setGlbUri(null);
-                setGlbName(null);
-                setLocation(null);
-                setIsPlace(false);
-              } else {
-                navigation.goBack();
-              }
+          ]
+        );
+      } else {
+        await submitPromotion(
+          spotName.trim(),
+          description.trim(),
+          imageUri,
+          glbUri,
+          location.lat,
+          location.lng,
+          isPlace,
+          false // use_coins = false (submits for Admin Review)
+        );
+        Alert.alert(
+          'Submitted for Review! 🎉',
+          'Your landmark promotion has been submitted to the admin team for review.\n\nYou do not need to pay yet. Once the admin approves your spot, you will receive a notification and can pay coins to publish it live!',
+          [
+            {
+              text: 'View My Promotions',
+              onPress: () => {
+                if (isEditable) {
+                  setSpotName('');
+                  setDescription('');
+                  setImageUri(null);
+                  setGlbUri(null);
+                  setGlbName(null);
+                  setLocation(null);
+                  setIsPlace(false);
+                }
+                navigation.navigate('MyPromotions');
+              },
             },
-          },
-        ]
-      );
+            {
+              text: 'OK',
+              onPress: () => {
+                if (isEditable) {
+                  setSpotName('');
+                  setDescription('');
+                  setImageUri(null);
+                  setGlbUri(null);
+                  setGlbName(null);
+                  setLocation(null);
+                  setIsPlace(false);
+                } else {
+                  navigation.goBack();
+                }
+              },
+            },
+          ]
+        );
+      }
     } catch (e) {
-      let errMsg = 'Failed to submit promotion.';
+      let errMsg = isEditing ? 'Failed to update promotion.' : 'Failed to submit promotion.';
       if (e.response?.data?.detail) errMsg = e.response.data.detail;
       else if (e.response?.data?.error) errMsg = e.response.data.error;
       else if (e.message) errMsg = e.message;
@@ -368,7 +397,7 @@ export default function PromoteScreen({ route, navigation }) {
 
         {/* ── Header ── */}
         <View style={styles.header}>
-          {navigation.canGoBack() && !isEditable ? (
+          {navigation.canGoBack() ? (
             <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
               <Ionicons name="arrow-back" size={20} color="#fff" />
             </TouchableOpacity>
@@ -376,8 +405,8 @@ export default function PromoteScreen({ route, navigation }) {
             <View style={{ width: 38 }} />
           )}
           <View style={{ alignItems: 'center' }}>
-            <Text style={styles.headerTitle}>PROMOTE A SPOT</Text>
-            <Text style={styles.headerSub}>SHARE ZAMBOANGA'S GEMS</Text>
+            <Text style={styles.headerTitle}>{isEditing ? 'EDIT PROMOTION' : 'PROMOTE A SPOT'}</Text>
+            <Text style={styles.headerSub}>{isEditing ? 'UPDATE LANDMARK & 3D MODEL' : "SHARE ZAMBOANGA'S GEMS"}</Text>
           </View>
           <View style={{ width: 38 }} />
         </View>
@@ -592,12 +621,12 @@ export default function PromoteScreen({ route, navigation }) {
               {submitting ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <ActivityIndicator size="small" color="#08143C" />
-                  <Text style={styles.submitReviewBtnText}>Submitting to Admin Queue...</Text>
+                  <Text style={styles.submitReviewBtnText}>{isEditing ? 'Saving Changes...' : 'Submitting to Admin Queue...'}</Text>
                 </View>
               ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Ionicons name="paper-plane" size={18} color="#08143C" />
-                  <Text style={styles.submitReviewBtnText}>Submit Landmark for Review</Text>
+                  <Ionicons name={isEditing ? "checkmark-circle" : "paper-plane"} size={18} color="#08143C" />
+                  <Text style={styles.submitReviewBtnText}>{isEditing ? 'Save Changes & 3D Model' : 'Submit Landmark for Review'}</Text>
                 </View>
               )}
             </TouchableOpacity>
@@ -613,11 +642,11 @@ export default function PromoteScreen({ route, navigation }) {
 
         {/* ── Map Picker Overlay ── */}
         {mapModalVisible && (
-          <View style={[StyleSheet.absoluteFill, { zIndex: 999, elevation: 10, backgroundColor: 'rgba(4,10,38,0.95)' }]}>
+          <View style={[StyleSheet.absoluteFill, { zIndex: 999, elevation: 10, backgroundColor: 'rgba(0,0,0,0.15)' }]}>
             <SafeAreaView style={{ flex: 1 }}>
               <View style={styles.modalHeader}>
                 <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setMapModalVisible(false)}>
-                  <Ionicons name="close" size={20} color="#FFFFFF" />
+                  <Ionicons name="close" size={20} color="#475569" />
                 </TouchableOpacity>
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={styles.modalTitle}>Set Target Coordinates</Text>
@@ -703,13 +732,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: 'rgba(8, 20, 60, 0.60)',
+    backgroundColor: '#08143C',
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.35)',
+    borderColor: 'rgba(251, 191, 36, 0.40)',
     borderRadius: RADIUS.lg,
     padding: 14,
     marginBottom: 16,
-    ...SHADOW.accent,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   infoBannerText: {
     fontFamily: FONTS.regular,
@@ -721,13 +754,17 @@ const styles = StyleSheet.create({
 
   // Section card
   sectionCard: {
-    backgroundColor: 'rgba(8, 20, 60, 0.60)',
+    backgroundColor: '#08143C',
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.25)',
+    borderColor: '#1E3A8A',
     padding: 16,
     marginBottom: 14,
-    ...SHADOW.accent,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   sectionCardHeader: {
     flexDirection: 'row',
@@ -738,7 +775,7 @@ const styles = StyleSheet.create({
   sectionNum: {
     width: 26, height: 26, borderRadius: 13,
     backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1.5, borderColor: 'rgba(99, 179, 237, 0.35)',
+    borderWidth: 1.5, borderColor: '#1E3A8A',
     justifyContent: 'center', alignItems: 'center',
   },
   sectionNumDone: {
@@ -749,7 +786,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold, fontSize: 11, color: '#FFFFFF',
   },
   sectionCardTitle: {
-    fontFamily: FONTS.bold, fontSize: 14, color: '#FFFFFF', flex: 1,
+    fontFamily: FONTS.pixel, fontSize: 10, color: '#FFFFFF', flex: 1, lineHeight: 16,
   },
   optionalPill: {
     backgroundColor: 'rgba(255,255,255,0.08)',
@@ -763,20 +800,20 @@ const styles = StyleSheet.create({
 
   // Inputs
   inputEditable: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1, borderColor: 'rgba(99, 179, 237, 0.35)',
+    backgroundColor: '#0C2054',
+    borderWidth: 1, borderColor: '#1E3A8A',
     borderRadius: RADIUS.sm, padding: 12,
     color: '#FFFFFF', fontFamily: FONTS.regular, fontSize: 13,
   },
   inputDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.02)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1, borderColor: '#1E3A8A',
     borderRadius: RADIUS.sm, padding: 12,
     color: 'rgba(191,215,255,0.60)', fontFamily: FONTS.regular, fontSize: 13,
   },
   textArea: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1, borderColor: 'rgba(99, 179, 237, 0.35)',
+    backgroundColor: '#0C2054',
+    borderWidth: 1, borderColor: '#1E3A8A',
     borderRadius: RADIUS.sm, padding: 12,
     color: '#FFFFFF', fontFamily: FONTS.regular, fontSize: 13,
     height: 100, textAlignVertical: 'top',
@@ -786,18 +823,18 @@ const styles = StyleSheet.create({
   toggleRow: {
     flexDirection: 'row', alignItems: 'center',
     marginTop: 16, padding: 14,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: '#0C2054',
     borderRadius: RADIUS.md,
-    borderWidth: 1, borderColor: 'rgba(99, 179, 237, 0.20)',
+    borderWidth: 1, borderColor: '#1E3A8A',
   },
   toggleRowActive: {
     borderColor: 'rgba(16, 185, 129, 0.45)',
-    backgroundColor: 'rgba(16, 185, 129, 0.10)',
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
   },
   toggleIcon: {
     width: 36, height: 36, borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1, borderColor: '#1E3A8A',
     justifyContent: 'center', alignItems: 'center',
   },
   toggleIconActive: {
@@ -827,9 +864,9 @@ const styles = StyleSheet.create({
   mapTrigger: {
     flexDirection: 'row', alignItems: 'center',
     marginTop: 14, padding: 14,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: '#0C2054',
     borderRadius: RADIUS.md,
-    borderWidth: 1.5, borderColor: 'rgba(99, 179, 237, 0.3)',
+    borderWidth: 1.5, borderColor: '#1E3A8A',
     borderStyle: 'dashed',
   },
   mapTriggerPinned: {
@@ -844,7 +881,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   mapTriggerTitle: {
-    fontFamily: FONTS.bold, fontSize: 13, color: '#FFFFFF',
+    fontFamily: FONTS.pixel, fontSize: 10, color: '#FFFFFF', lineHeight: 16,
   },
   mapCoords: {
     fontFamily: FONTS.regular, fontSize: 12,
@@ -867,8 +904,8 @@ const styles = StyleSheet.create({
     color: 'rgba(191,215,255,0.65)', marginTop: 6, lineHeight: 16,
   },
   mediaSubLabel: {
-    fontFamily: FONTS.semiBold, fontSize: 12,
-    color: '#FFFFFF', marginBottom: 8,
+    fontFamily: FONTS.pixel, fontSize: 9,
+    color: '#FFFFFF', marginBottom: 8, lineHeight: 14,
   },
   previewImg: { width: '100%', height: '100%' },
   imgOverlay: {
@@ -886,7 +923,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.gold,
     padding: 16, borderRadius: RADIUS.pill,
     alignItems: 'center', marginTop: 8,
-    ...SHADOW.accent,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   submitText: {
     fontFamily: FONTS.bold, fontSize: 14, color: '#08143C', letterSpacing: 0.5,
@@ -903,20 +944,20 @@ const styles = StyleSheet.create({
   // Map modal
   modalHeader: {
     flexDirection: 'row', alignItems: 'center',
-    padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(99, 179, 237, 0.20)',
-    backgroundColor: 'rgba(8, 20, 60, 0.90)',
+    padding: 14, borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
   },
   modalCloseBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1, borderColor: '#CBD5E1',
     justifyContent: 'center', alignItems: 'center',
   },
   modalTitle: {
-    fontFamily: FONTS.bold, fontSize: 14, color: '#FFFFFF',
+    fontFamily: FONTS.pixel, fontSize: 10, color: '#1E293B', lineHeight: 16,
   },
   modalSub: {
-    fontFamily: FONTS.regular, fontSize: 11, color: 'rgba(191,215,255,0.70)', marginTop: 1,
+    fontFamily: FONTS.regular, fontSize: 11, color: '#64748B', marginTop: 1,
   },
   modalConfirmBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
@@ -925,7 +966,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill,
   },
   modalConfirmText: {
-    fontFamily: FONTS.bold, fontSize: 12, color: '#08143C',
+    fontFamily: FONTS.bold, fontSize: 12, color: '#FFFFFF',
   },
 
   // ── Coin Section Styles ──
@@ -944,10 +985,15 @@ const styles = StyleSheet.create({
     marginTop: 6, lineHeight: 18,
   },
   workflowCard: {
-    backgroundColor: 'rgba(8, 20, 60, 0.70)',
-    borderWidth: 1, borderColor: 'rgba(99, 179, 237, 0.20)',
+    backgroundColor: '#08143C',
+    borderWidth: 1, borderColor: '#1E3A8A',
     borderRadius: RADIUS.md, padding: 14, marginTop: 14,
     gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
   },
   workflowStep: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
@@ -963,7 +1009,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold, fontSize: 10, color: '#38BDF8',
   },
   workflowStepTitle: {
-    fontFamily: FONTS.bold, fontSize: 12, color: '#FFFFFF',
+    fontFamily: FONTS.pixel, fontSize: 9, color: '#FFFFFF', lineHeight: 14,
   },
   workflowStepSub: {
     fontFamily: FONTS.regular, fontSize: 11, color: 'rgba(191,215,255,0.65)', marginTop: 2, lineHeight: 15,
@@ -972,7 +1018,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.teal,
     padding: 15, borderRadius: RADIUS.pill,
     alignItems: 'center', marginTop: 14,
-    ...SHADOW.accent,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   submitReviewBtnText: {
     fontFamily: FONTS.bold, fontSize: 14, color: '#08143C', letterSpacing: 0.3,
