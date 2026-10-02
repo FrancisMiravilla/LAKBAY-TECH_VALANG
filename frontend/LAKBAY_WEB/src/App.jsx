@@ -813,7 +813,11 @@ function App() {
         if (user.is_staff) {
           setCurrentUser(user);
           setIsAuthenticated(true);
-          if (user.role === 'tourist_guide') setActiveTab('trivia_review');
+          if (user.role === 'tourist_guide') {
+            setActiveTab('trivia_review');
+          } else if (activeTab === 'trivia_review') {
+            setActiveTab('overview');
+          }
         } else {
           authService.logout();
         }
@@ -840,9 +844,16 @@ function App() {
 
       setCurrentUser(user);
       setIsAuthenticated(true);
-      if (user.role === 'tourist_guide') setActiveTab('trivia_review');
+      if (user.role === 'tourist_guide') {
+        setActiveTab('trivia_review');
+      } else {
+        setActiveTab('overview');
+      }
     } catch (error) {
-      showError('Invalid credentials. Please check your email and password.', 'Login Failed', 'error');
+      const errorMsg = error.response?.data?.detail 
+        || error.response?.data?.non_field_errors?.[0]
+        || (error.message === 'Network Error' ? 'Network Error: Cannot connect to backend server. Please verify your backend server is running.' : 'Invalid credentials. Please check your email and password.');
+      showError(errorMsg, 'Login Failed', 'error');
     } finally {
       setIsLoggingIn(false);
     }
@@ -893,8 +904,8 @@ function App() {
       setBadges(items.sort((a, b) => (a.tier || 0) - (b.tier || 0)));
     }).catch(console.error);
 
-    // Fetch pending quizzes for Review Module
-    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'tourist_guide')) {
+    // Fetch pending quizzes for Review Module (Tourist Guide only)
+    if (currentUser && currentUser.role === 'tourist_guide') {
       qrService.getPendingQuizzes().then(({ data }) => {
         setPendingQuizzes(data || []);
       }).catch(console.error);
@@ -1674,14 +1685,17 @@ function App() {
             </div>
           )}
 
-          {(currentUser?.role === 'admin' || currentUser?.role === 'tourist_guide') && (
-            <div
-              className={`menu-item ${activeTab === 'trivia_review' ? 'active' : ''}`}
-              onClick={() => setActiveTab('trivia_review')}
-            >
-              <Target className="menu-icon" />
-              Review Quizzes
-            </div>
+          {currentUser?.role === 'tourist_guide' && (
+            <>
+              <span className="menu-section-title">Validation Portal</span>
+              <div
+                className={`menu-item ${activeTab === 'trivia_review' ? 'active' : ''}`}
+                onClick={() => setActiveTab('trivia_review')}
+              >
+                <Target className="menu-icon" />
+                Review Quizzes
+              </div>
+            </>
           )}
 
           {currentUser?.role !== 'tourist_guide' && (
@@ -3200,8 +3214,8 @@ function App() {
             </section>
           )}
 
-          {/* TAB CONTENT: TRIVIA REVIEW (TOURIST GUIDE) */}
-          {activeTab === 'trivia_review' && (
+          {/* TAB CONTENT: TRIVIA REVIEW (TOURIST GUIDE ONLY) */}
+          {activeTab === 'trivia_review' && currentUser?.role === 'tourist_guide' && (
             <section className="content-card" style={{ gap: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 className="card-title">
