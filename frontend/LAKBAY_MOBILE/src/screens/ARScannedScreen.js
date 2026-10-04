@@ -207,9 +207,9 @@ export default function ARScannedScreen({ navigation, route }) {
         <TouchableOpacity
           style={styles.continueBtn}
           activeOpacity={0.85}
-          onPress={() => navigation.navigate('QuizScreen', { topic: 'AR' })}
+          onPress={() => navigation.navigate('QuizScreen', { topic: 'AR', feature: 'ar', spotName: exhibit?.name || 'Fort Pilar Museum AR' })}
         >
-          <Text style={styles.continueBtnText}>Continue</Text>
+          <Text style={styles.continueBtnText}>Continue to Quiz</Text>
         </TouchableOpacity>
       </Animated.View>
     </View>

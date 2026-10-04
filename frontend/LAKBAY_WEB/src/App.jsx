@@ -60,6 +60,7 @@ import ErrorModal from './ErrorModal';
 import PromotionModeration from './PromotionModeration';
 import PromotionSettings from './PromotionSettings';
 import CoinBundleManagement from './CoinBundleManagement';
+import LandingPage from './LandingPage';
 
 const generateNotificationId = () => Date.now();
 
@@ -257,6 +258,7 @@ const normalizeMarker = (m) => ({
 });
 
 function App() {
+  const [showLanding, setShowLanding] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [theme, setTheme] = useState('light');
 
@@ -813,6 +815,7 @@ function App() {
         if (user.is_staff) {
           setCurrentUser(user);
           setIsAuthenticated(true);
+          setShowLanding(false); // skip landing if already logged in
           if (user.role === 'tourist_guide') {
             setActiveTab('trivia_review');
           } else if (activeTab === 'trivia_review') {
@@ -863,6 +866,7 @@ function App() {
     authService.logout();
     setIsAuthenticated(false);
     setCurrentUser(null);
+    setShowLanding(true);
   };
 
   useEffect(() => {
@@ -1523,82 +1527,21 @@ function App() {
     }
   };
 
+  // ── Show Landing Page with integrated Admin Login Pop-up Modal ─────────────
   if (!isAuthenticated) {
     return (
       <>
-        <div className="login-container">
-          {/* Left hero panel */}
-          <div className="login-hero">
-            <img src={zcBg} alt="Zamboanga City" className="login-hero-bg" />
-            <div className="login-hero-overlay" />
-            <div className="login-hero-content">
-              <div className="login-hero-badge">Est. 1635</div>
-              <h2 className="login-hero-title">DISCOVER THE BEAUTY OF ZAMBOANGA</h2>
-              <p className="login-hero-slogan">
-                "Asia's Latin City — Where Culture, Heritage &amp; Nature Converge"
-              </p>
-              <div className="login-hero-tags">
-                <span className="login-hero-tag">🏖️ Pink Sand Beaches</span>
-                <span className="login-hero-tag">🕌 Historic Forts</span>
-                <span className="login-hero-tag">🎨 Yakan Culture</span>
-                <span className="login-hero-tag">⛵ Vinta Boats</span>
-              </div>
-            </div>
-          </div>
+        <LandingPage
+          onLogin={handleLogin}
+          loginCredentials={loginCredentials}
+          setLoginCredentials={setLoginCredentials}
+          isLoggingIn={isLoggingIn}
+          loginError={loginError}
+          initialLoginOpen={!showLanding}
+          onGoToAdmin={() => setShowLanding(false)}
+        />
 
-          {/* Right login panel */}
-          <div className="login-panel">
-            <div className="login-card">
-              <div className="login-header">
-                <div className="sidebar-logo-container" style={{ margin: '0 auto 16px', width: '56px', height: '56px', background: 'transparent' }}>
-                  <img src={lakbayLogo} alt="LAKBAY" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                </div>
-                <h1 className="brand-text" style={{ fontSize: '28px', justifyContent: 'center' }}>
-                  LAKBAY
-                  <span className="brand-subtitle">PORTAL</span>
-                </h1>
-                <p className="login-subtitle">Sign in to manage the Zamboanga Cultural System</p>
-              </div>
-              
-              <form onSubmit={handleLogin} className="login-form">
-                
-                <div className="form-group">
-                  <label className="form-label">Email</label>
-                  <input 
-                    type="email" 
-                    className="form-input" 
-                    placeholder="Enter your email"
-                    value={loginCredentials.email}
-                    onChange={(e) => setLoginCredentials({...loginCredentials, email: e.target.value})}
-                    required 
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label className="form-label">Password</label>
-                  <input 
-                    type="password" 
-                    className="form-input" 
-                    placeholder="Enter your password"
-                    value={loginCredentials.password}
-                    onChange={(e) => setLoginCredentials({...loginCredentials, password: e.target.value})}
-                    required 
-                  />
-                </div>
-                
-                <button type="submit" className="btn btn-primary login-btn" disabled={isLoggingIn}>
-                  {isLoggingIn ? 'Authenticating...' : 'Authenticate'}
-                </button>
-              </form>
-
-              <p className="login-footer-note">
-                🌊 Powered by LAKBAY — Zamboanga Cultural Tourism Platform
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Error Modal (login page) ── */}
+        {/* ── Error Modal (login/global) ── */}
         <ErrorModal
           visible={errorModal.visible}
           type={errorModal.type}

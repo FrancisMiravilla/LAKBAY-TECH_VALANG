@@ -26,8 +26,9 @@ function buildMapboxHTML(spots, userLevel = 1) {
     .filter(s => s.latitude && s.longitude)
     .map(s => {
       const isQr = (s.feature_types || []).includes('qr');
+      const isCatch = (s.feature_types || []).includes('catch');
       const reqLvl = s.required_level || 1;
-      const isLocked = isQr && (reqLvl > userLevel);
+      const isLocked = reqLvl > userLevel;
       return {
         id: s.id,
         name: s.name,
@@ -238,8 +239,8 @@ function buildMapboxHTML(spots, userLevel = 1) {
     if (spot.is_locked) {
       label.innerText='🔒 LVL ' + (spot.required_level || 1);
       label.style.background='#EF4444';
-    } else if (spot.is_qr) {
-      label.innerText=(TYPE_LABEL[primaryType]||'QR') + ' · L' + (spot.required_level || 1);
+    } else if (spot.is_qr || spot.required_level > 1) {
+      label.innerText=(TYPE_LABEL[primaryType]||'PIN') + ' · L' + (spot.required_level || 1);
       label.style.background=TYPE_COLOR[primaryType]||TYPE_COLOR.qr;
     } else {
       label.innerText=TYPE_LABEL[primaryType]||'PIN';
@@ -853,10 +854,10 @@ export default function MapScreen({ navigation, route }) {
   // ── Badge config by type ──────────────────────────────────────────────────
   const getBadgeConfig = (type) => {
     const configs = {
-      ar:    { label: 'AR EXHIBIT',  icon: 'cube-outline',  color: '#10B981', bg: '#ECFDF5', border: '#6EE7B7' },
-      catch: { label: 'CATCH ZONE',  icon: 'trophy-outline',color: '#D97706', bg: '#FFFBEB', border: '#FCD34D' },
-      promotion:{ label: 'PROMOTION', icon: 'star-outline',  color: '#EC4899', bg: '#FDF2F8', border: '#FBCFE8' },
-      qr:    { label: 'QR SPOT',     icon: 'scan-outline',  color: COLORS.accent, bg: COLORS.accentSoft, border: COLORS.accentBorder },
+      ar:        { label: 'AR EXHIBIT',  icon: 'cube-outline',   color: '#34D399', bg: 'rgba(16,185,129,0.18)', border: 'rgba(52,211,153,0.45)' },
+      catch:     { label: 'CATCH ZONE',  icon: 'trophy-outline', color: '#FBBF24', bg: 'rgba(251,191,36,0.18)', border: 'rgba(251,191,36,0.45)' },
+      promotion: { label: 'PROMOTION',   icon: 'star-outline',   color: '#F472B6', bg: 'rgba(236,72,153,0.18)', border: 'rgba(244,114,182,0.45)' },
+      qr:        { label: 'QR SPOT',     icon: 'scan-outline',   color: '#38BDF8', bg: 'rgba(56,189,248,0.18)', border: 'rgba(56,189,248,0.45)' },
     };
     return configs[type] || configs['qr'];
   };
@@ -1008,8 +1009,9 @@ export default function MapScreen({ navigation, route }) {
         const primaryType = (selectedSpot.feature_types && selectedSpot.feature_types[0]) || 'qr';
         const badge = getBadgeConfig(primaryType);
         const isQr = (selectedSpot.feature_types || []).includes('qr');
+        const isCatch = (selectedSpot.feature_types || []).includes('catch');
         const reqLvl = selectedSpot.required_level || 1;
-        const isLocked = isQr && (reqLvl > userLevel);
+        const isLocked = reqLvl > userLevel;
         const xpReward = selectedSpot.xp_reward || 50;
 
         return (
@@ -1026,18 +1028,18 @@ export default function MapScreen({ navigation, route }) {
             {/* Close button */}
             <TouchableOpacity style={styles.cardClose} onPress={dismissCard} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
               <View style={styles.cardCloseCircle}>
-                <Ionicons name="close" size={16} color={COLORS.text} />
+                <Ionicons name="close" size={16} color="#FFFFFF" />
               </View>
             </TouchableOpacity>
 
             {/* Badge & Status Row */}
             <View style={styles.badgeRow}>
               <View style={[styles.spotTypeBadge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
-                <Ionicons name={badge.icon} size={10} color={badge.color} style={{ marginRight: 4 }} />
+                <Ionicons name={badge.icon} size={11} color={badge.color} style={{ marginRight: 4 }} />
                 <Text style={[styles.spotTypeBadgeText, { color: badge.color }]}>{badge.label}</Text>
               </View>
 
-              {isQr && (
+              {(isQr || isCatch || reqLvl > 1) && (
                 <>
                   {isLocked ? (
                     <View style={styles.lockedBadgePill}>
@@ -1046,7 +1048,7 @@ export default function MapScreen({ navigation, route }) {
                     </View>
                   ) : (
                     <View style={styles.unlockedBadgePill}>
-                      <Ionicons name="checkmark-circle" size={10} color={COLORS.teal} style={{ marginRight: 4 }} />
+                      <Ionicons name="checkmark-circle" size={10} color="#10B981" style={{ marginRight: 4 }} />
                       <Text style={styles.unlockedBadgeText}>UNLOCKED · LVL {reqLvl}</Text>
                     </View>
                   )}
@@ -1065,7 +1067,7 @@ export default function MapScreen({ navigation, route }) {
             {/* Location */}
             {!!selectedSpot.location_name && (
               <View style={styles.locationRow}>
-                <Ionicons name="location-sharp" size={13} color={COLORS.accent} />
+                <Ionicons name="location-sharp" size={13} color="#38BDF8" />
                 <Text style={styles.spotLocation}>{selectedSpot.location_name}</Text>
               </View>
             )}
@@ -1074,17 +1076,17 @@ export default function MapScreen({ navigation, route }) {
             {isLocked && (
               <View style={styles.lockedAlertCard}>
                 <View style={styles.lockedAlertTop}>
-                  <Ionicons name="lock-closed" size={15} color="#EF4444" />
+                  <Ionicons name="lock-closed" size={15} color="#F87171" />
                   <Text style={styles.lockedAlertTitle}>SPOT IS LEVEL LOCKED</Text>
                 </View>
                 <Text style={styles.lockedAlertText}>
-                  This QR scan spot is locked! In order for you to unlock and scan this location, reach{' '}
-                  <Text style={{ fontWeight: 'bold', color: '#1E293B' }}>Explorer Level {reqLvl}</Text>{' '}
-                  by collecting XP in other features.
+                  This {isCatch && isQr ? 'quest location' : isCatch ? 'Catch zone' : isQr ? 'QR scan spot' : 'cultural landmark'} is locked! In order for you to unlock and experience this location, reach{' '}
+                  <Text style={styles.lockedAlertHighlight}>Explorer Level {reqLvl}</Text>{' '}
+                  by collecting XP in other quests and activities.
                 </Text>
                 <View style={styles.lockedAlertFooter}>
                   <Text style={styles.lockedAlertXpHint}>
-                    Your Level: <Text style={{ color: '#D97706', fontWeight: 'bold' }}>Level {userLevel}</Text> ({userXp % 100}/100 XP)
+                    Your Current Rank: <Text style={styles.lockedAlertUserLvl}>Level {userLevel}</Text> ({userXp % 100}/100 XP)
                   </Text>
                 </View>
               </View>
@@ -1349,37 +1351,39 @@ const styles = StyleSheet.create({
   spotTypeBadgeText: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 0.5 },
   lockedBadgePill: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(239,68,68,0.15)', borderColor: 'rgba(239,68,68,0.45)',
+    backgroundColor: 'rgba(239,68,68,0.18)', borderColor: 'rgba(239,68,68,0.55)',
     borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4,
   },
   lockedBadgeText:   { fontFamily: FONTS.bold, fontSize: 10, color: '#EF4444', letterSpacing: 0.5 },
   unlockedBadgePill: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(16,185,129,0.15)', borderColor: 'rgba(16,185,129,0.4)',
+    backgroundColor: 'rgba(16,185,129,0.18)', borderColor: 'rgba(16,185,129,0.5)',
     borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4,
   },
   unlockedBadgeText: { fontFamily: FONTS.bold, fontSize: 10, color: '#10B981', letterSpacing: 0.5 },
   xpRewardPill: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(245,158,11,0.15)', borderColor: 'rgba(245,158,11,0.4)',
+    backgroundColor: 'rgba(251,191,36,0.18)', borderColor: 'rgba(251,191,36,0.5)',
     borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4,
   },
-  xpRewardPillText: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.gold, letterSpacing: 0.5 },
+  xpRewardPillText: { fontFamily: FONTS.bold, fontSize: 10, color: '#FBBF24', letterSpacing: 0.5 },
   lockedAlertCard: {
-    backgroundColor: 'rgba(239,68,68,0.12)',
-    borderColor: 'rgba(239,68,68,0.35)',
+    backgroundColor: 'rgba(239,68,68,0.15)',
+    borderColor: 'rgba(239,68,68,0.45)',
     borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 12,
   },
-  lockedAlertTop:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  lockedAlertTitle:  { fontFamily: FONTS.bold, fontSize: 12, color: '#EF4444', letterSpacing: 0.5 },
-  lockedAlertText:   { fontFamily: FONTS.regular, fontSize: 12, color: 'rgba(191,215,255,0.8)', lineHeight: 17, marginBottom: 6 },
-  lockedAlertFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  lockedAlertXpHint: { fontFamily: FONTS.medium, fontSize: 11, color: 'rgba(191,215,255,0.6)' },
-  spotName:          { fontFamily: FONTS.bold, fontSize: 16, color: '#fff', marginBottom: 5, paddingRight: 36, lineHeight: 22 },
-  locationRow:       { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 },
-  spotLocation:      { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: COLORS.teal, flexShrink: 1 },
-  divider:           { height: 1, backgroundColor: 'rgba(99,179,237,0.2)', marginBottom: 10 },
-  spotDesc:          { fontFamily: FONTS.regular, fontSize: SIZES.fontSm, color: 'rgba(191,215,255,0.7)', lineHeight: 20, marginBottom: 14 },
+  lockedAlertTop:       { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  lockedAlertTitle:     { fontFamily: FONTS.bold, fontSize: 12, color: '#F87171', letterSpacing: 0.5 },
+  lockedAlertText:      { fontFamily: FONTS.regular, fontSize: 12, color: '#E2E8F0', lineHeight: 18, marginBottom: 6 },
+  lockedAlertHighlight: { fontFamily: FONTS.bold, color: '#38BDF8' },
+  lockedAlertFooter:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  lockedAlertXpHint:    { fontFamily: FONTS.medium, fontSize: 11, color: '#94A3B8' },
+  lockedAlertUserLvl:   { fontFamily: FONTS.bold, color: '#FBBF24' },
+  spotName:             { fontFamily: FONTS.bold, fontSize: 16, color: '#fff', marginBottom: 5, paddingRight: 36, lineHeight: 22 },
+  locationRow:          { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 },
+  spotLocation:         { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: '#38BDF8', flexShrink: 1 },
+  divider:              { height: 1, backgroundColor: 'rgba(99,179,237,0.2)', marginBottom: 10 },
+  spotDesc:             { fontFamily: FONTS.regular, fontSize: SIZES.fontSm, color: 'rgba(226, 232, 240, 0.85)', lineHeight: 20, marginBottom: 14 },
 
   // ── Directions Button ─────────────────────────────────────────────────────
   directionsBtn: {

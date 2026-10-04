@@ -272,7 +272,7 @@ export default function QRScannedScreen({ navigation, route }) {
             <TouchableOpacity
               style={styles.quizBtn}
               activeOpacity={0.85}
-              onPress={() => navigation.navigate('QuizScreen', { spotId: spot.id, spotName: spot.name })}
+              onPress={() => navigation.navigate('QuizScreen', { spotId: spot.id, spotName: spot.name, feature: 'qr' })}
             >
               <LinearGradient
                 colors={[COLORS.accent, '#1E40AF']}

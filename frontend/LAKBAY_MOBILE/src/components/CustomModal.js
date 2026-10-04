@@ -5,16 +5,17 @@ import { Ionicons } from '@expo/vector-icons';
 import CustomButton from './CustomButton';
 
 export default function CustomModal({ visible, title, message, icon, color, onClose, onProceed }) {
+  const themeColor = color || COLORS.accent;
   return (
-    <Modal visible={visible} transparent animationType="fade">
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.modalCard}>
-          {/* Decorative Top Glow */}
-          <View style={[styles.glow, { backgroundColor: color || COLORS.accent }]} />
+          {/* Decorative Top Accent Bar */}
+          <View style={[styles.topBar, { backgroundColor: themeColor }]} />
           
           <View style={styles.iconContainer}>
-            <View style={[styles.iconRing, { borderColor: color || COLORS.accent, backgroundColor: (color || COLORS.accent) + '15' }]}>
-              <Ionicons name={icon || "information-circle"} size={32} color={color || COLORS.accent} />
+            <View style={[styles.iconRing, { borderColor: themeColor, backgroundColor: themeColor + '22' }]}>
+              <Ionicons name={icon || "information-circle"} size={32} color={themeColor} />
             </View>
           </View>
           
@@ -22,7 +23,7 @@ export default function CustomModal({ visible, title, message, icon, color, onCl
           <Text style={styles.message}>{message}</Text>
           
           <View style={styles.btnRow}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={onClose} activeOpacity={0.8}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
             
@@ -31,7 +32,7 @@ export default function CustomModal({ visible, title, message, icon, color, onCl
                 title="Proceed"
                 onPress={onProceed}
                 variant="primary"
-                style={{ height: 44, paddingHorizontal: 20, backgroundColor: color || COLORS.accent }}
+                style={{ height: 44, paddingHorizontal: 20, backgroundColor: themeColor }}
               />
             </View>
           </View>
@@ -44,44 +45,56 @@ export default function CustomModal({ visible, title, message, icon, color, onCl
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.50)',
+    backgroundColor: 'rgba(2, 6, 23, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   modalCard: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    maxWidth: 360,
+    backgroundColor: 'rgba(8, 20, 56, 0.98)',
     borderRadius: RADIUS.lg,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(99, 179, 237, 0.35)',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.6,
+    shadowRadius: 24,
+    elevation: 16,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  glow: {
-    // no-op — removed decorative glow blob
-    display: 'none',
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
   },
   iconContainer: {
     marginBottom: 16,
   },
   iconRing: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   title: {
     fontFamily: FONTS.bold,
     fontSize: 20,
-    color: '#1E293B',
+    color: '#FFFFFF',
     marginBottom: 12,
     textAlign: 'center',
     letterSpacing: 0.5,
@@ -89,10 +102,11 @@ const styles = StyleSheet.create({
   message: {
     fontFamily: FONTS.medium,
     fontSize: 14,
-    color: '#475569',
+    color: '#E2E8F0',
     textAlign: 'center',
-    marginBottom: 28,
+    marginBottom: 26,
     lineHeight: 22,
+    paddingHorizontal: 8,
   },
   btnRow: {
     flexDirection: 'row',
@@ -107,14 +121,14 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: 'rgba(255, 255, 255, 0.20)',
   },
   cancelText: {
     fontFamily: FONTS.semiBold,
     fontSize: 15,
-    color: '#475569',
+    color: '#E2E8F0',
   },
   proceedWrapper: {
     flex: 1,

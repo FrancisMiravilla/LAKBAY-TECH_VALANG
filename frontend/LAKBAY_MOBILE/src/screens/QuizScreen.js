@@ -7,9 +7,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
 import { getSpotTrivia, getIconTrivia, awardSpotBadge } from '../api/qrService';
 import { authService } from '../api/authService';
+import VintaStripe from '../components/VintaStripe';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -69,6 +71,21 @@ export default function QuizScreen({ navigation, route }) {
   const isIconMode  = !spotId && !!icon;
   const accentColor = icon?.color ?? '#A855F7';
   const displayName = spotName || icon?.name || 'Challenge';
+  const featureType = route.params?.feature ?? (icon ? 'catch' : (spotId ? 'qr' : 'ar'));
+
+  // ── Cinematic Gamified Intro States & Animations ──
+  const [showIntro, setShowIntro]                   = useState(true);
+  const [countdown, setCountdown]                   = useState(3);
+  const [introReadyToStart, setIntroReadyToStart]   = useState(false);
+
+  const introFlashAnim     = useRef(new Animated.Value(1)).current;
+  const introScaleAnim     = useRef(new Animated.Value(0.4)).current;
+  const introOpacityAnim   = useRef(new Animated.Value(0)).current;
+  const introPulseAnim     = useRef(new Animated.Value(1)).current;
+  const introBriefingSlide = useRef(new Animated.Value(30)).current;
+  const introLetterboxTop  = useRef(new Animated.Value(-60)).current;
+  const introLetterboxBot  = useRef(new Animated.Value(60)).current;
+  const introFadeOut       = useRef(new Animated.Value(1)).current;
 
   const [loading, setLoading]               = useState(true);
   const [error, setError]                   = useState('');
@@ -94,6 +111,98 @@ export default function QuizScreen({ navigation, route }) {
   const streakScale    = useRef(new Animated.Value(1)).current;
   const pulseGlow      = useRef(new Animated.Value(0)).current;
   const trophySpin     = useRef(new Animated.Value(0)).current;
+
+  // Intro entrance sequence
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(introFlashAnim, {
+        toValue: 0,
+        duration: 600,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      }),
+      Animated.spring(introLetterboxTop, {
+        toValue: 0,
+        friction: 6,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.spring(introLetterboxBot, {
+        toValue: 0,
+        friction: 6,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.delay(80),
+        Animated.parallel([
+          Animated.spring(introScaleAnim, {
+            toValue: 1,
+            friction: 4,
+            tension: 50,
+            useNativeDriver: true,
+          }),
+          Animated.timing(introOpacityAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]),
+      Animated.sequence([
+        Animated.delay(300),
+        Animated.timing(introBriefingSlide, {
+          toValue: 0,
+          duration: 400,
+          easing: Easing.out(Easing.back(1.5)),
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(introPulseAnim, { toValue: 1.25, duration: 900, useNativeDriver: true }),
+        Animated.timing(introPulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  // Intro countdown timer
+  useEffect(() => {
+    if (!showIntro) return;
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIntroReadyToStart(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [showIntro]);
+
+  const handleStartQuiz = () => {
+    if (loading) return;
+    Animated.parallel([
+      Animated.timing(introFadeOut, { toValue: 0, duration: 250, useNativeDriver: true }),
+      Animated.timing(introScaleAnim, { toValue: 1.15, duration: 250, useNativeDriver: true }),
+    ]).start(() => {
+      setShowIntro(false);
+    });
+  };
+
+  // Auto-transition when countdown expires and questions are ready
+  useEffect(() => {
+    if (introReadyToStart && !loading && questions.length > 0) {
+      const autoTimer = setTimeout(() => {
+        handleStartQuiz();
+      }, 1000);
+      return () => clearTimeout(autoTimer);
+    }
+  }, [introReadyToStart, loading, questions.length]);
 
   useEffect(() => {
     Animated.loop(
@@ -250,6 +359,235 @@ export default function QuizScreen({ navigation, route }) {
       setShowReward(true);
     }
   };
+
+  // ── Cinematic Gamified Intro Screen ──
+  if (showIntro) {
+    const isCatchMode = featureType === 'catch';
+    const isQrMode    = featureType === 'qr';
+
+    const introConfig = {
+      tag: isCatchMode
+        ? '⚔️ CULTURAL GUARDIAN ENCOUNTER'
+        : isQrMode
+        ? '🏛️ CULTURAL EXPEDITION'
+        : '🏺 MUSEUM AR REVELATION',
+      subBadge: isCatchMode
+        ? 'WILD ICON ENCOUNTER'
+        : isQrMode
+        ? 'QR CHECKPOINT VERIFIED'
+        : 'EXHIBIT ARTIFACT SCANNED',
+      accentColor: isCatchMode
+        ? (icon?.color || '#FBBF24')
+        : isQrMode
+        ? '#FBBF24'
+        : '#A855F7',
+      emoji: isCatchMode
+        ? (icon?.emoji || '🏆')
+        : isQrMode
+        ? '🏛️'
+        : '🏺',
+      objective: isCatchMode
+        ? `Answer all trivia questions correctly to capture ${displayName} into your collection!`
+        : isQrMode
+        ? `Verify your on-site exploration of ${displayName} to earn +XP and unlock landmark badges!`
+        : `Demonstrate your historical insights to master this museum exhibit!`,
+      rewardTag: isCatchMode
+        ? 'ICON CATCH + BADGE'
+        : isQrMode
+        ? 'SPOT BADGE + CERT'
+        : 'EXHIBIT MASTERY',
+    };
+
+    return (
+      <View style={styles.introContainer}>
+        <StatusBar barStyle="light-content" backgroundColor="#040A26" />
+
+        {/* Screen flash on entry */}
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.introFlash, { opacity: introFlashAnim }]}
+        />
+
+        {/* Top Cinematic Letterbox */}
+        <Animated.View
+          style={[
+            styles.letterboxTop,
+            { transform: [{ translateY: introLetterboxTop }] },
+          ]}
+        >
+          <View style={styles.letterboxTopContent}>
+            <View style={styles.systemStatusWrap}>
+              <View style={styles.pulsingGreenDot} />
+              <Text style={styles.systemStatusText}>MISSION: ENGAGED</Text>
+            </View>
+            <TouchableOpacity
+              onPress={handleStartQuiz}
+              style={styles.skipBtn}
+              activeOpacity={0.7}
+              disabled={loading}
+            >
+              <Text style={[styles.skipBtnText, loading && { opacity: 0.5 }]}>
+                {loading ? 'SYNCING...' : 'SKIP ▶'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+
+        {/* Main Stage Content */}
+        <Animated.View
+          style={[
+            styles.introStage,
+            {
+              opacity: introFadeOut,
+              transform: [{ scale: introScaleAnim }],
+            },
+          ]}
+        >
+          {/* Ambient Aura Rings */}
+          <Animated.View
+            style={[
+              styles.introAuraRing,
+              {
+                borderColor: introConfig.accentColor,
+                transform: [{ scale: introPulseAnim }],
+              },
+            ]}
+          />
+          <View
+            style={[
+              styles.introAuraRingStatic,
+              { borderColor: introConfig.accentColor },
+            ]}
+          />
+
+          {/* Central Emblem */}
+          <View
+            style={[
+              styles.introEmblemWrap,
+              { borderColor: introConfig.accentColor },
+            ]}
+          >
+            <Text style={styles.introEmblemEmoji}>{introConfig.emoji}</Text>
+          </View>
+
+          {/* Tag Pill */}
+          <View
+            style={[
+              styles.introPill,
+              { borderColor: introConfig.accentColor },
+            ]}
+          >
+            <Text
+              style={[
+                styles.introPillText,
+                { color: introConfig.accentColor },
+              ]}
+            >
+              {introConfig.tag}
+            </Text>
+          </View>
+
+          {/* Target Display Title */}
+          <Text style={styles.introTargetTitle}>
+            {displayName.toUpperCase()}
+          </Text>
+
+          <View style={{ width: '60%', marginVertical: 8 }}>
+            <VintaStripe height={3} />
+          </View>
+
+          {/* Mission Objective Briefing */}
+          <Animated.View
+            style={[
+              styles.introBriefingCard,
+              { transform: [{ translateY: introBriefingSlide }] },
+            ]}
+          >
+            <Text style={styles.introObjectiveText}>
+              {introConfig.objective}
+            </Text>
+
+            {/* Mission HUD Grid */}
+            <View style={styles.introHudRow}>
+              <View style={styles.introHudCell}>
+                <Ionicons name="help-circle" size={18} color="#FBBF24" />
+                <Text style={styles.introHudVal}>5</Text>
+                <Text style={styles.introHudLabel}>QUESTIONS</Text>
+              </View>
+              <View style={styles.introHudDivider} />
+              <View style={styles.introHudCell}>
+                <Ionicons name="flash" size={18} color="#10B981" />
+                <Text style={styles.introHudVal}>+10 XP</Text>
+                <Text style={styles.introHudLabel}>PER HIT</Text>
+              </View>
+              <View style={styles.introHudDivider} />
+              <View style={styles.introHudCell}>
+                <Ionicons name="flame" size={18} color="#EF4444" />
+                <Text style={styles.introHudVal}>COMBO</Text>
+                <Text style={styles.introHudLabel}>STREAKS</Text>
+              </View>
+            </View>
+          </Animated.View>
+
+          {/* Action / Countdown Area */}
+          <View style={styles.introActionWrap}>
+            {loading ? (
+              <View style={styles.introLoadingBtn}>
+                <ActivityIndicator size="small" color="#FBBF24" style={{ marginRight: 10 }} />
+                <Text style={styles.introLoadingText}>SYNCHRONIZING ARCHIVES...</Text>
+              </View>
+            ) : error ? (
+              <View style={styles.introErrorWrap}>
+                <Text style={styles.introErrorText}>{error}</Text>
+                <TouchableOpacity
+                  onPress={() => navigation.goBack()}
+                  style={styles.introErrorBtn}
+                >
+                  <Text style={styles.introErrorBtnText}>Return to Radar</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={handleStartQuiz}
+                activeOpacity={0.85}
+                style={styles.introStartBtn}
+              >
+                <LinearGradient
+                  colors={['#FBBF24', '#D97706']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.introStartGrad}
+                >
+                  <Ionicons name="game-controller" size={20} color="#0C2461" />
+                  <Text style={styles.introStartText}>ENGAGE MISSION ▶</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+
+            {!loading && !error && (
+              <Text style={styles.introCountdownSub}>
+                {countdown > 0
+                  ? `⚡ Auto-commencing in ${countdown}s...`
+                  : 'Tap button above to enter!'}
+              </Text>
+            )}
+          </View>
+        </Animated.View>
+
+        {/* Bottom Cinematic Letterbox */}
+        <Animated.View
+          style={[
+            styles.letterboxBottom,
+            { transform: [{ translateY: introLetterboxBot }] },
+          ]}
+        >
+          <Text style={styles.letterboxBottomText}>
+            // PROTOCOL: ZAMBOANGA CULTURAL DISCOVERY • LAKBAY V1.0 //
+          </Text>
+        </Animated.View>
+      </View>
+    );
+  }
 
   // ── Loading Screen ──
   if (loading) {
@@ -818,5 +1156,288 @@ const styles = StyleSheet.create({
   },
   claimBtnText: {
     fontFamily: FONTS.bold, fontSize: 15, color: '#FFF', letterSpacing: 1.5,
+  },
+
+  // ── Cinematic Gamified Intro Styles ──
+  introContainer: {
+    flex: 1,
+    backgroundColor: '#040A26',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  introFlash: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#FFFFFF',
+    zIndex: 999,
+  },
+  letterboxTop: {
+    width: '100%',
+    height: 60,
+    backgroundColor: '#020617',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(251, 191, 36, 0.25)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    zIndex: 10,
+  },
+  letterboxTopContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  systemStatusWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pulsingGreenDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+  },
+  systemStatusText: {
+    fontFamily: FONTS.pixel,
+    fontSize: 9,
+    color: '#34D399',
+    letterSpacing: 1.2,
+  },
+  skipBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.20)',
+  },
+  skipBtnText: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: '#FBBF24',
+    letterSpacing: 1,
+  },
+  letterboxBottom: {
+    width: '100%',
+    height: 50,
+    backgroundColor: '#020617',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(251, 191, 36, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  letterboxBottomText: {
+    fontFamily: FONTS.medium,
+    fontSize: 10,
+    color: '#64748B',
+    letterSpacing: 1.5,
+  },
+  introStage: {
+    width: '100%',
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    position: 'relative',
+  },
+  introAuraRing: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    opacity: 0.35,
+    top: '15%',
+    alignSelf: 'center',
+  },
+  introAuraRingStatic: {
+    position: 'absolute',
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    borderWidth: 1,
+    opacity: 0.20,
+    top: '18%',
+    alignSelf: 'center',
+  },
+  introEmblemWrap: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: 'rgba(8, 20, 60, 0.90)',
+    borderWidth: 2.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#FBBF24',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 18,
+    elevation: 12,
+  },
+  introEmblemEmoji: {
+    fontSize: 46,
+  },
+  introPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: RADIUS.pill,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  introPillText: {
+    fontFamily: FONTS.pixel,
+    fontSize: 9,
+    letterSpacing: 1.2,
+  },
+  introTargetTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 22,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    letterSpacing: 0.8,
+    lineHeight: 28,
+    textShadowColor: 'rgba(251, 191, 36, 0.6)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
+  },
+  introBriefingCard: {
+    width: '100%',
+    backgroundColor: 'rgba(8, 20, 60, 0.85)',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.30)',
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+  },
+  introObjectiveText: {
+    fontFamily: FONTS.medium,
+    fontSize: 13,
+    color: '#E2E8F0',
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 14,
+  },
+  introHudRow: {
+    flexDirection: 'row',
+    width: '100%',
+    backgroundColor: 'rgba(2, 6, 23, 0.70)',
+    borderRadius: RADIUS.md,
+    paddingVertical: 10,
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  introHudCell: {
+    alignItems: 'center',
+    gap: 3,
+  },
+  introHudVal: {
+    fontFamily: FONTS.bold,
+    fontSize: 13,
+    color: '#FFFFFF',
+  },
+  introHudLabel: {
+    fontFamily: FONTS.pixel,
+    fontSize: 7.5,
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+  },
+  introHudDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  introActionWrap: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 18,
+  },
+  introLoadingBtn: {
+    width: '100%',
+    height: 50,
+    borderRadius: RADIUS.pill,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.3)',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  introLoadingText: {
+    fontFamily: FONTS.pixel,
+    fontSize: 10,
+    color: '#FBBF24',
+    letterSpacing: 1,
+  },
+  introStartBtn: {
+    width: '100%',
+    height: 52,
+    borderRadius: RADIUS.pill,
+    shadowColor: '#FBBF24',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  introStartGrad: {
+    flex: 1,
+    borderRadius: RADIUS.pill,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+  },
+  introStartText: {
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    color: '#0C2461',
+    letterSpacing: 1.5,
+  },
+  introCountdownSub: {
+    fontFamily: FONTS.medium,
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 8,
+    letterSpacing: 0.5,
+  },
+  introErrorWrap: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  introErrorText: {
+    fontFamily: FONTS.medium,
+    fontSize: 12,
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  introErrorBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: RADIUS.pill,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  introErrorBtnText: {
+    fontFamily: FONTS.bold,
+    fontSize: 12,
+    color: '#EF4444',
   },
 });

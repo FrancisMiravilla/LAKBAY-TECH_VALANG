@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   StyleSheet, Text, View, ScrollView, TouchableOpacity,
@@ -131,6 +131,27 @@ export default function HomeScreen({ navigation, route }) {
   const { notifs, addNotification } = useApp();
   const prevSpotCountRef = useRef(0);
   const notifiedPromosRef = useRef(new Set());
+  const [selectedCategory, setSelectedCategory] = useState('all');
+
+  const categoryTabs = useMemo(() => [
+    { id: 'all', label: 'All', icon: 'sparkles', count: spots.length + promotedPlaces.length, color: COLORS.accent },
+    { id: 'qr', label: 'QR Discovery', icon: 'qr-code-outline', count: spots.filter(s => s.feature_types?.includes('qr')).length, color: COLORS.teal },
+    { id: 'catch', label: 'Catch Zones', icon: 'trophy-outline', count: spots.filter(s => s.feature_types?.includes('catch')).length, color: COLORS.gold },
+    { id: 'ar', label: 'AR Museum', icon: 'cube-outline', count: spots.filter(s => s.feature_types?.includes('ar')).length, color: '#A855F7' },
+    ...(promotedPlaces.length > 0 ? [{ id: 'sponsored', label: 'Sponsored', icon: 'megaphone-outline', count: promotedPlaces.length, color: '#F59E0B' }] : []),
+  ], [spots, promotedPlaces]);
+
+  const displayedPlaces = useMemo(() => {
+    if (selectedCategory === 'sponsored') return [];
+    if (selectedCategory === 'qr') return spots.filter(s => s.feature_types?.includes('qr'));
+    if (selectedCategory === 'catch') return spots.filter(s => s.feature_types?.includes('catch'));
+    if (selectedCategory === 'ar') return spots.filter(s => s.feature_types?.includes('ar'));
+    return [...spots].sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0));
+  }, [spots, selectedCategory]);
+
+  const shouldShowSponsored = selectedCategory === 'all' || selectedCategory === 'sponsored';
+  const displayedSponsored  = shouldShowSponsored ? promotedPlaces : [];
+  const displayTotalCount   = displayedPlaces.length + displayedSponsored.length;
 
   const bellRef    = useRef(null);
   const mapCardRef = useRef(null);
@@ -473,9 +494,10 @@ export default function HomeScreen({ navigation, route }) {
           </View>
 
           {/* ── Places to Experience ── */}
-          {(promotedPlaces.length > 0 || featuredPlaces.length > 0) && (
+          {/* ── Places to Experience ── */}
+          {(promotedPlaces.length > 0 || spots.length > 0) && (
             <View style={styles.section}>
-              <View style={[styles.sectionTitleRow, { marginBottom: 10 }]}>
+              <View style={[styles.sectionTitleRow, { marginBottom: 14 }]}>
                 <View style={styles.accentBar} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.sectionEyebrow}>⚔  ACTIVE QUESTS</Text>
@@ -483,13 +505,71 @@ export default function HomeScreen({ navigation, route }) {
                 </View>
                 <View style={styles.questCountPill}>
                   <Text style={styles.questCountText}>
-                    {(promotedPlaces.length + featuredPlaces.length)} Quests
+                    {displayTotalCount} {displayTotalCount === 1 ? 'Quest' : 'Quests'}
                   </Text>
                 </View>
               </View>
 
+              {/* Category Filter Pills */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.categoryTabsScroll}
+                contentContainerStyle={styles.categoryTabsContent}
+              >
+                {categoryTabs.map((tab) => {
+                  const isActive = selectedCategory === tab.id;
+                  return (
+                    <TouchableOpacity
+                      key={tab.id}
+                      style={[
+                        styles.categoryTabPill,
+                        isActive && { borderColor: tab.color, backgroundColor: 'rgba(12, 36, 97, 0.95)' }
+                      ]}
+                      activeOpacity={0.8}
+                      onPress={() => setSelectedCategory(tab.id)}
+                    >
+                      <Ionicons
+                        name={tab.icon}
+                        size={13}
+                        color={isActive ? tab.color : 'rgba(191,215,255,0.65)'}
+                        style={{ marginRight: 6 }}
+                      />
+                      <Text style={[
+                        styles.categoryTabText,
+                        isActive && { color: '#FFFFFF', fontFamily: FONTS.bold }
+                      ]}>
+                        {tab.label}
+                      </Text>
+                      <View style={[
+                        styles.categoryBadgePill,
+                        isActive ? { backgroundColor: tab.color } : { backgroundColor: 'rgba(255,255,255,0.08)' }
+                      ]}>
+                        <Text style={[
+                          styles.categoryBadgeText,
+                          isActive ? { color: '#081438' } : { color: 'rgba(191,215,255,0.7)' }
+                        ]}>
+                          {tab.count}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Empty State */}
+              {displayTotalCount === 0 && (
+                <View style={styles.categoryEmptyCard}>
+                  <Ionicons name="compass-outline" size={38} color="rgba(191,215,255,0.4)" />
+                  <Text style={styles.categoryEmptyTitle}>No Quests Found</Text>
+                  <Text style={styles.categoryEmptySub}>
+                    There are currently no active spots in this category. Check back soon for new expeditions!
+                  </Text>
+                </View>
+              )}
+
               {/* Promoted Places */}
-              {promotedPlaces.map((p) => (
+              {displayedSponsored.map((p) => (
                 <TouchableOpacity
                   key={`promo-${p.id}`}
                   style={[styles.questCard, styles.questCardGold]}
@@ -529,12 +609,13 @@ export default function HomeScreen({ navigation, route }) {
                 </TouchableOpacity>
               ))}
 
-              {/* Featured Places */}
-              {featuredPlaces.map((d) => {
+              {/* Categorized Places */}
+              {displayedPlaces.map((d) => {
                 const primaryType = d.feature_types && d.feature_types.length > 0 ? d.feature_types[0] : 'qr';
                 let questEmoji = '🔍', questTypeLabel = 'QR DISCOVERY', questColor = COLORS.teal, borderStyle = styles.questCardTeal;
                 if (primaryType === 'ar') { questEmoji = '📷'; questTypeLabel = 'AR EXPERIENCE'; questColor = COLORS.accent; borderStyle = styles.questCardBlue; }
                 else if (primaryType === 'catch') { questEmoji = '🏆'; questTypeLabel = 'COLLECT & WIN'; questColor = COLORS.gold; borderStyle = styles.questCardGold; }
+                const isLocked = d.required_level && d.required_level > userLevel;
                 const imageUri = formatImageUrl(d.image);
                 return (
                   <TouchableOpacity
@@ -543,7 +624,20 @@ export default function HomeScreen({ navigation, route }) {
                     activeOpacity={0.88}
                     onPress={() => {
                       const combinedImages = [d.image, d.image2, d.image3].filter(img => img).map(formatImageUrl);
-                      navigation.navigate('Details', { destination: { title: d.name, location: d.location_name, description: d.description, historical_background: d.historical_background, cultural_significance: d.cultural_significance, fun_fact: d.fun_fact, image: imageUri, images: combinedImages } });
+                      navigation.navigate('Details', {
+                        destination: {
+                          title: d.name,
+                          location: d.location_name,
+                          description: d.description,
+                          historical_background: d.historical_background,
+                          cultural_significance: d.cultural_significance,
+                          fun_fact: d.fun_fact,
+                          image: imageUri,
+                          images: combinedImages,
+                          required_level: d.required_level,
+                          xp_reward: d.xp_reward,
+                        }
+                      });
                     }}
                   >
                     <ImageBackground
@@ -558,6 +652,17 @@ export default function HomeScreen({ navigation, route }) {
                           <View style={[styles.questTypeDot, { backgroundColor: questColor }]} />
                           <Text style={[styles.questTypeLabel, { color: questColor }]}>{questEmoji}  {questTypeLabel}</Text>
                         </View>
+                        {isLocked ? (
+                          <View style={[styles.questTypeBadge, { backgroundColor: 'rgba(239, 68, 68, 0.22)', borderColor: 'rgba(239, 68, 68, 0.7)' }]}>
+                            <Ionicons name="lock-closed" size={11} color="#EF4444" style={{ marginRight: 3 }} />
+                            <Text style={[styles.questTypeLabel, { color: '#EF4444' }]}>LVL {d.required_level}</Text>
+                          </View>
+                        ) : d.is_featured ? (
+                          <View style={[styles.questTypeBadge, { backgroundColor: 'rgba(251, 191, 36, 0.22)', borderColor: 'rgba(251, 191, 36, 0.7)' }]}>
+                            <Ionicons name="star" size={10} color={COLORS.gold} style={{ marginRight: 3 }} />
+                            <Text style={[styles.questTypeLabel, { color: COLORS.gold }]}>FEATURED</Text>
+                          </View>
+                        ) : null}
                       </View>
                       <View style={styles.questCardImageBottom}>
                         <Text style={styles.questCardName} numberOfLines={1}>{d.name}</Text>
@@ -585,14 +690,18 @@ export default function HomeScreen({ navigation, route }) {
                       <View style={styles.questCardFooter}>
                         <View style={styles.questObjective}>
                           <Ionicons name="flag-outline" size={11} color={COLORS.textMuted} />
-                          <Text style={styles.questObjectiveText}>Explore & Earn</Text>
+                          <Text style={styles.questObjectiveText}>
+                            {d.xp_reward ? `+${d.xp_reward} XP • Explore` : 'Explore & Earn'}
+                          </Text>
                         </View>
-                        <View style={[styles.questCtaBtn, { backgroundColor: questColor }]}>
-                          <Text style={styles.questCtaText}>START QUEST →</Text>
+                        <View style={[styles.questCtaBtn, { backgroundColor: isLocked ? '#334155' : questColor }]}>
+                          <Text style={[styles.questCtaText, isLocked && { color: '#94A3B8' }]}>
+                            {isLocked ? `LOCKED (LVL ${d.required_level})` : 'START QUEST →'}
+                          </Text>
                         </View>
                       </View>
                     </View>
-                    <View style={[styles.questCardGlowBar, { backgroundColor: questColor }]} />
+                    <View style={[styles.questCardGlowBar, { backgroundColor: isLocked ? '#475569' : questColor }]} />
                   </TouchableOpacity>
                 );
               })}
@@ -604,7 +713,7 @@ export default function HomeScreen({ navigation, route }) {
 
         <CustomModal
           visible={modalVisible}
-          title="Notice"
+          title={selectedQa ? selectedQa.title.replace('\n', ' ') : 'Feature Notice'}
           message={selectedQa?.message}
           icon={selectedQa?.icon}
           color={selectedQa?.color}
@@ -1345,5 +1454,68 @@ const styles = StyleSheet.create({
   questCardGlowBar: {
     height: 3,
     width: '100%',
+  },
+  categoryTabsScroll: {
+    marginBottom: 14,
+    marginHorizontal: -16,
+  },
+  categoryTabsContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  categoryTabPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 13,
+    borderRadius: RADIUS.pill,
+    backgroundColor: 'rgba(8, 20, 56, 0.65)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  categoryTabText: {
+    fontFamily: FONTS.medium,
+    fontSize: 12,
+    color: 'rgba(191, 215, 255, 0.75)',
+    marginRight: 6,
+  },
+  categoryBadgePill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: RADIUS.pill,
+    minWidth: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryBadgeText: {
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+  },
+  categoryEmptyCard: {
+    backgroundColor: 'rgba(8, 20, 56, 0.7)',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: 36,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10,
+  },
+  categoryEmptyTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    color: '#FFFFFF',
+    marginTop: 12,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  categoryEmptySub: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: 'rgba(191, 215, 255, 0.65)',
+    textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 260,
   },
 });
