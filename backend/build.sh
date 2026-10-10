@@ -17,9 +17,26 @@ import os
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
-email = os.environ.get('DJANGO_SUPERUSER_EMAIL')
-password = os.environ.get('DJANGO_SUPERUSER_PASSWORD')
-full_name = os.environ.get('DJANGO_SUPERUSER_FULL_NAME', 'System Administrator')
+
+# Accept DJANGO_SUPERUSER_EMAIL or common aliases (DJANGO_ADMIN_EMAIL, ADMIN_EMAIL, SUPERUSER_EMAIL)
+email = (
+    os.environ.get('DJANGO_SUPERUSER_EMAIL')
+    or os.environ.get('DJANGO_ADMIN_EMAIL')
+    or os.environ.get('ADMIN_EMAIL')
+    or os.environ.get('SUPERUSER_EMAIL')
+)
+password = (
+    os.environ.get('DJANGO_SUPERUSER_PASSWORD')
+    or os.environ.get('DJANGO_ADMIN_PASSWORD')
+    or os.environ.get('ADMIN_PASSWORD')
+    or os.environ.get('SUPERUSER_PASSWORD')
+)
+full_name = (
+    os.environ.get('DJANGO_SUPERUSER_FULL_NAME')
+    or os.environ.get('DJANGO_ADMIN_FULL_NAME')
+    or os.environ.get('ADMIN_FULL_NAME')
+    or 'System Administrator'
+)
 
 if email and password:
     user, created = User.objects.get_or_create(
@@ -35,16 +52,16 @@ if email and password:
     if created:
         user.set_password(password.strip())
         user.save()
-        print(f"Successfully created Administrator account for: {email}")
+        print(f"Successfully created Administrator account for: {email.strip()}")
     else:
         user.is_staff = True
         user.is_superuser = True
         user.role = 'admin'
         user.set_password(password.strip())
         user.save()
-        print(f"Administrator account {email} already exists; updated admin privileges & password.")
+        print(f"Administrator account {email.strip()} already exists; updated admin privileges & password.")
 else:
-    print("Notice: DJANGO_SUPERUSER_EMAIL and DJANGO_SUPERUSER_PASSWORD not set in environment. Skipping admin creation.")
+    print(f"Notice: Admin credentials missing in environment (email_found={bool(email)}, password_found={bool(password)}). Skipping admin creation.")
 
 # Check / create Tourist Guide account if environment variables are set
 guide_email = os.environ.get('DJANGO_GUIDE_EMAIL')
