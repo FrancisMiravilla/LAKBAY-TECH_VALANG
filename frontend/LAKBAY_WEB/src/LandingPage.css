@@ -783,16 +783,24 @@
 .lp-login-modal {
   position: relative;
   width: 100%;
-  max-width: 440px;
+  max-width: 560px;
   background: rgba(8, 20, 60, 0.97);
   border: 1.5px solid rgba(99, 179, 237, 0.35);
   border-radius: 26px;
-  padding: 38px 32px 32px;
+  padding: 36px 30px 30px;
   box-shadow: 
     0 24px 64px rgba(0, 0, 0, 0.7),
     0 0 50px rgba(26, 86, 219, 0.25);
   overflow: hidden;
   animation: lpModalZoomIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.lp-login-modal--guide {
+  border-color: rgba(16, 185, 129, 0.4);
+  box-shadow: 
+    0 24px 64px rgba(0, 0, 0, 0.7),
+    0 0 50px rgba(16, 185, 129, 0.22);
 }
 
 @keyframes lpModalZoomIn {
@@ -875,10 +883,150 @@
   margin-left: 4px;
 }
 
+.lp-login-title-accent--guide {
+  color: #10B981;
+}
+
+.lp-login-glow-bar--guide {
+  background: linear-gradient(90deg, #059669 0%, #10B981 50%, #FBBF24 100%);
+}
+
+.lp-login-submit-btn--guide {
+  background: linear-gradient(135deg, #059669, #10B981) !important;
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.45) !important;
+}
+
+.lp-login-submit-btn--guide:hover:not(:disabled) {
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.6) !important;
+}
+
 .lp-login-subtitle {
   font-size: 13px;
   color: rgba(226, 232, 240, 0.65);
   line-height: 1.5;
+}
+
+/* ── Role Category Switcher ── */
+.lp-role-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+  background: rgba(6, 14, 42, 0.7);
+  padding: 5px;
+  border-radius: 16px;
+  border: 1px solid rgba(99, 179, 237, 0.2);
+}
+
+.lp-role-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: transparent;
+  border: 1.5px solid transparent;
+  color: rgba(226, 232, 240, 0.65);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.lp-role-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #FFFFFF;
+}
+
+.lp-role-tab--active {
+  background: rgba(26, 86, 219, 0.25);
+  border-color: #38BDF8;
+  color: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(56, 189, 248, 0.15);
+}
+
+.lp-role-tab--guide.lp-role-tab--active {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: #10B981;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.2);
+}
+
+.lp-role-tab-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+  color: rgba(148, 196, 242, 0.9);
+}
+
+.lp-role-tab--active .lp-role-tab-icon {
+  background: rgba(56, 189, 248, 0.25);
+  color: #38BDF8;
+}
+
+.lp-role-tab--guide.lp-role-tab--active .lp-role-tab-icon {
+  background: rgba(16, 185, 129, 0.25);
+  color: #10B981;
+}
+
+.lp-role-tab-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.lp-role-tab-title {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.lp-role-tab-sub {
+  font-size: 10px;
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+/* ── Role Scope Info Box ── */
+.lp-role-desc-box {
+  background: rgba(26, 86, 219, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: left;
+}
+
+.lp-role-desc-box--guide {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.lp-role-desc-badge {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  padding: 2px 7px;
+  border-radius: 100px;
+  background: #1A56DB;
+  color: #fff;
+  align-self: flex-start;
+}
+
+.lp-role-desc-box--guide .lp-role-desc-badge {
+  background: #059669;
+}
+
+.lp-role-desc-text {
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(226, 232, 240, 0.82);
+  margin: 0;
 }
 
 .lp-login-form {

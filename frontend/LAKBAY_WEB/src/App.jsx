@@ -812,7 +812,7 @@ function App() {
     if (!token) return;
     authService.getProfile()
       .then((user) => {
-        if (user.is_staff) {
+        if (user.is_staff || user.role === 'admin' || user.role === 'tourist_guide') {
           setCurrentUser(user);
           setIsAuthenticated(true);
           setShowLanding(false); // skip landing if already logged in
@@ -839,9 +839,9 @@ function App() {
       await authService.login(loginCredentials.email, loginCredentials.password);
       const user = await authService.getProfile();
 
-      if (!user.is_staff) {
+      if (!user.is_staff && user.role !== 'admin' && user.role !== 'tourist_guide') {
         authService.logout();
-        showError('Access denied. Only staff accounts can log into the admin panel.', 'Access Denied', 'error');
+        showError('Access denied. Only administrators and certified tour guides can log into the staff portal.', 'Access Denied', 'error');
         return;
       }
 

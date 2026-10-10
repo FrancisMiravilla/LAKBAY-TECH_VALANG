@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar, InteractionManager, Alert, Modal, Animated, Easing, Image, Dimensions, ScrollView } from 'react-native';
 import { WebView } from 'react-native-webview';
 
-const { width: SCREEN_W } = Dimensions.get('window');
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 // Build model-viewer HTML for reward modal
 const buildRewardViewerHTML = (modelUrl) => {
@@ -88,85 +88,90 @@ export const RARITY_THEME = {
 };
 
 // =========================================================================
-// 1. MANUAL SCALED MODEL (PINCH TO ZOOM & DRAG)
+// 1. STEADY 3D MODEL VIEWER (MATCHING CATCH FEATURE ARCHITECTURE)
 // =========================================================================
-const ManualScaledModel = ({
-  source,
-  scale = 0.25,
-  onScaleChange,
-  position = [0, -0.05, -1.2],
-  onPositionChange,
-  onLoadStart,
-  onLoadEnd,
-  onError,
-}) => {
-  const baseScaleRef = React.useRef(scale);
-
-  // Sync ref whenever scale changes from external controls
-  React.useEffect(() => {
-    baseScaleRef.current = scale;
-  }, [scale]);
-
-  const handlePinch = (pinchState, scaleFactor) => {
-    if (pinchState === 1) {
-      baseScaleRef.current = scale;
-    } else if (pinchState === 2 || pinchState === 3) {
-      const nextScale = Math.max(0.06, Math.min(Number((baseScaleRef.current * scaleFactor).toFixed(3)), 2.5));
-      if (onScaleChange) {
-        onScaleChange(nextScale);
-      }
+const buildSteadyViewerHTML = (modelUrl) => {
+  if (!modelUrl) return null;
+  const safe = String(modelUrl).replace(/["'<>&]/g, c => ({ '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js" crossorigin="anonymous"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
-  };
-
-  const handleDrag = (dragToPos) => {
-    // Allows the user to literally drag the model with their finger into the perfect spot
-    if (onPositionChange) {
-      onPositionChange([dragToPos[0], dragToPos[1], dragToPos[2]]);
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      touch-action: none !important;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
     }
-  };
-
-  return (
-    <ViroNode 
-      position={position} 
-      scale={[scale, scale, scale]} 
-      onPinch={handlePinch}
-      onDrag={handleDrag}
-    >
-      {/* This inner node spins in place. Because its child is centered inside it, the spin is a perfect rotation on its axis. */}
-      <ViroNode animation={{ name: 'rotate', run: true, loop: true }}>
-        <Viro3DObject
-          source={source}
-          type="GLB"
-          position={[0, 0, 0]}
-          onLoadStart={onLoadStart}
-          onLoadEnd={onLoadEnd}
-          onError={onError}
-        />
-      </ViroNode>
-    </ViroNode>
-  );
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      touch-action: none !important;
+      --progress-bar-color: transparent;
+    }
+  </style>
+</head>
+<body>
+  <model-viewer
+    id="steadyViewer"
+    src="${safe}"
+    auto-rotate
+    auto-rotate-delay="0"
+    rotation-per-second="25deg"
+    camera-controls
+    touch-action="none"
+    interpolation-decay="150"
+    interaction-prompt="none"
+    min-camera-orbit="auto auto 15%"
+    max-camera-orbit="auto auto 400%"
+    camera-orbit="0deg 75deg 105%"
+    exposure="1.2"
+    shadow-intensity="1.5"
+    style="width: 100%; height: 100%; background: transparent; touch-action: none;"
+  ></model-viewer>
+  <script>
+    window.addEventListener('message', function(event) {
+      try {
+        var data = JSON.parse(event.data);
+        var mv = document.getElementById('steadyViewer');
+        if (!mv) return;
+        if (data.type === 'ZOOM_IN') {
+          mv.zoom(1.3);
+        } else if (data.type === 'ZOOM_OUT') {
+          mv.zoom(0.75);
+        } else if (data.type === 'RESET_VIEW') {
+          mv.cameraOrbit = '0deg 75deg 105%';
+        }
+      } catch (err) {}
+    });
+  </script>
+</body>
+</html>`;
 };
 
 // =========================================================================
-// 2. DYNAMIC AR TARGETS LOGIC
-// =========================================================================
-// Targets will be registered dynamically via API call in the main component.
-
-// =========================================================================
-// 2. DEFINE THE 3D AR SCENE (WHAT HAPPENS WHEN PAINTING IS DETECTED)
+// 2. DEFINE THE 3D AR SCENE (IMAGE MARKER DETECTION)
 // =========================================================================
 const MuseumARScene = (props) => {
   return (
     <ViroARScene>
-      {/* Lighting for the 3D models. Viro light intensity is in lumens
-          (default ~1000); PBR models render nearly black if under-lit, so keep
-          these bright and add a front directional fill so the model is visible
-          regardless of which way the painting faces. */}
       <ViroAmbientLight color="#FFFFFF" intensity={1000} />
       <ViroDirectionalLight color="#FFFFFF" direction={[0, 0, -1]} intensity={1200} />
-      <ViroSpotLight innerAngle={5} outerAngle={90} direction={[0, -1, -.2]} position={[0, 3, 1]} color="#ffffff" intensity={1000} castsShadow={true} />
 
-      {/* DYNAMIC TRACKERS */}
+      {/* Dynamic Optical Image Markers for Museum Artworks */}
       {(props.sceneNavigator.viroAppProps.arTargets || []).map(target => (
         <ViroARImageMarker
           key={target.id}
@@ -175,31 +180,6 @@ const MuseumARScene = (props) => {
           onAnchorRemoved={() => props.sceneNavigator.viroAppProps.onTargetLost()}
         />
       ))}
-
-      {/* Show the detected model fixed to the center of the camera screen like a HUD */}
-      {props.sceneNavigator.viroAppProps.detectedSpot?.local_model ? (
-        <ViroARCamera>
-          <ManualScaledModel
-            source={{ uri: props.sceneNavigator.viroAppProps.detectedSpot.local_model }}
-            scale={props.sceneNavigator.viroAppProps.modelScale}
-            onScaleChange={props.sceneNavigator.viroAppProps.onModelScaleChange}
-            position={props.sceneNavigator.viroAppProps.modelPosition}
-            onPositionChange={props.sceneNavigator.viroAppProps.onModelPositionChange}
-            onLoadStart={() => console.log('[AR] model load START:', props.sceneNavigator.viroAppProps.detectedSpot.name)}
-            onLoadEnd={() => { console.log('[AR] model load END (success):', props.sceneNavigator.viroAppProps.detectedSpot.name); props.sceneNavigator.viroAppProps.onModelLoadEnd?.(props.sceneNavigator.viroAppProps.detectedSpot.id); }}
-            onError={(event) => {
-              const msg = JSON.stringify(event?.nativeEvent);
-              console.log('[AR] model load ERROR:', props.sceneNavigator.viroAppProps.detectedSpot.name, msg);
-              const curLocal = props.sceneNavigator.viroAppProps.detectedSpot?.local_model;
-              if (curLocal && String(curLocal).startsWith('file://')) {
-                FileSystem.deleteAsync(curLocal, { idempotent: true }).catch(() => null);
-              }
-              props.sceneNavigator.viroAppProps.onModelError?.(msg);
-            }}
-          />
-        </ViroARCamera>
-      ) : null}
-
     </ViroARScene>
   );
 };
@@ -270,6 +250,18 @@ export default function ViroARScanner({ navigation }) {
   const [activeGuideTarget, setActiveGuideTarget] = useState(null);
   const [showHintModal, setShowHintModal] = useState(false);
   const glowAnim = React.useRef(new Animated.Value(0)).current;
+  const floatAnim = React.useRef(new Animated.Value(0)).current;
+  const lastTargetIdRef = React.useRef(null);
+  const steadyWebViewRef = React.useRef(null);
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, { toValue: -14, duration: 1400, useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue: 0,   duration: 1400, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
 
   React.useEffect(() => {
     if (rewardModalData) {
@@ -401,6 +393,11 @@ export default function ViroARScanner({ navigation }) {
 
   // Called natively when ViroARImageMarker sees a painting
   const handleTargetFound = async (target) => {
+    if (!target) return;
+    // Ignore duplicate events while this artwork is already detected on screen
+    if (detectedSpot && detectedSpot.id === target.id) return;
+    lastTargetIdRef.current = target.id;
+
     const rarityKey = (target.rarity || 'common').toLowerCase();
     const rarityTheme = RARITY_THEME[rarityKey] || RARITY_THEME.common;
     const earnedXP = rarityTheme.xp || 150;
@@ -764,37 +761,81 @@ export default function ViroARScanner({ navigation }) {
         </View>
       </Modal>
 
-      {/* Floating AR Model Size / Zoom Controls */}
+      {/* ── Steady Floating 3D Model (Catch Feature Architecture + Full Multi-Touch & Zoom) ── */}
       {detectedSpot && (
-        <View style={styles.zoomControlContainer}>
-          <TouchableOpacity
-            style={styles.zoomBtn}
-            activeOpacity={0.7}
-            onPress={() => setModelScale(prev => Math.min(Number((prev + 0.08).toFixed(2)), 2.5))}
-          >
-            <Ionicons name="add" size={20} color="#FFF" />
-          </TouchableOpacity>
+        <Animated.View style={[styles.steadyModelWrap, { transform: [{ translateY: floatAnim }] }]}>
+          {/* Ambient Glow (Placed BEHIND WebView with pointerEvents="none" so it NEVER blocks touches) */}
+          <View
+            pointerEvents="none"
+            style={[
+              styles.steadyModelGlow,
+              {
+                backgroundColor: (RARITY_THEME[detectedSpot.rarity?.toLowerCase()] || RARITY_THEME.common).color + '30',
+                shadowColor: (RARITY_THEME[detectedSpot.rarity?.toLowerCase()] || RARITY_THEME.common).color,
+              }
+            ]}
+          />
 
-          <TouchableOpacity
-            style={styles.zoomResetBadge}
-            activeOpacity={0.7}
-            onPress={() => {
-              setModelScale(0.25);
-              setModelPosition([0, -0.05, -1.2]);
-            }}
-          >
-            <Text style={styles.zoomResetText}>{Math.round((modelScale / 0.25) * 100)}%</Text>
-            <Text style={styles.zoomResetSub}>RESET</Text>
-          </TouchableOpacity>
+          {detectedSpot.model_3d ? (
+            <WebView
+              ref={steadyWebViewRef}
+              source={{ html: buildSteadyViewerHTML(detectedSpot.model_3d) }}
+              style={styles.steadyModelWebview}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              originWhitelist={['*']}
+              scrollEnabled={false}
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+              overScrollMode="never"
+              backgroundColor="transparent"
+              allowsTransparency={true}
+            />
+          ) : (
+            <View style={[styles.steadyModelFallback, { borderColor: (RARITY_THEME[detectedSpot.rarity?.toLowerCase()] || RARITY_THEME.common).color }]}>
+              <Ionicons name="cube-outline" size={64} color="#FFF" />
+            </View>
+          )}
 
-          <TouchableOpacity
-            style={styles.zoomBtn}
-            activeOpacity={0.7}
-            onPress={() => setModelScale(prev => Math.max(Number((prev - 0.08).toFixed(2)), 0.06))}
-          >
-            <Ionicons name="remove" size={20} color="#FFF" />
-          </TouchableOpacity>
-        </View>
+          {/* Quick Floating Zoom Buttons on the right edge */}
+          {detectedSpot.model_3d && (
+            <View style={styles.floatingZoomRow}>
+              <TouchableOpacity
+                style={styles.floatingZoomBtn}
+                activeOpacity={0.7}
+                onPress={() => {
+                  steadyWebViewRef.current?.postMessage(JSON.stringify({ type: 'ZOOM_IN' }));
+                }}
+              >
+                <Ionicons name="add" size={18} color="#FFF" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.floatingZoomBtn}
+                activeOpacity={0.7}
+                onPress={() => {
+                  steadyWebViewRef.current?.postMessage(JSON.stringify({ type: 'ZOOM_OUT' }));
+                }}
+              >
+                <Ionicons name="remove" size={18} color="#FFF" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.floatingZoomBtn, { backgroundColor: 'rgba(0,0,0,0.65)' }]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  steadyWebViewRef.current?.postMessage(JSON.stringify({ type: 'RESET_VIEW' }));
+                }}
+              >
+                <Ionicons name="refresh" size={14} color={COLORS.gold} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Interactive Touch Hint Badge */}
+          <View pointerEvents="none" style={styles.touchHintBadge}>
+            <Ionicons name="hand-left-outline" size={11} color="rgba(255,255,255,0.85)" style={{ marginRight: 4 }} />
+            <Text style={styles.touchHintText}>Drag to rotate 360° · Pinch to zoom</Text>
+          </View>
+        </Animated.View>
       )}
 
       {/* React Native UI Overlay (Pops up when painting is detected) */}
@@ -816,27 +857,42 @@ export default function ViroARScanner({ navigation }) {
               })()}
             </View>
             <Text style={styles.title}>{detectedSpot.name}</Text>
-            <Text style={styles.desc}>{detectedSpot.description}</Text>
+            <Text style={styles.desc} numberOfLines={2}>{detectedSpot.description}</Text>
 
-            {/* 3D model load status (diagnostic) */}
-            <View style={styles.modelStatusRow}>
-              <Ionicons
-                name={modelStatus.state === 'loaded' ? 'cube' : modelStatus.state === 'loading' ? 'hourglass-outline' : modelStatus.state === 'error' ? 'alert-circle' : 'ellipse-outline'}
-                size={13}
-                color={modelStatus.state === 'loaded' ? COLORS.teal : modelStatus.state === 'error' ? COLORS.danger : COLORS.textMuted}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={styles.modelStatusText}>
-                {modelStatus.state === 'loading' ? '3D model: loading…'
-                  : modelStatus.state === 'loaded' ? '3D model: loaded ✓'
-                  : modelStatus.state === 'error' ? `3D model failed: ${modelStatus.message}`
-                  : 'No 3D model for this art'}
-              </Text>
+            {/* Action Buttons: Scan Another vs View Details */}
+            <View style={styles.cardActionsRow}>
+              <TouchableOpacity
+                style={styles.btnScanNext}
+                onPress={() => setDetectedSpot(null)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="scan-outline" size={16} color="rgba(255,255,255,0.85)" style={{ marginRight: 6 }} />
+                <Text style={styles.btnScanNextText}>Scan Another</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.btnDetails,
+                  { backgroundColor: (RARITY_THEME[detectedSpot.rarity?.toLowerCase()] || RARITY_THEME.common).color }
+                ]}
+                onPress={() => navigation.navigate('CatchDetails', {
+                  icon: {
+                    name: detectedSpot.name,
+                    about: detectedSpot.description,
+                    model_3d: detectedSpot.model_3d,
+                    rarity: detectedSpot.rarity || 'common',
+                    building: detectedSpot.building || 'S1',
+                    slot_number: detectedSpot.slot_number || 1,
+                    spot_name: detectedSpot.spot_name || '',
+                  },
+                  isAR: true
+                })}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="information-circle-outline" size={16} color="#FFF" style={{ marginRight: 6 }} />
+                <Text style={styles.btnDetailsText}>View Details</Text>
+              </TouchableOpacity>
             </View>
-
-            <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate('CatchDetails', { icon: { name: detectedSpot.name, about: detectedSpot.description, model_3d: detectedSpot.model_3d }, isAR: true })}>
-              <Text style={styles.btnText}>View Full Details</Text>
-            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -1282,50 +1338,119 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  zoomControlContainer: {
+  steadyModelWrap: {
     position: 'absolute',
-    right: 16,
-    bottom: 270,
-    backgroundColor: 'rgba(15, 23, 42, 0.88)',
-    borderRadius: 24,
-    borderWidth: 1.5,
-    borderColor: 'rgba(251, 191, 36, 0.45)',
-    paddingVertical: 8,
-    paddingHorizontal: 6,
+    top: SCREEN_H * 0.16,
+    alignSelf: 'center',
+    width: Math.min(SCREEN_W * 0.8, 320),
+    height: Math.min(SCREEN_W * 0.8, 320),
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    zIndex: 15,
+  },
+  steadyModelWebview: {
+    width: Math.min(SCREEN_W * 0.8, 320),
+    height: Math.min(SCREEN_W * 0.8, 320),
+    backgroundColor: 'transparent',
+  },
+  steadyModelGlow: {
+    position: 'absolute',
+    width: Math.min(SCREEN_W * 0.8, 320) * 0.65,
+    height: Math.min(SCREEN_W * 0.8, 320) * 0.65,
+    borderRadius: (Math.min(SCREEN_W * 0.8, 320) * 0.65) / 2,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.85,
+    shadowRadius: 28,
+    elevation: 12,
+    zIndex: -1,
+  },
+  steadyModelFallback: {
+    width: Math.min(SCREEN_W * 0.8, 320) * 0.65,
+    height: Math.min(SCREEN_W * 0.8, 320) * 0.65,
+    borderRadius: (Math.min(SCREEN_W * 0.8, 320) * 0.65) / 2,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+  },
+  floatingZoomRow: {
+    position: 'absolute',
+    right: 4,
+    top: 10,
+    flexDirection: 'column',
+    gap: 8,
+    zIndex: 25,
+  },
+  floatingZoomBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 10,
-    zIndex: 30,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 6,
   },
-  zoomBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  touchHintBadge: {
+    position: 'absolute',
+    bottom: -10,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  zoomResetBadge: {
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    paddingHorizontal: 10,
     paddingVertical: 3,
-    paddingHorizontal: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
-  zoomResetText: {
+  touchHintText: {
     fontFamily: FONTS.bold,
     fontSize: 10,
-    color: COLORS.gold,
+    color: 'rgba(255, 255, 255, 0.85)',
   },
-  zoomResetSub: {
+  cardActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  btnScanNext: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  btnScanNextText: {
     fontFamily: FONTS.bold,
-    fontSize: 7,
-    color: 'rgba(255, 255, 255, 0.5)',
-    letterSpacing: 0.5,
-    marginTop: 1,
+    fontSize: 13,
+    color: '#FFF',
+  },
+  btnDetails: {
+    flex: 1.2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  btnDetailsText: {
+    fontFamily: FONTS.bold,
+    fontSize: 13,
+    color: '#FFF',
   },
   overlayUI: {
     position: 'absolute',

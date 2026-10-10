@@ -81,8 +81,10 @@ export default function LandingPage({
 }) {
   const [scrolled, setScrolled] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(initialLoginOpen);
+  const [selectedRole, setSelectedRole] = useState('admin'); // 'admin' | 'tourist_guide'
 
-  const handleOpenAdminModal = () => {
+  const handleOpenAdminModal = (role = 'admin') => {
+    setSelectedRole(role);
     setIsLoginModalOpen(true);
     if (onGoToAdmin) onGoToAdmin();
   };
@@ -110,8 +112,8 @@ export default function LandingPage({
             <a href="#stats">Stats</a>
           </nav>
 
-          <button className="lp-btn lp-btn-ghost" onClick={handleOpenAdminModal}>
-            Admin Portal →
+          <button className="lp-btn lp-btn-ghost" onClick={() => handleOpenAdminModal('admin')}>
+            Portal Access →
           </button>
         </div>
       </header>
@@ -335,9 +337,13 @@ export default function LandingPage({
 
           <div className="lp-cta-divider" />
           <p className="lp-cta-admin">
-            Are you an administrator?{' '}
-            <button className="lp-text-link" onClick={handleOpenAdminModal}>
-              Access the Admin Portal →
+            Authorized staff member?{' '}
+            <button className="lp-text-link" onClick={() => handleOpenAdminModal('admin')}>
+              Administrator Login
+            </button>
+            {' · '}
+            <button className="lp-text-link" onClick={() => handleOpenAdminModal('tourist_guide')}>
+              Tour Guide Portal →
             </button>
           </p>
         </div>
@@ -359,24 +365,24 @@ export default function LandingPage({
         </div>
       </footer>
 
-      {/* ── ADMIN LOGIN POP-UP MODAL ─────────────────────────────────── */}
+      {/* ── STAFF LOGIN POP-UP MODAL (ADMIN & TOUR GUIDE) ─────────────────── */}
       {isLoginModalOpen && (
         <div
           className="lp-modal-backdrop"
           onClick={() => setIsLoginModalOpen(false)}
         >
           <div
-            className="lp-login-modal"
+            className={`lp-login-modal ${selectedRole === 'tourist_guide' ? 'lp-login-modal--guide' : ''}`}
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
           >
-            <div className="lp-login-glow-bar" />
+            <div className={`lp-login-glow-bar ${selectedRole === 'tourist_guide' ? 'lp-login-glow-bar--guide' : ''}`} />
 
             <button
               className="lp-login-close-btn"
               onClick={() => setIsLoginModalOpen(false)}
-              aria-label="Close Admin Portal login modal"
+              aria-label="Close Staff Portal login modal"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -389,12 +395,69 @@ export default function LandingPage({
                 <img src={lakbayLogo} alt="LAKBAY" className="lp-login-logo" />
               </div>
               <h2 className="lp-login-title">
-                LAKBAY <span className="lp-login-title-accent">PORTAL</span>
+                LAKBAY <span className={`lp-login-title-accent ${selectedRole === 'tourist_guide' ? 'lp-login-title-accent--guide' : ''}`}>
+                  {selectedRole === 'tourist_guide' ? 'GUIDE' : 'ADMIN'}
+                </span>
               </h2>
               <p className="lp-login-subtitle">
-                Sign in to manage the Zamboanga Cultural System
+                {selectedRole === 'tourist_guide'
+                  ? 'Cultural Validation & Tour Guide Portal'
+                  : 'Zamboanga Cultural System Administration'}
               </p>
             </div>
+
+            {/* ── ROLE CATEGORY SELECTOR ── */}
+            <div className="lp-role-selector">
+              <button
+                type="button"
+                className={`lp-role-tab ${selectedRole === 'admin' ? 'lp-role-tab--active' : ''}`}
+                onClick={() => setSelectedRole('admin')}
+              >
+                <div className="lp-role-tab-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                </div>
+                <div className="lp-role-tab-info">
+                  <span className="lp-role-tab-title">Administrator</span>
+                  <span className="lp-role-tab-sub">System Operations</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                className={`lp-role-tab lp-role-tab--guide ${selectedRole === 'tourist_guide' ? 'lp-role-tab--active' : ''}`}
+                onClick={() => setSelectedRole('tourist_guide')}
+              >
+                <div className="lp-role-tab-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+                  </svg>
+                </div>
+                <div className="lp-role-tab-info">
+                  <span className="lp-role-tab-title">Tour Guide</span>
+                  <span className="lp-role-tab-sub">Quiz & Verification</span>
+                </div>
+              </button>
+            </div>
+
+            {/* ── ROLE SCOPE BADGE & DESCRIPTION ── */}
+            {selectedRole === 'admin' ? (
+              <div className="lp-role-desc-box">
+                <span className="lp-role-desc-badge">ADMIN ACCESS</span>
+                <p className="lp-role-desc-text">
+                  Manage cultural spots, 3D AR targets, QR markers, users, merchant promotions, and live platform analytics.
+                </p>
+              </div>
+            ) : (
+              <div className="lp-role-desc-box lp-role-desc-box--guide">
+                <span className="lp-role-desc-badge">GUIDE ACCESS</span>
+                <p className="lp-role-desc-text">
+                  Educational & cultural validation hub: review, edit, approve, or reject AI-generated quizzes and verify local lore.
+                </p>
+              </div>
+            )}
 
             {loginError && (
               <div className="lp-login-error">
@@ -404,7 +467,9 @@ export default function LandingPage({
 
             <form onSubmit={onLogin} className="lp-login-form">
               <div className="lp-form-group">
-                <label className="lp-form-label">Email Address</label>
+                <label className="lp-form-label">
+                  {selectedRole === 'admin' ? 'Administrator Email' : 'Tour Guide Email'}
+                </label>
                 <div className="lp-input-wrap">
                   <svg className="lp-input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
@@ -413,7 +478,7 @@ export default function LandingPage({
                   <input
                     type="email"
                     className="lp-form-input"
-                    placeholder="Enter your admin email"
+                    placeholder={selectedRole === 'admin' ? 'admin@lakbay.ph' : 'guide@lakbay.ph'}
                     value={loginCredentials?.email || ''}
                     onChange={(e) => setLoginCredentials && setLoginCredentials({ ...loginCredentials, email: e.target.value })}
                     required
@@ -442,16 +507,20 @@ export default function LandingPage({
 
               <button
                 type="submit"
-                className="lp-btn lp-btn-primary lp-login-submit-btn"
+                className={`lp-btn lp-btn-primary lp-login-submit-btn ${selectedRole === 'tourist_guide' ? 'lp-login-submit-btn--guide' : ''}`}
                 disabled={isLoggingIn}
               >
-                {isLoggingIn ? 'Authenticating...' : 'Authenticate →'}
+                {isLoggingIn
+                  ? 'Authenticating...'
+                  : selectedRole === 'admin'
+                    ? 'Sign in as Administrator →'
+                    : 'Sign in as Tour Guide →'}
               </button>
             </form>
 
             <div className="lp-login-footer">
               <p className="lp-login-footer-text">
-                🌊 Powered by LAKBAY — Zamboanga Cultural Tourism Platform
+                LAKBAY Staff Portal — Dedicated access for Administrators &amp; Certified Tour Guides
               </p>
             </div>
           </div>
