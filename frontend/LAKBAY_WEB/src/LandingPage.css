@@ -1,14 +1,15 @@
 /* ══════════════════════════════════════════════════════════════════════════
    LAKBAY CULTURAL HERITAGE LANDING PAGE (REDESIGN)
-   Theme: Precision Crimson (#8A1538), Deep Navy (#08143C), Gold (#F59E0B)
+   Theme: Dark Navy Blue (#0C2461 / #08143C), Deepest Navy (#040A26), Gold (#F59E0B)
    ══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  --lp-crimson: #8A1538;
-  --lp-crimson-hover: #660D28;
-  --lp-crimson-soft: rgba(138, 21, 56, 0.08);
+  --lp-crimson: #0C2461; /* Main brand accent - Dark Navy Blue */
+  --lp-crimson-hover: #071740; /* Darker navy hover */
+  --lp-crimson-soft: rgba(12, 36, 97, 0.08); /* Soft navy pill tint */
   --lp-navy: #08143C;
   --lp-navy-deep: #040A26;
+  --lp-blue-accent: #1D4ED8;
   --lp-gold: #F59E0B;
   --lp-gray-50: #F9FAFB;
   --lp-gray-100: #F3F4F6;
@@ -122,14 +123,14 @@
   border-radius: 8px;
   text-decoration: none;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(138, 21, 56, 0.25);
+  box-shadow: 0 4px 14px rgba(12, 36, 97, 0.28);
   transition: all 0.2s ease;
 }
 
 .lp-btn-primary:hover {
   background-color: var(--lp-crimson-hover);
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(138, 21, 56, 0.35);
+  box-shadow: 0 8px 20px rgba(12, 36, 97, 0.38);
 }
 
 .lp-btn-secondary {
@@ -193,7 +194,7 @@
   right: 0;
   width: 65%;
   height: 100%;
-  background: radial-gradient(circle at top right, rgba(138, 21, 56, 0.07), transparent 70%);
+  background: radial-gradient(circle at top right, rgba(12, 36, 97, 0.08), transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
@@ -289,7 +290,7 @@
 
 .lp-phone-frame:hover {
   transform: rotate(0deg) translateY(-8px);
-  box-shadow: 0 35px 65px -15px rgba(138, 21, 56, 0.25);
+  box-shadow: 0 35px 65px -15px rgba(12, 36, 97, 0.35);
 }
 
 .lp-phone-notch {
@@ -783,13 +784,13 @@
 
 .lp-model-select-btn:hover {
   border-color: var(--lp-crimson);
-  background-color: #FFFDFD;
+  background-color: #F8FAFC;
 }
 
 .lp-model-select-btn.active {
   border-color: var(--lp-crimson);
   background-color: var(--lp-crimson-soft);
-  box-shadow: 0 4px 12px rgba(138, 21, 56, 0.15);
+  box-shadow: 0 4px 12px rgba(12, 36, 97, 0.16);
 }
 
 .lp-select-num {
@@ -973,7 +974,7 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background-color: rgba(138, 21, 56, 0.25);
+  background-color: rgba(12, 36, 97, 0.35);
   animation: lpPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
@@ -1171,7 +1172,7 @@
 }
 
 .lp-bento-aside {
-  background: linear-gradient(135deg, var(--lp-crimson) 0%, var(--lp-crimson-hover) 100%);
+  background: linear-gradient(135deg, #0C2461 0%, #040A26 100%);
   color: #FFFFFF;
   display: flex;
   flex-direction: column;
@@ -1187,7 +1188,7 @@
 .lp-bento-desc-sm {
   font-size: 0.95rem;
   line-height: 1.5;
-  color: #FEE2E2;
+  color: #DBEAFE;
   margin: 0 0 2rem;
 }
 
@@ -1226,7 +1227,7 @@
   display: flex;
   justify-content: space-between;
   font-size: 0.75rem;
-  color: #FCA5A5;
+  color: #93C5FD;
 }
 
 /* ── FAQ Section ── */
@@ -1291,7 +1292,7 @@
 
 /* ── CTA Banner ── */
 .lp-cta-banner {
-  background: linear-gradient(135deg, var(--lp-crimson) 0%, #450A19 100%);
+  background: linear-gradient(135deg, #08143C 0%, #040A26 100%);
   color: #FFFFFF;
   padding: 6rem 2rem;
   text-align: center;
@@ -1312,7 +1313,7 @@
 
 .lp-cta-desc {
   font-size: 1.15rem;
-  color: #FEE2E2;
+  color: #E2E8F0;
   margin: 0 0 2.5rem;
   line-height: 1.6;
 }
@@ -1458,7 +1459,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, var(--lp-crimson), #BE123C);
+  background: linear-gradient(90deg, #0C2461, #2563EB);
 }
 
 .lp-login-glow-bar--guide {
