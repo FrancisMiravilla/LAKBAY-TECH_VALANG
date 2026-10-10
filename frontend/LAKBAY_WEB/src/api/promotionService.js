@@ -1,6 +1,16 @@
 import apiClient from './api';
 
-const pBase = import.meta.env.VITE_API_BASE_URL.replace('/auth/', '/promotions/');
+const getPromotionsBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/auth/';
+  try {
+    const origin = new URL(envUrl).origin;
+    return `${origin}/api/promotions/`;
+  } catch {
+    return envUrl.replace(/\/auth\/?$/, '/promotions/');
+  }
+};
+
+const pBase = getPromotionsBaseUrl();
 
 export const promotionService = {
   getPromotions: async () => {

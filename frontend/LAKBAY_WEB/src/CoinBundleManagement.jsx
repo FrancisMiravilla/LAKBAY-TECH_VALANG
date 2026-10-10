@@ -19,7 +19,19 @@ const CoinBundleManagement = () => {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const getApiUrl = () => {
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+    if (import.meta.env.VITE_API_BASE_URL) {
+      try {
+        return new URL(import.meta.env.VITE_API_BASE_URL).origin;
+      } catch {
+        return import.meta.env.VITE_API_BASE_URL.replace(/\/api\/.*$/, '');
+      }
+    }
+    return 'http://localhost:8000';
+  };
+
+  const API_URL = getApiUrl();
 
   useEffect(() => {
     fetchBundles();
