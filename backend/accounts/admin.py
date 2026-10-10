@@ -4,12 +4,13 @@ from .models import CustomUser
 
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
-    list_display = ['email', 'full_name', 'in_game_name', 'chosen_character', 'visitor_type', 'auth_provider']
-    list_filter = ['visitor_type', 'auth_provider', 'is_active', 'is_staff']
+    list_display = ['email', 'full_name', 'role', 'visitor_type', 'is_staff', 'is_active']
+    list_filter = ['role', 'visitor_type', 'auth_provider', 'is_active', 'is_staff']
     ordering = ['email']
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
         ('Personal Info', {'fields': ('full_name', 'in_game_name', 'chosen_character', 'profile_photo')}),
+        ('Role & Privileges', {'fields': ('role',)}),
         ('Location', {'fields': ('location', 'visitor_type')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
@@ -18,7 +19,7 @@ class CustomUserAdmin(UserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'password', 'full_name', 'in_game_name', 'chosen_character')}
+            'fields': ('email', 'password', 'full_name', 'role', 'in_game_name', 'chosen_character')}
         ),
     )
     search_fields = ('email', 'full_name', 'in_game_name')

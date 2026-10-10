@@ -45,6 +45,35 @@ if email and password:
         print(f"Administrator account {email} already exists; updated admin privileges & password.")
 else:
     print("Notice: DJANGO_SUPERUSER_EMAIL and DJANGO_SUPERUSER_PASSWORD not set in environment. Skipping admin creation.")
+
+# Check / create Tourist Guide account if environment variables are set
+guide_email = os.environ.get('DJANGO_GUIDE_EMAIL')
+guide_password = os.environ.get('DJANGO_GUIDE_PASSWORD')
+guide_full_name = os.environ.get('DJANGO_GUIDE_FULL_NAME', 'Certified Tourist Guide')
+
+if guide_email and guide_password:
+    guide, created = User.objects.get_or_create(
+        email=guide_email.strip(),
+        defaults={
+            'full_name': guide_full_name.strip(),
+            'role': 'tourist_guide',
+            'is_staff': True,
+            'is_superuser': False,
+            'is_active': True,
+        }
+    )
+    if created:
+        guide.set_password(guide_password.strip())
+        guide.save()
+        print(f"Successfully created Tourist Guide account for: {guide_email}")
+    else:
+        guide.role = 'tourist_guide'
+        guide.is_staff = True
+        guide.set_password(guide_password.strip())
+        guide.save()
+        print(f"Tourist Guide account {guide_email} already exists; updated role & password.")
+else:
+    print("Notice: DJANGO_GUIDE_EMAIL and DJANGO_GUIDE_PASSWORD not set in environment. Skipping guide creation.")
 EOF
 
 echo "==> Build script completed successfully!"
