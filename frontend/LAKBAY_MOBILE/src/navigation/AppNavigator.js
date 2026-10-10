@@ -137,6 +137,7 @@ export default function AppNavigator() {
       <Stack.Screen name="MindAR"        component={ViroARScanner} />
       <Stack.Screen name="Promote"       component={PromoteScreen} />
       <Stack.Screen name="MyPromotions"  component={MyPromotionsScreen} />
+      <Stack.Screen name="Store"         component={StoreScreen} />
       
       {/* REMOVED: Profile and Badges aliases because they are in MainTabs */}
     </Stack.Navigator>

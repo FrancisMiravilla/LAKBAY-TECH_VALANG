@@ -101,6 +101,14 @@ export default function MyPromotionsScreen({ navigation }) {
     }
   };
 
+  const handleOpenStore = () => {
+    try {
+      navigation.navigate('Store');
+    } catch {
+      navigation.navigate('MainTabs', { screen: 'Store' });
+    }
+  };
+
   const handleQuickAttachModel = async (promo) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: '*/*' });
@@ -319,7 +327,7 @@ export default function MyPromotionsScreen({ navigation }) {
               {!canAfford && (
                 <TouchableOpacity
                   style={styles.shortageNotice}
-                  onPress={() => navigation.navigate('Store')}
+                  onPress={handleOpenStore}
                   activeOpacity={0.8}
                 >
                   <Ionicons name="alert-circle-outline" size={13} color={COLORS.gold} />
@@ -413,7 +421,7 @@ export default function MyPromotionsScreen({ navigation }) {
           {/* Treasury Coin Pill */}
           <TouchableOpacity
             style={styles.walletPill}
-            onPress={() => navigation.navigate('Store')}
+            onPress={handleOpenStore}
             activeOpacity={0.8}
           >
             <Ionicons name="cash" size={13} color={COLORS.gold} />
@@ -562,7 +570,7 @@ export default function MyPromotionsScreen({ navigation }) {
                   style={styles.modalBtnStore}
                   onPress={() => {
                     setInsufficientModalVisible(false);
-                    navigation.navigate('Store');
+                    handleOpenStore();
                   }}
                   activeOpacity={0.85}
                 >

@@ -228,6 +228,15 @@ export default function StoreScreen({ navigation }) {
 
         {/* ── Header ── */}
         <View style={styles.header}>
+          {navigation?.canGoBack?.() && (
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => navigation.goBack()}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
           <View style={{ alignItems: 'center' }}>
             <Text style={styles.headerTitle}>LAKBAY STORE</Text>
             <Text style={styles.headerSub}>EXPEDITION COIN VAULT</Text>
@@ -411,6 +420,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(99, 179, 237, 0.20)',
     alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  backBtn: {
+    position: 'absolute',
+    left: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(191, 215, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
   },
   headerTitle: { fontFamily: FONTS.pixel, fontSize: 11, color: '#FFFFFF', letterSpacing: 2, lineHeight: 18 },
   headerSub: { fontFamily: FONTS.medium, fontSize: 9, color: 'rgba(191,215,255,0.70)', letterSpacing: 1.5, marginTop: 1 },
