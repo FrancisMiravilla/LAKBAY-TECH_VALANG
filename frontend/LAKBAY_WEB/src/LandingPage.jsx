@@ -79,7 +79,7 @@ const FAQS = [
   },
   {
     q: 'Can I use LAKBAY without an active internet connection?',
-    a: 'Yes! The mobile app includes offline caching for unlocked landmarks, caught 3D models, and explorer badges, allowing tourists to explore even with intermittent cellular reception.',
+    a: 'No. LAKBAY does not cater to an offline platform. You need an active internet connection (cellular data or Wi-Fi) to explore spots, validate QR codes, load 3D models, and track your explorer progress in real time.',
   },
   {
     q: 'How does the AR Exhibit and 3D Scanning feature work?',
@@ -446,7 +446,7 @@ export default function LandingPage({
           </h2>
           <p className="lp-section-subtitle">
             Don't just read about Zamboanga heritage—experience it. LAKBAY renders high-fidelity
-            3D models directly in your browser. Rotate, zoom, and inspect cultural artifacts in 360°.
+            3D models directly through the app. Rotate, zoom, and inspect cultural artifacts in 360°.
           </p>
         </div>
 
