@@ -34,7 +34,8 @@
         }
       ],
       "expo-secure-store",
-      "@reactvision/react-viro"
+      "@reactvision/react-viro",
+      "@rnmapbox/maps"
     ],
     "extra": {
       "eas": {

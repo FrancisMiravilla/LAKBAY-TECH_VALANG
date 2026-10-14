@@ -11,6 +11,7 @@
     "@react-navigation/native": "^7.3.1",
     "@react-navigation/native-stack": "^7.17.3",
     "@reactvision/react-viro": "^2.57.2",
+    "@rnmapbox/maps": "^10.3.8",
     "axios": "^1.18.0",
     "expo": "~54.0.35",
     "expo-asset": "~12.0.13",
@@ -43,6 +44,7 @@
   "private": true,
   "devDependencies": {
     "@testing-library/react-native": "^14.0.0",
+    "@types/react": "~19.1.10",
     "eslint": "^9.39.4",
     "eslint-config-expo": "~10.0.0",
     "eslint-plugin-react": "^7.37.5",
