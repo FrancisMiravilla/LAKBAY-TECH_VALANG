@@ -53,20 +53,8 @@ export default function WelcomeScreen({ navigation }) {
           style={StyleSheet.absoluteFill}
         />
 
-        {/* ── Top badge ─────────────────────────────────────────── */}
-        <Animated.View
-          style={[
-            styles.topRow,
-            { paddingTop: insets.top + 14, opacity: fade, transform: [{ scale: badgePop }] },
-          ]}
-        >
-          <View style={styles.eyebrowPill}>
-            <Text style={styles.eyebrowText}>✦  CITY OF FLOWERS  ✦</Text>
-          </View>
-        </Animated.View>
-
         {/* ── Hero emblem ───────────────────────────────────────── */}
-        <View style={styles.heroWrap}>
+        <View style={[styles.heroWrap, { paddingTop: insets.top + 14 }]}>
           <Animated.Image
             source={require('../assets/lakbay_icon_glyph.png')}
             resizeMode="contain"
@@ -129,18 +117,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#061231' },
   bg:        { flex: 1, justifyContent: 'space-between' },
 
-  // ── Top ─────────────────────────────────────────────────────────
-  topRow: { alignItems: 'center' },
-  eyebrowPill: {
-    backgroundColor: 'rgba(0,0,0,0.30)',
-    borderWidth: 1, borderColor: 'rgba(251,191,36,0.45)',
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 16, paddingVertical: 7,
-  },
-  eyebrowText: {
-    fontFamily: FONTS.bold, fontSize: 10, color: COLORS.gold, letterSpacing: 2.5,
-  },
-
   // ── Hero emblem ─────────────────────────────────────────────────
   heroWrap: {
     flex: 1,
@@ -161,8 +137,8 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.75)', letterSpacing: 4, marginBottom: 4,
   },
   title: {
-    fontFamily: FONTS.pixel, fontSize: 30, color: '#fff',
-    letterSpacing: 4, marginBottom: 14, textAlign: 'center',
+    fontFamily: FONTS.bold, fontSize: 48, lineHeight: 52, color: '#fff',
+    letterSpacing: 6, marginBottom: 12, textAlign: 'center',
     textShadowColor: 'rgba(251,191,36,0.55)',
     textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 16,
   },
