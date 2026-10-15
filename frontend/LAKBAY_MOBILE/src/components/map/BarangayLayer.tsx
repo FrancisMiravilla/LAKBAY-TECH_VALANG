@@ -1,7 +1,7 @@
 import React, { memo, useMemo } from 'react';
 import Mapbox from '@rnmapbox/maps';
 import barangayData from '../../../assets/data/zamboanga-city-barangays.json';
-import { MAP_FONT } from '../../constants/mapConfig';
+import { MAP_FONT, type LngLat } from '../../constants/mapConfig';
 import type { MapSpot } from '../../hooks/useMapSpots';
 import { pointInPolygon, polygonLabelPoint } from '../../utils/geo';
 import { useMap } from './Map';
@@ -32,8 +32,14 @@ export function countSpotsPerBarangay(spots: MapSpot[]): Record<string, number> 
   return counts;
 }
 
+/** Barangay name at a [lng, lat] point, or null outside Zamboanga City's barangays. */
+export function barangayAt(coordinate: LngLat): string | null {
+  const hit = BARANGAYS.features.find((f) => pointInPolygon(coordinate, f.geometry));
+  return hit ? hit.properties.name : null;
+}
+
 // Label anchors never change, so compute them once.
-const LABEL_POINTS = BARANGAYS.features.map((f) => ({
+export const LABEL_POINTS = BARANGAYS.features.map((f) => ({
   psgc: f.properties.psgc_code,
   name: f.properties.name,
   point: polygonLabelPoint(f.geometry),

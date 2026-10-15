@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView, Dimensions, Animated, ImageBackground, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { WebView } from 'react-native-webview';
+import { LocationPickerMap } from '../components/map/LocationPickerMap';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -15,88 +15,6 @@ import { useTabBarSpace } from '../navigation/tabBarLayout';
 
 import { useAppDialog } from '../components/useAppDialog';
 const { width: SCREEN_W } = Dimensions.get('window');
-
-const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || 'your_mapbox_token_here';
-
-const getMapPickerHTML = (lng, lat) => `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
-  <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet">
-  <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
-  <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js"></script>
-  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css" type="text/css">
-  <style>
-    body { margin: 0; padding: 0; width: 100%; height: 100%; background: #080F23; }
-    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-    .crosshair {
-      position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 40px; height: 40px;
-      pointer-events: none; z-index: 10;
-    }
-    .crosshair::before, .crosshair::after {
-      content: ''; position: absolute; background: #38BDF8;
-      box-shadow: 0 0 8px rgba(56, 189, 248, 0.8);
-    }
-    .crosshair::before { top: 19px; left: 0; width: 40px; height: 2px; }
-    .crosshair::after  { top: 0; left: 19px; width: 2px; height: 40px; }
-    .mapboxgl-ctrl-geocoder {
-      width: calc(100vw - 32px) !important;
-      max-width: calc(100vw - 32px) !important;
-      min-width: 250px !important;
-      margin: 16px !important;
-      background: rgba(8, 20, 60, 0.92) !important;
-      border: 1px solid rgba(99, 179, 237, 0.3) !important;
-      color: #fff !important;
-    }
-    .mapboxgl-ctrl-geocoder input { color: #fff !important; }
-    .mapboxgl-ctrl-top-left { width: 100%; }
-  </style>
-</head>
-<body>
-<div id="map"></div>
-<div class="crosshair"></div>
-<script>
-  mapboxgl.accessToken = '${MAPBOX_TOKEN}';
-  var map = new mapboxgl.Map({
-    container: 'map',
-    style: 'mapbox://styles/mapbox/dark-v11',
-    center: [${lng}, ${lat}],
-    zoom: 12
-  });
-  function nominatimGeocoder(query) {
-    return fetch('https://nominatim.openstreetmap.org/search?format=geojson&email=contact@lakbay.ph&q=' + encodeURIComponent(query))
-      .then(r => r.json())
-      .then(data => data.features.map(f => {
-        f.place_name = f.properties.display_name;
-        f.text = f.properties.name || f.properties.display_name.split(',')[0];
-        f.center = f.geometry.coordinates;
-        return f;
-      }))
-      .catch(e => { console.error(e); return []; });
-  }
-  var geocoder = new MapboxGeocoder({
-    accessToken: mapboxgl.accessToken, mapboxgl: mapboxgl,
-    marker: false, externalGeocoder: nominatimGeocoder
-  });
-  map.addControl(geocoder, 'top-left');
-  map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
-  function sendLocation(lng, lat) {
-    window.ReactNativeWebView && window.ReactNativeWebView.postMessage(
-      JSON.stringify({ type: 'LOCATION_UPDATED', lat: lat, lng: lng })
-    );
-  }
-  map.on('move',    () => { var c = map.getCenter(); sendLocation(c.lng, c.lat); });
-  map.on('moveend', () => { var c = map.getCenter(); sendLocation(c.lng, c.lat); });
-  map.on('click',   e  => map.panTo(e.lngLat));
-  geocoder.on('result', e => { var c = e.result.center; sendLocation(c[0], c[1]); });
-  map.on('load', () => sendLocation(${lng}, ${lat}));
-</script>
-</body>
-</html>
-`;
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
 const STEPS = [
@@ -373,13 +291,6 @@ export default function PromoteScreen({ route, navigation }) {
     }
   };
 
-  const handleMapMessage = (event) => {
-    try {
-      const msg = JSON.parse(event.nativeEvent.data);
-      if (msg.type === 'LOCATION_UPDATED') setTempLocation({ lat: msg.lat, lng: msg.lng });
-    } catch (e) {}
-  };
-
   const confirmLocation = () => {
     if (tempLocation) setLocation(tempLocation);
     setMapModalVisible(false);
@@ -491,7 +402,7 @@ export default function PromoteScreen({ route, navigation }) {
 
             <TouchableOpacity
               style={[styles.mapTrigger, locationPinned && styles.mapTriggerPinned]}
-              onPress={() => setMapModalVisible(true)}
+              onPress={() => { setTempLocation(location); setMapModalVisible(true); }}
               activeOpacity={0.85}
             >
               <View style={[styles.mapTriggerIconWrap, locationPinned && { backgroundColor: 'rgba(2, 132, 199, 0.12)', borderColor: 'rgba(2, 132, 199, 0.45)' }]}>
@@ -649,7 +560,7 @@ export default function PromoteScreen({ route, navigation }) {
                 </TouchableOpacity>
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={styles.modalTitle}>Set Target Coordinates</Text>
-                  <Text style={styles.modalSub}>Center the crosshair over your spot</Text>
+                  <Text style={styles.modalSub}>Tap the map or search to pin your spot</Text>
                 </View>
                 <TouchableOpacity style={styles.modalConfirmBtn} onPress={confirmLocation}>
                   <Ionicons name="checkmark" size={16} color="#FFFFFF" />
@@ -657,14 +568,7 @@ export default function PromoteScreen({ route, navigation }) {
                 </TouchableOpacity>
               </View>
               <View style={{ flex: 1 }}>
-                <WebView
-                  source={{ html: getMapPickerHTML(location?.lng || 122.0790, location?.lat || 6.9214), baseUrl: 'https://localhost' }}
-                  style={{ flex: 1 }}
-                  onMessage={handleMapMessage}
-                  javaScriptEnabled
-                  domStorageEnabled
-                  originWhitelist={['*']}
-                />
+                <LocationPickerMap value={tempLocation} onChange={setTempLocation} />
               </View>
             </SafeAreaView>
           </View>

@@ -7,6 +7,7 @@ import { COLORS, FONTS } from '../../constants/theme';
 import { SPOT_TYPES, ZAMBOANGA_BBOX, type LngLat } from '../../constants/mapConfig';
 import type { MapSpot } from '../../hooks/useMapSpots';
 import { isInsideZamboanga, parseCoordinates } from '../../utils/geo';
+import { LABEL_POINTS } from './BarangayLayer';
 
 export type SearchResult =
   | { kind: 'spot'; key: string; spot: MapSpot }
@@ -52,6 +53,24 @@ function MapSearchBarBase({ spots, onSelect, onClose }: MapSearchBarProps) {
       .slice(0, 5)
       .map((spot) => ({ kind: 'spot', key: spot.id, spot }));
   }, [spots, trimmed, coordinate]);
+
+  // Barangays come from the bundled boundary file, so they always match (Mapbox rarely indexes them).
+  const barangayResults = useMemo<SearchResult[]>(() => {
+    if (trimmed.length < 2 || coordinate) return [];
+    const q = trimmed.toLowerCase();
+    return LABEL_POINTS
+      .filter((b) => b.name.toLowerCase().includes(q))
+      .sort((a, b) => a.name.toLowerCase().indexOf(q) - b.name.toLowerCase().indexOf(q))
+      .slice(0, 4)
+      .map((b) => ({
+        kind: 'place',
+        key: `brgy-${b.psgc}`,
+        name: `Barangay ${b.name}`,
+        subtitle: 'Barangay · Zamboanga City',
+        coordinate: b.point,
+        outside: false,
+      }));
+  }, [trimmed, coordinate]);
 
   useEffect(() => {
     abortRef.current?.abort();
@@ -110,8 +129,8 @@ function MapSearchBarBase({ spots, onSelect, onClose }: MapSearchBarProps) {
         outside,
       }];
     }
-    return [...spotResults, ...places];
-  }, [coordinate, spotResults, places]);
+    return [...spotResults, ...barangayResults, ...places];
+  }, [coordinate, spotResults, barangayResults, places]);
 
   const pick = (result: SearchResult) => {
     Keyboard.dismiss();
@@ -126,7 +145,7 @@ function MapSearchBarBase({ spots, onSelect, onClose }: MapSearchBarProps) {
           style={styles.input}
           value={query}
           onChangeText={setQuery}
-          placeholder="Search spots, places or 6.92, 122.08"
+          placeholder="Search spots, barangays, places or 6.92, 122.08"
           placeholderTextColor={COLORS.textFaint}
           autoFocus
           returnKeyType="search"
