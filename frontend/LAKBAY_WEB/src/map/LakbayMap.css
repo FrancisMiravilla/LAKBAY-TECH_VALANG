@@ -328,3 +328,20 @@
 
 .lk-popup strong { font-size: 13px; color: #0C2461; }
 .lk-popup p { margin: 0; font-size: 11.5px; line-height: 1.5; color: #475569; }
+
+/* ── Picker mode hint (Add / Edit spot) ── */
+.lk-pick-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(12, 36, 97, 0.88);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+}

@@ -58,6 +58,7 @@ import QRCodeLib from 'qrcode';
 import ErrorModal from './ErrorModal';
 import PromotionModeration from './PromotionModeration';
 import LakbayMap from './map/LakbayMap';
+import { barangayAt } from './map/barangays';
 import PromotionSettings from './PromotionSettings';
 import CoinBundleManagement from './CoinBundleManagement';
 import LandingPage from './LandingPage';
@@ -296,8 +297,6 @@ function App() {
   const [editingSpot, setEditingSpot] = useState(null);
 
   const [selectedMapPinId, setSelectedMapPinId] = useState(null);
-  const [modalSearchQuery, setModalSearchQuery] = useState('');
-  const [modalSearching, setModalSearching] = useState(false);
 
   // Selected Spot for Interactive Map
   const selectedSpot = useMemo(() => {
@@ -305,15 +304,6 @@ function App() {
   }, [spots, selectedPinId]);
 
   const selectedMapPin = useMemo(() => spots.find(p => p.id === selectedMapPinId), [spots, selectedMapPinId]);
-
-  // Modal mini-map refs
-  const modalMapContainerRef = useRef(null);
-  const modalMapRef = useRef(null);
-  const modalMarkerRef = useRef(null);
-
-  const editModalMapContainerRef = useRef(null);
-  const editModalMapRef = useRef(null);
-  const editModalMarkerRef = useRef(null);
 
 
   const toggleNewSpotType = (type) => {
@@ -335,189 +325,27 @@ function App() {
   };
 
 
-  // Initialize modal map when Add Spot modal opens
-  useEffect(() => {
-    if (!isAddSpotModalOpen) {
-      if (modalMapRef.current) {
-        modalMapRef.current.remove();
-        modalMapRef.current = null;
-        modalMarkerRef.current = null;
-      }
-      return;
-    }
-
-    // Wait for the DOM to render the container
-    const timer = setTimeout(() => {
-      if (!modalMapContainerRef.current || modalMapRef.current) return;
-
-      const styleUrl = theme === 'dark'
-        ? 'mapbox://styles/mapbox/dark-v11'
-        : 'mapbox://styles/mapbox/light-v11';
-
-      const map = new mapboxgl.Map({
-        container: modalMapContainerRef.current,
-        style: styleUrl,
-        center: [122.0790, 6.9214],
-        zoom: 13,
-      });
-
-      map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
-
-      map.on('click', async (e) => {
-        const lat = e.lngLat.lat;
-        const lng = e.lngLat.lng;
-        setNewSpot(prev => ({ ...prev, latitude: lat.toFixed(6), longitude: lng.toFixed(6) }));
-
-        if (modalMarkerRef.current) modalMarkerRef.current.remove();
-        
-        const el = document.createElement('div');
-        el.className = 'custom-modal-marker';
-        el.style.cssText = `width: 16px; height: 16px; border-radius: 50%; background-color: #6c63ff; border: 2px solid #fff; box-shadow: 0 0 5px rgba(0,0,0,0.5);`;
-
-        modalMarkerRef.current = new mapboxgl.Marker({ element: el })
-          .setLngLat([lng, lat])
-          .addTo(map);
-
-        // Fetch location name automatically
-        try {
-          const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-          const data = await response.json();
-          if (data && data.display_name) {
-             setNewSpot(prev => ({ ...prev, location_name: data.display_name }));
-          }
-        } catch (error) {
-          console.error("Error fetching location name:", error);
-        }
-      });
-
-      modalMapRef.current = map;
-    }, 50);
-
-    return () => clearTimeout(timer);
-  }, [isAddSpotModalOpen, theme]);
-
-  // Initialize modal map when Edit Spot modal opens
-  useEffect(() => {
-    if (!isEditSpotModalOpen) {
-      if (editModalMapRef.current) {
-        editModalMapRef.current.remove();
-        editModalMapRef.current = null;
-        editModalMarkerRef.current = null;
-      }
-      return;
-    }
-
-    // Wait for the DOM to render the container
-    const timer = setTimeout(() => {
-      if (!editModalMapContainerRef.current || editModalMapRef.current || !editingSpot) return;
-
-      const styleUrl = theme === 'dark'
-        ? 'mapbox://styles/mapbox/dark-v11'
-        : 'mapbox://styles/mapbox/light-v11';
-
-      const initialLat = parseFloat(editingSpot.latitude) || 6.9214;
-      const initialLng = parseFloat(editingSpot.longitude) || 122.0790;
-      const hasCoords = !!editingSpot.latitude && !!editingSpot.longitude;
-
-      const map = new mapboxgl.Map({
-        container: editModalMapContainerRef.current,
-        style: styleUrl,
-        center: [initialLng, initialLat],
-        zoom: hasCoords ? 15 : 13,
-      });
-
-      map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
-
-      const createEditMarkerEl = () => {
-        const el = document.createElement('div');
-        el.className = 'custom-edit-modal-marker';
-        el.style.cssText = `width: 16px; height: 16px; border-radius: 50%; background-color: #e91e8c; border: 2px solid #fff; box-shadow: 0 0 5px rgba(0,0,0,0.5);`;
-        return el;
-      };
-
-      if (hasCoords) {
-        editModalMarkerRef.current = new mapboxgl.Marker({ element: createEditMarkerEl() })
-          .setLngLat([initialLng, initialLat])
-          .addTo(map);
-      }
-
-      map.on('click', async (e) => {
-        const lat = e.lngLat.lat;
-        const lng = e.lngLat.lng;
-        setEditingSpot(prev => ({ ...prev, latitude: lat.toFixed(6), longitude: lng.toFixed(6) }));
-
-        if (editModalMarkerRef.current) editModalMarkerRef.current.remove();
-        editModalMarkerRef.current = new mapboxgl.Marker({ element: createEditMarkerEl() })
-          .setLngLat([lng, lat])
-          .addTo(map);
-
-        // Fetch location name automatically
-        try {
-          const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-          const data = await response.json();
-          if (data && data.display_name) {
-             setEditingSpot(prev => ({ ...prev, location: data.display_name, location_name: data.display_name }));
-          }
-        } catch (error) {
-          console.error("Error fetching location name:", error);
-        }
-      });
-
-      editModalMapRef.current = map;
-    }, 50);
-
-    return () => clearTimeout(timer);
-  }, [isEditSpotModalOpen, theme]);
-
-  const handleModalSearch = async (isEdit = false) => {
-    if (!modalSearchQuery.trim()) return;
-    const mapRef = isEdit ? editModalMapRef.current : modalMapRef.current;
-    if (!mapRef) return;
-    setModalSearching(true);
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(modalSearchQuery)}&limit=1`,
-        { headers: { 'Accept-Language': 'en' } }
-      );
-      const results = await res.json();
-      if (results.length > 0) {
-        const { lat, lon, display_name } = results[0];
-        const parsedLat = parseFloat(lat);
-        const parsedLon = parseFloat(lon);
-        const locName = display_name.split(',')[0]; // Get the most relevant part of the location name
-        mapRef.flyTo({ center: [parsedLon, parsedLat], zoom: 15 });
-        
-        const createSearchMarkerEl = (color) => {
-          const el = document.createElement('div');
-          el.style.cssText = `width: 16px; height: 16px; border-radius: 50%; background-color: ${color}; border: 2px solid #fff; box-shadow: 0 0 5px rgba(0,0,0,0.5);`;
-          return el;
-        };
-
-        if (isEdit) {
-          setEditingSpot(prev => ({ ...prev, location_name: prev.location_name || locName, location: prev.location || locName, latitude: parsedLat.toFixed(6), longitude: parsedLon.toFixed(6) }));
-          if (editModalMarkerRef.current) editModalMarkerRef.current.remove();
-          editModalMarkerRef.current = new mapboxgl.Marker({ element: createSearchMarkerEl('#6c63ff') })
-            .setLngLat([parsedLon, parsedLat])
-            .addTo(mapRef);
-        } else {
-          setNewSpot(prev => ({ ...prev, location_name: prev.location_name || locName, latitude: parsedLat.toFixed(6), longitude: parsedLon.toFixed(6) }));
-          if (modalMarkerRef.current) modalMarkerRef.current.remove();
-          modalMarkerRef.current = new mapboxgl.Marker({ element: createSearchMarkerEl('#6c63ff') })
-            .setLngLat([parsedLon, parsedLat])
-            .addTo(mapRef);
-        }
-      } else {
-        showError('Location not found. Try a different search term.', 'Location Not Found', 'warning');
-      }
-    } catch {
-      // silently ignore search errors
-    } finally {
-      setModalSearching(false);
-    }
+  // Add / Edit spot: the Interactive Map in picker mode sets coordinates and the barangay name.
+  const pickedLocationName = (coord) => {
+    const barangay = barangayAt(coord);
+    return barangay ? `${barangay}, Zamboanga City` : null;
   };
 
+  const handlePickNewSpot = ([lng, lat]) => {
+    const name = pickedLocationName([lng, lat]);
+    setNewSpot(prev => ({ ...prev, latitude: lat.toFixed(6), longitude: lng.toFixed(6), ...(name ? { location_name: name } : {}) }));
+  };
 
+  const handlePickEditSpot = ([lng, lat]) => {
+    const name = pickedLocationName([lng, lat]);
+    setEditingSpot(prev => ({ ...prev, latitude: lat.toFixed(6), longitude: lng.toFixed(6), ...(name ? { location: name, location_name: name } : {}) }));
+  };
 
+  const toPickedLocation = (spot) => {
+    const lat = parseFloat(spot?.latitude);
+    const lng = parseFloat(spot?.longitude);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? [lng, lat] : null;
+  };
 
   const [users, setUsers] = useState([]);
   const [trivia, setTrivia] = useState(INITIAL_TRIVIA);
@@ -3687,22 +3515,15 @@ function App() {
             <form onSubmit={handleAddSpot} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '24px' }}>
                 <div style={{ marginBottom: '20px' }}>
-                  <label className="form-label">Search Location on Map</label>
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                    <div style={{ position: 'relative', flex: 1 }}>
-                      <MapPin size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-                      <input type="text" className="form-input" style={{ paddingLeft: '38px' }} placeholder="Search e.g. Zamboanga City Hall"
-                        value={modalSearchQuery} onChange={(e) => setModalSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleModalSearch(false))} />
-                    </div>
-                    <button type="button" className="btn btn-secondary" onClick={() => handleModalSearch(false)} disabled={modalSearching} style={{ minWidth: '80px', display: 'flex', justifyContent: 'center' }}>
-                      {modalSearching ? <div className="spinner" style={{ width: '16px', height: '16px', border: '2px solid var(--text-primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> : 'Search'}
-                    </button>
-                  </div>
-                  <div style={{ width: '100%', height: '220px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--card-border)', position: 'relative', zIndex: 1 }}>
-                    <div ref={modalMapContainerRef} style={{ width: '100%', height: '100%' }} />
-                    <div style={{ position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'rgba(26,26,46,0.85)', backdropFilter: 'blur(4px)', padding: '6px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, color: '#fff', zIndex: 1000, pointerEvents: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                      Click on the map to pin a location
-                    </div>
+                  <label className="form-label">Pin Location on Map</label>
+                  <div style={{ width: '100%', height: '380px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--card-border)', position: 'relative', zIndex: 1 }}>
+                    <LakbayMap
+                      spots={spots}
+                      catchIcons={catchIcons}
+                      appTheme={theme}
+                      pickedLocation={toPickedLocation(newSpot)}
+                      onPickLocation={handlePickNewSpot}
+                    />
                   </div>
                 </div>
 
@@ -3917,21 +3738,14 @@ function App() {
               <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '24px' }}>
                 <div style={{ marginBottom: '20px' }}>
                   <label className="form-label">Update Location on Map</label>
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                    <div style={{ position: 'relative', flex: 1 }}>
-                      <MapPin size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-                      <input type="text" className="form-input" style={{ paddingLeft: '38px' }} placeholder="Search e.g. Zamboanga City Hall"
-                        value={modalSearchQuery} onChange={(e) => setModalSearchQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleModalSearch(true))} />
-                    </div>
-                    <button type="button" className="btn btn-secondary" onClick={() => handleModalSearch(true)} disabled={modalSearching} style={{ minWidth: '80px', display: 'flex', justifyContent: 'center' }}>
-                      {modalSearching ? <div className="spinner" style={{ width: '16px', height: '16px', border: '2px solid var(--text-primary)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> : 'Search'}
-                    </button>
-                  </div>
-                  <div style={{ width: '100%', height: '220px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--card-border)', position: 'relative', zIndex: 1 }}>
-                    <div ref={editModalMapContainerRef} style={{ width: '100%', height: '100%' }} />
-                    <div style={{ position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'rgba(26,26,46,0.85)', backdropFilter: 'blur(4px)', padding: '6px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 600, color: '#fff', zIndex: 1000, pointerEvents: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                      Click on the map to update coordinates
-                    </div>
+                  <div style={{ width: '100%', height: '380px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--card-border)', position: 'relative', zIndex: 1 }}>
+                    <LakbayMap
+                      spots={spots.filter(s => s.id !== editingSpot?.id)}
+                      catchIcons={catchIcons}
+                      appTheme={theme}
+                      pickedLocation={toPickedLocation(editingSpot)}
+                      onPickLocation={handlePickEditSpot}
+                    />
                   </div>
                 </div>
 

@@ -213,7 +213,7 @@ function installLayers(map, images, state) {
     });
   }
 
-  map.addSource('lakbay-spots', { type: 'geojson', data: pinShape, cluster: true, clusterRadius: 44, clusterMaxZoom: 12.5 });
+  map.addSource('lakbay-spots', { type: 'geojson', data: pinShape, cluster: true, clusterRadius: 44, clusterMaxZoom: 12 });
   map.addLayer({
     id: 'lakbay-spot-clusters', type: 'circle', source: 'lakbay-spots', filter: ['has', 'point_count'],
     paint: {
@@ -268,6 +268,20 @@ function MapSearch({ spots, onSelect, onClose }) {
       .map((spot) => ({ kind: 'spot', key: spot.id, spot }));
   }, [spots, trimmed, coordinate]);
 
+  // Barangays come from the local boundary file, so they always match (Mapbox rarely indexes them).
+  const barangayResults = useMemo(() => {
+    if (trimmed.length < 2 || coordinate) return [];
+    const q = trimmed.toLowerCase();
+    return LABEL_POINTS
+      .filter((b) => b.name.toLowerCase().includes(q))
+      .sort((a, b) => a.name.toLowerCase().indexOf(q) - b.name.toLowerCase().indexOf(q))
+      .slice(0, 4)
+      .map((b) => ({
+        kind: 'place', key: `brgy-${b.psgc}`, name: `Barangay ${b.name}`, subtitle: 'Barangay · Zamboanga City',
+        coordinate: b.point, outside: false, zoom: CAMERA.selectZoom - 1,
+      }));
+  }, [trimmed, coordinate]);
+
   const canGeocode = trimmed.length >= 3 && !coordinate && Boolean(mapboxgl.accessToken);
 
   useEffect(() => {
@@ -306,8 +320,8 @@ function MapSearch({ spots, onSelect, onClose }) {
         coordinate, outside,
       }];
     }
-    return [...spotResults, ...(canGeocode ? places : [])];
-  }, [coordinate, spotResults, places, canGeocode]);
+    return [...spotResults, ...barangayResults, ...(canGeocode ? places : [])];
+  }, [coordinate, spotResults, barangayResults, places, canGeocode]);
 
   return (
     <div className="lk-search">
@@ -321,7 +335,7 @@ function MapSearch({ spots, onSelect, onClose }) {
             if (e.key === 'Escape') onClose();
             if (e.key === 'Enter' && results[0]) onSelect(results[0]);
           }}
-          placeholder="Search spots, places or 6.92, 122.08"
+          placeholder="Search spots, barangays, places or 6.92, 122.08"
         />
         {canGeocode && loading && <LoaderCircle size={16} className="lk-spin" color="#1A56DB" />}
         <button type="button" className="lk-icon-btn" onClick={onClose} aria-label="Close search"><X size={18} /></button>
@@ -375,8 +389,20 @@ function ToolButton({ icon: Icon, active = false, activeColor = '#FBBF24', onCli
  * @param {'light'|'dark'} appTheme dashboard theme ("system" map theme follows it)
  * @param {number|null} selectedSpotId
  * @param {(id: number|null) => void} onSelectSpot
+ * @param {[number, number]|null} pickedLocation  picker mode: current [lng, lat] pin
+ * @param {(coord: [number, number]) => void} onPickLocation  picker mode: map click, pin drag or search result
  */
-export default function LakbayMap({ spots, catchIcons = [], appTheme = 'light', selectedSpotId = null, onSelectSpot }) {
+export default function LakbayMap({
+  spots, catchIcons = [], appTheme = 'light', selectedSpotId = null, onSelectSpot,
+  pickedLocation = null, onPickLocation,
+}) {
+  const pickerMode = typeof onPickLocation === 'function';
+  const pickRef = useRef(onPickLocation);
+  useLayoutEffect(() => {
+    pickRef.current = onPickLocation;
+  });
+  const pickMarkerRef = useRef(null);
+  const centerOnPickRef = useRef(pickedLocation != null);
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const imagesRef = useRef([]);
@@ -490,6 +516,12 @@ export default function LakbayMap({ spots, catchIcons = [], appTheme = 'light', 
       map.on('click', 'lakbay-spot-pins', (e) => {
         const id = e.features?.[0]?.properties?.id;
         if (id) selectRef.current(id);
+      });
+      map.on('click', (e) => {
+        if (!pickRef.current) return;
+        const layers = ['lakbay-spot-clusters', 'lakbay-spot-pins'].filter((id) => map.getLayer(id));
+        if (layers.length && map.queryRenderedFeatures(e.point, { layers }).length) return;
+        pickRef.current([e.lngLat.lng, e.lngLat.lat]);
       });
       ['lakbay-spot-clusters', 'lakbay-spot-pins'].forEach((layer) => {
         map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer'; });
@@ -612,6 +644,37 @@ export default function LakbayMap({ spots, catchIcons = [], appTheme = 'light', 
     map.flyTo({ center: [spot.longitude, spot.latitude], zoom: Math.max(map.getZoom(), CAMERA.selectZoom), duration: CAMERA.flyDuration });
   }, [selectedKey, mapReady, mapSpots]);
 
+  // Picker mode: draggable pin at the chosen location.
+  const pickedLng = pickedLocation?.[0];
+  const pickedLat = pickedLocation?.[1];
+  const hasPick = Number.isFinite(pickedLng) && Number.isFinite(pickedLat);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !pickerMode) return;
+    if (!hasPick) {
+      pickMarkerRef.current?.remove();
+      pickMarkerRef.current = null;
+      return;
+    }
+    if (!pickMarkerRef.current) {
+      pickMarkerRef.current = new mapboxgl.Marker({ color: '#EF4444', draggable: true })
+        .setLngLat([pickedLng, pickedLat])
+        .addTo(map);
+      pickMarkerRef.current.on('dragend', () => {
+        const { lng, lat } = pickMarkerRef.current.getLngLat();
+        pickRef.current?.([lng, lat]);
+      });
+      if (centerOnPickRef.current) {
+        centerOnPickRef.current = false;
+        map.jumpTo({ center: [pickedLng, pickedLat], zoom: Math.max(map.getZoom(), CAMERA.selectZoom) });
+      }
+    } else {
+      pickMarkerRef.current.setLngLat([pickedLng, pickedLat]);
+    }
+  }, [pickerMode, hasPick, pickedLng, pickedLat, mapReady]);
+
+  useEffect(() => () => pickMarkerRef.current?.remove(), []);
+
   // Promotions have no admin detail panel, so show a popup for them.
   useEffect(() => {
     popupRef.current?.remove();
@@ -636,12 +699,17 @@ export default function LakbayMap({ spots, catchIcons = [], appTheme = 'light', 
     }
     const map = mapRef.current;
     if (!map) return;
+    if (pickerMode) {
+      onPickLocation(result.coordinate);
+      map.flyTo({ center: result.coordinate, zoom: result.zoom ?? CAMERA.locateZoom, duration: CAMERA.flyDuration });
+      return;
+    }
     searchMarkerRef.current?.remove();
     searchMarkerRef.current = new mapboxgl.Marker({ color: '#EF4444' })
       .setLngLat(result.coordinate)
       .setPopup(new mapboxgl.Popup({ offset: 30 }).setText(result.name))
       .addTo(map);
-    map.flyTo({ center: result.coordinate, zoom: CAMERA.locateZoom, duration: CAMERA.flyDuration });
+    map.flyTo({ center: result.coordinate, zoom: result.zoom ?? CAMERA.locateZoom, duration: CAMERA.flyDuration });
   };
 
   const handleLocate = () => {
@@ -734,6 +802,10 @@ export default function LakbayMap({ spots, catchIcons = [], appTheme = 'light', 
       <div className="lk-locate">
         <ToolButton icon={LocateFixed} loading={locating} activeColor="#10B981" onClick={handleLocate} label="Go to my location" />
       </div>
+
+      {pickerMode && !searchOpen && (
+        <div className="lk-pick-hint">{hasPick ? 'Drag the red pin or click to move it' : 'Click the map or search to pin the location'}</div>
+      )}
 
       {notice && <div className="lk-notice">{notice}</div>}
     </div>
