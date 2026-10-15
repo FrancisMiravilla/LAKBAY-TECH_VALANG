@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { COLORS, FONTS } from '../../constants/theme';
 import { CAMERA, ZAMBOANGA_CENTER, type LngLat } from '../../constants/mapConfig';
 import { useMapSpots } from '../../hooks/useMapSpots';
 import { Map, MapOverlay, useMap, type MapTheme } from './Map';
 import { BarangayLayer, barangayAt } from './BarangayLayer';
-import { MapMarker } from './MapLayers';
+import { MapMarker, MapUserLocation } from './MapLayers';
 import { FeatureButton, ZoomControls } from './MapControls';
 import { MapSearchBar, type SearchResult } from './MapSearchBar';
 import { SpotsLayer, buildSpotFeatures } from './SpotsLayer';
@@ -48,7 +49,16 @@ export function LocationPickerMap({ value, onChange }: LocationPickerMapProps) {
   const [barangaysOn, setBarangaysOn] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [flyTarget, setFlyTarget] = useState<{ coordinate: LngLat; zoom: number; key: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [showUser, setShowUser] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const featurePressRef = useRef(false);
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const t = setTimeout(() => setNotice(null), 3500);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   const initialCenter = useRef<LngLat>(value ? [value.lng, value.lat] : ZAMBOANGA_CENTER).current;
   const pin: LngLat | null = value ? [value.lng, value.lat] : null;
@@ -78,6 +88,32 @@ export function LocationPickerMap({ value, onChange }: LocationPickerMapProps) {
     [onChange],
   );
 
+  // Same flow as the Map screen's locate button: fly to the user and show the blue dot.
+  const handleLocate = useCallback(async () => {
+    setLocating(true);
+    try {
+      let perm = await Location.getForegroundPermissionsAsync();
+      if (perm.status !== 'granted') perm = await Location.requestForegroundPermissionsAsync();
+      if (perm.status !== 'granted') {
+        setNotice('Location permission is needed to find you on the map.');
+        return;
+      }
+      if (!(await Location.hasServicesEnabledAsync())) {
+        setNotice('Turn on Location services (GPS) on your phone.');
+        return;
+      }
+      const pos =
+        (await Location.getLastKnownPositionAsync({ maxAge: 60000 })) ??
+        (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }));
+      setShowUser(true);
+      setFlyTarget({ coordinate: [pos.coords.longitude, pos.coords.latitude], zoom: CAMERA.locateZoom, key: Date.now() });
+    } catch {
+      setNotice('Could not get your location. Try again outside.');
+    } finally {
+      setLocating(false);
+    }
+  }, []);
+
   const cycleTheme = useCallback(
     () => setTheme((t) => (t === 'system' ? 'light' : t === 'light' ? 'dark' : 'system')),
     [],
@@ -87,6 +123,7 @@ export function LocationPickerMap({ value, onChange }: LocationPickerMapProps) {
     <Map center={initialCenter} zoom={value ? 16 : 12} theme={theme} onPress={handleMapPress}>
       {barangaysOn && <BarangayLayer spots={spots} />}
       <SpotsLayer shape={spotShape} selectedId={null} onSpotPress={() => {}} featurePressRef={featurePressRef} />
+      {showUser && <MapUserLocation />}
       {pin && <MapMarker id="lakbay-picked-location" coordinate={pin} label="Your spot" icon="location" color="#EF4444" />}
       <FlyTo target={flyTarget} />
 
@@ -96,9 +133,13 @@ export function LocationPickerMap({ value, onChange }: LocationPickerMapProps) {
             <MapSearchBar spots={spots} onSelect={handleSearchSelect} onClose={() => setSearchOpen(false)} />
           ) : (
             <View style={styles.hint} pointerEvents="none">
-              <Ionicons name={pin ? 'location' : 'hand-left-outline'} size={14} color={pin ? '#EF4444' : COLORS.accent} />
-              <Text style={styles.hintText} numberOfLines={1}>
-                {pin
+              <Ionicons
+                name={notice ? 'alert-circle' : pin ? 'location' : 'hand-left-outline'}
+                size={14}
+                color={notice ? '#D97706' : pin ? '#EF4444' : COLORS.accent}
+              />
+              <Text style={styles.hintText} numberOfLines={2}>
+                {notice ?? pin
                   ? barangay ? `Barangay ${barangay}` : 'Outside Zamboanga City barangays'
                   : 'Tap the map or search to pin your spot'}
               </Text>
@@ -126,6 +167,12 @@ export function LocationPickerMap({ value, onChange }: LocationPickerMapProps) {
               accessibilityLabel="Barangay boundaries"
             />
             <ZoomControls />
+            <FeatureButton
+              icon="locate"
+              loading={locating}
+              onPress={handleLocate}
+              accessibilityLabel="Go to my location"
+            />
           </View>
         </MapOverlay>
       )}
