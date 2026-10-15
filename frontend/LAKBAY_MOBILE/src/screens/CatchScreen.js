@@ -652,6 +652,137 @@ function ConfettiCannon() {
   );
 }
 
+// ─── Treasure Chest Reveal ───────────────────────────────────────────────────
+const CHEST_W = W * 0.52;
+const CHEST_LID_H = CHEST_W * 0.36;
+const CHEST_BASE_H = CHEST_W * 0.52;
+const CHEST_WAIT_MS = 2000;
+const CHEST_OPEN_MS = 650;
+
+function ChestLid() {
+  return (
+    <Svg width={CHEST_W} height={CHEST_LID_H} viewBox="0 0 200 72">
+      <Defs>
+        <LinearGradient id="lidWood" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#B8692E" />
+          <Stop offset="1" stopColor="#7A3E14" />
+        </LinearGradient>
+      </Defs>
+      <Path d="M2 72 L2 36 Q2 2 36 2 L164 2 Q198 2 198 36 L198 72 Z" fill="url(#lidWood)" stroke="#4A230A" strokeWidth="3" />
+      <Path d="M30 72 L30 4 L46 3 L46 72 Z" fill="#F4C542" stroke="#9A6B12" strokeWidth="2" />
+      <Path d="M154 72 L154 3 L170 4 L170 72 Z" fill="#F4C542" stroke="#9A6B12" strokeWidth="2" />
+      <Path d="M2 60 L198 60 L198 72 L2 72 Z" fill="#F4C542" stroke="#9A6B12" strokeWidth="2" />
+      <Path d="M20 20 Q60 8 100 10" stroke="rgba(255,255,255,0.35)" strokeWidth="4" fill="none" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function ChestBase() {
+  return (
+    <Svg width={CHEST_W} height={CHEST_BASE_H} viewBox="0 0 200 104">
+      <Defs>
+        <LinearGradient id="baseWood" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#9C5523" />
+          <Stop offset="1" stopColor="#5E2E0E" />
+        </LinearGradient>
+      </Defs>
+      <Path d="M2 0 L198 0 L198 98 Q198 102 194 102 L6 102 Q2 102 2 98 Z" fill="url(#baseWood)" stroke="#4A230A" strokeWidth="3" />
+      <Line x1="2" y1="40" x2="198" y2="40" stroke="#4A230A" strokeWidth="2" opacity="0.5" />
+      <Line x1="2" y1="72" x2="198" y2="72" stroke="#4A230A" strokeWidth="2" opacity="0.5" />
+      <Path d="M30 0 L46 0 L46 102 L30 102 Z" fill="#F4C542" stroke="#9A6B12" strokeWidth="2" />
+      <Path d="M154 0 L170 0 L170 102 L154 102 Z" fill="#F4C542" stroke="#9A6B12" strokeWidth="2" />
+      <Path d="M2 0 L198 0 L198 10 L2 10 Z" fill="#F4C542" stroke="#9A6B12" strokeWidth="2" />
+      <Path d="M86 4 L114 4 L114 34 Q100 44 86 34 Z" fill="#FCD34D" stroke="#9A6B12" strokeWidth="2.5" />
+      <Circle cx="100" cy="18" r="4.5" fill="#3B1A06" />
+      <Path d="M98 20 L102 20 L103 30 L97 30 Z" fill="#3B1A06" />
+    </Svg>
+  );
+}
+
+function TreasureChest({ phase }) {
+  const popAnim = useRef(new Animated.Value(0)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const lidAnim = useRef(new Animated.Value(0)).current;
+  const burstAnim = useRef(new Animated.Value(0)).current;
+  const raysAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.spring(popAnim, { toValue: 1, tension: 70, friction: 6, useNativeDriver: true }).start();
+    const shake = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shakeAnim, { toValue: 1, duration: 70, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -1, duration: 70, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 1, duration: 70, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0, duration: 70, useNativeDriver: true }),
+        Animated.delay(380),
+      ])
+    );
+    shake.start();
+    return () => shake.stop();
+  }, []);
+
+  useEffect(() => {
+    if (phase === 'opening') {
+      shakeAnim.stopAnimation();
+      shakeAnim.setValue(0);
+      Animated.parallel([
+        Animated.timing(lidAnim, { toValue: 1, duration: CHEST_OPEN_MS, useNativeDriver: true }),
+        Animated.timing(burstAnim, { toValue: 1, duration: CHEST_OPEN_MS + 300, useNativeDriver: true }),
+      ]).start();
+      Animated.loop(
+        Animated.timing(raysAnim, { toValue: 1, duration: 6000, useNativeDriver: true })
+      ).start();
+    }
+    if (phase === 'revealed') {
+      Animated.timing(fadeAnim, { toValue: 0, duration: 500, useNativeDriver: true }).start();
+    }
+  }, [phase]);
+
+  const shakeRotate = shakeAnim.interpolate({ inputRange: [-1, 1], outputRange: ['-6deg', '6deg'] });
+  const lidRotate = lidAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-115deg'] });
+  const burstScale = burstAnim.interpolate({ inputRange: [0, 1], outputRange: [0.2, 2.4] });
+  const burstOpacity = burstAnim.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 1, 0.55] });
+  const raysRotate = raysAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  const sinkY = fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] });
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        chestStyles.wrap,
+        { opacity: fadeAnim, transform: [{ translateY: sinkY }, { scale: popAnim }, { rotateZ: shakeRotate }] },
+      ]}
+    >
+      <Animated.View style={[chestStyles.rays, { opacity: burstOpacity, transform: [{ rotateZ: raysRotate }, { scale: burstScale }] }]}>
+        <Svg width={CHEST_W} height={CHEST_W} viewBox="0 0 200 200">
+          {[...Array(12)].map((_, i) => (
+            <Polygon
+              key={i}
+              points="100,100 94,0 106,0"
+              fill="#FDE68A"
+              opacity={i % 2 ? 0.55 : 0.9}
+              transform={`rotate(${i * 30} 100 100)`}
+            />
+          ))}
+        </Svg>
+      </Animated.View>
+      <Animated.View style={[chestStyles.glow, { opacity: burstOpacity, transform: [{ scale: burstScale }] }]} />
+
+      <View style={chestStyles.interior} />
+      <Animated.View
+        style={[
+          chestStyles.lid,
+          { transform: [{ perspective: 600 }, { rotateX: lidRotate }] },
+        ]}
+      >
+        <ChestLid />
+      </Animated.View>
+      <ChestBase />
+    </Animated.View>
+  );
+}
+
 // ─── AR Camera Overlay ───────────────────────────────────────────────────────
 function ARCatchOverlay({ icon, spot, userLocation, onModelFound, onContinue, onClose }) {
   const activeModel = (spot && spot.model_3d) 
@@ -717,19 +848,40 @@ function ARCatchOverlay({ icon, spot, userLocation, onModelFound, onContinue, on
     ).start();
   }, []);
 
+  // Reveal sequence once inside 10 m: closed chest → lid opens → model rises out.
+  // Latched so GPS jitter around the edge doesn't replay or hide it.
+  const [revealPhase, setRevealPhase] = useState('none'); // none | chest | opening | revealed
+  const modelRiseAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    if (!showArrow) {
-      Animated.spring(celebPopAnim, {
-        toValue: 1,
-        tension: 65,
-        friction: 8,
-        useNativeDriver: true,
-      }).start();
+    if (!showArrow && revealPhase === 'none') setRevealPhase('chest');
+  }, [showArrow, revealPhase]);
+
+  useEffect(() => {
+    if (revealPhase === 'chest') {
+      const t = setTimeout(() => setRevealPhase('opening'), CHEST_WAIT_MS);
+      return () => clearTimeout(t);
+    }
+    if (revealPhase === 'opening') {
+      const t = setTimeout(() => setRevealPhase('revealed'), CHEST_OPEN_MS);
+      return () => clearTimeout(t);
+    }
+    if (revealPhase === 'revealed') {
+      Animated.parallel([
+        Animated.spring(modelRiseAnim, { toValue: 1, tension: 50, friction: 7, useNativeDriver: true }),
+        Animated.spring(celebPopAnim, { toValue: 1, tension: 65, friction: 8, useNativeDriver: true }),
+      ]).start();
       onModelFound?.(icon, spot);
     }
-  }, [showArrow]);
+  }, [revealPhase]);
+
+  const arrived = revealPhase !== 'none';
+  const revealed = revealPhase === 'revealed';
+  const modelScale = modelRiseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.15, 1] });
+  const modelRiseY = modelRiseAnim.interpolate({ inputRange: [0, 1], outputRange: [W * 0.3, 0] });
 
   const modelTitle = icon.name || spot?.name || 'Cultural Model';
+  const [celebDismissed, setCelebDismissed] = useState(false);
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, { opacity: fadeAnim }]}>
@@ -747,10 +899,10 @@ function ARCatchOverlay({ icon, spot, userLocation, onModelFound, onContinue, on
 
       {/* ── Dark vignette top ── */}
       <View style={arStyles.topGradient} />
-      {!showArrow && <View style={arStyles.bottomVignette} />}
+      {arrived && <View style={arStyles.bottomVignette} />}
 
       {/* ── HUD: Live status bar ── */}
-      <ARStatusBar color={icon.color} distanceM={distanceM} showArrow={showArrow} accuracy={userLocation?.accuracy} />
+      <ARStatusBar color={icon.color} distanceM={distanceM} showArrow={!arrived} accuracy={userLocation?.accuracy} />
 
       {/* ── Close button ── */}
       <TouchableOpacity style={arStyles.closeBtn} onPress={onClose} activeOpacity={0.8}>
@@ -760,7 +912,7 @@ function ARCatchOverlay({ icon, spot, userLocation, onModelFound, onContinue, on
       </TouchableOpacity>
 
       {/* ── Top label (when guiding) ── */}
-      {showArrow && (
+      {!arrived && (
         <View style={arStyles.topLabel}>
           <View style={[arStyles.typeBadge, { backgroundColor: icon.color + '33', borderColor: icon.color + '88' }]}>
             <Ionicons name="locate-outline" size={11} color={icon.color} style={{ marginRight: 5 }} />
@@ -774,7 +926,7 @@ function ARCatchOverlay({ icon, spot, userLocation, onModelFound, onContinue, on
       )}
 
       {/* ── Directional Path Arrow (only when distance > 10m) ── */}
-      {showArrow && (
+      {!arrived && (
         <DirectionArrow
           relativeBearing={relativeBearing}
           targetBearing={targetBearing}
@@ -784,32 +936,46 @@ function ARCatchOverlay({ icon, spot, userLocation, onModelFound, onContinue, on
         />
       )}
 
-      {/* ── Celebration Banner & Confetti (when model reached ≤ 10m) ── */}
-      {!showArrow && (
+      {/* ── Celebration Banner & Confetti (after the chest opens) ── */}
+      {revealed && (
         <>
           <ConfettiCannon />
-          <Animated.View style={[arStyles.celebrationCard, { transform: [{ scale: celebPopAnim }] }]}>
-            <View style={arStyles.celebrationGlow} />
-            <View style={arStyles.celebrationHeader}>
-              <Ionicons name="sparkles" size={15} color="#FBBF24" />
-              <Text style={arStyles.celebrationKicker}>MODEL FOUND!</Text>
-              <Ionicons name="sparkles" size={15} color="#FBBF24" />
+          {!celebDismissed && (
+            <View style={arStyles.celebrationCenter} pointerEvents="box-none">
+              <Animated.View style={{ transform: [{ scale: celebPopAnim }] }}>
+                <TouchableOpacity activeOpacity={0.9} onPress={() => setCelebDismissed(true)}>
+                  <VintaCard style={arStyles.celebrationCard} contentStyle={arStyles.celebrationInner}>
+                    <Text style={arStyles.celebrationKicker}>You caught</Text>
+                    <Text style={arStyles.celebrationName} numberOfLines={2}>{modelTitle}</Text>
+                    {!!spot?.location_name && (
+                      <Text style={arStyles.celebrationPlace} numberOfLines={1}>{spot.location_name}</Text>
+                    )}
+                    <View style={arStyles.celebrationDivider} />
+                    <Text style={arStyles.celebrationXp}>+150 XP</Text>
+                    <Text style={arStyles.celebrationHint}>Tap to close</Text>
+                  </VintaCard>
+                </TouchableOpacity>
+              </Animated.View>
             </View>
-            <Text style={arStyles.celebrationCongrats}>CONGRATS!</Text>
-            <Text style={arStyles.celebrationTitle}>
-              You have caught <Text style={arStyles.celebrationSpotName}>&ldquo;{modelTitle}&rdquo;</Text>
-            </Text>
-            <View style={arStyles.celebrationXpPill}>
-              <Ionicons name="flash" size={12} color="#FBBF24" />
-              <Text style={arStyles.celebrationXpText}>+150 XP DISCOVERY BONUS</Text>
-            </View>
-          </Animated.View>
+          )}
         </>
       )}
 
-      {/* ── Floating 3D model (when ≤ 10m) ── */}
-      {!showArrow && (
-        <Animated.View style={[arStyles.modelWrap, { transform: [{ translateY: floatAnim }] }]}>
+      {/* ── Treasure chest (≤ 10m): shakes, opens, then the model rises out ── */}
+      {arrived && <TreasureChest phase={revealPhase} />}
+
+      {/* ── Floating 3D model, mounted with the chest so it loads while hidden ── */}
+      {arrived && (
+        <Animated.View
+          pointerEvents={revealed ? 'auto' : 'none'}
+          style={[
+            arStyles.modelWrap,
+            {
+              opacity: modelRiseAnim.interpolate({ inputRange: [0, 0.25], outputRange: [0, 1], extrapolate: 'clamp' }),
+              transform: [{ translateY: floatAnim }, { translateY: modelRiseY }, { scale: modelScale }],
+            },
+          ]}
+        >
           {activeModel ? (
             <WebView
               source={{ html: buildARViewerHTML(activeModel) }}
@@ -834,12 +1000,19 @@ function ARCatchOverlay({ icon, spot, userLocation, onModelFound, onContinue, on
         <Text style={arStyles.catchName}>{icon.name}</Text>
         <Text style={arStyles.catchTagline}>{icon.tagline}</Text>
 
-        {showArrow ? (
+        {!arrived ? (
           /* When guiding: show a "navigate" hint */
           <View style={[arStyles.navigateHint, { borderColor: icon.color + '55', backgroundColor: icon.color + '15' }]}>
             <Ionicons name="compass-outline" size={18} color={icon.color} style={{ marginRight: 8 }} />
             <Text style={[arStyles.navigateHintText, { color: icon.color }]}>
               Walk toward the arrow · {Math.round(distanceM)}m remaining
+            </Text>
+          </View>
+        ) : !revealed ? (
+          <View style={[arStyles.navigateHint, { borderColor: '#FBBF2455', backgroundColor: '#FBBF2415' }]}>
+            <Ionicons name="gift-outline" size={18} color="#FBBF24" style={{ marginRight: 8 }} />
+            <Text style={[arStyles.navigateHintText, { color: '#FBBF24' }]}>
+              {revealPhase === 'opening' ? 'Opening the treasure...' : 'You found a treasure chest!'}
             </Text>
           </View>
         ) : (
@@ -1922,6 +2095,51 @@ const proximityStyles = StyleSheet.create({
 });
 
 // ─── AR Overlay Styles ────────────────────────────────────────────────────────
+const chestStyles = StyleSheet.create({
+  wrap: {
+    position: 'absolute',
+    top: H * 0.22 + W * 0.375 - (CHEST_LID_H + CHEST_BASE_H) / 2,
+    alignSelf: 'center',
+    width: CHEST_W,
+    alignItems: 'center',
+  },
+  rays: {
+    position: 'absolute',
+    top: CHEST_LID_H - CHEST_W / 2,
+    width: CHEST_W,
+    height: CHEST_W,
+  },
+  glow: {
+    position: 'absolute',
+    top: CHEST_LID_H - CHEST_W * 0.2,
+    width: CHEST_W * 0.4,
+    height: CHEST_W * 0.4,
+    borderRadius: CHEST_W * 0.2,
+    backgroundColor: '#FEF3C7',
+    shadowColor: '#FBBF24',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 30,
+    elevation: 12,
+  },
+  interior: {
+    position: 'absolute',
+    top: CHEST_LID_H - 10,
+    left: 6,
+    right: 6,
+    height: 18,
+    borderRadius: 6,
+    backgroundColor: '#2A1203',
+  },
+  lid: {
+    width: CHEST_W,
+    height: CHEST_LID_H,
+    marginBottom: -2,
+    transformOrigin: 'bottom',
+    zIndex: 2,
+  },
+});
+
 const arStyles = StyleSheet.create({
   topGradient: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 160,
@@ -2002,81 +2220,55 @@ const arStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 8,
   },
   continueBtnText: { fontFamily: FONTS.bold, fontSize: 15, color: '#FFF', letterSpacing: 0.3 },
-  celebrationCard: {
-    position: 'absolute',
-    top: 56,
-    left: 20,
-    right: 70,
-    backgroundColor: 'rgba(8, 20, 56, 0.94)',
-    borderRadius: RADIUS.lg,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderWidth: 1.5,
-    borderColor: 'rgba(251, 191, 36, 0.65)',
-    zIndex: 25,
-    shadowColor: '#FBBF24',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 14,
-    elevation: 10,
-  },
-  celebrationGlow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: '#FBBF24',
-    borderTopLeftRadius: RADIUS.lg,
-    borderTopRightRadius: RADIUS.lg,
-  },
-  celebrationHeader: {
-    flexDirection: 'row',
+  celebrationCenter: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
+    zIndex: 25,
+  },
+  celebrationCard: {
+    width: W * 0.62,
+  },
+  celebrationInner: {
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   celebrationKicker: {
-    fontFamily: FONTS.bold,
-    fontSize: 11,
-    color: '#FBBF24',
-    letterSpacing: 1.5,
-  },
-  celebrationCongrats: {
-    fontFamily: FONTS.bold,
-    fontSize: 20,
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
-  celebrationTitle: {
-    fontFamily: FONTS.medium,
+    fontFamily: FONTS.semiBold,
     fontSize: 13,
-    color: '#E2E8F0',
+    color: COLORS.textMuted,
+  },
+  celebrationName: {
+    fontFamily: FONTS.bold,
+    fontSize: 22,
+    lineHeight: 26,
+    color: COLORS.navy,
+    textAlign: 'center',
     marginTop: 2,
-    lineHeight: 18,
   },
-  celebrationSpotName: {
+  celebrationPlace: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  celebrationDivider: {
+    alignSelf: 'stretch',
+    height: 1,
+    backgroundColor: '#E2E8F0',
+    marginVertical: 10,
+  },
+  celebrationXp: {
     fontFamily: FONTS.bold,
-    color: '#FBBF24',
+    fontSize: 18,
+    color: GOLD_TEXT,
   },
-  celebrationXpPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(251, 191, 36, 0.18)',
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.45)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    gap: 5,
-    marginTop: 8,
-  },
-  celebrationXpText: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: '#FBBF24',
-    letterSpacing: 1,
+  celebrationHint: {
+    fontFamily: FONTS.regular,
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 6,
   },
 });
 
