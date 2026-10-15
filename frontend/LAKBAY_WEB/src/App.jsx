@@ -1295,51 +1295,62 @@ function App() {
     }
   };
 
-  const handleSingleReviewAction = async (action, questionId) => {
-    if (!reviewingQuiz || !reviewingQuiz.questions) return;
-    
-    const question = reviewingQuiz.questions.find(q => q.id === questionId);
+  const openReviewBatch = (group) => {
+    setReviewingQuiz({
+      ...group,
+      questions: group.questions.map((q, i) => ({ ...q, choices: [...(q.choices || [])], number: i + 1 })),
+      step: 0,
+    });
+    setIsReviewQuizModalOpen(true);
+  };
+
+  const closeReviewBatch = () => {
+    setIsReviewQuizModalOpen(false);
+    setReviewingQuiz(null);
+  };
+
+  const updateReviewQuestion = (changes) => {
+    setReviewingQuiz(prev => ({
+      ...prev,
+      questions: prev.questions.map((q, i) => (i === prev.step ? { ...q, ...changes } : q)),
+    }));
+  };
+
+  // Optimistic: move to the next question right away and save in the background,
+  // so a slow server never blocks the reviewer.
+  const handleSingleReviewAction = (action) => {
+    if (!reviewingQuiz) return;
+    const question = reviewingQuiz.questions[reviewingQuiz.step];
     if (!question) return;
 
-    try {
-      const payload = {
-        action,
-        question: question.question,
-        choices: question.choices,
-        correct_index: question.correct_index,
-        explanation: question.explanation
-      };
-      
-      await qrService.reviewQuizAction(question.id, payload);
-      
-      // Remove this question from the pending list
-      setPendingQuizzes(prev => prev.filter(q => q.id !== question.id));
-      
-      // Update the modal's batch list
-      const remainingQuestions = reviewingQuiz.questions.filter(q => q.id !== question.id);
-      
-      if (action === 'approve' && question.spot_name) {
-         qrService.getTriviaQuestions().then(res => setTriviaQuestions(res.data || []));
-      } else if (action === 'reject') {
-         // Add notification for the admin
-         setNotifications(prev => [{ 
-            id: Date.now(), 
-            text: `Tourist Guide rejected a question for ${question.spot_name || question.icon_name}.`, 
-            time: 'Just now' 
-         }, ...prev]);
-      }
-      
-      // Close modal if no questions left in this batch
-      if (remainingQuestions.length === 0) {
-        setIsReviewQuizModalOpen(false);
-        setReviewingQuiz(null);
-      } else {
-        setReviewingQuiz({ ...reviewingQuiz, questions: remainingQuestions });
-      }
-    } catch (err) {
-      console.error(err);
-      showError('Failed to process review action.', 'Error', 'error');
+    const nextStep = reviewingQuiz.step + 1;
+    if (nextStep >= reviewingQuiz.questions.length) {
+      closeReviewBatch();
+    } else {
+      setReviewingQuiz(prev => ({ ...prev, step: nextStep }));
     }
+    setPendingQuizzes(prev => prev.filter(q => q.id !== question.id));
+
+    if (action === 'reject') {
+      setNotifications(prev => [{
+        id: Date.now(),
+        text: `Tourist Guide rejected a question for ${question.spot_name || question.icon_name}.`,
+        time: 'Just now'
+      }, ...prev]);
+    }
+
+    qrService.reviewQuizAction(question.id, {
+      action,
+      question: question.question,
+      choices: question.choices,
+      correct_index: Number(question.correct_index),
+      explanation: question.explanation,
+    }).catch((err) => {
+      console.error(err);
+      const { number, ...original } = question;
+      setPendingQuizzes(prev => (prev.some(q => q.id === original.id) ? prev : [...prev, original]));
+      showError(`Question ${number} of "${question.spot_name || question.icon_name || 'this batch'}" could not be saved. It is back in the pending list.`, 'Review Not Saved', 'error');
+    });
   };
 
   const filteredTriviaQuestions = triviaSpotFilter
@@ -3052,10 +3063,7 @@ function App() {
                             {g.generated_by_name || 'System'}
                           </td>
                           <td>
-                            <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => {
-                              setReviewingQuiz(g);
-                              setIsReviewQuizModalOpen(true);
-                            }}>
+                            <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => openReviewBatch(g)}>
                               Review Batch
                             </button>
                           </td>
@@ -4540,7 +4548,12 @@ function App() {
       )}
 
       {/* REVIEW QUIZ BATCH MODAL */}
-      {isReviewQuizModalOpen && reviewingQuiz && (
+      {isReviewQuizModalOpen && reviewingQuiz && (() => {
+        const q = reviewingQuiz.questions[reviewingQuiz.step];
+        if (!q) return null;
+        const total = reviewingQuiz.questions.length;
+        const correct = Number(q.correct_index);
+        return (
         <div className="modal-overlay">
           <div className="modal-card" style={{ width: '90vw', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
@@ -4548,7 +4561,7 @@ function App() {
                 <Target size={18} style={{ marginRight: '8px' }} />
                 Review AI Quiz Batch
               </h3>
-              <button className="close-btn" onClick={() => { setIsReviewQuizModalOpen(false); setReviewingQuiz(null); }}><X size={20} /></button>
+              <button className="close-btn" onClick={closeReviewBatch}><X size={20} /></button>
             </div>
             <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '20px' }}>
               <div style={{ marginBottom: '20px', padding: '12px', background: 'var(--card-bg)', borderRadius: '8px', border: '1px solid var(--card-border)' }}>
@@ -4556,80 +4569,70 @@ function App() {
                 <div style={{ fontWeight: 600, color: 'var(--text-title)' }}>{reviewingQuiz.targetName}</div>
               </div>
 
-              {reviewingQuiz.questions.map((q, index) => (
-                <div key={q.id} style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: index < reviewingQuiz.questions.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
-                  <h4 style={{ color: 'var(--text-title)', marginBottom: '12px', fontSize: '14px' }}>Question {index + 1}</h4>
-                  
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
+                <h4 style={{ color: 'var(--text-title)', margin: 0, fontSize: '14px' }}>Question {q.number} of {total}</h4>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{total - reviewingQuiz.step - 1} left after this</span>
+              </div>
+              <div style={{ height: '4px', borderRadius: '2px', background: 'var(--border-color)', marginBottom: '16px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${(reviewingQuiz.step / total) * 100}%`, background: '#10B981', transition: 'width 0.25s ease' }} />
+              </div>
+
+              <div key={q.id}>
+                <div className="form-group">
+                  <textarea className="form-textarea" value={q.question}
+                    onChange={(e) => updateReviewQuestion({ question: e.target.value })} required />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  {['a', 'b', 'c', 'd'].map((letter, idx) => (
+                    <div className="form-group" key={letter} style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: correct === idx ? 'var(--accent-blue)' : '#E2E8F0', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0, color: correct === idx ? '#fff' : '#333' }}>
+                          {letter.toUpperCase()}
+                        </span>
+                        Choice {letter.toUpperCase()}
+                        {correct === idx && <span style={{ fontSize: '10px', color: 'var(--accent-pink)', fontWeight: 700 }}>✓ CORRECT</span>}
+                      </label>
+                      <input type="text" className="form-input" value={q.choices[idx] || ''}
+                        onChange={(e) => updateReviewQuestion({ choices: q.choices.map((c, i) => (i === idx ? e.target.value : c)) })} required />
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div className="form-group">
-                    <textarea className="form-textarea" value={q.question}
-                      onChange={(e) => {
-                        const newBatch = { ...reviewingQuiz };
-                        newBatch.questions[index].question = e.target.value;
-                        setReviewingQuiz(newBatch);
-                      }} required />
+                    <label className="form-label">Correct Answer</label>
+                    <select className="form-select" value={correct}
+                      onChange={(e) => updateReviewQuestion({ correct_index: Number(e.target.value) })}>
+                      <option value="0">A — {q.choices[0] || '(empty)'}</option>
+                      <option value="1">B — {q.choices[1] || '(empty)'}</option>
+                      <option value="2">C — {q.choices[2] || '(empty)'}</option>
+                      <option value="3">D — {q.choices[3] || '(empty)'}</option>
+                    </select>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                    {['a', 'b', 'c', 'd'].map((letter, idx) => (
-                      <div className="form-group" key={letter} style={{ marginBottom: 0 }}>
-                        <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: parseInt(q.correct_index) === idx ? 'var(--accent-blue)' : '#E2E8F0', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0, color: parseInt(q.correct_index) === idx ? '#fff' : '#333' }}>
-                            {letter.toUpperCase()}
-                          </span>
-                          Choice {letter.toUpperCase()}
-                          {parseInt(q.correct_index) === idx && <span style={{ fontSize: '10px', color: 'var(--accent-pink)', fontWeight: 700 }}>✓ CORRECT</span>}
-                        </label>
-                        <input type="text" className="form-input" value={q.choices[idx]}
-                          onChange={(e) => {
-                            const newBatch = { ...reviewingQuiz };
-                            newBatch.questions[index].choices[idx] = e.target.value;
-                            setReviewingQuiz(newBatch);
-                          }} required />
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div className="form-group">
-                      <label className="form-label">Correct Answer</label>
-                      <select className="form-select" value={q.correct_index}
-                        onChange={(e) => {
-                          const newBatch = { ...reviewingQuiz };
-                          newBatch.questions[index].correct_index = e.target.value;
-                          setReviewingQuiz(newBatch);
-                        }}>
-                        <option value="0">A — {q.choices[0] || '(empty)'}</option>
-                        <option value="1">B — {q.choices[1] || '(empty)'}</option>
-                        <option value="2">C — {q.choices[2] || '(empty)'}</option>
-                        <option value="3">D — {q.choices[3] || '(empty)'}</option>
-                      </select>
-                    </div>
-                    
-                    <div className="form-group">
-                      <label className="form-label">Explanation (shown to user)</label>
-                      <textarea className="form-textarea" style={{ minHeight: '60px' }} value={q.explanation}
-                        onChange={(e) => {
-                          const newBatch = { ...reviewingQuiz };
-                          newBatch.questions[index].explanation = e.target.value;
-                          setReviewingQuiz(newBatch);
-                        }} />
-                    </div>
-                  </div>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-                    <button type="button" className="btn btn-secondary" onClick={() => handleSingleReviewAction('reject', q.id)} style={{ background: '#FEE2E2', color: '#DC2626', borderColor: '#FCA5A5', padding: '6px 12px', fontSize: '13px' }}>
-                      <X size={14} style={{ marginRight: '4px' }} /> Reject
-                    </button>
-                    <button type="button" className="btn btn-primary" onClick={() => handleSingleReviewAction('approve', q.id)} style={{ background: '#10B981', borderColor: '#10B981', padding: '6px 12px', fontSize: '13px' }}>
-                      <Target size={14} style={{ marginRight: '4px' }} /> Approve
-                    </button>
+                  <div className="form-group">
+                    <label className="form-label">Explanation (shown to user)</label>
+                    <textarea className="form-textarea" style={{ minHeight: '60px' }} value={q.explanation || ''}
+                      onChange={(e) => updateReviewQuestion({ explanation: e.target.value })} />
                   </div>
                 </div>
-              ))}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => handleSingleReviewAction('reject')} style={{ background: '#FEE2E2', color: '#DC2626', borderColor: '#FCA5A5', padding: '6px 12px', fontSize: '13px' }}>
+                    <X size={14} style={{ marginRight: '4px' }} /> Reject
+                  </button>
+                  <button type="button" className="btn btn-primary" onClick={() => handleSingleReviewAction('approve')} style={{ background: '#10B981', borderColor: '#10B981', padding: '6px 12px', fontSize: '13px' }}>
+                    <Target size={14} style={{ marginRight: '4px' }} />
+                    {reviewingQuiz.step + 1 < total ? 'Approve & Next' : 'Approve & Finish'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {showLogoutModal && (
         <div className="logout-modal-overlay" onClick={() => setShowLogoutModal(false)}>

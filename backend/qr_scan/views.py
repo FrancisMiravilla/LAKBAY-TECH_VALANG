@@ -861,7 +861,11 @@ class TriviaReviewListView(APIView):
         if request.user.role not in ['admin', 'tourist_guide']:
             return Response(status=status.HTTP_403_FORBIDDEN)
             
-        pending = TriviaQuestion.objects.filter(status='pending').order_by('-updated_at')
+        pending = (
+            TriviaQuestion.objects.filter(status='pending')
+            .select_related('spot', 'icon', 'ar_target', 'generated_by', 'reviewed_by')
+            .order_by('-updated_at')
+        )
         serializer = TriviaQuestionAdminSerializer(pending, many=True)
         return Response(serializer.data)
 
@@ -877,30 +881,24 @@ class TriviaReviewActionView(APIView):
         q = get_object_or_404(TriviaQuestion, pk=pk)
         
         action = request.data.get('action') # 'approve', 'reject', 'edit'
-        
-        if action == 'approve':
-            q.status = 'approved'
-            q.reviewed_by = request.user
-            q.review_date = timezone.now()
-            q.save()
-            return Response({'status': 'approved'})
-            
-        elif action == 'reject':
-            q.status = 'rejected'
-            q.reviewed_by = request.user
-            q.review_date = timezone.now()
-            q.save()
-            return Response({'status': 'rejected'})
-            
-        elif action == 'edit':
-            q.question = request.data.get('question', q.question)
-            q.choices = request.data.get('choices', q.choices)
-            q.correct_index = request.data.get('correct_index', q.correct_index)
-            q.explanation = request.data.get('explanation', q.explanation)
+        if action not in ('approve', 'reject', 'edit'):
+            return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Approve/reject carry the reviewer's edits too, so they are saved with the decision.
+        q.question = request.data.get('question', q.question)
+        q.choices = request.data.get('choices', q.choices)
+        q.correct_index = request.data.get('correct_index', q.correct_index)
+        q.explanation = request.data.get('explanation', q.explanation)
+
+        if action == 'edit':
             q.save()
             return Response(TriviaQuestionAdminSerializer(q).data)
-            
-        return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
+
+        q.status = 'approved' if action == 'approve' else 'rejected'
+        q.reviewed_by = request.user
+        q.review_date = timezone.now()
+        q.save()
+        return Response({'status': q.status})
 
 
 class LogActivityView(APIView):
