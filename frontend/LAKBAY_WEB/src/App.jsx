@@ -1370,13 +1370,13 @@ function App() {
         info: infoLength(c.about, c.significance),
       })),
     ];
-    const byName = new Map();
+    const byName = {};
     for (const e of entries) {
       const key = String(e.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      const kept = byName.get(key);
-      if (!kept || e.info > kept.info) byName.set(key, e);
+      const kept = byName[key];
+      if (!kept || e.info > kept.info) byName[key] = e;
     }
-    return [...byName.values()];
+    return Object.values(byName);
   }, [spots, catchIcons]);
 
   const filteredTriviaQuestions = triviaSpotFilter
