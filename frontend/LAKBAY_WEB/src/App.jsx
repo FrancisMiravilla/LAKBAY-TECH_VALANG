@@ -38,7 +38,6 @@ import {
   ArrowLeft,
   Box,
   Image as ImageIcon,
-  Scan,
   Store,
   Settings as SettingsIcon,
   Coins,
@@ -1352,6 +1351,33 @@ function App() {
       showError(`Question ${number} of "${question.spot_name || question.icon_name || 'this batch'}" could not be saved. It is back in the pending list.`, 'Review Not Saved', 'error');
     });
   };
+
+  // Catch zones for the quiz generator: map spots plus catch icons, with same-name
+  // duplicates collapsed into the entry that has the most written information.
+  const catchQuizOptions = useMemo(() => {
+    const infoLength = (...fields) => fields.reduce((n, f) => n + String(f || '').trim().length, 0);
+    const entries = [
+      ...spots.filter(s => (s.feature_types || []).includes('catch')).map(s => ({
+        value: `spot_${s.id}`,
+        name: s.name,
+        label: s.hook ? `${s.name} (${s.hook})` : s.name,
+        info: infoLength(s.description, s.historical_background, s.cultural_significance, s.fun_fact),
+      })),
+      ...catchIcons.map(c => ({
+        value: `icon_${c.id}`,
+        name: c.name,
+        label: c.tagline ? `${c.name} (${c.tagline})` : c.name,
+        info: infoLength(c.about, c.significance),
+      })),
+    ];
+    const byName = new Map();
+    for (const e of entries) {
+      const key = String(e.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const kept = byName.get(key);
+      if (!kept || e.info > kept.info) byName.set(key, e);
+    }
+    return [...byName.values()];
+  }, [spots, catchIcons]);
 
   const filteredTriviaQuestions = triviaSpotFilter
     ? triviaQuestions.filter(q => (q.spot_name || q.icon_name || q.ar_target_name || 'General') === triviaSpotFilter)
@@ -4446,14 +4472,6 @@ function App() {
                     </button>
                     <button 
                       className="btn" 
-                      style={{ padding: '20px', background: generateQuizType === 'ar' ? 'var(--accent-purple)' : 'var(--card-bg)', color: generateQuizType === 'ar' ? '#fff' : 'var(--text-primary)', border: '2px solid var(--accent-purple)', minWidth: '120px' }}
-                      onClick={() => setGenerateQuizType('ar')}
-                    >
-                      <Scan size={32} style={{ margin: '0 auto 8px' }} />
-                      <br/>AR Spot
-                    </button>
-                    <button 
-                      className="btn" 
                       style={{ padding: '20px', background: generateQuizType === 'icon' ? 'var(--accent-pink)' : 'var(--card-bg)', color: generateQuizType === 'icon' ? '#fff' : 'var(--text-primary)', border: '2px solid var(--accent-pink)', minWidth: '120px' }}
                       onClick={() => setGenerateQuizType('icon')}
                     >
@@ -4475,23 +4493,9 @@ function App() {
                   >
                     <option value="">— Select {generateQuizType === 'icon' ? 'a Catch Zone' : 'a Spot'} —</option>
                     {generateQuizType === 'qr' && spots.filter(s => !(s.feature_types || []).includes('catch')).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    {generateQuizType === 'ar' && arTargets.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    {generateQuizType === 'icon' && (
-                      <>
-                        {/* Catch Spots from Interactive Map */}
-                        {spots.filter(s => (s.feature_types || []).includes('catch')).map(s => (
-                          <option key={`spot_${s.id}`} value={`spot_${s.id}`}>
-                            {s.hook ? `${s.name} (${s.hook})` : s.name}
-                          </option>
-                        ))}
-                        {/* Cultural Icons if any */}
-                        {catchIcons.map(c => (
-                          <option key={`icon_${c.id}`} value={`icon_${c.id}`}>
-                            {c.tagline ? `${c.name} (${c.tagline})` : c.name}
-                          </option>
-                        ))}
-                      </>
-                    )}
+                    {generateQuizType === 'icon' && catchQuizOptions.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
                   </select>
                 </div>
               )}
