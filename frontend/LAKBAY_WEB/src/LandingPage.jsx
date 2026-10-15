@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
-import mapboxgl from 'mapbox-gl';
+import { useState, useEffect } from 'react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import '@google/model-viewer';
+import qrService from './api/qrService';
+import LakbayMap from './map/LakbayMap';
 import {
   Compass,
   Smartphone,
@@ -91,79 +92,31 @@ const FAQS = [
   },
 ];
 
-// ── Interactive Mapbox Component ───────────────────────────────────────────
+// ── Interactive Mapbox Component (same design as the mobile Explore map) ────
+// Spot data needs a login, so anonymous visitors see a few showcase landmarks;
+// published promotions are public and always load.
+const SHOWCASE_SPOTS = [
+  { id: 'fort-pilar', name: 'Fort Pilar National Museum', description: 'AR exhibits inside the 1635 Spanish fort.', location_name: 'Zone IV', latitude: 6.9038, longitude: 122.0825, feature_types: ['ar'], required_level: 1 },
+  { id: 'city-hall', name: 'Zamboanga City Hall', description: 'Scan the marker to unlock its story.', location_name: 'Zone IV', latitude: 6.9062, longitude: 122.0758, feature_types: ['qr'], required_level: 1 },
+  { id: 'paseo', name: 'Paseo del Mar & Vintas', description: 'Waterfront park famous for colourful vinta sails.', location_name: 'Zone IV', latitude: 6.9015, longitude: 122.081, feature_types: ['qr'], required_level: 1 },
+];
+
 function MapSection() {
-  const mapContainer = useRef(null);
-  const map = useRef(null);
-  const token = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '';
+  const [spots, setSpots] = useState(SHOWCASE_SPOTS);
 
   useEffect(() => {
-    if (map.current || !mapContainer.current) return;
-    try {
-      mapboxgl.accessToken = token;
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/light-v11',
-        center: [122.079, 6.912],
-        zoom: 14.2,
-        pitch: 50,
-        bearing: -15,
-        interactive: true,
-      });
-
-      map.current.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'bottom-right');
-
-      // Fort Pilar Marker
-      const pilarEl = document.createElement('div');
-      pilarEl.className = 'lp-custom-marker';
-      pilarEl.innerHTML = `
-        <div class="lp-marker-pulse"></div>
-        <div class="lp-marker-pill">
-          <span>🏛️ Fort Pilar National Museum</span>
-        </div>
-      `;
-      new mapboxgl.Marker(pilarEl).setLngLat([122.0825, 6.9038]).addTo(map.current);
-
-      // City Hall Marker
-      const hallEl = document.createElement('div');
-      hallEl.className = 'lp-custom-marker';
-      hallEl.innerHTML = `
-        <div class="lp-marker-pulse"></div>
-        <div class="lp-marker-pill">
-          <span>🏛️ Zamboanga City Hall</span>
-        </div>
-      `;
-      new mapboxgl.Marker(hallEl).setLngLat([122.0758, 6.9062]).addTo(map.current);
-
-      // Paseo del Mar Marker
-      const paseoEl = document.createElement('div');
-      paseoEl.className = 'lp-custom-marker';
-      paseoEl.innerHTML = `
-        <div class="lp-marker-pulse"></div>
-        <div class="lp-marker-pill">
-          <span>⛵ Paseo del Mar & Vintas</span>
-        </div>
-      `;
-      new mapboxgl.Marker(paseoEl).setLngLat([122.081, 6.9015]).addTo(map.current);
-    } catch (e) {
-      console.warn('Mapbox initialization:', e);
-    }
-
-    return () => {
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
-      }
-    };
-  }, [token]);
+    if (!localStorage.getItem('accessToken')) return;
+    qrService.getSpots()
+      .then(({ data }) => {
+        const items = Array.isArray(data) ? data : (data.results || []);
+        if (items.length) setSpots(items);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="lp-map-container">
-      <div ref={mapContainer} className="lp-map-canvas" />
-      <div className="lp-map-status-pill">
-        <span className="lp-status-dot"></span>
-        GPS Cultural Tracking: <strong>Active</strong>
-      </div>
+      <LakbayMap spots={spots} />
     </div>
   );
 }

@@ -463,6 +463,7 @@ export default function LakbayMap({ spots, catchIcons = [], appTheme = 'light', 
     let cancelled = false;
     let map = null;
     let observer = null;
+    if (!mapboxgl.accessToken) mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || '';
     loadPinImages().then((images) => {
       if (cancelled || !containerRef.current) return;
       imagesRef.current = images;
