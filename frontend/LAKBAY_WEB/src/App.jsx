@@ -674,8 +674,8 @@ function App() {
     setIsLoggingIn(true);
 
     try {
-      await authService.login(loginCredentials.email, loginCredentials.password);
-      const user = await authService.getProfile();
+      const data = await authService.login(loginCredentials.email, loginCredentials.password);
+      const user = data.user || await authService.getProfile();
 
       if (!user.is_staff && user.role !== 'admin' && user.role !== 'tourist_guide') {
         authService.logout();

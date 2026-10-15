@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from djoser.serializers import UserCreateSerializer as DjoserUserCreateSerializer
 from djoser.serializers import UserSerializer as DjoserUserSerializer
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 User = get_user_model()
 
@@ -66,3 +67,10 @@ class CharacterSetupSerializer(DjoserUserSerializer):
         if User.objects.exclude(pk=user.pk).filter(in_game_name=value).exists():
             raise serializers.ValidationError("This in-game name is already taken.")
         return value
+
+
+class LoginSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        data['user'] = UserSerializer(self.user, context=self.context).data
+        return data

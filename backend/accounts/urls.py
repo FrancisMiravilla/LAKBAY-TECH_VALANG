@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from djoser.views import UserViewSet
+from .serializers import LoginSerializer
 from .views import (
     GoogleLoginView, LogoutView,
     CharacterSetupView, test_auth,
@@ -13,7 +14,7 @@ urlpatterns = [
     path('profile/', UserViewSet.as_view({'get': 'me', 'put': 'me', 'patch': 'me'}), name='profile'),
     path('adjust-xp/', AdjustUserXPView.as_view(), name='adjust_xp'),
 
-    path('login/', TokenObtainPairView.as_view(), name='login'),
+    path('login/', TokenObtainPairView.as_view(serializer_class=LoginSerializer), name='login'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
     path('google/', GoogleLoginView.as_view(), name='google_login'),

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import '@google/model-viewer';
 import qrService from './api/qrService';
+import { authService } from './api/authService';
 import LakbayMap from './map/LakbayMap';
 import {
   Compass,
@@ -136,7 +137,22 @@ export default function LandingPage({
   const [activeModelIndex, setActiveModelIndex] = useState(0);
   const [openFaq, setOpenFaq] = useState(null);
 
+  const [isSlowLogin, setIsSlowLogin] = useState(false);
+
   const activeModel = MODELS[activeModelIndex];
+
+  useEffect(() => {
+    authService.warmUp();
+  }, []);
+
+  useEffect(() => {
+    if (!isLoggingIn) return;
+    const timer = setTimeout(() => setIsSlowLogin(true), 4000);
+    return () => {
+      clearTimeout(timer);
+      setIsSlowLogin(false);
+    };
+  }, [isLoggingIn]);
 
   const handleOpenAdminModal = (role = 'admin') => {
     setSelectedRole(role);
@@ -887,7 +903,9 @@ export default function LandingPage({
                 disabled={isLoggingIn}
               >
                 {isLoggingIn
-                  ? 'Authenticating...'
+                  ? isSlowLogin
+                    ? 'Waking up server, this can take up to a minute...'
+                    : 'Authenticating...'
                   : selectedRole === 'admin'
                   ? 'Sign in as Administrator →'
                   : 'Sign in as Tour Guide →'}
