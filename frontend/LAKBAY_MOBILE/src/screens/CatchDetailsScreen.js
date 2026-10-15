@@ -14,7 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
-import { COLORS, FONTS, RADIUS } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, BG_OVERLAY, GOLD_TEXT, onWhite } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -228,7 +229,7 @@ export default function CatchDetailsScreen({ route, navigation }) {
             <Animated.View
               style={[styles.modelGlowRing, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]}
             />
-            <View style={styles.modelCard}>
+            <VintaCard style={styles.modelFrame} contentStyle={styles.modelCard}>
               {viewerHTML ? (
                 <WebView
                   source={{ html: viewerHTML }}
@@ -245,7 +246,7 @@ export default function CatchDetailsScreen({ route, navigation }) {
                 pointerEvents="none"
                 style={[styles.shimmerBar, { transform: [{ translateX: shimmerX }] }]}
               />
-            </View>
+            </VintaCard>
 
             <View style={styles.starsRow}>
               {Array.from({ length: RARITY.stars }).map((_, i) => (
@@ -261,17 +262,19 @@ export default function CatchDetailsScreen({ route, navigation }) {
 
           {/* XP reward banner */}
           <Animated.View
-            style={[styles.xpBanner, { opacity: xpOpacity, transform: [{ translateY: xpSlide }] }]}
+            style={[styles.xpBannerWrap, { opacity: xpOpacity, transform: [{ translateY: xpSlide }] }]}
           >
+            <VintaCard contentStyle={styles.xpBanner}>
             <View style={styles.xpLeft}>
-              <Ionicons name="flash" size={16} color={COLORS.gold} />
+              <Ionicons name="flash" size={16} color={GOLD_TEXT} />
               <Text style={styles.xpText}>+150 XP Earned</Text>
             </View>
             <View style={styles.xpDivider} />
             <View style={styles.xpRight}>
-              <Ionicons name="trophy" size={14} color={COLORS.teal} />
+              <Ionicons name="trophy" size={14} color="#059669" />
               <Text style={styles.xpCollectedText}>Model Collected!</Text>
             </View>
+            </VintaCard>
           </Animated.View>
         </View>
 
@@ -279,15 +282,15 @@ export default function CatchDetailsScreen({ route, navigation }) {
         {isAR ? (
           /* ── AR: Single Description Card ── */
           <View style={styles.tabsSection}>
-            <View style={styles.arDescCard}>
+            <VintaCard contentStyle={styles.arDescCard}>
               <View style={styles.arDescLabelRow}>
-                <Ionicons name="document-text" size={15} color={RARITY.color} />
-                <Text style={[styles.loreLabel, { color: RARITY.color }]}>DESCRIPTION</Text>
+                <Ionicons name="document-text" size={15} color={onWhite(RARITY.color)} />
+                <Text style={[styles.loreLabel, { color: onWhite(RARITY.color) }]}>DESCRIPTION</Text>
               </View>
               <Text style={styles.loreBody}>
                 {icon?.about || icon?.description || 'No description available for this artwork.'}
               </Text>
-            </View>
+            </VintaCard>
           </View>
         ) : (
           /* ── Catch: 4-tab lore system ── */
@@ -309,7 +312,7 @@ export default function CatchDetailsScreen({ route, navigation }) {
                     <Ionicons
                       name={tab.icon}
                       size={14}
-                      color={isActive ? '#FFF' : 'rgba(255,255,255,0.4)'}
+                      color={isActive ? '#FFF' : 'rgba(255,255,255,0.7)'}
                       style={{ marginRight: 5 }}
                     />
                     <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
@@ -321,20 +324,20 @@ export default function CatchDetailsScreen({ route, navigation }) {
               })}
             </ScrollView>
 
-            <Animated.View style={[styles.loreCard, { transform: [{ scale: tabScale }] }]}>
-              <View style={styles.loreCornerTL} />
-              <View style={styles.loreCornerBR} />
+            <Animated.View style={[styles.loreWrap, { transform: [{ scale: tabScale }] }]}>
+              <VintaCard contentStyle={styles.loreCard}>
               <View style={styles.loreLabelRow}>
                 <Ionicons
                   name={TABS.find(t => t.key === activeTab)?.icon}
                   size={15}
-                  color={RARITY.color}
+                  color={onWhite(RARITY.color)}
                 />
-                <Text style={[styles.loreLabel, { color: RARITY.color }]}>
+                <Text style={[styles.loreLabel, { color: onWhite(RARITY.color) }]}>
                   {TABS.find(t => t.key === activeTab)?.label?.toUpperCase()}
                 </Text>
               </View>
               <Text style={styles.loreBody}>{tabContent}</Text>
+              </VintaCard>
             </Animated.View>
           </View>
         )}
@@ -343,39 +346,39 @@ export default function CatchDetailsScreen({ route, navigation }) {
         {isAR ? (
           /* AR: dynamic rarity + building/slot */
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, { flex: 1 }]}>
-              <Ionicons name={RARITY.icon || 'ribbon'} size={18} color={RARITY.color} />
-              <Text style={[styles.statValue, { color: RARITY.color }]}>{RARITY.label}</Text>
+            <VintaCard style={styles.statFrame} contentStyle={styles.statCard}>
+              <Ionicons name={RARITY.icon || 'ribbon'} size={18} color={onWhite(RARITY.color)} />
+              <Text style={[styles.statValue, { color: onWhite(RARITY.color) }]}>{RARITY.label}</Text>
               <Text style={styles.statLabel}>Rarity</Text>
-            </View>
-            <View style={[styles.statCard, styles.statCardCenter, { flex: 1 }]}>
+            </VintaCard>
+            <VintaCard style={styles.statFrame} contentStyle={styles.statCard}>
               <Ionicons name="business" size={18} color={COLORS.accent} />
               <Text style={styles.statValue}>
                 {icon?.building || 'S1'} · #{icon?.slot_number || 1}
               </Text>
               <Text style={styles.statLabel}>Building · Slot</Text>
-            </View>
+            </VintaCard>
           </View>
         ) : (
           /* Catch: original static stats */
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, { flex: 1 }]}>
-              <Ionicons name="ribbon" size={18} color={COLORS.gold} />
+            <VintaCard style={styles.statFrame} contentStyle={styles.statCard}>
+              <Ionicons name="ribbon" size={18} color={GOLD_TEXT} />
               <Text style={styles.statValue}>{RARITY.label}</Text>
               <Text style={styles.statLabel}>Rarity</Text>
-            </View>
-            <View style={[styles.statCard, styles.statCardCenter, { flex: 1 }]}>
-              <Ionicons name="checkmark-circle" size={18} color={COLORS.teal} />
+            </VintaCard>
+            <VintaCard style={styles.statFrame} contentStyle={styles.statCard}>
+              <Ionicons name="checkmark-circle" size={18} color="#059669" />
               <Text style={styles.statValue}>Collected</Text>
               <Text style={styles.statLabel}>Status</Text>
-            </View>
+            </VintaCard>
           </View>
         )}
 
         {/* ── FOOTER CTA ── */}
         {isAR ? (
           <TouchableOpacity
-            style={[styles.ctaBtn, { backgroundColor: '#10B981', shadowColor: '#10B981' }]}
+            style={styles.ctaBtn}
             activeOpacity={0.85}
             onPress={() => navigation.goBack()}
           >
@@ -416,7 +419,7 @@ const styles = StyleSheet.create({
   },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4, 10, 38, 0.85)',
+    backgroundColor: BG_OVERLAY,
   },
   root: { flex: 1, backgroundColor: 'transparent' },
   scrollContent: { paddingBottom: 40 },
@@ -473,21 +476,15 @@ const styles = StyleSheet.create({
     width: SCREEN_W - 40,
     height: 260,
     borderRadius: RADIUS.lg,
-    backgroundColor: 'rgba(168,85,247,0.18)',
+    backgroundColor: 'rgba(251,191,36,0.14)',
   },
-  modelCard: {
+  modelFrame: {
     width: SCREEN_W - 40,
     height: 240,
-    borderRadius: RADIUS.lg,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(168,85,247,0.45)',
-    backgroundColor: '#0A0A1A',
-    shadowColor: '#A855F7',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
+  },
+  modelCard: {
+    flex: 1,
+    backgroundColor: '#0F172A',
   },
   webview: { flex: 1, backgroundColor: 'transparent' },
   shimmerBar: {
@@ -514,32 +511,30 @@ const styles = StyleSheet.create({
   modelTagline: {
     fontFamily: FONTS.regular,
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(255,255,255,0.8)',
     textAlign: 'center',
     lineHeight: 18,
     marginBottom: 2,
   },
 
   // ── XP Banner ──
+  xpBannerWrap: {
+    marginHorizontal: 20,
+    marginTop: 16,
+  },
   xpBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(8, 20, 60, 0.65)',
-    borderRadius: RADIUS.md,
-    marginHorizontal: 20,
-    marginTop: 16,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.35)',
     gap: 16,
   },
   xpLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  xpText: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.gold },
-  xpDivider: { width: 1, height: 20, backgroundColor: 'rgba(255,255,255,0.15)' },
+  xpText: { fontFamily: FONTS.bold, fontSize: 14, color: GOLD_TEXT },
+  xpDivider: { width: 1, height: 20, backgroundColor: COLORS.borderLight },
   xpRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  xpCollectedText: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.teal },
+  xpCollectedText: { fontFamily: FONTS.bold, fontSize: 13, color: '#059669' },
 
   // ── Tabs ──
   tabsSection: { marginTop: 24, paddingHorizontal: 20 },
@@ -550,16 +545,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(8, 20, 60, 0.50)',
+    backgroundColor: 'rgba(8, 20, 60, 0.55)',
     borderWidth: 1,
     borderColor: 'rgba(99, 179, 237, 0.18)',
     position: 'relative',
   },
   tabActive: {
-    backgroundColor: 'rgba(26, 86, 219, 0.25)',
-    borderColor: 'rgba(99, 179, 237, 0.55)',
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
   },
-  tabLabel: { fontFamily: FONTS.semiBold, fontSize: 13, color: 'rgba(255,255,255,0.4)' },
+  tabLabel: { fontFamily: FONTS.semiBold, fontSize: 13, color: 'rgba(255,255,255,0.75)' },
   tabLabelActive: { color: '#FFF' },
   tabUnderline: {
     position: 'absolute',
@@ -567,90 +562,45 @@ const styles = StyleSheet.create({
     left: 10,
     right: 10,
     height: 2,
-    backgroundColor: COLORS.accent,
+    backgroundColor: '#FFFFFF',
     borderRadius: 2,
   },
 
   // ── Lore card ──
-  loreCard: {
-    backgroundColor: 'rgba(8, 20, 60, 0.65)',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.25)',
-    padding: 22,
+  loreWrap: {
     marginTop: 14,
-    position: 'relative',
-    overflow: 'hidden',
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 5,
   },
-  loreCornerTL: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 40,
-    height: 40,
-    borderTopWidth: 2,
-    borderLeftWidth: 2,
-    borderColor: 'rgba(99, 179, 237, 0.5)',
-    borderTopLeftRadius: RADIUS.lg,
-  },
-  loreCornerBR: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 40,
-    height: 40,
-    borderBottomWidth: 2,
-    borderRightWidth: 2,
-    borderColor: 'rgba(99, 179, 237, 0.5)',
-    borderBottomRightRadius: RADIUS.lg,
+  loreCard: {
+    padding: 22,
   },
   loreLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 },
-  loreLabel: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.8 },
+  loreLabel: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 1.8 },
 
   // ── AR Description Card (replaces tabs when isAR=true) ──
   arDescCard: {
-    backgroundColor: 'rgba(8, 20, 60, 0.65)',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.25)',
     padding: 22,
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 5,
   },
   arDescLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 },
   loreBody: {
     fontFamily: FONTS.regular,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.85)',
+    color: COLORS.textSub,
     lineHeight: 24,
   },
 
   // ── Stats row ──
   statsRow: { flexDirection: 'row', marginTop: 20, marginHorizontal: 20, gap: 10 },
   statCard: {
-    flex: 1,
-    backgroundColor: 'rgba(8, 20, 60, 0.60)',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.20)',
     alignItems: 'center',
     paddingVertical: 16,
     gap: 6,
   },
-  statCardCenter: {
-    borderColor: 'rgba(251,191,36,0.35)',
-    backgroundColor: 'rgba(251,191,36,0.10)',
+  statFrame: {
+    flex: 1,
+    borderRadius: RADIUS.md,
   },
-  statValue: { fontFamily: FONTS.bold, fontSize: 13, color: '#FFF' },
-  statLabel: { fontFamily: FONTS.regular, fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: 0.5 },
+  statValue: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.navy },
+  statLabel: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textMuted, letterSpacing: 0.5 },
 
   // ── CTA ──
   ctaBtn: {
@@ -683,12 +633,12 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: 'rgba(168,85,247,0.2)',
+    backgroundColor: 'rgba(251,191,36,0.15)',
   },
   noModelText: {
     fontFamily: FONTS.semiBold,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(255,255,255,0.7)',
     marginTop: 8,
   },
 });

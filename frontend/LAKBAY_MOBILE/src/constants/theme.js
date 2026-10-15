@@ -121,3 +121,23 @@ export const FONTS = {
   bold:    'Rajdhani_700Bold',
   black:   'Rajdhani_700Bold',
 };
+
+// ── LAKBAY card concept ─────────────────────────────────────────────
+// White cards framed by a smooth Vinta-color border over a lightly dimmed
+// Vinta photo. Used by VintaCard and every screen background.
+export const VINTA_COLORS = ['#DC2626', '#FBBF24', '#16A34A', '#1A56DB', '#EA580C', '#FFFFFF'];
+export const CARD_BORDER_WIDTH = 3;
+export const BG_OVERLAY = 'rgba(4, 10, 38, 0.55)';
+// Readable "gold" for text on white (plain gold is too faint on white).
+export const GOLD_TEXT = '#B45309';
+
+// Light accent colors that are too faint as text on white cards, mapped to a
+// darker shade of the same hue. Anything else passes through unchanged.
+const DARKER_ON_WHITE = {
+  '#FBBF24': GOLD_TEXT, '#F59E0B': GOLD_TEXT, '#FCD34D': GOLD_TEXT, '#FDE68A': GOLD_TEXT,
+  '#38BDF8': '#0284C7', '#60A5FA': '#2563EB', '#93C5FD': '#2563EB',
+  '#10B981': '#059669', '#34D399': '#059669',
+  '#F472B6': '#DB2777', '#A78BFA': '#7C3AED', '#C4B5FD': '#7C3AED',
+  '#FB923C': '#C2410C', '#FF8C00': '#C2410C',
+};
+export const onWhite = (color) => DARKER_ON_WHITE[String(color || '').toUpperCase()] || color;

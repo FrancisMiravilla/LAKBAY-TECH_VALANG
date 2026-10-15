@@ -5,7 +5,8 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 5000,
+  // The hosted backend (Render free tier) can take 30–60 s to wake up and ~7 s per login.
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
   },

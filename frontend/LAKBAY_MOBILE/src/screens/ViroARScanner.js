@@ -28,7 +28,8 @@ import {
 } from '@reactvision/react-viro';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, FONTS, RADIUS } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, GOLD_TEXT, onWhite } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
 
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
@@ -559,7 +560,7 @@ export default function ViroARScanner({ navigation }) {
         animationType="fade"
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <VintaCard style={styles.modalFrame} contentStyle={styles.modalContent}>
             <Image source={require('../assets/buildings.jpg')} style={styles.modalImage} resizeMode="cover" />
 
             {/* Step dot indicators */}
@@ -577,13 +578,13 @@ export default function ViroARScanner({ navigation }) {
 
             <View style={styles.modalTextContainer}>
               {/* Step label */}
-              <Text style={[styles.stepLabel, { color: instructionSteps[modalStep].iconColor }]}>
+              <Text style={[styles.stepLabel, { color: onWhite(instructionSteps[modalStep].iconColor) }]}>
                 {instructionSteps[modalStep].stepLabel}
               </Text>
 
               {/* Icon */}
               <View style={[styles.stepIconCircle, { backgroundColor: instructionSteps[modalStep].iconBg }]}>
-                <Ionicons name={instructionSteps[modalStep].icon} size={28} color={instructionSteps[modalStep].iconColor} />
+                <Ionicons name={instructionSteps[modalStep].icon} size={28} color={onWhite(instructionSteps[modalStep].iconColor)} />
               </View>
 
               {/* Title */}
@@ -595,7 +596,7 @@ export default function ViroARScanner({ navigation }) {
               {/* Optional note */}
               {instructionSteps[modalStep].note ? (
                 <View style={styles.noteBox}>
-                  <Ionicons name="information-circle" size={16} color={COLORS.gold} style={{ marginRight: 6, marginTop: 1 }} />
+                  <Ionicons name="information-circle" size={16} color={GOLD_TEXT} style={{ marginRight: 6, marginTop: 1 }} />
                   <Text style={styles.noteText}>{instructionSteps[modalStep].note}</Text>
                 </View>
               ) : null}
@@ -607,7 +608,7 @@ export default function ViroARScanner({ navigation }) {
                     style={styles.modalBtnSecondary}
                     onPress={() => setModalStep(modalStep - 1)}
                   >
-                    <Ionicons name="chevron-back" size={16} color="rgba(255,255,255,0.8)" />
+                    <Ionicons name="chevron-back" size={16} color={COLORS.textSub} />
                     <Text style={styles.modalBtnSecondaryText}>Back</Text>
                   </TouchableOpacity>
                 ) : (
@@ -624,7 +625,7 @@ export default function ViroARScanner({ navigation }) {
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity
-                    style={[styles.modalBtn, { backgroundColor: COLORS.teal }]}
+                    style={styles.modalBtn}
                     onPress={() => { setShowInstructionModal(false); setModalStep(0); }}
                   >
                     <Ionicons name="checkmark-circle" size={16} color="#FFF" style={{ marginRight: 4 }} />
@@ -633,7 +634,7 @@ export default function ViroARScanner({ navigation }) {
                 )}
               </View>
             </View>
-          </View>
+          </VintaCard>
         </View>
       </Modal>
 
@@ -713,11 +714,11 @@ export default function ViroARScanner({ navigation }) {
         animationType="slide"
       >
         <View style={styles.hintModalOverlay}>
-          <View style={styles.hintModalContent}>
+          <VintaCard sheet style={styles.hintModalFrame} contentStyle={styles.hintModalContent}>
             <View style={styles.hintModalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <View style={styles.hintModalIcon}>
-                  <Ionicons name="bulb" size={22} color={COLORS.gold} />
+                  <Ionicons name="bulb" size={22} color={GOLD_TEXT} />
                 </View>
                 <View>
                   <Text style={styles.hintModalTitle}>Exhibit Location Clues</Text>
@@ -725,14 +726,14 @@ export default function ViroARScanner({ navigation }) {
                 </View>
               </View>
               <TouchableOpacity onPress={() => setShowHintModal(false)} style={styles.hintModalCloseBtn}>
-                <Ionicons name="close" size={20} color="#FFF" />
+                <Ionicons name="close" size={20} color={COLORS.textSub} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.hintModalScroll} contentContainerStyle={{ paddingBottom: 24 }}>
               {arTargets.length === 0 ? (
                 <View style={{ padding: 30, alignItems: 'center' }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>No AR target exhibits registered for this spot yet.</Text>
+                  <Text style={{ color: COLORS.textMuted, textAlign: 'center', fontFamily: FONTS.regular }}>No AR target exhibits registered for this spot yet.</Text>
                 </View>
               ) : (
                 arTargets.map((t, idx) => {
@@ -741,15 +742,15 @@ export default function ViroARScanner({ navigation }) {
                     <View key={t.id || idx} style={[styles.hintItemCard, { borderColor: rTheme.color + '44' }]}>
                       <View style={styles.hintItemHeader}>
                         <View style={[styles.hintSlotBadge, { backgroundColor: rTheme.bg, borderColor: rTheme.color }]}>
-                          <Text style={[styles.hintSlotText, { color: rTheme.color }]}>Building {t.building || 'S1'} · Slot #{t.slot_number || (idx + 1)}</Text>
+                          <Text style={[styles.hintSlotText, { color: onWhite(rTheme.color) }]}>Building {t.building || 'S1'} · Slot #{t.slot_number || (idx + 1)}</Text>
                         </View>
                         <View style={[styles.hintRarityPill, { backgroundColor: rTheme.color + '22', borderColor: rTheme.color + '66' }]}>
-                          <Text style={[styles.hintRarityText, { color: rTheme.color }]}>{rTheme.label}</Text>
+                          <Text style={[styles.hintRarityText, { color: onWhite(rTheme.color) }]}>{rTheme.label}</Text>
                         </View>
                       </View>
                       <Text style={styles.hintTargetName}>{t.name}</Text>
                       <View style={styles.hintQuoteBox}>
-                        <Ionicons name="compass-outline" size={16} color={COLORS.gold} style={{ marginRight: 6, marginTop: 1 }} />
+                        <Ionicons name="compass-outline" size={16} color={GOLD_TEXT} style={{ marginRight: 6, marginTop: 1 }} />
                         <Text style={styles.hintQuoteText}>{t.hint || 'Explore the room and point your camera at paintings and sculptures.'}</Text>
                       </View>
                     </View>
@@ -757,7 +758,7 @@ export default function ViroARScanner({ navigation }) {
                 })
               )}
             </ScrollView>
-          </View>
+          </VintaCard>
         </View>
       </Modal>
 
@@ -1533,20 +1534,17 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(5, 10, 24, 0.70)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
-  modalContent: {
-    backgroundColor: '#1E293B',
-    borderRadius: RADIUS.lg,
-    alignItems: 'stretch',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+  modalFrame: {
     width: '100%',
-    maxWidth: 320,
-    overflow: 'hidden',
+    maxWidth: 340,
+  },
+  modalContent: {
+    alignItems: 'stretch',
   },
   modalImage: {
     width: '100%',
@@ -1570,7 +1568,7 @@ const styles = StyleSheet.create({
   },
   stepDotInactive: {
     width: 8,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: COLORS.border,
   },
   stepLabel: {
     fontFamily: FONTS.bold,
@@ -1604,13 +1602,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bg,
   },
   modalBtnSecondaryText: {
     fontFamily: FONTS.bold,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: COLORS.textSub,
     marginLeft: 4,
   },
   modalTextContainer: {
@@ -1619,34 +1617,34 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontFamily: FONTS.bold,
-    fontSize: 18,
-    color: '#FFF',
+    fontSize: 20,
+    color: COLORS.navy,
     marginBottom: 10,
     textAlign: 'center',
   },
   modalMessage: {
     fontFamily: FONTS.regular,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.85)',
+    color: COLORS.textSub,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 16,
   },
   noteBox: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(251, 191, 36, 0.1)',
+    backgroundColor: '#FFFBEB',
     padding: 12,
     borderRadius: RADIUS.sm,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.3)',
+    borderColor: 'rgba(251, 191, 36, 0.55)',
     width: '100%',
   },
   noteText: {
     flex: 1,
     fontFamily: FONTS.regular,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
+    color: COLORS.textSub,
     lineHeight: 18,
   },
   modalBtn: {
@@ -1732,18 +1730,16 @@ const styles = StyleSheet.create({
   },
   hintModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    backgroundColor: 'rgba(5, 10, 24, 0.70)',
     justifyContent: 'flex-end',
   },
-  hintModalContent: {
-    backgroundColor: '#0F172A',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderTopWidth: 1.5,
-    borderColor: 'rgba(251, 191, 36, 0.35)',
+  hintModalFrame: {
     maxHeight: '80%',
+  },
+  hintModalContent: {
     paddingTop: 20,
     paddingHorizontal: 20,
+    flexShrink: 1,
   },
   hintModalHeader: {
     flexDirection: 'row',
@@ -1751,33 +1747,35 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: COLORS.borderLight,
     marginBottom: 14,
   },
   hintModalIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    backgroundColor: '#FFFBEB',
     alignItems: 'center',
     justifyContent: 'center',
   },
   hintModalTitle: {
     fontFamily: FONTS.bold,
-    fontSize: 17,
-    color: '#FFF',
+    fontSize: 18,
+    color: COLORS.navy,
   },
   hintModalSub: {
     fontFamily: FONTS.regular,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
+    color: COLORS.textMuted,
     marginTop: 1,
   },
   hintModalCloseBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: COLORS.bg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1791,7 +1789,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   hintItemCard: {
-    backgroundColor: '#1E293B',
+    backgroundColor: COLORS.bgCardAlt,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     padding: 14,
@@ -1828,21 +1826,23 @@ const styles = StyleSheet.create({
   hintTargetName: {
     fontFamily: FONTS.bold,
     fontSize: 15,
-    color: '#FFF',
+    color: COLORS.navy,
     marginBottom: 8,
   },
   hintQuoteBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: '#FFFFFF',
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
     padding: 10,
   },
   hintQuoteText: {
     flex: 1,
     fontFamily: FONTS.regular,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.85)',
+    color: COLORS.textSub,
     fontStyle: 'italic',
     lineHeight: 18,
   },

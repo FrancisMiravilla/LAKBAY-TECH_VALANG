@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  StyleSheet, Text, View, ScrollView, TouchableOpacity,
-  StatusBar, ActivityIndicator, Alert, Image, Animated, Easing, ImageBackground,
+  StyleSheet, Text, View, ScrollView, TouchableOpacity, StatusBar, ActivityIndicator, Image, Animated, Easing, ImageBackground,
 } from 'react-native';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT, onWhite } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import * as SecureStore from 'expo-secure-store';
@@ -12,7 +12,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { authService } from '../api/authService';
 import { getMyScans, getSpots, getARTargets } from '../api/qrService';
 import VintaStripe from '../components/VintaStripe';
+import { useTabBarSpace } from '../navigation/tabBarLayout';
 
+import { useAppDialog } from '../components/useAppDialog';
 // ─── Rank helpers ─────────────────────────────────────────────────────────────
 const getRank = (xp) => {
   if (xp >= 2201) return { title: 'Admiral of the Western Seas', icon: '👑', color: '#FF6B00', glow: 'rgba(255,107,0,0.35)' };
@@ -110,7 +112,7 @@ function StatPill({ icon, value, label, color }) {
       <View style={[statStyles.iconWrap, { backgroundColor: color + '18', borderColor: color + '40' }]}>
         <Text style={statStyles.icon}>{icon}</Text>
       </View>
-      <Text style={[statStyles.value, { color }]}>{value}</Text>
+      <Text style={[statStyles.value, { color: onWhite(color) }]}>{value}</Text>
       <Text style={statStyles.label}>{label}</Text>
     </View>
   );
@@ -119,8 +121,8 @@ const statStyles = StyleSheet.create({
   pill:     { flex: 1, alignItems: 'center', gap: 5 },
   iconWrap: { width: 34, height: 34, borderRadius: 10, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
   icon:     { fontSize: 15 },
-  value:    { fontFamily: FONTS.pixel, fontSize: 11, color: '#FFFFFF', lineHeight: 15 },
-  label:    { fontFamily: FONTS.pixel, fontSize: 6.5, color: 'rgba(191,215,255,0.70)', letterSpacing: 0.2, textAlign: 'center', lineHeight: 10, minHeight: 20 },
+  value:    { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.navy, lineHeight: 19 },
+  label:    { fontFamily: FONTS.semiBold, fontSize: 11, color: COLORS.textMuted, letterSpacing: 0.2, textAlign: 'center', lineHeight: 13, minHeight: 26 },
 });
 
 // ─── Menu Item ────────────────────────────────────────────────────────────────
@@ -151,7 +153,7 @@ function MenuItem({ item, onPress }) {
           </View>
         )}
         <View style={[menuStyles.chevronBox, isDestructive && menuStyles.chevronBoxDestructive]}>
-          <Ionicons name="chevron-forward" size={14} color={item.color || 'rgba(191,215,255,0.7)'} />
+          <Ionicons name="chevron-forward" size={14} color={item.color || COLORS.textMuted} />
         </View>
       </Animated.View>
     </TouchableOpacity>
@@ -160,30 +162,28 @@ function MenuItem({ item, onPress }) {
 const menuStyles = StyleSheet.create({
   row: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#08143C',
-    padding: 16, borderRadius: RADIUS.md,
-    borderWidth: 1, borderColor: '#1E3A8A',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16, paddingVertical: 14,
   },
-  rowDestructive: { borderColor: 'rgba(239,68,68,0.40)', backgroundColor: 'rgba(239,68,68,0.15)' },
+  rowDestructive: { backgroundColor: '#FEF2F2' },
   iconBox: {
     width: 38, height: 38, borderRadius: 10,
     borderWidth: 1, justifyContent: 'center', alignItems: 'center', marginRight: 14,
   },
   icon:  { fontSize: 18 },
-  label: { flex: 1, fontFamily: FONTS.pixel, fontSize: 10, color: '#FFFFFF', lineHeight: 16 },
+  label: { flex: 1, fontFamily: FONTS.bold, fontSize: 15, color: COLORS.navy, lineHeight: 18 },
   badge: {
     backgroundColor: COLORS.accent, borderRadius: RADIUS.pill,
     paddingHorizontal: 8, paddingVertical: 2, marginRight: 10,
   },
-  badgeText: { fontFamily: FONTS.pixel, fontSize: 8, color: '#fff', lineHeight: 12 },
+  badgeText: { fontFamily: FONTS.bold, fontSize: 11, color: '#fff', lineHeight: 14 },
   chevronBox: {
     width: 26, height: 26, borderRadius: 13,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1, borderColor: '#1E3A8A',
+    backgroundColor: COLORS.bg,
+    borderWidth: 1, borderColor: COLORS.borderLight,
     justifyContent: 'center', alignItems: 'center',
   },
-  chevronBoxDestructive: { backgroundColor: 'rgba(239,68,68,0.20)', borderColor: 'rgba(239,68,68,0.40)' },
+  chevronBoxDestructive: { backgroundColor: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.35)' },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -196,6 +196,8 @@ const MENU_OPTIONS = [
 ];
 
 export default function ProfileScreen({ navigation }) {
+  const { dialog, showAlert } = useAppDialog();
+  const tabBarSpace = useTabBarSpace();
   const [profile,         setProfile]        = useState(null);
   const [scans,           setScans]          = useState([]);
   const [totalSpots,      setTotalSpots]     = useState(12);
@@ -275,7 +277,7 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleLogout = () => {
-    Alert.alert(
+    showAlert(
       'Sign Out',
       'Are you sure you want to sign out?',
       [
@@ -297,7 +299,7 @@ export default function ProfileScreen({ navigation }) {
           },
         },
       ],
-      { cancelable: true }
+      'error',
     );
   };
 
@@ -327,7 +329,7 @@ export default function ProfileScreen({ navigation }) {
     >
       <View style={styles.bgOverlay} />
 
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
         {/* ── Header ── */}
@@ -346,7 +348,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
         <VintaStripe height={3} />
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scroll, { paddingBottom: tabBarSpace }]}>
 
           {loading ? (
             <View style={{ paddingTop: 60, alignItems: 'center', gap: 12 }}>
@@ -357,9 +359,7 @@ export default function ProfileScreen({ navigation }) {
             <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
 
               {/* ── Hero Card ── */}
-              <View style={styles.heroCard}>
-                {/* Background XP glow blob */}
-                <View style={[styles.heroBlobBg, { backgroundColor: rank.glow }]} />
+              <VintaCard style={styles.heroFrame} contentStyle={styles.heroCard}>
 
                 {/* Avatar + XP Ring */}
                 <View style={styles.avatarWrapper}>
@@ -385,7 +385,7 @@ export default function ProfileScreen({ navigation }) {
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
                   <View style={[styles.rankPill, { borderColor: rank.color + '66', backgroundColor: rank.color + '22' }]}>
-                    <Text style={[styles.rankPillText, { color: rank.color }]}>{rank.icon}  {rank.title}</Text>
+                    <Text style={[styles.rankPillText, { color: onWhite(rank.color) }]}>{rank.icon}  {rank.title}</Text>
                   </View>
                   <View style={styles.levelPill}>
                     <Text style={styles.levelPillText}>LVL {level}</Text>
@@ -427,14 +427,15 @@ export default function ProfileScreen({ navigation }) {
                   <View style={styles.statDivider} />
                   <StatPill icon="⚡" value={xp.toLocaleString()}     label="Total XP"      color={COLORS.gold}   />
                 </View>
-              </View>
+              </VintaCard>
 
               {/* ── Achievement Teaser ── */}
               <TouchableOpacity
-                style={styles.achievementTeaser}
+                style={styles.achievementTouch}
                 onPress={() => navigation.navigate('Badges')}
                 activeOpacity={0.85}
               >
+                <VintaCard contentStyle={styles.achievementTeaser}>
                 <View style={styles.achievementLeft}>
                   <Text style={styles.achievementEmoji}>🏆</Text>
                   <View style={{ flex: 1 }}>
@@ -443,29 +444,30 @@ export default function ProfileScreen({ navigation }) {
                   </View>
                 </View>
                 <View style={styles.achievementChevron}>
-                  <Ionicons name="chevron-forward" size={15} color={COLORS.gold} />
+                  <Ionicons name="chevron-forward" size={15} color={GOLD_TEXT} />
                 </View>
+                </VintaCard>
               </TouchableOpacity>
 
               {/* ── Menu ── */}
               <View style={styles.menuSection}>
                 <Text style={styles.menuSectionTitle}>ACCOUNT &amp; SETTINGS</Text>
-                <View style={styles.menuGroup}>
+                <VintaCard contentStyle={styles.menuGroup}>
                   {MENU_OPTIONS.map((item, i) => (
                     <React.Fragment key={item.id}>
                       <MenuItem item={item} onPress={() => handleMenuPress(item.id)} />
                       {i < MENU_OPTIONS.length - 1 && <View style={styles.menuSpacer} />}
                     </React.Fragment>
                   ))}
-                </View>
+                </VintaCard>
 
                 {/* Log out */}
-                <View style={{ marginTop: 12 }}>
+                <VintaCard style={{ marginTop: 12 }}>
                   <MenuItem
                     item={{ id: 'logout', icon: '🚪', label: 'Log Out', color: '#EF4444' }}
                     onPress={handleLogout}
                   />
-                </View>
+                </VintaCard>
               </View>
 
               {/* Version / branding footer */}
@@ -477,8 +479,8 @@ export default function ProfileScreen({ navigation }) {
             </Animated.View>
           )}
 
-          <View style={{ height: 40 }} />
         </ScrollView>
+        {dialog}
       </SafeAreaView>
     </ImageBackground>
   );
@@ -493,7 +495,7 @@ const styles = StyleSheet.create({
   },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4, 10, 38, 0.85)',
+    backgroundColor: BG_OVERLAY,
   },
   container: { flex: 1, backgroundColor: 'transparent' },
 
@@ -509,19 +511,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   headerTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 11,
+    fontFamily: FONTS.bold,
+    fontSize: 20,
     color: '#FFFFFF',
     letterSpacing: 2,
-    lineHeight: 18,
+    lineHeight: 22,
   },
   headerSub: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7,
+    fontFamily: FONTS.semiBold,
+    fontSize: 11,
     color: 'rgba(191,215,255,0.70)',
-    letterSpacing: 1,
+    letterSpacing: 1.5,
     marginTop: 2,
-    lineHeight: 11,
+    lineHeight: 14,
   },
   headerBtn: {
     width: 38, height: 38, borderRadius: 19,
@@ -533,24 +535,14 @@ const styles = StyleSheet.create({
   scroll: { paddingBottom: 20 },
 
   // Hero Card
+  heroFrame: {
+    marginHorizontal: 16,
+    marginTop: 18,
+  },
   heroCard: {
-    backgroundColor: '#08143C',
-    marginHorizontal: 16, marginTop: 18,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1, borderColor: '#1E3A8A',
     paddingBottom: 22,
     paddingTop: 24,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  heroBlobBg: {
-    position: 'absolute',
-    top: -40, width: 300, height: 300, borderRadius: 150,
-    opacity: 0,
   },
 
   // Avatar
@@ -567,8 +559,8 @@ const styles = StyleSheet.create({
   avatarImgClip: {
     width: 110, height: 110, borderRadius: 55,
     overflow: 'hidden',
-    borderWidth: 3, borderColor: '#1E3A8A',
-    backgroundColor: '#0C2054',
+    borderWidth: 3, borderColor: COLORS.border,
+    backgroundColor: COLORS.bg,
   },
   rankBadge: {
     position: 'absolute', bottom: 2, right: 2,
@@ -579,22 +571,22 @@ const styles = StyleSheet.create({
 
   // Name / rank
   userName: {
-    fontFamily: FONTS.pixel, fontSize: 13,
-    color: '#FFFFFF', letterSpacing: 0.5,
-    marginBottom: 8, lineHeight: 20,
+    fontFamily: FONTS.bold, fontSize: 22,
+    color: COLORS.navy, letterSpacing: 0.5,
+    marginBottom: 8, lineHeight: 26,
     textAlign: 'center',
   },
   rankPill: {
     borderWidth: 1, borderRadius: RADIUS.pill,
     paddingHorizontal: 12, paddingVertical: 4,
   },
-  rankPillText: { fontFamily: FONTS.pixel, fontSize: 8, letterSpacing: 0.5, lineHeight: 12 },
+  rankPillText: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 0.5, lineHeight: 15 },
   levelPill: {
     backgroundColor: COLORS.accent,
     borderRadius: RADIUS.pill,
     paddingHorizontal: 10, paddingVertical: 4,
   },
-  levelPillText: { fontFamily: FONTS.pixel, fontSize: 8, color: '#fff', letterSpacing: 0.5, lineHeight: 12 },
+  levelPillText: { fontFamily: FONTS.bold, fontSize: 12, color: '#fff', letterSpacing: 0.5, lineHeight: 15 },
 
   // Explorer tag
   explorerTag: {
@@ -605,35 +597,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 6,
   },
   explorerTagText: {
-    fontFamily: FONTS.pixel, fontSize: 8,
-    color: COLORS.gold, letterSpacing: 1, lineHeight: 12,
+    fontFamily: FONTS.bold, fontSize: 13,
+    color: GOLD_TEXT, letterSpacing: 1, lineHeight: 16,
   },
 
   // Companion chip
   companionChip: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginTop: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: COLORS.bg,
     borderRadius: RADIUS.pill,
-    borderWidth: 1, borderColor: '#1E3A8A',
+    borderWidth: 1, borderColor: COLORS.border,
     paddingHorizontal: 12, paddingVertical: 6,
   },
   companionImgClip: {
     width: 22, height: 22, borderRadius: 11,
-    overflow: 'hidden', borderWidth: 1, borderColor: '#1E3A8A',
+    overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border,
   },
-  companionText: { fontFamily: FONTS.pixel, fontSize: 8, color: 'rgba(191,215,255,0.85)', lineHeight: 12 },
+  companionText: { fontFamily: FONTS.semiBold, fontSize: 12, color: COLORS.textSub, lineHeight: 15 },
 
   // XP bar
   xpBarSection: { width: '88%', marginTop: 16, gap: 6 },
   xpBarRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
-  xpBarLabel: { fontFamily: FONTS.pixel, fontSize: 8, color: 'rgba(191,215,255,0.75)', lineHeight: 12 },
+  xpBarLabel: { fontFamily: FONTS.semiBold, fontSize: 12, color: COLORS.textSub, lineHeight: 15 },
   xpBarBg: {
-    height: 10, backgroundColor: 'rgba(255,255,255,0.08)',
+    height: 10, backgroundColor: 'rgba(15,23,42,0.08)',
     borderRadius: 5, overflow: 'hidden',
-    borderWidth: 1, borderColor: '#1E3A8A',
+    borderWidth: 1, borderColor: COLORS.borderLight,
   },
   xpBarFill: {
     height: '100%', borderRadius: 5,
@@ -649,34 +641,27 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row', width: '96%',
     marginTop: 18, paddingTop: 16,
-    borderTopWidth: 1, borderTopColor: '#1E3A8A',
+    borderTopWidth: 1, borderTopColor: COLORS.borderLight,
     alignItems: 'center',
   },
   statDivider: {
     width: 1, height: 30,
-    backgroundColor: '#1E3A8A',
+    backgroundColor: COLORS.borderLight,
     marginHorizontal: 3,
   },
 
   // Achievement teaser
-  achievementTeaser: {
+  achievementTouch: {
     marginHorizontal: 16, marginTop: 14,
-    backgroundColor: '#08143C',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.40)',
+  },
+  achievementTeaser: {
     padding: 14,
     flexDirection: 'row', alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
   },
   achievementLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   achievementEmoji: { fontSize: 28 },
-  achievementTitle: { fontFamily: FONTS.pixel, fontSize: 9, color: '#FFFFFF', letterSpacing: 0.3, lineHeight: 15 },
-  achievementSub:   { fontFamily: FONTS.pixel, fontSize: 7, color: 'rgba(191,215,255,0.70)', marginTop: 4, lineHeight: 11 },
+  achievementTitle: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.navy, letterSpacing: 0.3, lineHeight: 18 },
+  achievementSub:   { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMuted, marginTop: 2, lineHeight: 15 },
   achievementChevron: {
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: 'rgba(251, 191, 36, 0.15)',
@@ -687,15 +672,15 @@ const styles = StyleSheet.create({
   // Menu
   menuSection: { paddingHorizontal: 16, marginTop: 18 },
   menuSectionTitle: {
-    fontFamily: FONTS.pixel, fontSize: 8,
+    fontFamily: FONTS.bold, fontSize: 12,
     color: COLORS.teal, letterSpacing: 1.5,
-    textTransform: 'uppercase', marginBottom: 10, lineHeight: 12,
+    textTransform: 'uppercase', marginBottom: 10, lineHeight: 15,
   },
-  menuGroup: { gap: 8 },
-  menuSpacer: { height: 0 },
+  menuGroup: {},
+  menuSpacer: { height: 1, backgroundColor: COLORS.borderLight, marginHorizontal: 16 },
 
   // Footer
   footer: { alignItems: 'center', marginTop: 24, gap: 3 },
-  footerLogo: { fontFamily: FONTS.pixel, fontSize: 9, color: '#94A3B8', letterSpacing: 2 },
-  footerVersion: { fontFamily: FONTS.pixel, fontSize: 7, color: '#CBD5E1', lineHeight: 11 },
+  footerLogo: { fontFamily: FONTS.bold, fontSize: 15, color: 'rgba(255,255,255,0.85)', letterSpacing: 2 },
+  footerVersion: { fontFamily: FONTS.semiBold, fontSize: 11, color: 'rgba(255,255,255,0.65)', lineHeight: 14 },
 });

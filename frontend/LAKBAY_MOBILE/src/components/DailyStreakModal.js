@@ -9,7 +9,8 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW, GOLD_TEXT } from '../constants/theme';
+import VintaCard from './VintaCard';
 import VintaStripe from './VintaStripe';
 
 export default function DailyStreakModal({
@@ -31,9 +32,7 @@ export default function DailyStreakModal({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.card}>
-          {/* Top accent bar */}
-          <View style={styles.topBar} />
+        <VintaCard style={styles.cardFrame} contentStyle={styles.card}>
 
           {/* Close button */}
           <TouchableOpacity
@@ -41,12 +40,12 @@ export default function DailyStreakModal({
             onPress={onClose}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Ionicons name="close" size={20} color="#FFFFFF" />
+            <Ionicons name="close" size={20} color={COLORS.textSub} />
           </TouchableOpacity>
 
           {/* Flame Badge */}
           <View style={styles.flameCircle}>
-            <Ionicons name="flame" size={44} color="#FBBF24" />
+            <Ionicons name="flame" size={44} color="#F59E0B" />
           </View>
 
           {/* Header Title */}
@@ -83,7 +82,7 @@ export default function DailyStreakModal({
                       <Ionicons
                         name={isPassed ? 'checkmark' : isCurrent ? 'flame' : 'radio-button-off'}
                         size={isCurrent ? 16 : 12}
-                        color={isCurrent ? '#FBBF24' : isPassed ? '#10B981' : 'rgba(191,215,255,0.3)'}
+                        color={isCurrent ? GOLD_TEXT : isPassed ? '#059669' : COLORS.textFaint}
                       />
                     </View>
                     <Text
@@ -104,9 +103,9 @@ export default function DailyStreakModal({
           {/* ── Reward Box ── */}
           <View style={styles.rewardCard}>
             <View style={styles.rewardLeft}>
-              <Ionicons name="sparkles" size={20} color="#FBBF24" />
+              <Ionicons name="sparkles" size={20} color={GOLD_TEXT} />
               <View>
-                <Text style={styles.rewardTitle}>TODAY'S REWARD</Text>
+                <Text style={styles.rewardTitle}>TODAY’S REWARD</Text>
                 <Text style={styles.rewardSub}>Daily Login Bonus</Text>
               </View>
             </View>
@@ -118,7 +117,7 @@ export default function DailyStreakModal({
           {/* ── Action Buttons ── */}
           {claimed ? (
             <TouchableOpacity style={styles.doneBtn} onPress={onClose} activeOpacity={0.85}>
-              <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+              <Ionicons name="checkmark-circle" size={18} color="#059669" />
               <Text style={styles.doneBtnText}>Claimed for Today!</Text>
             </TouchableOpacity>
           ) : (
@@ -138,7 +137,7 @@ export default function DailyStreakModal({
               )}
             </TouchableOpacity>
           )}
-        </View>
+        </VintaCard>
       </View>
     </Modal>
   );
@@ -147,37 +146,20 @@ export default function DailyStreakModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(2, 6, 23, 0.88)',
+    backgroundColor: 'rgba(2, 6, 23, 0.70)',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
   },
-  card: {
+  cardFrame: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: 'rgba(6, 14, 42, 0.98)',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: 'rgba(251, 191, 36, 0.50)',
+  },
+  card: {
     paddingHorizontal: 22,
     paddingTop: 24,
     paddingBottom: 22,
     alignItems: 'center',
-    shadowColor: COLORS.gold,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45,
-    shadowRadius: 24,
-    elevation: 20,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    backgroundColor: COLORS.gold,
   },
   closeBtn: {
     position: 'absolute',
@@ -186,18 +168,18 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    backgroundColor: COLORS.bg,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.20)',
+    borderColor: COLORS.border,
     zIndex: 10,
   },
   flameCircle: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: 'rgba(251, 191, 36, 0.18)',
+    backgroundColor: '#FFFBEB',
     borderWidth: 2,
     borderColor: 'rgba(251, 191, 36, 0.7)',
     justifyContent: 'center',
@@ -205,24 +187,21 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     shadowColor: '#FBBF24',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
+    shadowOpacity: 0.25,
     shadowRadius: 12,
   },
   title: {
-    fontFamily: FONTS.pixel,
-    fontSize: 14,
-    color: '#FFFFFF',
-    letterSpacing: 1.5,
+    fontFamily: FONTS.bold,
+    fontSize: 22,
+    color: COLORS.navy,
+    letterSpacing: 1,
     textAlign: 'center',
     marginBottom: 4,
-    textShadowColor: 'rgba(251, 191, 36, 0.5)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
   },
   subtitle: {
     fontFamily: FONTS.medium,
     fontSize: 13,
-    color: '#E2E8F0',
+    color: COLORS.textSub,
     textAlign: 'center',
     lineHeight: 19,
     marginBottom: 16,
@@ -231,10 +210,10 @@ const styles = StyleSheet.create({
   // ── 7-Day Tracker ──
   trackerContainer: {
     width: '100%',
-    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+    backgroundColor: COLORS.bg,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.35)',
+    borderColor: COLORS.borderLight,
     paddingVertical: 12,
     paddingHorizontal: 10,
     marginBottom: 14,
@@ -242,8 +221,8 @@ const styles = StyleSheet.create({
   },
   trackerLabel: {
     fontFamily: FONTS.bold,
-    fontSize: 9,
-    color: COLORS.gold,
+    fontSize: 11,
+    color: GOLD_TEXT,
     letterSpacing: 1.5,
     marginBottom: 10,
   },
@@ -260,37 +239,37 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderColor: COLORS.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   dayDotPassed: {
-    backgroundColor: 'rgba(16, 185, 129, 0.22)',
+    backgroundColor: '#ECFDF5',
     borderColor: '#10B981',
   },
   dayDotCurrent: {
-    backgroundColor: 'rgba(251, 191, 36, 0.28)',
-    borderColor: '#FBBF24',
+    backgroundColor: '#FFFBEB',
+    borderColor: '#F59E0B',
     transform: [{ scale: 1.08 }],
     shadowColor: '#FBBF24',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
+    shadowOpacity: 0.3,
     shadowRadius: 6,
   },
   dayText: {
     fontFamily: FONTS.medium,
-    fontSize: 9,
-    color: '#94A3B8',
+    fontSize: 10,
+    color: COLORS.textMuted,
   },
   dayTextPassed: {
-    color: '#34D399',
+    color: '#059669',
     fontFamily: FONTS.semiBold,
   },
   dayTextCurrent: {
     fontFamily: FONTS.bold,
-    color: '#FBBF24',
+    color: GOLD_TEXT,
   },
 
   // ── Reward Card ──
@@ -299,10 +278,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    backgroundColor: '#FFFBEB',
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.45)',
+    borderColor: 'rgba(251, 191, 36, 0.55)',
     paddingHorizontal: 14,
     paddingVertical: 10,
     marginBottom: 16,
@@ -314,14 +293,14 @@ const styles = StyleSheet.create({
   },
   rewardTitle: {
     fontFamily: FONTS.bold,
-    fontSize: 11,
-    color: '#FBBF24',
+    fontSize: 12,
+    color: GOLD_TEXT,
     letterSpacing: 0.8,
   },
   rewardSub: {
     fontFamily: FONTS.medium,
     fontSize: 11,
-    color: '#E2E8F0',
+    color: COLORS.textSub,
   },
   xpChip: {
     backgroundColor: '#FBBF24',
@@ -330,8 +309,8 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   xpChipText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 10,
+    fontFamily: FONTS.bold,
+    fontSize: 14,
     color: '#0C2461',
     letterSpacing: 0.5,
   },
@@ -367,7 +346,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 48,
     borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(16, 185, 129, 0.20)',
+    backgroundColor: '#ECFDF5',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -378,7 +357,7 @@ const styles = StyleSheet.create({
   doneBtnText: {
     fontFamily: FONTS.bold,
     fontSize: 13,
-    color: '#34D399',
+    color: '#059669',
     letterSpacing: 0.8,
   },
 });

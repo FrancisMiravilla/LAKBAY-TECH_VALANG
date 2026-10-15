@@ -4,11 +4,13 @@ import {
   StyleSheet, Text, View, ScrollView, TouchableOpacity,
   StatusBar, Animated, Image, ImageBackground, Dimensions,
 } from 'react-native';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT, onWhite } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
 import { Ionicons } from '@expo/vector-icons';
 import CustomModal from '../components/CustomModal';
 import DailyStreakModal from '../components/DailyStreakModal';
 import VintaStripe from '../components/VintaStripe';
+import { useTabBarSpace } from '../navigation/tabBarLayout';
 import OnboardingTour from '../components/OnboardingTour';
 import { WebView } from 'react-native-webview';
 import { useApp } from '../context/AppContext';
@@ -114,6 +116,7 @@ const TOUR_STEPS = [
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function HomeScreen({ navigation, route }) {
+  const tabBarSpace = useTabBarSpace();
   const [heroFade]  = useState(() => new Animated.Value(0));
   const [heroSlide] = useState(() => new Animated.Value(24));
   const [modalVisible, setModalVisible] = useState(false);
@@ -268,7 +271,7 @@ export default function HomeScreen({ navigation, route }) {
       {/* Dark overlay for readability */}
       <View style={styles.bgOverlay} />
 
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
         {/* ── Header ── */}
@@ -295,17 +298,14 @@ export default function HomeScreen({ navigation, route }) {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[styles.scroll, { paddingBottom: tabBarSpace }]}
         >
 
           {/* ── Hero Banner ── */}
           <Animated.View
             style={[styles.heroBanner, { opacity: heroFade, transform: [{ translateY: heroSlide }] }]}
           >
-            <View style={styles.heroGlass}>
-              {/* Decorative glow orbs */}
-              <View style={styles.heroOrb1} />
-              <View style={styles.heroOrb2} />
+            <VintaCard contentStyle={styles.heroGlass}>
 
               <View style={styles.heroContent}>
                 <View style={styles.heroEyebrowRow}>
@@ -327,7 +327,7 @@ export default function HomeScreen({ navigation, route }) {
                   ].map((p) => (
                     <View key={p.label} style={[styles.pill, { borderColor: p.color + '55', backgroundColor: p.color + '18' }]}>
                       <Text style={styles.pillIcon}>{p.icon}</Text>
-                      <Text style={[styles.pillText, { color: p.color }]}>{p.label}</Text>
+                      <Text style={[styles.pillText, { color: onWhite(p.color) }]}>{p.label}</Text>
                     </View>
                   ))}
                 </View>
@@ -335,13 +335,13 @@ export default function HomeScreen({ navigation, route }) {
 
               {/* Bottom XP tease strip */}
               <View style={styles.heroXpStrip}>
-                <Ionicons name="flash" size={13} color={COLORS.gold} />
+                <Ionicons name="flash" size={13} color={GOLD_TEXT} />
                 <Text style={styles.heroXpText}>Earn XP by exploring real-world cultural sites</Text>
                 <View style={styles.heroXpBadge}>
                   <Text style={styles.heroXpBadgeText}>START →</Text>
                 </View>
               </View>
-            </View>
+            </VintaCard>
           </Animated.View>
 
           {/* ── Quick Access ── */}
@@ -358,12 +358,11 @@ export default function HomeScreen({ navigation, route }) {
               {QA_CARDS.map((qa) => (
                 <TouchableOpacity
                   key={qa.badge}
-                  style={[styles.qaCard, { borderColor: qa.color + '44' }]}
+                  style={styles.qaTouch}
                   activeOpacity={0.82}
                   onPress={() => { setSelectedQa(qa); setModalVisible(true); }}
                 >
-                  {/* Top glow */}
-                  <View style={[styles.qaGlow, { backgroundColor: qa.color + '25' }]} />
+                  <VintaCard style={styles.qaFrame} contentStyle={styles.qaCard}>
 
                   <View style={styles.qaIconWrap}>
                     <View style={[styles.qaIconCircle, { backgroundColor: qa.color + '22', borderColor: qa.color + '55' }]}>
@@ -372,15 +371,16 @@ export default function HomeScreen({ navigation, route }) {
                   </View>
 
                   <View style={[styles.qaBadgePill, { backgroundColor: qa.color + '22', borderColor: qa.color + '55' }]}>
-                    <Text style={[styles.qaBadge, { color: qa.color }]}>{qa.badge}</Text>
+                    <Text style={[styles.qaBadge, { color: onWhite(qa.color) }]}>{qa.badge}</Text>
                   </View>
 
                   <Text style={styles.qaTitle}>{qa.title}</Text>
                   <View style={[styles.qaAccentLine, { backgroundColor: qa.color }]} />
 
                   <View style={[styles.qaArrow, { backgroundColor: qa.color + '18', borderColor: qa.color + '44' }]}>
-                    <Ionicons name="arrow-forward" size={10} color={qa.color} />
+                    <Ionicons name="arrow-forward" size={10} color={onWhite(qa.color)} />
                   </View>
+                  </VintaCard>
                 </TouchableOpacity>
               ))}
             </View>
@@ -405,10 +405,11 @@ export default function HomeScreen({ navigation, route }) {
 
             <TouchableOpacity
               ref={mapCardRef}
-              style={styles.mapCard}
+              style={styles.mapTouch}
               activeOpacity={0.92}
               onPress={() => navigation.navigate('Map')}
             >
+              <VintaCard style={styles.mapFrame} contentStyle={styles.mapCard}>
               <WebView
                 source={{ html: buildMiniMapHTML(spots, userLevel), baseUrl: 'https://localhost' }}
                 style={styles.map}
@@ -462,21 +463,19 @@ export default function HomeScreen({ navigation, route }) {
                 <Text style={styles.mapTapText}>OPEN WORLD MAP</Text>
                 <Ionicons name="arrow-forward" size={14} color="#FFF" />
               </View>
+              </VintaCard>
             </TouchableOpacity>
           </View>
 
           {/* ── Welcome Zamboanga Banner ── */}
           <View style={styles.section}>
-            <View style={styles.welcomeGlass}>
-              {/* Background pattern orbs */}
-              <View style={styles.welcomeOrb1} />
-              <View style={styles.welcomeOrb2} />
+            <VintaCard style={styles.welcomeFrame} contentStyle={styles.welcomeGlass}>
 
               <View style={styles.welcomeContent}>
                 <Text style={styles.welcomeEyebrow}>✦  BIENVENIDOS A  ✦</Text>
                 <Text style={styles.welcomeCity}>ZAMBOANGA CITY</Text>
                 <Text style={styles.welcomeTagline}>
-                  "Asia's Latin City" — where Spanish roots, Islamic heritage, and indigenous Chavacano culture weave into one unforgettable experience.
+                  &ldquo;Asia&apos;s Latin City&rdquo; — where Spanish roots, Islamic heritage, and indigenous Chavacano culture weave into one unforgettable experience.
                 </Text>
 
                 {/* Stat chips */}
@@ -490,7 +489,7 @@ export default function HomeScreen({ navigation, route }) {
                   ))}
                 </View>
               </View>
-            </View>
+            </VintaCard>
           </View>
 
           {/* ── Places to Experience ── */}
@@ -524,7 +523,7 @@ export default function HomeScreen({ navigation, route }) {
                       key={tab.id}
                       style={[
                         styles.categoryTabPill,
-                        isActive && { borderColor: tab.color, backgroundColor: 'rgba(12, 36, 97, 0.95)' }
+                        isActive && { borderColor: COLORS.accent, backgroundColor: COLORS.accent }
                       ]}
                       activeOpacity={0.8}
                       onPress={() => setSelectedCategory(tab.id)}
@@ -532,7 +531,7 @@ export default function HomeScreen({ navigation, route }) {
                       <Ionicons
                         name={tab.icon}
                         size={13}
-                        color={isActive ? tab.color : 'rgba(191,215,255,0.65)'}
+                        color={isActive ? '#FFFFFF' : 'rgba(191,215,255,0.65)'}
                         style={{ marginRight: 6 }}
                       />
                       <Text style={[
@@ -543,11 +542,11 @@ export default function HomeScreen({ navigation, route }) {
                       </Text>
                       <View style={[
                         styles.categoryBadgePill,
-                        isActive ? { backgroundColor: tab.color } : { backgroundColor: 'rgba(255,255,255,0.08)' }
+                        isActive ? { backgroundColor: '#FFFFFF' } : { backgroundColor: 'rgba(255,255,255,0.08)' }
                       ]}>
                         <Text style={[
                           styles.categoryBadgeText,
-                          isActive ? { color: '#081438' } : { color: 'rgba(191,215,255,0.7)' }
+                          isActive ? { color: COLORS.accent } : { color: 'rgba(191,215,255,0.7)' }
                         ]}>
                           {tab.count}
                         </Text>
@@ -559,23 +558,24 @@ export default function HomeScreen({ navigation, route }) {
 
               {/* Empty State */}
               {displayTotalCount === 0 && (
-                <View style={styles.categoryEmptyCard}>
-                  <Ionicons name="compass-outline" size={38} color="rgba(191,215,255,0.4)" />
+                <VintaCard style={styles.categoryEmptyFrame} contentStyle={styles.categoryEmptyCard}>
+                  <Ionicons name="compass-outline" size={38} color={COLORS.textFaint} />
                   <Text style={styles.categoryEmptyTitle}>No Quests Found</Text>
                   <Text style={styles.categoryEmptySub}>
                     There are currently no active spots in this category. Check back soon for new expeditions!
                   </Text>
-                </View>
+                </VintaCard>
               )}
 
               {/* Promoted Places */}
               {displayedSponsored.map((p) => (
                 <TouchableOpacity
                   key={`promo-${p.id}`}
-                  style={[styles.questCard, styles.questCardGold]}
+                  style={styles.questTouch}
                   activeOpacity={0.88}
                   onPress={() => navigation.navigate('Details', { destination: { title: p.spot_name, location: 'Promoted Place', description: p.description, images: [formatImageUrl(p.image_file)] } })}
                 >
+                  <VintaCard contentStyle={styles.questCard}>
                   <ImageBackground
                     source={{ uri: formatImageUrl(p.image_file) }}
                     style={styles.questCardImage}
@@ -600,27 +600,27 @@ export default function HomeScreen({ navigation, route }) {
                         <Ionicons name="flag-outline" size={11} color={COLORS.textMuted} />
                         <Text style={styles.questObjectiveText}>Visit & Discover</Text>
                       </View>
-                      <View style={[styles.questCtaBtn, { backgroundColor: COLORS.gold }]}>
+                      <View style={styles.questCtaBtn}>
                         <Text style={styles.questCtaText}>START QUEST →</Text>
                       </View>
                     </View>
                   </View>
-                  <View style={[styles.questCardGlowBar, { backgroundColor: COLORS.gold }]} />
+                  </VintaCard>
                 </TouchableOpacity>
               ))}
 
               {/* Categorized Places */}
               {displayedPlaces.map((d) => {
                 const primaryType = d.feature_types && d.feature_types.length > 0 ? d.feature_types[0] : 'qr';
-                let questEmoji = '🔍', questTypeLabel = 'QR DISCOVERY', questColor = COLORS.teal, borderStyle = styles.questCardTeal;
-                if (primaryType === 'ar') { questEmoji = '📷'; questTypeLabel = 'AR EXPERIENCE'; questColor = COLORS.accent; borderStyle = styles.questCardBlue; }
-                else if (primaryType === 'catch') { questEmoji = '🏆'; questTypeLabel = 'COLLECT & WIN'; questColor = COLORS.gold; borderStyle = styles.questCardGold; }
+                let questEmoji = '🔍', questTypeLabel = 'QR DISCOVERY', questColor = COLORS.teal;
+                if (primaryType === 'ar') { questEmoji = '📷'; questTypeLabel = 'AR EXPERIENCE'; questColor = COLORS.accent; }
+                else if (primaryType === 'catch') { questEmoji = '🏆'; questTypeLabel = 'COLLECT & WIN'; questColor = COLORS.gold; }
                 const isLocked = d.required_level && d.required_level > userLevel;
                 const imageUri = formatImageUrl(d.image);
                 return (
                   <TouchableOpacity
                     key={d.id}
-                    style={[styles.questCard, borderStyle]}
+                    style={styles.questTouch}
                     activeOpacity={0.88}
                     onPress={() => {
                       const combinedImages = [d.image, d.image2, d.image3].filter(img => img).map(formatImageUrl);
@@ -640,6 +640,7 @@ export default function HomeScreen({ navigation, route }) {
                       });
                     }}
                   >
+                    <VintaCard contentStyle={styles.questCard}>
                     <ImageBackground
                       source={{ uri: imageUri }}
                       style={styles.questCardImage}
@@ -670,8 +671,8 @@ export default function HomeScreen({ navigation, route }) {
                     </ImageBackground>
                     <View style={styles.questCardBody}>
                       <View style={styles.questLocationRow}>
-                        <Ionicons name="location-outline" size={11} color={questColor} />
-                        <Text style={[styles.questLocationText, { color: questColor }]} numberOfLines={1}>{d.location_name || 'Zamboanga City'}</Text>
+                        <Ionicons name="location-outline" size={11} color={onWhite(questColor)} />
+                        <Text style={[styles.questLocationText, { color: onWhite(questColor) }]} numberOfLines={1}>{d.location_name || 'Zamboanga City'}</Text>
                       </View>
                       <Text style={styles.questCardDesc} numberOfLines={2}>{d.description}</Text>
                       {d.feature_types && d.feature_types.length > 1 && (
@@ -681,7 +682,7 @@ export default function HomeScreen({ navigation, route }) {
                             const ftLabel = ft === 'qr' ? 'QR' : ft === 'ar' ? 'AR' : 'CATCH';
                             return (
                               <View key={ft} style={[styles.questMiniTag, { borderColor: ftColor + '66', backgroundColor: ftColor + '18' }]}>
-                                <Text style={[styles.questMiniTagText, { color: ftColor }]}>{ftLabel}</Text>
+                                <Text style={[styles.questMiniTagText, { color: onWhite(ftColor) }]}>{ftLabel}</Text>
                               </View>
                             );
                           })}
@@ -694,21 +695,20 @@ export default function HomeScreen({ navigation, route }) {
                             {d.xp_reward ? `+${d.xp_reward} XP • Explore` : 'Explore & Earn'}
                           </Text>
                         </View>
-                        <View style={[styles.questCtaBtn, { backgroundColor: isLocked ? '#334155' : questColor }]}>
-                          <Text style={[styles.questCtaText, isLocked && { color: '#94A3B8' }]}>
+                        <View style={[styles.questCtaBtn, isLocked && styles.questCtaBtnLocked]}>
+                          <Text style={[styles.questCtaText, isLocked && styles.questCtaTextLocked]}>
                             {isLocked ? `LOCKED (LVL ${d.required_level})` : 'START QUEST →'}
                           </Text>
                         </View>
                       </View>
                     </View>
-                    <View style={[styles.questCardGlowBar, { backgroundColor: isLocked ? '#475569' : questColor }]} />
+                    </VintaCard>
                   </TouchableOpacity>
                 );
               })}
             </View>
           )}
 
-          <View style={{ height: 32 }} />
         </ScrollView>
 
         <CustomModal
@@ -754,7 +754,7 @@ const styles = StyleSheet.create({
   },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4, 10, 38, 0.85)',
+    backgroundColor: BG_OVERLAY,
   },
   container: {
     flex: 1,
@@ -782,11 +782,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   logoTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 10,
+    fontFamily: FONTS.bold,
+    fontSize: 20,
     color: '#FFFFFF',
-    letterSpacing: 2,
-    lineHeight: 18,
+    letterSpacing: 3,
+    lineHeight: 22,
   },
   logoSub: {
     fontFamily: FONTS.medium,
@@ -855,29 +855,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   heroGlass: {
-    backgroundColor: '#08143C',
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    borderRadius: RADIUS.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  heroOrb1: {
-    position: 'absolute',
-    top: -50, right: -50,
-    width: 200, height: 200,
-    borderRadius: 100,
-    opacity: 0,
-  },
-  heroOrb2: {
-    position: 'absolute',
-    bottom: -30, left: -30,
-    width: 150, height: 150,
-    borderRadius: 75,
-    opacity: 0,
+    overflow: 'hidden',
   },
   heroContent: {
     padding: 24,
@@ -901,17 +879,17 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   heroTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 20,
-    color: '#FFFFFF',
+    fontFamily: FONTS.bold,
+    fontSize: 30,
+    color: COLORS.navy,
     letterSpacing: 1,
-    lineHeight: 34,
+    lineHeight: 32,
     marginBottom: 12,
   },
   heroDesc: {
     fontFamily: FONTS.regular,
     fontSize: 13,
-    color: 'rgba(191,215,255,0.85)',
+    color: COLORS.textSub,
     lineHeight: 20,
     marginBottom: 18,
   },
@@ -943,14 +921,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#1E3A8A',
-    backgroundColor: '#0C2054',
+    borderTopColor: COLORS.borderLight,
+    backgroundColor: COLORS.bg,
   },
   heroXpText: {
     flex: 1,
     fontFamily: FONTS.medium,
     fontSize: 11,
-    color: 'rgba(191,215,255,0.85)',
+    color: COLORS.textSub,
   },
   heroXpBadge: {
     backgroundColor: COLORS.accent,
@@ -970,28 +948,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
+  qaTouch: {
+    flex: 1,
+  },
+  qaFrame: {
+    flex: 1,
+    borderRadius: RADIUS.md,
+  },
   qaCard: {
     flex: 1,
-    backgroundColor: '#08143C',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    padding: 14,
+    padding: 12,
     minHeight: 130,
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  qaGlow: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0,
-    height: 40,
-    borderTopLeftRadius: RADIUS.md,
-    borderTopRightRadius: RADIUS.md,
-    opacity: 0,
   },
   qaIconWrap: {
     marginBottom: 10,
@@ -1021,10 +988,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   qaTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7,
-    color: '#FFFFFF',
-    lineHeight: 13,
+    fontFamily: FONTS.bold,
+    fontSize: 13,
+    color: COLORS.navy,
+    lineHeight: 16,
     marginBottom: 10,
   },
   qaAccentLine: {
@@ -1044,19 +1011,15 @@ const styles = StyleSheet.create({
   },
 
   // ── Map ────────────────────────────────────────────────────────────────
-  mapCard: {
-    height: 240,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    overflow: 'hidden',
+  mapTouch: {
     marginBottom: 4,
+  },
+  mapFrame: {
+    height: 240,
+  },
+  mapCard: {
+    flex: 1,
     position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
   },
   map: {
     flex: 1,
@@ -1210,31 +1173,11 @@ const styles = StyleSheet.create({
   },
 
   // ── Welcome Glass Banner ───────────────────────────────────────────────
-  welcomeGlass: {
-    backgroundColor: '#08143C',
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    borderRadius: RADIUS.lg,
+  welcomeFrame: {
     marginBottom: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  welcomeOrb1: {
-    position: 'absolute',
-    top: -50, right: -50,
-    width: 180, height: 180,
-    borderRadius: 90,
-    opacity: 0,
-  },
-  welcomeOrb2: {
-    position: 'absolute',
-    bottom: -40, left: -40,
-    width: 130, height: 130,
-    borderRadius: 65,
-    opacity: 0,
+  welcomeGlass: {
+    overflow: 'hidden',
   },
   welcomeContent: {
     padding: 22,
@@ -1242,25 +1185,25 @@ const styles = StyleSheet.create({
   welcomeEyebrow: {
     fontFamily: FONTS.semiBold,
     fontSize: 9,
-    color: COLORS.gold,
+    color: GOLD_TEXT,
     letterSpacing: 3,
     textTransform: 'uppercase',
     marginBottom: 6,
     textAlign: 'center',
   },
   welcomeCity: {
-    fontFamily: FONTS.pixel,
-    fontSize: 12,
-    color: '#FFFFFF',
+    fontFamily: FONTS.bold,
+    fontSize: 24,
+    color: COLORS.navy,
     letterSpacing: 1,
-    lineHeight: 22,
+    lineHeight: 28,
     marginBottom: 10,
     textAlign: 'center',
   },
   welcomeTagline: {
     fontFamily: FONTS.regular,
     fontSize: 12,
-    color: 'rgba(191,215,255,0.85)',
+    color: COLORS.textSub,
     lineHeight: 19,
     marginBottom: 20,
     textAlign: 'center',
@@ -1271,10 +1214,10 @@ const styles = StyleSheet.create({
   },
   statChip: {
     flex: 1,
-    backgroundColor: '#0C2054',
+    backgroundColor: COLORS.bg,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: '#1E3A8A',
+    borderColor: COLORS.border,
     paddingVertical: 12,
     alignItems: 'center',
     gap: 2,
@@ -1292,7 +1235,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontFamily: FONTS.regular,
     fontSize: 9,
-    color: 'rgba(191,215,255,0.70)',
+    color: COLORS.textMuted,
     textAlign: 'center',
     marginTop: 1,
     letterSpacing: 0.3,
@@ -1315,27 +1258,11 @@ const styles = StyleSheet.create({
   },
 
   // ── Quest Card ───────────────────────────────────────────────────
-  questCard: {
-    backgroundColor: '#08143C',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    overflow: 'hidden',
+  questTouch: {
     marginBottom: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  questCardTeal: {
-    borderColor: COLORS.teal + '77',
-  },
-  questCardBlue: {
-    borderColor: COLORS.accent + '77',
-  },
-  questCardGold: {
-    borderColor: COLORS.gold + '77',
+  questCard: {
+    overflow: 'hidden',
   },
   questCardImage: {
     width: '100%',
@@ -1377,11 +1304,11 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   questCardName: {
-    fontFamily: FONTS.pixel,
-    fontSize: 11,
+    fontFamily: FONTS.bold,
+    fontSize: 19,
     color: '#FFFFFF',
     letterSpacing: 0.5,
-    lineHeight: 18,
+    lineHeight: 22,
     textShadowColor: 'rgba(0,0,0,0.85)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
@@ -1404,7 +1331,7 @@ const styles = StyleSheet.create({
   questCardDesc: {
     fontFamily: FONTS.regular,
     fontSize: 12,
-    color: 'rgba(191,215,255,0.80)',
+    color: COLORS.textSub,
     lineHeight: 18,
     marginBottom: 10,
   },
@@ -1437,23 +1364,26 @@ const styles = StyleSheet.create({
   questObjectiveText: {
     fontFamily: FONTS.semiBold,
     fontSize: 11,
-    color: 'rgba(191,215,255,0.70)',
+    color: COLORS.textMuted,
     letterSpacing: 0.2,
   },
   questCtaBtn: {
     borderRadius: RADIUS.pill,
     paddingVertical: 7,
     paddingHorizontal: 14,
+    backgroundColor: COLORS.accent,
   },
   questCtaText: {
     fontFamily: FONTS.bold,
     fontSize: 10,
-    color: '#0C2461',
+    color: '#FFFFFF',
     letterSpacing: 0.8,
   },
-  questCardGlowBar: {
-    height: 3,
-    width: '100%',
+  questCtaBtnLocked: {
+    backgroundColor: COLORS.borderLight,
+  },
+  questCtaTextLocked: {
+    color: COLORS.textMuted,
   },
   categoryTabsScroll: {
     marginBottom: 14,
@@ -1491,21 +1421,19 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     fontSize: 10,
   },
+  categoryEmptyFrame: {
+    marginVertical: 10,
+  },
   categoryEmptyCard: {
-    backgroundColor: 'rgba(8, 20, 56, 0.7)',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
     paddingVertical: 36,
     paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 10,
   },
   categoryEmptyTitle: {
     fontFamily: FONTS.bold,
     fontSize: 15,
-    color: '#FFFFFF',
+    color: COLORS.navy,
     marginTop: 12,
     marginBottom: 6,
     textAlign: 'center',
@@ -1513,7 +1441,7 @@ const styles = StyleSheet.create({
   categoryEmptySub: {
     fontFamily: FONTS.regular,
     fontSize: 12,
-    color: 'rgba(191, 215, 255, 0.65)',
+    color: COLORS.textSub,
     textAlign: 'center',
     lineHeight: 18,
     maxWidth: 260,

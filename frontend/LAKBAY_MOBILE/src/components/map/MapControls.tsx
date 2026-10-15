@@ -35,9 +35,9 @@ export const FeatureButton = memo(function FeatureButton({
       ]}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={active ? COLORS.navy : COLORS.gold} />
+        <ActivityIndicator size="small" color={active ? '#FFFFFF' : COLORS.accent} />
       ) : (
-        <Ionicons name={icon} size={21} color={active ? COLORS.navy : '#E2E8F0'} />
+        <Ionicons name={icon} size={21} color={active ? '#FFFFFF' : COLORS.navy} />
       )}
     </TouchableOpacity>
   );
@@ -63,11 +63,11 @@ export const ZoomControls = memo(function ZoomControls({ style }: { style?: Styl
   return (
     <View style={[styles.zoomCard, style]}>
       <TouchableOpacity style={styles.zoomBtn} onPress={() => zoomBy(1)} accessibilityLabel="Zoom in">
-        <Ionicons name="add" size={22} color="#E2E8F0" />
+        <Ionicons name="add" size={22} color={COLORS.navy} />
       </TouchableOpacity>
       <View style={styles.zoomDivider} />
       <TouchableOpacity style={styles.zoomBtn} onPress={() => zoomBy(-1)} accessibilityLabel="Zoom out">
-        <Ionicons name="remove" size={22} color="#E2E8F0" />
+        <Ionicons name="remove" size={22} color={COLORS.navy} />
       </TouchableOpacity>
     </View>
   );
@@ -78,26 +78,26 @@ const styles = StyleSheet.create({
     width: BUTTON_SIZE,
     height: BUTTON_SIZE,
     borderRadius: BUTTON_SIZE / 2,
-    backgroundColor: 'rgba(8,20,60,0.88)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: 'rgba(99,179,237,0.4)',
+    borderColor: COLORS.border,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: COLORS.accent,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 6,
   },
   zoomCard: {
     width: BUTTON_SIZE,
     borderRadius: 14,
-    backgroundColor: 'rgba(8,20,60,0.88)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: 'rgba(99,179,237,0.4)',
+    borderColor: COLORS.border,
     overflow: 'hidden',
     elevation: 6,
   },
   zoomBtn: { height: 44, justifyContent: 'center', alignItems: 'center' },
-  zoomDivider: { height: 1, backgroundColor: 'rgba(99,179,237,0.3)' },
+  zoomDivider: { height: 1, backgroundColor: COLORS.borderLight },
 });

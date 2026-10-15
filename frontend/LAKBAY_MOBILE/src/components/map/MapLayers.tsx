@@ -95,39 +95,6 @@ export const MapUserLocation = memo(function MapUserLocation({ visible = true }:
   );
 });
 
-// ─── MapHeatmap — weight, intensity and radius scale with zoom ──────────────
-interface MapHeatmapProps {
-  id: string;
-  shape: GeoJSON.FeatureCollection;
-  weightProperty?: string;
-}
-
-export const MapHeatmap = memo(function MapHeatmap({ id, shape, weightProperty }: MapHeatmapProps) {
-  return (
-    <Mapbox.ShapeSource id={`${id}-source`} shape={shape}>
-      <Mapbox.HeatmapLayer
-        id={`${id}-layer`}
-        style={{
-          heatmapWeight: weightProperty
-            ? ['interpolate', ['linear'], ['get', weightProperty], 0, 0.2, 1, 1]
-            : 1,
-          heatmapIntensity: ['interpolate', ['linear'], ['zoom'], 10, 0.8, 16, 2.5],
-          heatmapRadius: ['interpolate', ['linear'], ['zoom'], 10, 18, 13, 32, 16, 60],
-          heatmapOpacity: ['interpolate', ['linear'], ['zoom'], 10, 0.85, 18, 0.6],
-          heatmapColor: [
-            'interpolate', ['linear'], ['heatmap-density'],
-            0, 'rgba(26,86,219,0)',
-            0.2, 'rgba(56,189,248,0.55)',
-            0.45, 'rgba(16,185,129,0.7)',
-            0.7, 'rgba(251,191,36,0.85)',
-            1, 'rgba(239,68,68,0.95)',
-          ],
-        }}
-      />
-    </Mapbox.ShapeSource>
-  );
-});
-
 // ─── Map3DBuildings — extruded buildings for the 3D tilt mode ───────────────
 export const Map3DBuildings = memo(function Map3DBuildings() {
   const { theme } = useMap();

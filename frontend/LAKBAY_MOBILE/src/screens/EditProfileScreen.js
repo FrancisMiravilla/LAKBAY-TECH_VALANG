@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView, StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image, Alert } from 'react-native';
-import { COLORS, FONTS, RADIUS } from '../constants/theme';
+import { SafeAreaView, StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image, ImageBackground, StatusBar } from 'react-native';
+import { COLORS, FONTS, RADIUS, BG_OVERLAY } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
+import VintaStripe from '../components/VintaStripe';
 import { Ionicons } from '@expo/vector-icons';
 import { authService } from '../api/authService';
 
+import { useAppDialog } from '../components/useAppDialog';
 const CHARACTERS = [
   { id: 'mando', name: 'Kuya Mando', image: require('../assets/characters/lila.jpg'), zoom: 1.15 },
   { id: 'bela', name: 'Ate Bela', image: require('../assets/characters/new.jpg'), zoom: 1.15 },
@@ -13,6 +16,7 @@ const CHARACTERS = [
 ];
 
 export default function EditProfileScreen({ navigation }) {
+  const { dialog, showAlert } = useAppDialog();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState('');
@@ -38,7 +42,7 @@ export default function EditProfileScreen({ navigation }) {
 
   const handleSave = async () => {
     if (!fullName.trim() || !inGameName.trim()) {
-      Alert.alert('Validation Error', 'Full Name and Explorer Name cannot be empty.');
+      showAlert('Validation Error', 'Full Name and Explorer Name cannot be empty.');
       return;
     }
     
@@ -56,7 +60,7 @@ export default function EditProfileScreen({ navigation }) {
       if (e.in_game_name) {
           errorMsg = e.in_game_name[0];
       }
-      Alert.alert('Update Failed', errorMsg);
+      showAlert('Update Failed', errorMsg);
     } finally {
       setSaving(false);
     }
@@ -64,14 +68,20 @@ export default function EditProfileScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator color={COLORS.accent} size="large" />
-      </View>
+      <ImageBackground source={require('../../reference/VINTA.jpeg')} style={styles.bgImage} resizeMode="cover">
+        <View style={styles.bgOverlay} />
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator color={COLORS.gold} size="large" />
+        </View>
+      </ImageBackground>
     );
   }
 
   return (
+    <ImageBackground source={require('../../reference/VINTA.jpeg')} style={styles.bgImage} resizeMode="cover">
+    <View style={styles.bgOverlay} />
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={24} color="#fff" />
@@ -79,8 +89,10 @@ export default function EditProfileScreen({ navigation }) {
         <Text style={styles.headerTitle}>Edit Profile</Text>
         <View style={{ width: 40 }} />
       </View>
+      <VintaStripe height={3} />
 
-      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <VintaCard contentStyle={styles.formCard}>
         <View style={styles.formGroup}>
           <Text style={styles.label}>FULL NAME</Text>
           <View style={styles.inputWrap}>
@@ -138,18 +150,23 @@ export default function EditProfileScreen({ navigation }) {
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
         </TouchableOpacity>
-        
+        </VintaCard>
+
         <View style={{ height: 40 }} />
       </ScrollView>
+      {dialog}
     </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+  bgImage: { flex: 1 },
+  bgOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: BG_OVERLAY },
+  container: { flex: 1, backgroundColor: 'transparent' },
   header: {
     height: 60,
-    backgroundColor: COLORS.navy,
+    backgroundColor: 'rgba(8, 20, 60, 0.70)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -160,20 +177,21 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: FONTS.bold,
-    fontSize: 18,
+    fontSize: 20,
     color: '#fff',
   },
-  content: { padding: 24 },
+  content: { padding: 16 },
+  formCard: { padding: 20, paddingTop: 24 },
   formGroup: { marginBottom: 24 },
   label: {
     fontFamily: FONTS.bold,
     fontSize: 12,
-    color: COLORS.textMuted,
+    color: COLORS.textSub,
     letterSpacing: 1.5,
     marginBottom: 8,
   },
   inputWrap: {
-    backgroundColor: COLORS.bgCard,
+    backgroundColor: COLORS.bgCardAlt,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.border,

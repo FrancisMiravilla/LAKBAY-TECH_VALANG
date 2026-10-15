@@ -33,6 +33,10 @@ export const promotionService = {
     const response = await apiClient.patch(`settings/${key}/`, { value }, { baseURL: pBase });
     return response.data;
   },
+  getPublishedPromotions: async () => {
+    const response = await apiClient.get('published/', { baseURL: pBase });
+    return response.data;
+  },
   createSetting: async (data) => {
     const response = await apiClient.post('settings/', data, { baseURL: pBase });
     return response.data;

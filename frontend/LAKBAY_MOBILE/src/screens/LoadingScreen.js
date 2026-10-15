@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
 import VintaStripe from '../components/VintaStripe';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -114,12 +115,6 @@ export default function LoadingScreen({ navigation }) {
 
       <View style={[styles.container, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 28 }]}>
         {/* ── Top Tag ── */}
-        <Animated.View style={[styles.topTag, { opacity: fadeAnim }]}>
-          <View style={styles.eyebrowPill}>
-            <Text style={styles.eyebrowText}>✦  ZAMBOANGA HERITAGE QUEST  ✦</Text>
-          </View>
-        </Animated.View>
-
         {/* ── Center Emblem & Brand (flex: 1 anchored) ── */}
         <View style={styles.centerWrap}>
           <Animated.Image
@@ -136,7 +131,8 @@ export default function LoadingScreen({ navigation }) {
         </View>
 
         {/* ── Bottom Gamified Loading HUD ── */}
-        <Animated.View style={[styles.loadingHud, { opacity: fadeAnim }]}>
+        <Animated.View style={{ opacity: fadeAnim }}>
+        <VintaCard contentStyle={styles.loadingHud}>
           {/* Header Row: "LOADING..." + "0-100%" */}
           <View style={styles.hudHeaderRow}>
             <View style={styles.loadingLabelWrap}>
@@ -168,11 +164,7 @@ export default function LoadingScreen({ navigation }) {
             </Text>
           </View>
 
-          {/* Decorative Corner Pixels */}
-          <View style={[styles.cornerBox, styles.cornerTL]} />
-          <View style={[styles.cornerBox, styles.cornerTR]} />
-          <View style={[styles.cornerBox, styles.cornerBL]} />
-          <View style={[styles.cornerBox, styles.cornerBR]} />
+        </VintaCard>
         </Animated.View>
       </View>
     </ImageBackground>
@@ -185,7 +177,7 @@ const styles = StyleSheet.create({
   },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4, 10, 38, 0.85)',
+    backgroundColor: BG_OVERLAY,
   },
   container: {
     flex: 1,
@@ -193,26 +185,6 @@ const styles = StyleSheet.create({
   },
 
   // ── Top Tag ────────────────────────────────────────────────────────────────
-  topTag: {
-    alignItems: 'center',
-    height: 36,
-    justifyContent: 'center',
-  },
-  eyebrowPill: {
-    backgroundColor: 'rgba(8, 20, 60, 0.70)',
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.45)',
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    ...SHADOW.gold,
-  },
-  eyebrowText: {
-    fontFamily: FONTS.bold,
-    fontSize: 9,
-    color: COLORS.gold,
-    letterSpacing: 2,
-  },
 
   // ── Center Emblem ──────────────────────────────────────────────────────────
   centerWrap: {
@@ -230,15 +202,16 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   appTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 28,
+    fontFamily: FONTS.bold,
+    fontSize: 48,
+    lineHeight: 52,
     color: '#FFFFFF',
-    letterSpacing: 4,
+    letterSpacing: 6,
     marginBottom: 10,
     textAlign: 'center',
-    textShadowColor: 'rgba(251, 191, 36, 0.65)',
+    textShadowColor: 'rgba(251, 191, 36, 0.55)',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 14,
+    textShadowRadius: 16,
   },
   appSubtitle: {
     fontFamily: FONTS.bold,
@@ -250,19 +223,9 @@ const styles = StyleSheet.create({
 
   // ── Bottom Loading HUD ─────────────────────────────────────────────────────
   loadingHud: {
-    backgroundColor: 'rgba(8, 20, 60, 0.80)',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: 'rgba(99, 179, 237, 0.35)',
     paddingHorizontal: 20,
     paddingVertical: 18,
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 8,
-    position: 'relative',
-    minHeight: 114,
+    minHeight: 108,
   },
   hudHeaderRow: {
     flexDirection: 'row',
@@ -276,18 +239,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingPixelText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 12,
-    color: COLORS.gold,
+    fontFamily: FONTS.bold,
+    fontSize: 16,
+    color: GOLD_TEXT,
     letterSpacing: 1.5,
-    textShadowColor: 'rgba(251, 191, 36, 0.5)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
   },
   percentBadge: {
-    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    backgroundColor: '#FFFBEB',
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.5)',
+    borderColor: 'rgba(251, 191, 36, 0.55)',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -296,9 +256,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   percentText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 11,
-    color: '#FFFFFF',
+    fontFamily: FONTS.bold,
+    fontSize: 14,
+    color: GOLD_TEXT,
     letterSpacing: 1,
     textAlign: 'center',
   },
@@ -307,11 +267,11 @@ const styles = StyleSheet.create({
   barTrack: {
     width: '100%',
     height: 14,
-    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+    backgroundColor: COLORS.bg,
     borderRadius: 7,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.3)',
+    borderColor: COLORS.borderLight,
     marginBottom: 12,
   },
   barFill: {
@@ -336,21 +296,9 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontFamily: FONTS.medium,
-    fontSize: 11,
-    color: 'rgba(191, 215, 255, 0.75)',
+    fontSize: 12,
+    color: COLORS.textMuted,
     letterSpacing: 0.8,
     textAlign: 'center',
   },
-
-  // ── Corner Pixels ──────────────────────────────────────────────────────────
-  cornerBox: {
-    position: 'absolute',
-    width: 6,
-    height: 6,
-    borderColor: COLORS.gold,
-  },
-  cornerTL: { top: -2, left: -2, borderTopWidth: 2, borderLeftWidth: 2 },
-  cornerTR: { top: -2, right: -2, borderTopWidth: 2, borderRightWidth: 2 },
-  cornerBL: { bottom: -2, left: -2, borderBottomWidth: 2, borderLeftWidth: 2 },
-  cornerBR: { bottom: -2, right: -2, borderBottomWidth: 2, borderRightWidth: 2 },
 });

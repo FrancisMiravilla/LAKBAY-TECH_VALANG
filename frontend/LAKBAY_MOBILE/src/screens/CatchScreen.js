@@ -6,7 +6,8 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT, onWhite } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
@@ -796,7 +797,7 @@ function ARCatchOverlay({ icon, spot, userLocation, onModelFound, onContinue, on
             </View>
             <Text style={arStyles.celebrationCongrats}>CONGRATS!</Text>
             <Text style={arStyles.celebrationTitle}>
-              You have caught <Text style={arStyles.celebrationSpotName}>"{modelTitle}"</Text>
+              You have caught <Text style={arStyles.celebrationSpotName}>&ldquo;{modelTitle}&rdquo;</Text>
             </Text>
             <View style={arStyles.celebrationXpPill}>
               <Ionicons name="flash" size={12} color="#FBBF24" />
@@ -894,9 +895,10 @@ function ProximitySheet({ spot, icon, distanceM, isAlreadyCaught, onCatch, onDis
       <Animated.View
         style={[
           proximityStyles.sheet,
-          { paddingBottom: insets.bottom + 20, transform: [{ translateY: slideAnim }] },
+          { transform: [{ translateY: slideAnim }] },
         ]}
       >
+        <VintaCard sheet contentStyle={[proximityStyles.sheetInner, { paddingBottom: insets.bottom + 20 }]}>
         {/* Drag handle */}
         <View style={proximityStyles.handle} />
 
@@ -933,15 +935,15 @@ function ProximitySheet({ spot, icon, distanceM, isAlreadyCaught, onCatch, onDis
 
         {/* Glowing label under the model preview */}
         <View style={[proximityStyles.modelLabel, { backgroundColor: isAlreadyCaught ? 'rgba(16,185,129,0.15)' : icon.color + '20', borderColor: isAlreadyCaught ? '#10B981' : icon.color + '44' }]}>
-          <Ionicons name={isAlreadyCaught ? 'checkmark-circle' : 'cube-outline'} size={10} color={isAlreadyCaught ? '#10B981' : icon.color} style={{ marginRight: 4 }} />
-          <Text style={[proximityStyles.modelLabelText, { color: isAlreadyCaught ? '#10B981' : icon.color }]}>
+          <Ionicons name={isAlreadyCaught ? 'checkmark-circle' : 'cube-outline'} size={10} color={isAlreadyCaught ? '#059669' : onWhite(icon.color)} style={{ marginRight: 4 }} />
+          <Text style={[proximityStyles.modelLabelText, { color: isAlreadyCaught ? '#059669' : onWhite(icon.color) }]}>
             {isAlreadyCaught ? 'ALREADY CAUGHT' : `${icon.name} · 3D Model`}
           </Text>
         </View>
 
         {/* Distance badge */}
         <View style={[proximityStyles.distanceBadge, { backgroundColor: '#22C55E22', borderColor: '#22C55E88' }]}>
-          <Ionicons name="location" size={12} color="#22C55E" style={{ marginRight: 4 }} />
+          <Ionicons name="location" size={12} color="#16A34A" style={{ marginRight: 4 }} />
           <Text style={proximityStyles.distanceText}>{Math.round(distanceM)}m away</Text>
         </View>
 
@@ -951,12 +953,12 @@ function ProximitySheet({ spot, icon, distanceM, isAlreadyCaught, onCatch, onDis
         <Text style={proximityStyles.sheetLocation}>📍 {spot.location_name || spot.name}</Text>
         <Text style={proximityStyles.sheetDesc}>
           {isAlreadyCaught
-            ? "You have already caught and mastered this cultural model in your Journey collection. You can still inspect it in AR anytime."
+            ? 'You have already caught and mastered this cultural model in your Journey collection. You can still inspect it in AR anytime.'
             : "You're close enough to catch this cultural icon. Open your camera and experience it in AR!"}
         </Text>
 
         <TouchableOpacity
-          style={[proximityStyles.catchBtn, { backgroundColor: isAlreadyCaught ? '#10B981' : icon.color }]}
+          style={[proximityStyles.catchBtn, { backgroundColor: isAlreadyCaught ? '#059669' : COLORS.accent }]}
           onPress={onCatch}
           activeOpacity={0.85}
         >
@@ -969,6 +971,7 @@ function ProximitySheet({ spot, icon, distanceM, isAlreadyCaught, onCatch, onDis
         <TouchableOpacity onPress={dismiss} style={proximityStyles.dismissBtn}>
           <Text style={proximityStyles.dismissText}>Dismiss</Text>
         </TouchableOpacity>
+        </VintaCard>
       </Animated.View>
     </View>
   );
@@ -1298,9 +1301,9 @@ export default function CatchScreen({ navigation }) {
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
             {/* ── Mission Proximity Radar Banner ── */}
-            <View style={styles.infoBanner}>
+            <VintaCard style={styles.cardFrame} contentStyle={styles.infoBanner}>
               <View style={styles.infoIconCircle}>
-                <Ionicons name="radar-outline" size={20} color={COLORS.gold} />
+                <Ionicons name="radar-outline" size={20} color={GOLD_TEXT} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.infoBannerEyebrow}>PROXIMITY RADAR ACTIVE</Text>
@@ -1308,13 +1311,13 @@ export default function CatchScreen({ navigation }) {
                   Walk within <Text style={styles.infoBannerBold}>{CATCH_RADIUS_METERS}m</Text> of a landmark to engage AR Catch Mode and collect 3D cultural icons!
                 </Text>
               </View>
-            </View>
+            </VintaCard>
 
             {/* ── Collection Progress Card ── */}
-            <View style={styles.progressCard}>
+            <VintaCard style={styles.cardFrame} contentStyle={styles.progressCard}>
               <View style={styles.progressTopRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="medal-outline" size={16} color={COLORS.gold} />
+                  <Ionicons name="medal-outline" size={16} color={GOLD_TEXT} />
                   <Text style={styles.progressLabel}>CATCH COLLECTION</Text>
                 </View>
                 <View style={styles.progressCountBadge}>
@@ -1332,11 +1335,11 @@ export default function CatchScreen({ navigation }) {
                     : `Collect ${totalCatchIcons - caughtCount} more icons to complete the set (+80 XP each)`}
                 </Text>
               </View>
-            </View>
+            </VintaCard>
 
             {/* ── Catch Spots Radar Preview ── */}
             {catchSpots.length > 0 && (
-              <View style={styles.spotsCard}>
+              <VintaCard style={styles.cardFrame} contentStyle={styles.spotsCard}>
                 <View style={styles.sectionRow}>
                   <View style={styles.accentBar} />
                   <Text style={styles.sectionTitle}>Nearby Catch Targets</Text>
@@ -1381,7 +1384,7 @@ export default function CatchScreen({ navigation }) {
                           }
                         }}
                       >
-                        <View style={[styles.spotDotWrap, { backgroundColor: inRange ? 'rgba(34,197,94,0.20)' : 'rgba(255,255,255,0.06)' }]}>
+                        <View style={[styles.spotDotWrap, { backgroundColor: inRange ? 'rgba(34,197,94,0.18)' : COLORS.borderLight }]}>
                           <View style={[styles.spotDot, { backgroundColor: inRange ? '#22C55E' : COLORS.accent }]} />
                         </View>
                         <View style={{ flex: 1 }}>
@@ -1389,7 +1392,7 @@ export default function CatchScreen({ navigation }) {
                           <Text style={styles.spotLoc} numberOfLines={1}>{spot.location_name || 'Zamboanga City'}</Text>
                         </View>
                         {dist !== null && (
-                          <Text style={[styles.spotDist, inRange && { color: '#22C55E' }]}>
+                          <Text style={[styles.spotDist, inRange && { color: '#16A34A' }]}>
                             {dist < 1000 ? `${Math.round(dist)}m` : `${(dist / 1000).toFixed(1)}km`}
                           </Text>
                         )}
@@ -1402,17 +1405,17 @@ export default function CatchScreen({ navigation }) {
                     );
                   })}
                 </View>
-              </View>
+              </VintaCard>
             )}
 
             {/* ── Field Guide / How to Catch ── */}
-            <View style={styles.guideCard}>
+            <VintaCard style={styles.cardFrame} contentStyle={styles.guideCard}>
               <View style={styles.sectionRow}>
                 <View style={[styles.accentBar, { backgroundColor: COLORS.gold }]} />
                 <Text style={styles.sectionTitle}>Expedition Protocol</Text>
               </View>
               <Text style={styles.sectionSub}>
-                Follow these 4 tactical steps to capture Zamboanga's rare cultural artifacts.
+                Follow these 4 tactical steps to capture Zamboanga’s rare cultural artifacts.
               </Text>
 
               <View style={{ gap: 10 }}>
@@ -1424,7 +1427,7 @@ export default function CatchScreen({ navigation }) {
                 ].map((step, idx) => (
                   <View key={idx} style={styles.guideStepRow}>
                     <View style={[styles.guideStepIconWrap, { backgroundColor: step.color + '22', borderColor: step.color + '55' }]}>
-                      <Ionicons name={step.icon} size={20} color={step.color} />
+                      <Ionicons name={step.icon} size={20} color={onWhite(step.color)} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.guideStepTitle}>
@@ -1437,7 +1440,7 @@ export default function CatchScreen({ navigation }) {
                   </View>
                 ))}
               </View>
-            </View>
+            </VintaCard>
 
           </ScrollView>
         )}
@@ -1497,7 +1500,7 @@ const styles = StyleSheet.create({
   },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4, 10, 38, 0.85)',
+    backgroundColor: BG_OVERLAY,
   },
   container: {
     flex: 1,
@@ -1519,11 +1522,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 10,
+    fontFamily: FONTS.bold,
+    fontSize: 20,
     color: '#FFFFFF',
     letterSpacing: 2,
-    lineHeight: 18,
+    lineHeight: 22,
   },
   logoSub: {
     fontFamily: FONTS.medium,
@@ -1580,8 +1583,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   subHeaderTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 10,
+    fontFamily: FONTS.bold,
+    fontSize: 15,
     color: '#FFFFFF',
     letterSpacing: 1,
   },
@@ -1653,54 +1656,45 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
 
+  cardFrame: {
+    marginBottom: 16,
+  },
   infoBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(8, 20, 60, 0.62)',
-    borderRadius: RADIUS.lg,
     padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.35)',
     gap: 14,
-    ...SHADOW.accent,
   },
   infoIconCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(251,191,36,0.15)',
+    backgroundColor: '#FFFBEB',
     borderWidth: 1,
-    borderColor: 'rgba(251,191,36,0.35)',
+    borderColor: 'rgba(251,191,36,0.55)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   infoBannerEyebrow: {
     fontFamily: FONTS.bold,
-    fontSize: 9,
-    color: COLORS.gold,
+    fontSize: 11,
+    color: GOLD_TEXT,
     letterSpacing: 1.5,
     marginBottom: 2,
   },
   infoBannerText: {
     fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: 'rgba(191,215,255,0.85)',
+    fontSize: 13,
+    color: COLORS.textSub,
     lineHeight: 18,
   },
   infoBannerBold: {
     fontFamily: FONTS.bold,
-    color: '#FFFFFF',
+    color: COLORS.navy,
   },
 
   spotsCard: {
-    backgroundColor: 'rgba(8, 20, 60, 0.60)',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.25)',
     padding: 18,
-    marginBottom: 16,
-    ...SHADOW.accent,
   },
   spotRow: {
     flexDirection: 'row',
@@ -1709,13 +1703,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: COLORS.bg,
     borderWidth: 1,
-    borderColor: 'rgba(99,179,237,0.15)',
+    borderColor: COLORS.borderLight,
   },
   spotRowActive: {
-    backgroundColor: 'rgba(34,197,94,0.15)',
-    borderColor: 'rgba(34,197,94,0.45)',
+    backgroundColor: '#F0FDF4',
+    borderColor: 'rgba(34,197,94,0.55)',
   },
   spotDotWrap: {
     width: 32,
@@ -1731,19 +1725,19 @@ const styles = StyleSheet.create({
   },
   spotName: {
     fontFamily: FONTS.bold,
-    fontSize: 13,
-    color: '#FFFFFF',
+    fontSize: 14,
+    color: COLORS.navy,
   },
   spotLoc: {
     fontFamily: FONTS.regular,
     fontSize: 11,
-    color: 'rgba(191,215,255,0.70)',
+    color: COLORS.textMuted,
     marginTop: 2,
   },
   spotDist: {
     fontFamily: FONTS.bold,
     fontSize: 12,
-    color: 'rgba(191,215,255,0.75)',
+    color: COLORS.textSub,
   },
   inRangeBadge: {
     backgroundColor: '#22C55E',
@@ -1753,19 +1747,13 @@ const styles = StyleSheet.create({
   },
   inRangeBadgeText: {
     fontFamily: FONTS.bold,
-    fontSize: 9,
-    color: '#08143C',
+    fontSize: 10,
+    color: '#FFFFFF',
     letterSpacing: 0.5,
   },
 
   progressCard: {
-    backgroundColor: 'rgba(8, 20, 60, 0.60)',
-    borderRadius: RADIUS.lg,
     padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.25)',
-    ...SHADOW.accent,
   },
   progressTopRow: {
     flexDirection: 'row',
@@ -1775,33 +1763,33 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: COLORS.gold,
+    fontSize: 12,
+    color: GOLD_TEXT,
     letterSpacing: 1.5,
   },
   progressCountBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(251,191,36,0.15)',
+    backgroundColor: '#FFFBEB',
     borderWidth: 1,
-    borderColor: 'rgba(251,191,36,0.35)',
+    borderColor: 'rgba(251,191,36,0.55)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: RADIUS.pill,
   },
   progressCaught: {
     fontFamily: FONTS.black,
-    fontSize: 12,
-    color: COLORS.gold,
+    fontSize: 14,
+    color: GOLD_TEXT,
   },
   progressTotal: {
     fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.70)',
+    fontSize: 11,
+    color: COLORS.textMuted,
   },
   progressBarBg: {
     height: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(15,23,42,0.08)',
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -1815,18 +1803,12 @@ const styles = StyleSheet.create({
   },
   progressSubText: {
     fontFamily: FONTS.medium,
-    fontSize: 11,
-    color: 'rgba(191,215,255,0.75)',
+    fontSize: 12,
+    color: COLORS.textMuted,
   },
 
   guideCard: {
-    backgroundColor: 'rgba(8, 20, 60, 0.60)',
-    borderRadius: RADIUS.lg,
     padding: 18,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.25)',
-    ...SHADOW.accent,
   },
   sectionRow: {
     flexDirection: 'row',
@@ -1842,23 +1824,23 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: FONTS.bold,
-    fontSize: 15,
-    color: '#FFFFFF',
+    fontSize: 16,
+    color: COLORS.navy,
   },
   sectionSub: {
     fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: 'rgba(191,215,255,0.75)',
+    fontSize: 13,
+    color: COLORS.textSub,
     marginBottom: 16,
     lineHeight: 18,
   },
   guideStepRow: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: COLORS.bg,
     borderRadius: RADIUS.md,
     padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(99,179,237,0.15)',
+    borderColor: COLORS.borderLight,
     alignItems: 'center',
     gap: 14,
   },
@@ -1872,14 +1854,14 @@ const styles = StyleSheet.create({
   },
   guideStepTitle: {
     fontFamily: FONTS.bold,
-    fontSize: 13,
-    color: '#FFFFFF',
+    fontSize: 14,
+    color: COLORS.navy,
     marginBottom: 2,
   },
   guideStepDesc: {
     fontFamily: FONTS.regular,
-    fontSize: 11,
-    color: 'rgba(191,215,255,0.70)',
+    fontSize: 12,
+    color: COLORS.textMuted,
     lineHeight: 16,
   },
 });
@@ -1892,13 +1874,12 @@ const proximityStyles = StyleSheet.create({
   },
   sheet: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#0F172A',
-    borderTopLeftRadius: 28, borderTopRightRadius: 28,
+  },
+  sheetInner: {
     paddingHorizontal: 24, paddingTop: 12,
     alignItems: 'center',
-    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)',
   },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', marginBottom: 20 },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.border, marginBottom: 20 },
   iconRing: {
     width: 110, height: 110, borderRadius: 55,
     borderWidth: 2, justifyContent: 'center', alignItems: 'center', marginBottom: 8,
@@ -1919,16 +1900,16 @@ const proximityStyles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: 12, borderWidth: 1, marginBottom: 12,
   },
-  modelLabelText: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 0.5 },
+  modelLabelText: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 0.5 },
   distanceBadge: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 12, paddingVertical: 5,
     borderRadius: 20, borderWidth: 1, marginBottom: 16,
   },
-  distanceText: { fontFamily: FONTS.bold, fontSize: 12, color: '#22C55E' },
-  sheetTitle: { fontFamily: FONTS.bold, fontSize: 26, color: '#FFF', textAlign: 'center', lineHeight: 34, marginBottom: 6 },
-  sheetLocation: { fontFamily: FONTS.medium, fontSize: 13, color: '#94A3B8', marginBottom: 14 },
-  sheetDesc: { fontFamily: FONTS.regular, fontSize: 13, color: '#CBD5E1', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  distanceText: { fontFamily: FONTS.bold, fontSize: 12, color: '#16A34A' },
+  sheetTitle: { fontFamily: FONTS.bold, fontSize: 26, color: COLORS.navy, textAlign: 'center', lineHeight: 34, marginBottom: 6 },
+  sheetLocation: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMuted, marginBottom: 14 },
+  sheetDesc: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textSub, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
   catchBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     width: '100%', height: 56, borderRadius: 16,
@@ -1937,7 +1918,7 @@ const proximityStyles = StyleSheet.create({
   },
   catchBtnText: { fontFamily: FONTS.bold, fontSize: 16, color: '#FFF', letterSpacing: 0.3 },
   dismissBtn: { paddingVertical: 10 },
-  dismissText: { fontFamily: FONTS.medium, fontSize: 14, color: '#64748B' },
+  dismissText: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textMuted },
 });
 
 // ─── AR Overlay Styles ────────────────────────────────────────────────────────

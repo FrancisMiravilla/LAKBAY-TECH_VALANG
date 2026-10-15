@@ -6,11 +6,13 @@ import {
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW, CARD_BORDER_WIDTH, BG_OVERLAY, GOLD_TEXT } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
 import { authService } from '../api/authService';
 import { streakService } from '../api/streakService';
 import ErrorModal from '../components/ErrorModal';
 import VintaStripe from '../components/VintaStripe';
+
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail]           = useState('');
@@ -20,6 +22,8 @@ export default function LoginScreen({ navigation }) {
   const [errorModal, setErrorModal] = useState({ visible: false, type: 'error', title: '', message: '' });
   const [heroFade]  = useState(() => new Animated.Value(0));
   const [heroSlide] = useState(() => new Animated.Value(20));
+  const [viewportH, setViewportH]   = useState(0);
+  const [contentH, setContentH]     = useState(0);
 
   const showErr = (title, message, type = 'error') => setErrorModal({ visible: true, type, title, message });
 
@@ -45,7 +49,19 @@ export default function LoginScreen({ navigation }) {
       }
     } catch (error) {
       setLoading(false);
-      showErr('Login Failed', 'Check your explorer email and password.');
+      const status = error.response?.status;
+      if (status === 400 || status === 401) {
+        showErr('Login Failed', 'Check your explorer email and password.');
+      } else if (!error.response) {
+        // No reply: the free-tier server may still be waking up, or the phone is offline.
+        showErr(
+          'Server Not Responding',
+          'The LAKBAY server may still be waking up. Please wait a few seconds and try again.',
+          'warning',
+        );
+      } else {
+        showErr('Login Failed', `The server had a problem (error ${status}). Please try again.`);
+      }
     }
   };
 
@@ -70,17 +86,15 @@ export default function LoginScreen({ navigation }) {
           contentContainerStyle={styles.scroll}
           enableOnAndroid
           extraScrollHeight={24}
+          scrollEnabled={contentH > viewportH + 1}
+          onLayout={(e) => setViewportH(e.nativeEvent.layout.height)}
+          onContentSizeChange={(_, h) => setContentH(h)}
         >
           {/* ── Hero Banner ─────────────────────────────────── */}
           <Animated.View
             style={[styles.heroBanner, { opacity: heroFade, transform: [{ translateY: heroSlide }] }]}
           >
             <View style={styles.heroContent}>
-              <View style={styles.eyebrowBadge}>
-                <Ionicons name="compass" size={11} color={COLORS.gold} />
-                <Text style={styles.heroEyebrow}>EXPEDITION ACCESS PORTAL</Text>
-              </View>
-
               <View style={styles.logoRing}>
                 <Image
                   source={require('../assets/lakbay_icon_glyph.png')}
@@ -113,11 +127,8 @@ export default function LoginScreen({ navigation }) {
           <VintaStripe height={4} />
 
           {/* ── Form Card ──────────────────────────────────────────── */}
-          <View style={styles.card}>
+          <VintaCard style={styles.cardBorder} contentStyle={styles.card}>
             <View style={styles.cardHeader}>
-              <View style={styles.cardBadge}>
-                <Text style={styles.cardBadgeText}>AUTHENTICATION</Text>
-              </View>
               <Text style={styles.heading}>Explorer Sign In</Text>
               <Text style={styles.subHeading}>
                 Enter your credentials to resume your journey & earn daily XP.
@@ -147,7 +158,7 @@ export default function LoginScreen({ navigation }) {
                 <TextInput
                   style={styles.input}
                   placeholder="explorer@lakbay.ph"
-                  placeholderTextColor="rgba(191, 215, 255, 0.40)"
+                  placeholderTextColor="#94A3B8"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={email}
@@ -166,7 +177,7 @@ export default function LoginScreen({ navigation }) {
                 <TextInput
                   style={[styles.input, { flex: 1 }]}
                   placeholder="••••••••"
-                  placeholderTextColor="rgba(191, 215, 255, 0.40)"
+                  placeholderTextColor="#94A3B8"
                   secureTextEntry={!showPass}
                   value={password}
                   onChangeText={setPassword}
@@ -175,7 +186,7 @@ export default function LoginScreen({ navigation }) {
                   <Ionicons
                     name={showPass ? 'eye-outline' : 'eye-off-outline'}
                     size={17}
-                    color="rgba(191, 215, 255, 0.70)"
+                    color="#64748B"
                   />
                 </TouchableOpacity>
               </View>
@@ -186,7 +197,7 @@ export default function LoginScreen({ navigation }) {
               style={styles.forgotRow}
               onPress={() => showErr('Reset Password', 'A reset link will be sent to your email.', 'info')}
             >
-              <Ionicons name="key-outline" size={12} color="#38BDF8" style={{ marginRight: 4 }} />
+              <Ionicons name="key-outline" size={12} color={COLORS.accent} style={{ marginRight: 4 }} />
               <Text style={styles.forgotText}>Recover credentials?</Text>
             </TouchableOpacity>
 
@@ -199,12 +210,12 @@ export default function LoginScreen({ navigation }) {
             >
               {loading ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <ActivityIndicator color="#08143C" />
+                  <ActivityIndicator color="#FFFFFF" />
                   <Text style={styles.signInText}>Authenticating...</Text>
                 </View>
               ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Ionicons name="rocket-outline" size={16} color="#08143C" />
+                  <Ionicons name="rocket-outline" size={16} color="#FFFFFF" />
                   <Text style={styles.signInText}>Sign In to Adventure</Text>
                 </View>
               )}
@@ -213,7 +224,7 @@ export default function LoginScreen({ navigation }) {
             {/* Divider */}
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>✦ OR CONNECT VIA ✦</Text>
+              <Text style={styles.dividerText}>OR CONNECT VIA</Text>
               <View style={styles.dividerLine} />
             </View>
 
@@ -227,12 +238,11 @@ export default function LoginScreen({ navigation }) {
             <View style={styles.signupRow}>
               <Text style={styles.signupPrompt}>New explorer in Zamboanga? </Text>
               <TouchableOpacity onPress={() => navigation.navigate('CreateAccount')}>
-                <Text style={styles.signupLink}>Recruit Account →</Text>
+                <Text style={styles.signupLink}>Sign Up →</Text>
               </TouchableOpacity>
             </View>
 
-          </View>
-          <View style={{ height: 32 }} />
+          </VintaCard>
         </KeyboardAwareScrollView>
 
         <ErrorModal
@@ -255,69 +265,49 @@ const styles = StyleSheet.create({
   },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4, 10, 38, 0.88)',
+    backgroundColor: BG_OVERLAY,
   },
   container: { flex: 1, backgroundColor: 'transparent' },
-  scroll:    { flexGrow: 1, paddingBottom: 24 },
+  scroll:    { flexGrow: 1, paddingBottom: 12 },
 
   // ── Hero Banner ────────────────────────────────────────────────────
   heroBanner: {
-    paddingTop: 28,
-    paddingBottom: 22,
+    paddingTop: 6,
+    paddingBottom: 12,
     alignItems: 'center',
   },
   heroContent: { alignItems: 'center', zIndex: 2 },
-  eyebrowBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(251, 191, 36, 0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.40)',
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginBottom: 12,
-  },
-  heroEyebrow: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7.5,
-    color: COLORS.gold,
-    letterSpacing: 1,
-    lineHeight: 11,
-  },
   logoRing: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: '#08143C',
     borderWidth: 2,
     borderColor: '#1E3A8A',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
-  logoImg: { width: 54, height: 54 },
+  logoImg: { width: 44, height: 44 },
   logoTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 18,
+    fontFamily: FONTS.bold,
+    fontSize: 30,
     color: '#FFFFFF',
-    letterSpacing: 3,
-    lineHeight: 26,
-    marginBottom: 3,
+    letterSpacing: 5,
+    lineHeight: 34,
   },
   logoSub: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7.5,
+    fontFamily: FONTS.semiBold,
+    fontSize: 11,
     color: 'rgba(191, 215, 255, 0.70)',
-    letterSpacing: 1.5,
-    lineHeight: 12,
-    marginBottom: 14,
+    letterSpacing: 2.5,
+    lineHeight: 14,
+    marginBottom: 10,
   },
   pills: { flexDirection: 'row', gap: 8 },
   pill: {
@@ -340,53 +330,40 @@ const styles = StyleSheet.create({
   },
 
   // ── Card ───────────────────────────────────────────────────────────
-  card: {
-    backgroundColor: '#08143C',
+  cardBorder: {
     borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
+    padding: CARD_BORDER_WIDTH,
     marginHorizontal: 16,
-    marginTop: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 22,
+    marginTop: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: RADIUS.lg - CARD_BORDER_WIDTH,
+    paddingHorizontal: 20,
+    paddingTop: 44,
+    paddingBottom: 18,
+  },
   cardHeader: {
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  cardBadge: {
-    backgroundColor: 'rgba(26, 86, 219, 0.20)',
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginBottom: 8,
-  },
-  cardBadgeText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7,
-    color: '#38BDF8',
-    letterSpacing: 0.8,
-    lineHeight: 11,
+    marginBottom: 12,
   },
   heading: {
-    fontFamily: FONTS.pixel,
-    fontSize: 12,
-    color: '#FFFFFF',
-    marginBottom: 6,
+    fontFamily: FONTS.bold,
+    fontSize: 20,
+    color: COLORS.navy,
+    marginBottom: 4,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 24,
   },
   subHeading: {
     fontFamily: FONTS.regular,
     fontSize: 12,
-    color: 'rgba(191, 215, 255, 0.70)',
+    color: COLORS.textMuted,
     textAlign: 'center',
     lineHeight: 17,
     paddingHorizontal: 8,
@@ -396,35 +373,35 @@ const styles = StyleSheet.create({
   streakBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C2054',
+    backgroundColor: COLORS.bg,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.35)',
+    borderColor: COLORS.accentBorder,
     padding: 10,
-    marginBottom: 18,
+    marginBottom: 14,
     gap: 10,
   },
   streakIconWrap: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: 'rgba(251, 191, 36, 0.18)',
+    backgroundColor: COLORS.accentSoft,
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.40)',
+    borderColor: COLORS.accentBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
   streakText: { flex: 1 },
   streakTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7.5,
-    color: COLORS.gold,
-    lineHeight: 12,
+    fontFamily: FONTS.bold,
+    fontSize: 13,
+    color: COLORS.accent,
+    lineHeight: 16,
   },
   streakDesc: {
     fontFamily: FONTS.regular,
     fontSize: 10.5,
-    color: 'rgba(191, 215, 255, 0.75)',
+    color: COLORS.textSub,
     marginTop: 2,
     lineHeight: 14,
   },
@@ -440,15 +417,15 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: FONTS.semiBold,
     fontSize: 12,
-    color: 'rgba(191, 215, 255, 0.90)',
+    color: COLORS.textSub,
   },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C2054',
+    backgroundColor: COLORS.bgCardAlt,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: '#1E3A8A',
+    borderColor: COLORS.border,
     paddingHorizontal: 14,
     height: 48,
   },
@@ -456,7 +433,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: FONTS.medium,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: COLORS.text,
   },
   eyeBtn: { padding: 6 },
 
@@ -464,24 +441,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
-    marginTop: 2,
-    marginBottom: 20,
+    marginTop: 0,
+    marginBottom: 14,
   },
   forgotText: {
     fontFamily: FONTS.semiBold,
     fontSize: 12,
-    color: '#38BDF8',
+    color: COLORS.accent,
   },
 
   // ── Buttons ────────────────────────────────────────────────────────
   signInBtn: {
     height: 50,
     borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.gold,
+    backgroundColor: COLORS.accent,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: COLORS.accentDark,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
@@ -489,38 +466,38 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   signInText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 9,
-    color: '#08143C',
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    color: '#FFFFFF',
     letterSpacing: 0.5,
-    lineHeight: 14,
+    lineHeight: 18,
   },
 
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 18,
+    marginVertical: 12,
     gap: 8,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#1E3A8A',
+    backgroundColor: COLORS.borderLight,
   },
   dividerText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 6.5,
-    color: 'rgba(191, 215, 255, 0.50)',
-    letterSpacing: 0.8,
-    lineHeight: 10,
+    fontFamily: FONTS.semiBold,
+    fontSize: 10,
+    color: COLORS.textFaint,
+    letterSpacing: 1.5,
+    lineHeight: 13,
   },
 
   googleBtn: {
     height: 48,
     borderRadius: RADIUS.sm,
-    backgroundColor: '#0C2054',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#1E3A8A',
+    borderColor: COLORS.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -534,23 +511,23 @@ const styles = StyleSheet.create({
   googleText: {
     fontFamily: FONTS.semiBold,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: COLORS.text,
   },
 
   signupRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 14,
   },
   signupPrompt: {
     fontFamily: FONTS.regular,
     fontSize: 12,
-    color: 'rgba(191, 215, 255, 0.70)',
+    color: COLORS.textMuted,
   },
   signupLink: {
     fontFamily: FONTS.bold,
     fontSize: 12,
-    color: COLORS.gold,
+    color: GOLD_TEXT,
   },
 });

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { getSpots, ORIGIN } from '../api/qrService';
+import { getCatchIcons, getSpots, ORIGIN } from '../api/qrService';
 import { getPublishedPromotions } from '../api/promotionService';
 import { authService } from '../api/authService';
 import type { SpotType } from '../constants/mapConfig';
@@ -108,6 +108,24 @@ function normalizePromotion(raw: RawRecord): MapSpot | null {
   };
 }
 
+interface CatchIconModel {
+  name: string;
+  model: string;
+}
+
+// Same matching the Catch screen uses: icon named in the spot's name, then in its
+// description, else the first icon.
+function matchCatchModel(spot: MapSpot, icons: CatchIconModel[]): string | null {
+  if (!icons.length) return null;
+  const name = spot.name.toLowerCase();
+  const desc = spot.description.toLowerCase();
+  const hit =
+    icons.find((i) => name.includes(i.name.toLowerCase())) ||
+    icons.find((i) => desc.includes(i.name.toLowerCase())) ||
+    icons[0];
+  return hit.model;
+}
+
 export function useMapSpots() {
   const [spots, setSpots] = useState<MapSpot[]>([]);
   const [profile, setProfile] = useState<MapProfile | null>(null);
@@ -117,15 +135,24 @@ export function useMapSpots() {
 
   const load = useCallback(async () => {
     try {
-      const [spotsData, promosData, profileData]: unknown[] = await Promise.all([
+      const [spotsData, promosData, profileData, iconsData]: unknown[] = await Promise.all([
         getSpots(),
         getPublishedPromotions().catch(() => []),
         authService.getProfile().catch(() => null),
+        getCatchIcons().catch(() => []),
       ]);
+      const catchIcons: CatchIconModel[] = asList(iconsData)
+        .map((i) => ({ name: str(i.name), model: resolveMediaUrl(i.model_3d) ?? '' }))
+        .filter((i) => i.name && i.model);
       const next = [
         ...asList(spotsData).map(normalizeSpot),
         ...asList(promosData).map(normalizePromotion),
-      ].filter((s): s is MapSpot => s !== null);
+      ]
+        .filter((s): s is MapSpot => s !== null)
+        // Catch spots without their own model show the matching Catch icon's model.
+        .map((s) =>
+          s.primary_type === 'catch' && !s.model_3d ? { ...s, model_3d: matchCatchModel(s, catchIcons) } : s,
+        );
       setSpots(next);
       if (isRecord(profileData)) setProfile({ xp: num(profileData.xp, 0) });
       setError(null);

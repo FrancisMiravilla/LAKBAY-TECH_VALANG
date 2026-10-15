@@ -4,7 +4,8 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, RADIUS, SIZES, SPACING } from '../../constants/theme';
+import { COLORS, FONTS, RADIUS, SIZES, SPACING, GOLD_TEXT, onWhite } from '../../constants/theme';
+import VintaCard from '../VintaCard';
 import { SPOT_TYPES } from '../../constants/mapConfig';
 import type { MapSpot } from '../../hooks/useMapSpots';
 
@@ -83,21 +84,22 @@ function SpotDetailCardBase({
   return (
     <Animated.View
       {...panResponder.panHandlers}
-      style={[styles.sheet, { paddingBottom: bottomInset + 16, transform: [{ translateY }] }]}
+      style={[styles.sheet, { transform: [{ translateY }] }]}
     >
+      <VintaCard sheet contentStyle={[styles.sheetInner, { paddingBottom: bottomInset + 16 }]}>
       <View style={styles.dragHandle} />
 
       <TouchableOpacity style={styles.close} onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityLabel="Close">
         <View style={styles.closeCircle}>
-          <Ionicons name="close" size={16} color="#FFFFFF" />
+          <Ionicons name="close" size={16} color={COLORS.textSub} />
         </View>
       </TouchableOpacity>
 
       <View style={styles.badgeRow}>
         <View style={[styles.typeBadge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
           <View style={[styles.typeDot, { backgroundColor: badge.color }]} />
-          <Ionicons name={badge.icon} size={11} color={badge.color} style={{ marginRight: 4 }} />
-          <Text style={[styles.typeBadgeText, { color: badge.color }]}>{badge.label}</Text>
+          <Ionicons name={badge.icon} size={11} color={onWhite(badge.color)} style={{ marginRight: 4 }} />
+          <Text style={[styles.typeBadgeText, { color: onWhite(badge.color) }]}>{badge.label}</Text>
         </View>
 
         {(isQr || isCatch || reqLvl > 1) && (
@@ -109,12 +111,12 @@ function SpotDetailCardBase({
               </View>
             ) : (
               <View style={styles.unlockedPill}>
-                <Ionicons name="checkmark-circle" size={10} color="#10B981" style={{ marginRight: 4 }} />
+                <Ionicons name="checkmark-circle" size={10} color="#059669" style={{ marginRight: 4 }} />
                 <Text style={styles.unlockedPillText}>UNLOCKED · LVL {reqLvl}</Text>
               </View>
             )}
             <View style={styles.xpPill}>
-              <Ionicons name="sparkles" size={10} color={COLORS.gold} style={{ marginRight: 4 }} />
+              <Ionicons name="sparkles" size={10} color={GOLD_TEXT} style={{ marginRight: 4 }} />
               <Text style={styles.xpPillText}>+{spot.xp_reward} XP</Text>
             </View>
           </>
@@ -125,12 +127,12 @@ function SpotDetailCardBase({
 
       {!!spot.location_name && (
         <View style={styles.infoRow}>
-          <Ionicons name="location-sharp" size={13} color="#38BDF8" />
+          <Ionicons name="location-sharp" size={13} color="#0284C7" />
           <Text style={styles.infoText}>{spot.location_name}</Text>
         </View>
       )}
       <View style={styles.infoRow}>
-        <Ionicons name="navigate-circle-outline" size={13} color="#38BDF8" />
+        <Ionicons name="navigate-circle-outline" size={13} color="#0284C7" />
         <Text style={styles.infoTextMuted} selectable>
           {spot.latitude.toFixed(5)}, {spot.longitude.toFixed(5)}
         </Text>
@@ -139,7 +141,7 @@ function SpotDetailCardBase({
       {isLocked && (
         <View style={styles.lockedAlert}>
           <View style={styles.lockedAlertTop}>
-            <Ionicons name="lock-closed" size={15} color="#F87171" />
+            <Ionicons name="lock-closed" size={15} color="#DC2626" />
             <Text style={styles.lockedAlertTitle}>SPOT IS LEVEL LOCKED</Text>
           </View>
           <Text style={styles.lockedAlertText}>
@@ -198,6 +200,7 @@ function SpotDetailCardBase({
           </>
         )}
       </TouchableOpacity>
+      </VintaCard>
     </Animated.View>
   );
 }
@@ -207,23 +210,20 @@ export const SpotDetailCard = memo(SpotDetailCardBase);
 const styles = StyleSheet.create({
   sheet: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(8,20,60,0.96)',
-    borderTopLeftRadius: 26, borderTopRightRadius: 26,
+  },
+  sheetInner: {
     paddingHorizontal: SPACING.lg, paddingTop: 12,
-    borderTopWidth: 1.5, borderTopColor: 'rgba(99,179,237,0.3)',
-    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.35, shadowRadius: 20, elevation: 24,
   },
   dragHandle: {
     width: 40, height: 4, borderRadius: 2,
-    backgroundColor: 'rgba(99,179,237,0.5)', alignSelf: 'center', marginBottom: 14,
+    backgroundColor: COLORS.border, alignSelf: 'center', marginBottom: 14,
   },
   close: { position: 'absolute', top: 20, right: 20, zIndex: 2 },
   closeCircle: {
     width: 30, height: 30, borderRadius: 15,
-    backgroundColor: 'rgba(99,179,237,0.15)',
+    backgroundColor: COLORS.bg,
     justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(99,179,237,0.35)',
+    borderWidth: 1, borderColor: COLORS.border,
   },
   badgeRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 10, paddingRight: 40 },
   typeBadge: {
@@ -243,32 +243,32 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(16,185,129,0.18)', borderColor: 'rgba(16,185,129,0.5)',
     borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4,
   },
-  unlockedPillText: { fontFamily: FONTS.bold, fontSize: 10, color: '#10B981', letterSpacing: 0.5 },
+  unlockedPillText: { fontFamily: FONTS.bold, fontSize: 10, color: '#059669', letterSpacing: 0.5 },
   xpPill: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(251,191,36,0.18)', borderColor: 'rgba(251,191,36,0.5)',
     borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4,
   },
-  xpPillText: { fontFamily: FONTS.bold, fontSize: 10, color: '#FBBF24', letterSpacing: 0.5 },
-  name: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff', marginBottom: 5, paddingRight: 36, lineHeight: 22 },
+  xpPillText: { fontFamily: FONTS.bold, fontSize: 10, color: GOLD_TEXT, letterSpacing: 0.5 },
+  name: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.navy, marginBottom: 5, paddingRight: 36, lineHeight: 22 },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
-  infoText: { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: '#38BDF8', flexShrink: 1 },
-  infoTextMuted: { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: 'rgba(191,215,255,0.7)' },
+  infoText: { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: '#0284C7', flexShrink: 1 },
+  infoTextMuted: { fontFamily: FONTS.medium, fontSize: SIZES.fontSm, color: COLORS.textMuted },
   lockedAlert: {
-    backgroundColor: 'rgba(239,68,68,0.15)', borderColor: 'rgba(239,68,68,0.45)',
+    backgroundColor: '#FEF2F2', borderColor: 'rgba(239,68,68,0.35)',
     borderWidth: 1, borderRadius: 12, padding: 12, marginTop: 6, marginBottom: 6,
   },
   lockedAlertTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  lockedAlertTitle: { fontFamily: FONTS.bold, fontSize: 12, color: '#F87171', letterSpacing: 0.5 },
-  lockedAlertText: { fontFamily: FONTS.regular, fontSize: 12, color: '#E2E8F0', lineHeight: 18, marginBottom: 6 },
-  lockedAlertHighlight: { fontFamily: FONTS.bold, color: '#38BDF8' },
-  lockedAlertXpHint: { fontFamily: FONTS.medium, fontSize: 11, color: '#94A3B8' },
-  lockedAlertUserLvl: { fontFamily: FONTS.bold, color: '#FBBF24' },
+  lockedAlertTitle: { fontFamily: FONTS.bold, fontSize: 12, color: '#DC2626', letterSpacing: 0.5 },
+  lockedAlertText: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textSub, lineHeight: 18, marginBottom: 6 },
+  lockedAlertHighlight: { fontFamily: FONTS.bold, color: COLORS.accent },
+  lockedAlertXpHint: { fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textMuted },
+  lockedAlertUserLvl: { fontFamily: FONTS.bold, color: GOLD_TEXT },
   media: { width: '100%', height: 180, marginTop: 8, borderRadius: RADIUS.md, overflow: 'hidden', backgroundColor: '#0F172A' },
   mediaWebview: { flex: 1, backgroundColor: 'transparent' },
   mediaImage: { width: '100%', height: '100%' },
-  divider: { height: 1, backgroundColor: 'rgba(99,179,237,0.2)', marginVertical: 10 },
-  desc: { fontFamily: FONTS.regular, fontSize: SIZES.fontSm, color: 'rgba(226,232,240,0.85)', lineHeight: 20, marginBottom: 14 },
+  divider: { height: 1, backgroundColor: COLORS.borderLight, marginVertical: 10 },
+  desc: { fontFamily: FONTS.regular, fontSize: SIZES.fontSm, color: COLORS.textSub, lineHeight: 20, marginBottom: 14 },
   directionsBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: COLORS.accent, borderRadius: 14, paddingVertical: 14,

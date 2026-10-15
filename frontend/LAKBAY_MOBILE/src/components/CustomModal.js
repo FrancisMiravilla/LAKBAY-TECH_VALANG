@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, Modal, TouchableOpacity, Animated } from 'react-native';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, onWhite } from '../constants/theme';
+import VintaCard from './VintaCard';
 import { Ionicons } from '@expo/vector-icons';
 import CustomButton from './CustomButton';
 
@@ -9,13 +10,11 @@ export default function CustomModal({ visible, title, message, icon, color, onCl
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.modalCard}>
-          {/* Decorative Top Accent Bar */}
-          <View style={[styles.topBar, { backgroundColor: themeColor }]} />
-          
+        <VintaCard style={styles.modalFrame} contentStyle={styles.modalCard}>
+
           <View style={styles.iconContainer}>
             <View style={[styles.iconRing, { borderColor: themeColor, backgroundColor: themeColor + '22' }]}>
-              <Ionicons name={icon || "information-circle"} size={32} color={themeColor} />
+              <Ionicons name={icon || "information-circle"} size={32} color={onWhite(themeColor)} />
             </View>
           </View>
           
@@ -32,11 +31,11 @@ export default function CustomModal({ visible, title, message, icon, color, onCl
                 title="Proceed"
                 onPress={onProceed}
                 variant="primary"
-                style={{ height: 44, paddingHorizontal: 20, backgroundColor: themeColor }}
+                style={{ height: 44, paddingHorizontal: 20, backgroundColor: COLORS.accent }}
               />
             </View>
           </View>
-        </View>
+        </VintaCard>
       </View>
     </Modal>
   );
@@ -45,36 +44,20 @@ export default function CustomModal({ visible, title, message, icon, color, onCl
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(2, 6, 23, 0.85)',
+    backgroundColor: 'rgba(2, 6, 23, 0.70)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
-  modalCard: {
+  modalFrame: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: 'rgba(8, 20, 56, 0.98)',
-    borderRadius: RADIUS.lg,
+  },
+  modalCard: {
     paddingHorizontal: 24,
     paddingTop: 28,
     paddingBottom: 24,
-    borderWidth: 1.5,
-    borderColor: 'rgba(99, 179, 237, 0.35)',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.6,
-    shadowRadius: 24,
-    elevation: 16,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 4,
   },
   iconContainer: {
     marginBottom: 16,
@@ -88,13 +71,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
   },
   title: {
     fontFamily: FONTS.bold,
     fontSize: 20,
-    color: '#FFFFFF',
+    color: COLORS.navy,
     marginBottom: 12,
     textAlign: 'center',
     letterSpacing: 0.5,
@@ -102,7 +85,7 @@ const styles = StyleSheet.create({
   message: {
     fontFamily: FONTS.medium,
     fontSize: 14,
-    color: '#E2E8F0',
+    color: COLORS.textSub,
     textAlign: 'center',
     marginBottom: 26,
     lineHeight: 22,
@@ -121,14 +104,14 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: COLORS.bg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.20)',
+    borderColor: COLORS.border,
   },
   cancelText: {
     fontFamily: FONTS.semiBold,
     fontSize: 15,
-    color: '#E2E8F0',
+    color: COLORS.textSub,
   },
   proceedWrapper: {
     flex: 1,

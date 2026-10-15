@@ -45,9 +45,9 @@ export default function WelcomeScreen({ navigation }) {
         {/* Dark cinematic gradient so text stays readable */}
         <LinearGradient
           colors={[
-            'rgba(12,36,97,0.45)',
-            'rgba(6,18,49,0.75)',
-            'rgba(4,10,38,0.95)',
+            'rgba(12,36,97,0.20)',
+            'rgba(6,18,49,0.45)',
+            'rgba(4,10,38,0.82)',
           ]}
           locations={[0, 0.45, 1]}
           style={StyleSheet.absoluteFill}
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   },
   welcome: {
     fontFamily: FONTS.semiBold, fontSize: 13,
-    color: 'rgba(255,255,255,0.75)', letterSpacing: 4, marginBottom: 4,
+    color: 'rgba(255,255,255,0.75)', letterSpacing: 4, marginBottom: 2,
   },
   title: {
     fontFamily: FONTS.bold, fontSize: 48, lineHeight: 52, color: '#fff',

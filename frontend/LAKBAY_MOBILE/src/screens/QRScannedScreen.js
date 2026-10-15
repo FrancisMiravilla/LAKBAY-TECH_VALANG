@@ -6,7 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, onWhite } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
 import { ORIGIN } from '../api/qrService';
 import { useApp } from '../context/AppContext';
 import VintaStripe from '../components/VintaStripe';
@@ -177,11 +178,12 @@ export default function QRScannedScreen({ navigation, route }) {
 
           {/* ── Hero image carousel / display ── */}
           <Animated.View style={[styles.heroWrapper, { transform: [{ scale: heroScale }], opacity: heroOpacity }]}>
+            <VintaCard style={styles.heroFrame} contentStyle={styles.heroInner}>
             {combinedImages.length > 0 ? (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                snapToInterval={SCREEN_W - 32}
+                snapToInterval={SCREEN_W - 38}
                 decelerationRate="fast"
                 style={{ width: '100%', height: '100%' }}
               >
@@ -189,7 +191,7 @@ export default function QRScannedScreen({ navigation, route }) {
                   <Image
                     key={idx}
                     source={{ uri: imgUrl }}
-                    style={{ width: SCREEN_W - 32, height: '100%', borderRadius: RADIUS.lg }}
+                    style={{ width: SCREEN_W - 38, height: '100%' }}
                     resizeMode="cover"
                   >
                   </Image>
@@ -232,6 +234,7 @@ export default function QRScannedScreen({ navigation, route }) {
                 </View>
               ) : null}
             </View>
+            </VintaCard>
           </Animated.View>
 
           {/* ── XP reward chip + Hook ── */}
@@ -241,7 +244,7 @@ export default function QRScannedScreen({ navigation, route }) {
               <Text style={styles.xpText}>+{spot.xp_reward || 50} XP EARNED</Text>
             </Animated.View>
             {spot.hook ? (
-              <Text style={styles.hookText}>"{spot.hook}"</Text>
+              <Text style={styles.hookText}>&ldquo;{spot.hook}&rdquo;</Text>
             ) : null}
           </Animated.View>
 
@@ -252,17 +255,16 @@ export default function QRScannedScreen({ navigation, route }) {
               const body = typeof data === 'object' && data !== null ? data.body : data;
               if (!body) return null;
               return (
-                <View key={section.key} style={[styles.infoCard, { borderColor: section.border }]}>
-                  <LinearGradient colors={section.gradient} style={styles.infoCardGradient} />
+                <VintaCard key={section.key} style={styles.infoFrame} contentStyle={styles.infoCard}>
                   <View style={styles.infoCardHeader}>
                     <View style={[styles.infoIconCircle, { backgroundColor: section.color + '22' }]}>
-                      <Ionicons name={section.icon} size={15} color={section.color} />
+                      <Ionicons name={section.icon} size={15} color={onWhite(section.color)} />
                     </View>
-                    <Text style={[styles.infoCardLabel, { color: section.color }]}>{section.label}</Text>
+                    <Text style={[styles.infoCardLabel, { color: onWhite(section.color) }]}>{section.label}</Text>
                     <View style={[styles.infoCardDivider, { backgroundColor: section.color + '35' }]} />
                   </View>
                   <Text style={styles.infoCardBody}>{body}</Text>
-                </View>
+                </VintaCard>
               );
             })}
           </Animated.View>
@@ -308,7 +310,7 @@ const styles = StyleSheet.create({
   },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4, 10, 38, 0.85)',
+    backgroundColor: BG_OVERLAY,
   },
   container: {
     flex: 1,
@@ -390,20 +392,19 @@ const styles = StyleSheet.create({
 
   // ── Hero ──
   heroWrapper: {
-    height: 240,
-    borderRadius: RADIUS.lg,
-    overflow: 'hidden',
     marginBottom: 16,
-    backgroundColor: 'rgba(8, 20, 60, 0.60)',
-    borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.25)',
-    ...SHADOW.accent,
+  },
+  heroFrame: {
+    height: 240,
+  },
+  heroInner: {
+    flex: 1,
   },
   heroPlaceholder: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: COLORS.bg,
   },
   heroGradient: {
     position: 'absolute',
@@ -503,27 +504,18 @@ const styles = StyleSheet.create({
   hookText: {
     fontFamily: FONTS.medium,
     fontSize: 13,
-    color: 'rgba(191,215,255,0.70)',
+    color: 'rgba(255,255,255,0.85)',
     fontStyle: 'italic',
     textAlign: 'center',
     paddingHorizontal: 16,
   },
 
   // ── Info Cards ──
-  infoCard: {
-    borderRadius: RADIUS.lg,
+  infoFrame: {
     marginBottom: 12,
-    borderWidth: 1,
-    overflow: 'hidden',
-    padding: 16,
-    backgroundColor: 'rgba(8, 20, 60, 0.58)',
   },
-  infoCardGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  infoCard: {
+    padding: 16,
   },
   infoCardHeader: {
     flexDirection: 'row',
@@ -540,7 +532,7 @@ const styles = StyleSheet.create({
   },
   infoCardLabel: {
     fontFamily: FONTS.bold,
-    fontSize: 10,
+    fontSize: 12,
     letterSpacing: 1.5,
   },
   infoCardDivider: {
@@ -549,9 +541,9 @@ const styles = StyleSheet.create({
   },
   infoCardBody: {
     fontFamily: FONTS.regular,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.88)',
-    lineHeight: 20,
+    fontSize: 14,
+    color: COLORS.textSub,
+    lineHeight: 21,
   },
 
   // ── CTA Buttons ──
@@ -584,7 +576,7 @@ const styles = StyleSheet.create({
   },
   backLinkText: {
     fontFamily: FONTS.medium,
-    fontSize: 12,
-    color: 'rgba(191,215,255,0.50)',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.75)',
   },
 });

@@ -1,14 +1,8 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
+import { VINTA_COLORS } from '../constants/theme';
 
-const SEGMENTS = [
-  '#DC2626',  // red
-  '#FBBF24',  // gold
-  '#16A34A',  // green
-  '#1A56DB',  // blue
-  '#EA580C',  // orange
-  '#FFFFFF',  // white
-];
+const SEGMENTS = VINTA_COLORS;
 
 export default function VintaStripe({ height = 4 }) {
   return (

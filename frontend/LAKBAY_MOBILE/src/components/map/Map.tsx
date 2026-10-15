@@ -114,6 +114,8 @@ export function Map({
         ref={mapRef}
         style={StyleSheet.absoluteFill}
         styleURL={MAP_STYLES[resolvedTheme]}
+        // TextureView: a SurfaceView map disappears (shows transparent) when layered with the AR camera.
+        surfaceView={false}
         compassEnabled={false}
         scaleBarEnabled={false}
         logoPosition={{ bottom: 8, left: 8 }}

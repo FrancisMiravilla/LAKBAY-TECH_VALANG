@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  StyleSheet, Text, View, TouchableOpacity, StatusBar,
-  ScrollView, ImageBackground, Alert,
+  StyleSheet, Text, View, TouchableOpacity, StatusBar, ScrollView, ImageBackground,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT, onWhite } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
 import { useApp } from '../context/AppContext';
 import VintaStripe from '../components/VintaStripe';
 
+import { useAppDialog } from '../components/useAppDialog';
 const TYPE_CONFIG = {
   scan:  { color: '#38BDF8', tag: 'SCAN',      iconName: 'scan-circle-outline'   },
   badge: { color: COLORS.gold, tag: 'BADGE',   iconName: 'medal-outline'         },
@@ -26,6 +27,7 @@ const FILTERS = [
 ];
 
 export default function NotificationScreen({ navigation }) {
+  const { dialog, showAlert } = useAppDialog();
   const { notifs, clearNotifications, markNotificationRead } = useApp();
   const [selectedFilter, setSelectedFilter] = useState('all');
 
@@ -39,7 +41,7 @@ export default function NotificationScreen({ navigation }) {
 
   const handleClearAll = () => {
     if (notifs.length === 0) return;
-    Alert.alert(
+    showAlert(
       'Clear Expedition Log',
       'Are you sure you want to clear all notifications from your expedition log?',
       [
@@ -114,7 +116,7 @@ export default function NotificationScreen({ navigation }) {
         <VintaStripe height={3} />
 
         {/* ── Stat Tracker Bar ── */}
-        <View style={styles.trackerBar}>
+        <VintaCard style={styles.trackerFrame} contentStyle={styles.trackerBar}>
           <View style={styles.trackerItem}>
             <Text style={styles.trackerLabel}>TOTAL LOGS</Text>
             <Text style={styles.trackerValue}>{notifs.length}</Text>
@@ -122,18 +124,18 @@ export default function NotificationScreen({ navigation }) {
           <View style={styles.trackerDivider} />
           <View style={styles.trackerItem}>
             <Text style={styles.trackerLabel}>UNREAD ALERTS</Text>
-            <Text style={[styles.trackerValue, { color: unreadCount > 0 ? COLORS.gold : '#FFFFFF' }]}>
+            <Text style={[styles.trackerValue, { color: unreadCount > 0 ? GOLD_TEXT : COLORS.navy }]}>
               {unreadCount}
             </Text>
           </View>
           <View style={styles.trackerDivider} />
           <View style={styles.trackerItem}>
             <Text style={styles.trackerLabel}>STATUS</Text>
-            <Text style={[styles.trackerValue, { color: COLORS.teal }]}>
+            <Text style={[styles.trackerValue, { color: '#059669' }]}>
               {unreadCount === 0 ? 'SYNCHRONIZED' : 'UPDATES PENDING'}
             </Text>
           </View>
-        </View>
+        </VintaCard>
 
         {/* ── Filter Pills ── */}
         <View style={styles.filterContainer}>
@@ -150,7 +152,7 @@ export default function NotificationScreen({ navigation }) {
                   <Ionicons
                     name={f.icon}
                     size={13}
-                    color={active ? '#08143C' : 'rgba(191,215,255,0.75)'}
+                    color={active ? '#FFFFFF' : 'rgba(191,215,255,0.75)'}
                     style={{ marginRight: 5 }}
                   />
                   <Text style={[styles.filterText, active && styles.filterTextActive]}>
@@ -168,15 +170,15 @@ export default function NotificationScreen({ navigation }) {
           contentContainerStyle={styles.scroll}
         >
           {filteredNotifs.length === 0 ? (
-            <View style={styles.emptyContainer}>
+            <VintaCard style={styles.emptyFrame} contentStyle={styles.emptyContainer}>
               <View style={styles.emptyIconCircle}>
-                <Ionicons name="compass-outline" size={44} color={COLORS.gold} />
+                <Ionicons name="compass-outline" size={44} color={GOLD_TEXT} />
               </View>
               <Text style={styles.emptyTitle}>Logbook Clear, Explorer!</Text>
               <Text style={styles.emptySub}>
                 {selectedFilter === 'all'
                   ? 'No notifications right now. Scan QR monuments, claim login streaks, or submit landmarks to fill your expedition diary.'
-                  : `No logs found under "${FILTERS.find(f => f.id === selectedFilter)?.label}".`}
+                  : `No logs found under “${FILTERS.find(f => f.id === selectedFilter)?.label}”.`}
               </Text>
               {selectedFilter !== 'all' && (
                 <TouchableOpacity
@@ -187,7 +189,7 @@ export default function NotificationScreen({ navigation }) {
                   <Text style={styles.resetFilterBtnText}>Show All Logs</Text>
                 </TouchableOpacity>
               )}
-            </View>
+            </VintaCard>
           ) : (
             <View style={styles.list}>
               {filteredNotifs.map((n, idx) => {
@@ -198,17 +200,13 @@ export default function NotificationScreen({ navigation }) {
                 return (
                   <TouchableOpacity
                     key={notifKey}
-                    style={[
-                      styles.card,
-                      isUnread && styles.cardUnread,
-                      isUnread && { borderColor: conf.color + '77' },
-                    ]}
                     activeOpacity={0.85}
                     onPress={() => {
                       markNotificationRead(n.id);
                       if (n.screen) navigation.navigate(n.screen);
                     }}
                   >
+                    <VintaCard style={styles.cardFrame} contentStyle={[styles.card, isUnread && styles.cardUnread]}>
                     {/* Glowing Left Indicator Strip */}
                     <View style={[styles.cardStrip, { backgroundColor: conf.color }]} />
 
@@ -217,7 +215,7 @@ export default function NotificationScreen({ navigation }) {
                       {n.icon ? (
                         <Text style={styles.iconEmoji}>{n.icon}</Text>
                       ) : (
-                        <Ionicons name={conf.iconName} size={20} color={conf.color} />
+                        <Ionicons name={conf.iconName} size={20} color={onWhite(conf.color)} />
                       )}
                     </View>
 
@@ -225,10 +223,10 @@ export default function NotificationScreen({ navigation }) {
                     <View style={styles.contentWrap}>
                       <View style={styles.cardTopRow}>
                         <View style={[styles.tagPill, { backgroundColor: conf.color + '26', borderColor: conf.color + '66' }]}>
-                          <Text style={[styles.tagText, { color: conf.color }]}>{conf.tag}</Text>
+                          <Text style={[styles.tagText, { color: onWhite(conf.color) }]}>{conf.tag}</Text>
                         </View>
                         <View style={styles.timeWrap}>
-                          <Ionicons name="time-outline" size={11} color="rgba(191,215,255,0.55)" />
+                          <Ionicons name="time-outline" size={11} color={COLORS.textFaint} />
                           <Text style={styles.timeText}>{n.time || 'Just now'}</Text>
                           {isUnread && <View style={styles.unreadGlowDot} />}
                         </View>
@@ -244,11 +242,12 @@ export default function NotificationScreen({ navigation }) {
                             <Text style={styles.actionPromptText}>
                               {n.screen === 'MyPromotions' ? 'Open Curator Screen' : 'View Adventure'}
                             </Text>
-                            <Ionicons name="arrow-forward" size={12} color={COLORS.gold} />
+                            <Ionicons name="arrow-forward" size={12} color={GOLD_TEXT} />
                           </View>
                         </View>
                       )}
                     </View>
+                    </VintaCard>
                   </TouchableOpacity>
                 );
               })}
@@ -256,6 +255,7 @@ export default function NotificationScreen({ navigation }) {
           )}
           <View style={{ height: 36 }} />
         </ScrollView>
+        {dialog}
       </SafeAreaView>
     </ImageBackground>
   );
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
   },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(3, 7, 24, 0.88)',
+    backgroundColor: BG_OVERLAY,
   },
   container: {
     flex: 1,
@@ -298,11 +298,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 12,
+    fontFamily: FONTS.bold,
+    fontSize: 20,
     color: '#FFFFFF',
     letterSpacing: 2,
-    lineHeight: 18,
+    lineHeight: 22,
   },
   headerSub: {
     fontFamily: FONTS.medium,
@@ -345,18 +345,16 @@ const styles = StyleSheet.create({
   },
 
   /* ── Stat Tracker Bar ── */
+  trackerFrame: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: RADIUS.md,
+  },
   trackerBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    marginHorizontal: 16,
-    marginTop: 12,
     paddingVertical: 10,
-    backgroundColor: 'rgba(8, 20, 60, 0.60)',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.20)',
-    ...SHADOW.card,
   },
   trackerItem: {
     alignItems: 'center',
@@ -364,21 +362,21 @@ const styles = StyleSheet.create({
   },
   trackerLabel: {
     fontFamily: FONTS.medium,
-    fontSize: 9,
-    color: 'rgba(191, 215, 255, 0.60)',
+    fontSize: 10,
+    color: COLORS.textMuted,
     letterSpacing: 1,
     marginBottom: 2,
   },
   trackerValue: {
     fontFamily: FONTS.bold,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: COLORS.navy,
     letterSpacing: 0.5,
   },
   trackerDivider: {
     width: 1,
     height: 22,
-    backgroundColor: 'rgba(99, 179, 237, 0.20)',
+    backgroundColor: COLORS.borderLight,
   },
 
   /* ── Filter Pills ── */
@@ -401,9 +399,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(99, 179, 237, 0.20)',
   },
   filterPillActive: {
-    backgroundColor: COLORS.gold,
-    borderColor: COLORS.gold,
-    ...SHADOW.gold,
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
+    ...SHADOW.accent,
   },
   filterText: {
     fontFamily: FONTS.medium,
@@ -412,7 +410,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   filterTextActive: {
-    color: '#08143C',
+    color: '#FFFFFF',
     fontFamily: FONTS.bold,
   },
 
@@ -424,21 +422,14 @@ const styles = StyleSheet.create({
   list: {
     gap: 12,
   },
+  cardFrame: {
+    borderRadius: RADIUS.md,
+  },
   card: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(8, 20, 60, 0.65)',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.22)',
-    overflow: 'hidden',
-    ...SHADOW.card,
   },
   cardUnread: {
-    backgroundColor: 'rgba(11, 28, 77, 0.85)',
-    shadowColor: COLORS.gold,
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: '#F5F8FF',
   },
   cardStrip: {
     width: 4,
@@ -489,7 +480,7 @@ const styles = StyleSheet.create({
   timeText: {
     fontFamily: FONTS.regular,
     fontSize: 10,
-    color: 'rgba(191, 215, 255, 0.55)',
+    color: COLORS.textFaint,
   },
   unreadGlowDot: {
     width: 7,
@@ -506,14 +497,14 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontFamily: FONTS.bold,
     fontSize: 14,
-    color: '#FFFFFF',
+    color: COLORS.navy,
     letterSpacing: 0.3,
     marginBottom: 3,
   },
   cardSub: {
     fontFamily: FONTS.regular,
     fontSize: 12,
-    color: 'rgba(191, 215, 255, 0.75)',
+    color: COLORS.textSub,
     lineHeight: 17,
   },
   cardActionRow: {
@@ -525,9 +516,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(251, 191, 36, 0.12)',
+    backgroundColor: '#FFFBEB',
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.35)',
+    borderColor: 'rgba(251, 191, 36, 0.55)',
     borderRadius: RADIUS.pill,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -535,22 +526,25 @@ const styles = StyleSheet.create({
   actionPromptText: {
     fontFamily: FONTS.bold,
     fontSize: 10,
-    color: COLORS.gold,
+    color: GOLD_TEXT,
     letterSpacing: 0.3,
   },
 
   /* ── Empty State ── */
+  emptyFrame: {
+    marginTop: 24,
+  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 36,
     paddingHorizontal: 24,
   },
   emptyIconCircle: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(251, 191, 36, 0.10)',
+    backgroundColor: '#FFFBEB',
     borderWidth: 1.5,
     borderColor: 'rgba(251, 191, 36, 0.35)',
     justifyContent: 'center',
@@ -561,7 +555,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontFamily: FONTS.bold,
     fontSize: 17,
-    color: '#FFFFFF',
+    color: COLORS.navy,
     letterSpacing: 0.5,
     marginBottom: 6,
     textAlign: 'center',
@@ -569,7 +563,7 @@ const styles = StyleSheet.create({
   emptySub: {
     fontFamily: FONTS.regular,
     fontSize: 13,
-    color: 'rgba(191, 215, 255, 0.70)',
+    color: COLORS.textSub,
     textAlign: 'center',
     lineHeight: 19,
     marginBottom: 20,
@@ -578,13 +572,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: RADIUS.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: COLORS.accent,
     borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.30)',
+    borderColor: COLORS.accentDark,
   },
   resetFilterBtnText: {
     fontFamily: FONTS.semiBold,
     fontSize: 12,
-    color: COLORS.accentBorder,
+    color: '#FFFFFF',
   },
 });

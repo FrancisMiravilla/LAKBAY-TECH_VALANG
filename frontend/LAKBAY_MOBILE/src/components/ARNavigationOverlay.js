@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Animated, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Animated, Dimensions, Image } from 'react-native';
 import { CameraView } from 'expo-camera';
 import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
@@ -539,7 +539,7 @@ function DirectionArrow({ relativeBearing, distanceM, color = '#10B981', deviceH
       <View style={arrowStyles.infoRow}>
         <View style={[arrowStyles.distPill, { backgroundColor: 'rgba(6, 14, 42, 0.88)', borderColor: mainColor + '66' }]}>
           <View style={[arrowStyles.distIconBox, { backgroundColor: mainColor + '22' }]}>
-            <Ionicons name="walk" size={13} color={mainColor} />
+            <Ionicons name="walk" size={10} color={mainColor} />
           </View>
           <Text style={[arrowStyles.distValText, { color: '#FFFFFF' }]}>
             {distanceM !== null
@@ -551,7 +551,7 @@ function DirectionArrow({ relativeBearing, distanceM, color = '#10B981', deviceH
 
         {deviceHeading !== null && (
           <View style={[arrowStyles.headingPill, { backgroundColor: 'rgba(6, 14, 42, 0.88)', borderColor: 'rgba(255,255,255,0.2)' }]}>
-            <Ionicons name="compass" size={13} color={mainColor} style={{ marginRight: 4 }} />
+            <Ionicons name="compass" size={10} color={mainColor} style={{ marginRight: 2 }} />
             <Text style={arrowStyles.headingText}>{Math.round(targetBearing)}°</Text>
             <Text style={arrowStyles.bearingSub}>BRG</Text>
           </View>
@@ -644,19 +644,24 @@ export default function ARNavigationOverlay({
   onInspectSpot,
   onClose,
   hideBottomPanel = false,
+  bottomPanelOffset = 0,
   showCelebration = true,
 }) {
   // Check if we are passing by a nearby spot or at the destination spot
   const activeSpot = nearbySpot || spot;
   const isEncounteringNearby = !!nearbySpot && (!spot || nearbySpot.id !== spot.id);
 
-  // Compute model URL for display
-  const rawModel = activeSpot?.model_3d || spot?.model_3d || icon?.model_3d;
-  const activeModel = rawModel
-    ? (String(rawModel).startsWith('http') || String(rawModel).startsWith('data:')
-        ? String(rawModel).replace(/^http:\/\//, 'https://')
-        : `${ORIGIN}${rawModel}`)
-    : null;
+  // Media for the popup. Passing by: only that spot's own 3D model, else its photo
+  // (never the destination's model). Arrived: the destination's model.
+  const resolveMedia = (raw) => {
+    if (!raw) return null;
+    const str = String(raw);
+    return str.startsWith('http') || str.startsWith('data:') ? str.replace(/^http:\/\//, 'https://') : `${ORIGIN}${str}`;
+  };
+  const activeModel = isEncounteringNearby
+    ? resolveMedia(nearbySpot.model_3d)
+    : resolveMedia(spot?.model_3d || icon?.model_3d);
+  const activeImage = isEncounteringNearby && !activeModel ? resolveMedia(nearbySpot.image) : null;
 
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
@@ -712,8 +717,9 @@ export default function ARNavigationOverlay({
   const arriveThreshold = ARRIVE_RADIUS_METERS; // 10m
   const hasArrived = distanceM !== null && distanceM <= arriveThreshold;
 
-  // Show 3D model if: 1) Passing by a nearby spot (<= 10m), OR 2) Within 10m of target
-  const show3DModel = !!activeModel && (isEncounteringNearby || hasArrived);
+  // Show the popup (3D model, or photo for model-less nearby spots) when passing by a
+  // nearby spot or within 10 m of the destination.
+  const show3DModel = !!(activeModel || activeImage) && (isEncounteringNearby || hasArrived);
   const showArrow = !hasArrived;
 
   useEffect(() => {
@@ -741,7 +747,9 @@ export default function ARNavigationOverlay({
         useNativeDriver: true,
       }).start();
 
-      // Auto-save discovered model to SecureStore so BadgesScreen shows it
+      // Auto-save discovered model to SecureStore so BadgesScreen shows it.
+      // Photo-only popups (e.g. a promotion without a model) are not collectibles.
+      if (!activeModel) return;
       (async () => {
         try {
           const itemToSave = activeSpot || icon;
@@ -824,18 +832,6 @@ export default function ARNavigationOverlay({
           </Text>
         </View>
 
-        {/* Centre: distance readout */}
-        {distanceM !== null && (
-          <View style={arStyles.distReadout}>
-            <Ionicons name="navigate" size={11} color="rgba(255,255,255,0.7)" />
-            <Text style={arStyles.distReadoutText}>
-              {distanceM >= 1000
-                ? (distanceM / 1000).toFixed(1) + ' km'
-                : Math.round(distanceM) + ' m'}
-            </Text>
-          </View>
-        )}
-
         {/* Right: close X */}
         <TouchableOpacity style={[arStyles.closeBtn, { borderColor: 'rgba(255,255,255,0.25)' }]} onPress={onClose} activeOpacity={0.8}>
           <Ionicons name="close" size={18} color="#fff" />
@@ -847,23 +843,17 @@ export default function ARNavigationOverlay({
       ════════════════════════════════════════ */}
       {!show3DModel && (
         <View style={arStyles.topLabel}>
-          <View style={[arStyles.rarityBadge, { borderColor: displayColor + '99', backgroundColor: displayColor + '25' }]}>
-            <Ionicons name="diamond" size={9} color={displayColor} />
-            <Text style={[arStyles.rarityText, { color: displayColor }]}>CULTURAL SPOT</Text>
-            <Ionicons name="diamond" size={9} color={displayColor} />
-          </View>
           <Text style={arStyles.arTitle} numberOfLines={1}>{displayTitle}</Text>
-          <View style={arStyles.subtitleRow}>
-            <Ionicons
-              name={showArrow ? 'arrow-up-circle' : 'radio-button-on'}
-              size={12}
-              color="#FBBF24"
-              style={{ marginRight: 5 }}
-            />
-            <Text style={arStyles.arSubtitle}>
-              {showArrow ? 'Follow the navigation reticle' : "You're here — look around!"}
-            </Text>
-          </View>
+          {distanceM !== null && (
+            <View style={arStyles.subtitleRow}>
+              <Ionicons name="navigate" size={12} color="#FBBF24" style={{ marginRight: 5 }} />
+              <Text style={arStyles.arSubtitle}>
+                {distanceM >= 1000
+                  ? `${(distanceM / 1000).toFixed(1)} km remaining`
+                  : `${Math.round(distanceM)} m remaining`}
+              </Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -890,17 +880,21 @@ export default function ARNavigationOverlay({
 
           {/* Row: 3D viewer + text side by side */}
           <View style={arStyles.modelModalBody}>
-            {/* Mini 3D viewer */}
+            {/* Mini 3D viewer, or the spot's photo when it has no model */}
             <Animated.View style={[arStyles.modelModalViewer, { transform: [{ translateY: floatAnim }] }]}>
-              <WebView
-                source={{ html: buildARViewerHTML(activeModel) }}
-                style={arStyles.modelModalWebview}
-                javaScriptEnabled
-                originWhitelist={['*']}
-                scrollEnabled={false}
-                backgroundColor="transparent"
-                allowsTransparency
-              />
+              {activeModel ? (
+                <WebView
+                  source={{ html: buildARViewerHTML(activeModel) }}
+                  style={arStyles.modelModalWebview}
+                  javaScriptEnabled
+                  originWhitelist={['*']}
+                  scrollEnabled={false}
+                  backgroundColor="transparent"
+                  allowsTransparency
+                />
+              ) : (
+                <Image source={{ uri: activeImage }} style={arStyles.modelModalPhoto} resizeMode="cover" />
+              )}
               <View style={[arStyles.modelModalGlow, { backgroundColor: displayColor + '30', shadowColor: displayColor }]} />
             </Animated.View>
 
@@ -951,7 +945,13 @@ export default function ARNavigationOverlay({
           BOTTOM PANEL
       ════════════════════════════════════════ */}
       {!hideBottomPanel && (
-        <View style={arStyles.bottomPanel}>
+        <View
+          style={[
+            arStyles.bottomPanel,
+            // Lifted above a floating map: becomes a floating card itself.
+            bottomPanelOffset > 0 && { bottom: bottomPanelOffset, left: 16, right: 16, borderRadius: 24, paddingBottom: 16 },
+          ]}
+        >
           {/* Handle bar */}
           <View style={arStyles.panelHandle} />
 
@@ -1109,8 +1109,8 @@ const arStyles = StyleSheet.create({
     letterSpacing: 2,
   },
   arTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 14,
+    fontFamily: FONTS.bold,
+    fontSize: 22,
     color: '#FFF',
     marginBottom: 6,
     lineHeight: 22,
@@ -1203,6 +1203,11 @@ const arStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  modelModalPhoto: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 14,
+  },
   modelModalWebview: {
     width: W * 0.30,
     height: W * 0.30,
@@ -1224,10 +1229,10 @@ const arStyles = StyleSheet.create({
     gap: 4,
   },
   modelModalTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 11,
+    fontFamily: FONTS.bold,
+    fontSize: 17,
     color: '#FFFFFF',
-    lineHeight: 18,
+    lineHeight: 22,
   },
   modelModalSubtitle: {
     fontFamily: FONTS.regular,
@@ -1459,8 +1464,8 @@ const arStyles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   celebrationCongrats: {
-    fontFamily: FONTS.pixel,
-    fontSize: 14,
+    fontFamily: FONTS.bold,
+    fontSize: 20,
     color: '#FFFFFF',
     letterSpacing: 0.5,
     lineHeight: 22,
@@ -1473,9 +1478,9 @@ const arStyles = StyleSheet.create({
     lineHeight: 18,
   },
   celebrationSpotName: {
-    fontFamily: FONTS.pixel,
+    fontFamily: FONTS.bold,
     color: '#FBBF24',
-    fontSize: 11,
+    fontSize: 14,
   },
   celebrationXpPill: {
     flexDirection: 'row',
@@ -1611,53 +1616,53 @@ const arrowStyles = StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
-    gap: 8,
+    marginTop: 6,
+    gap: 6,
   },
   distPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: RADIUS.pill,
     borderWidth: 1,
-    gap: 6,
+    gap: 4,
   },
   distIconBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   distValText: {
     fontFamily: FONTS.bold,
-    fontSize: 13,
+    fontSize: 11,
     letterSpacing: 0.5,
   },
   distSubText: {
     fontFamily: FONTS.bold,
-    fontSize: 8,
+    fontSize: 7,
     color: '#94A3B8',
     letterSpacing: 1,
   },
   headingPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: RADIUS.pill,
     borderWidth: 1,
-    gap: 4,
+    gap: 2,
   },
   headingText: {
     fontFamily: FONTS.bold,
-    fontSize: 12,
+    fontSize: 10,
     color: '#FFF',
   },
   bearingSub: {
     fontFamily: FONTS.bold,
-    fontSize: 8,
+    fontSize: 7,
     color: '#94A3B8',
     letterSpacing: 0.5,
   },

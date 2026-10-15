@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
+import VintaCard from './VintaCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -121,16 +122,12 @@ export default function ErrorModal({
         {/* Card — stop propagation so tapping card doesn't close */}
         <TouchableOpacity activeOpacity={1} onPress={() => {}}>
           <Animated.View
-            style={[
-              styles.card,
-              {
-                opacity: opacityAnim,
-                transform: [{ scale: scaleAnim }],
-              },
-            ]}
+            style={{
+              opacity: opacityAnim,
+              transform: [{ scale: scaleAnim }],
+            }}
           >
-            {/* Top colour glow bar */}
-            <View style={[styles.glowBar, { backgroundColor: cfg.color }]} />
+            <VintaCard style={styles.cardFrame} contentStyle={styles.card}>
 
             {/* Close button */}
             <TouchableOpacity style={styles.xBtn} onPress={onClose} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
@@ -179,6 +176,7 @@ export default function ErrorModal({
                 <Text style={styles.solidBtnText}>{onConfirm ? confirmLabel : cancelLabel}</Text>
               </TouchableOpacity>
             </View>
+            </VintaCard>
           </Animated.View>
         </TouchableOpacity>
       </TouchableOpacity>
@@ -197,38 +195,17 @@ const styles = StyleSheet.create({
   },
 
   // ── Card ─────────────────────────────────────────────────────────
-  card: {
+  cardFrame: {
     width: Math.min(SCREEN_WIDTH - 56, 360),
-    backgroundColor: '#FFFFFF',
-    borderRadius: RADIUS.lg,
+  },
+  card: {
     paddingTop: 36,
     paddingHorizontal: 24,
     paddingBottom: 24,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.12,
-        shadowRadius: 16,
-      },
-      android: { elevation: 8 },
-    }),
   },
 
   // ── Glow bar (top accent stripe) ─────────────────────────────────
-  glowBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    borderTopLeftRadius: RADIUS.lg,
-    borderTopRightRadius: RADIUS.lg,
-    opacity: 1,
-  },
 
   // ── Close (×) button ─────────────────────────────────────────────
   xBtn: {
@@ -267,7 +244,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontFamily: FONTS.bold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1.6,
   },
 

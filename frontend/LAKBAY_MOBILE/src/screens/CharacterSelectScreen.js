@@ -7,12 +7,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW, CARD_BORDER_WIDTH, BG_OVERLAY, GOLD_TEXT } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
 import { authService } from '../api/authService';
 import ErrorModal from '../components/ErrorModal';
 import VintaStripe from '../components/VintaStripe';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+
 
 const CHARACTERS = [
   {
@@ -134,14 +136,14 @@ export default function CharacterSelectScreen({ navigation }) {
 
   const renderCharacter = ({ item }) => (
     <View style={styles.slide}>
-      <View style={[styles.charCard, { borderColor: item.color + '88' }]}>
+      <VintaCard style={styles.charCardBorder} contentStyle={styles.charCard}>
         {/* Subtle Ambient Glow */}
         <View style={[styles.cardGlow, { backgroundColor: item.color + '12' }]} />
 
         {/* Companion Tag */}
         <View style={[styles.guideBadge, { backgroundColor: item.color + '22', borderColor: item.color + '66' }]}>
           <Ionicons name="sparkles" size={10} color={item.color} />
-          <Text style={[styles.guideBadgeText, { color: item.color }]}>
+          <Text style={styles.guideBadgeText}>
             {item.badge} · COMPANION GUIDE
           </Text>
         </View>
@@ -162,7 +164,7 @@ export default function CharacterSelectScreen({ navigation }) {
         </View>
 
         {/* Character Names */}
-        <Text style={[styles.charName, { color: item.color }]}>{item.name}</Text>
+        <Text style={styles.charName}>{item.name}</Text>
         <Text style={styles.charTitle}>{item.title}</Text>
 
         {/* Gamified RPG Perks & Specialty */}
@@ -170,17 +172,17 @@ export default function CharacterSelectScreen({ navigation }) {
           <View style={styles.perkRow}>
             <View style={styles.perkChip}>
               <Ionicons name="compass-outline" size={12} color={item.color} />
-              <Text style={styles.perkChipLabel}>Focus: <Text style={{ color: '#FFFFFF', fontFamily: FONTS.semiBold }}>{item.specialty}</Text></Text>
+              <Text style={styles.perkChipLabel}>Focus: <Text style={{ color: COLORS.text, fontFamily: FONTS.semiBold }}>{item.specialty}</Text></Text>
             </View>
             <View style={[styles.perkChip, { borderColor: COLORS.gold + '44' }]}>
-              <Ionicons name="flash-outline" size={12} color={COLORS.gold} />
-              <Text style={[styles.perkChipLabel, { color: COLORS.gold }]}>{item.perk}</Text>
+              <Ionicons name="flash-outline" size={12} color={GOLD_TEXT} />
+              <Text style={[styles.perkChipLabel, { color: GOLD_TEXT }]}>{item.perk}</Text>
             </View>
           </View>
         </View>
 
-        <Text style={styles.charDesc}>"{item.desc}"</Text>
-      </View>
+        <Text style={styles.charDesc}>&ldquo;{item.desc}&rdquo;</Text>
+      </VintaCard>
     </View>
   );
 
@@ -206,11 +208,6 @@ export default function CharacterSelectScreen({ navigation }) {
           >
             {/* ── Header ────────────────────────────────────────────────── */}
             <View style={styles.header}>
-              <View style={styles.eyebrowBadge}>
-                <Ionicons name="shield-checkmark" size={11} color={COLORS.gold} />
-                <Text style={styles.headerStep}>STAGE 2 OF 2 · GUILD COMPANION</Text>
-              </View>
-
               <Text style={styles.headerTitle}>Choose Your Guide</Text>
               <Text style={styles.headerSub}>Who leads your expedition through Zamboanga?</Text>
             </View>
@@ -304,10 +301,10 @@ export default function CharacterSelectScreen({ navigation }) {
             </View>
 
             {/* ── Callsign Section & Launch Button ───────────────────────── */}
-            <View style={styles.bottomCard}>
+            <VintaCard style={styles.bottomCardBorder} contentStyle={styles.bottomCard}>
               <View style={styles.callsignHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="shield-outline" size={13} color={COLORS.gold} />
+                  <Ionicons name="shield-outline" size={13} color={COLORS.accent} />
                   <Text style={styles.label}>YOUR EXPLORER CALLSIGN</Text>
                 </View>
 
@@ -327,7 +324,7 @@ export default function CharacterSelectScreen({ navigation }) {
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. Captain_Hermosa"
-                  placeholderTextColor="rgba(191, 215, 255, 0.40)"
+                  placeholderTextColor="#94A3B8"
                   autoCapitalize="words"
                   value={explorerName}
                   onChangeText={setExplorerName}
@@ -343,7 +340,6 @@ export default function CharacterSelectScreen({ navigation }) {
               <TouchableOpacity
                 style={[
                   styles.startBtn,
-                  { backgroundColor: selected.color },
                   (!explorerName.trim() || loading) && styles.startBtnDisabled,
                 ]}
                 activeOpacity={0.88}
@@ -352,17 +348,17 @@ export default function CharacterSelectScreen({ navigation }) {
               >
                 {loading ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <ActivityIndicator color="#08143C" />
+                    <ActivityIndicator color="#FFFFFF" />
                     <Text style={styles.startBtnText}>Embarking on Expedition...</Text>
                   </View>
                 ) : (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="rocket-outline" size={17} color="#08143C" />
+                    <Ionicons name="rocket-outline" size={17} color="#FFFFFF" />
                     <Text style={styles.startBtnText}>Embark On Expedition</Text>
                   </View>
                 )}
               </TouchableOpacity>
-            </View>
+            </VintaCard>
 
             <View style={{ height: 24 }} />
           </ScrollView>
@@ -388,44 +384,25 @@ const styles = StyleSheet.create({
   },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4, 10, 38, 0.88)',
+    backgroundColor: BG_OVERLAY,
   },
   container: { flex: 1, backgroundColor: 'transparent' },
   scroll: { flexGrow: 1, paddingBottom: 20 },
 
   // ── Header ──────────────────────────────────────────────────────────
   header: {
-    paddingTop: 24,
-    paddingBottom: 16,
+    paddingTop: 43,
+    paddingBottom: 14,
     alignItems: 'center',
     paddingHorizontal: 20,
   },
-  eyebrowBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(251, 191, 36, 0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.40)',
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginBottom: 8,
-  },
-  headerStep: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7,
-    color: COLORS.gold,
-    letterSpacing: 1,
-    lineHeight: 11,
-  },
   headerTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 14,
+    fontFamily: FONTS.bold,
+    fontSize: 26,
     color: '#FFFFFF',
     letterSpacing: 1,
-    marginBottom: 4,
-    lineHeight: 22,
+    marginBottom: 2,
+    lineHeight: 30,
     textAlign: 'center',
   },
   headerSub: {
@@ -443,12 +420,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   quickBarLabel: {
-    fontFamily: FONTS.pixel,
-    fontSize: 6.5,
-    color: 'rgba(191, 215, 255, 0.55)',
-    letterSpacing: 1,
+    fontFamily: FONTS.semiBold,
+    fontSize: 11,
+    color: 'rgba(191, 215, 255, 0.75)',
+    letterSpacing: 1.5,
     marginBottom: 8,
-    lineHeight: 10,
+    lineHeight: 14,
   },
   quickRow: {
     flexDirection: 'row',
@@ -490,19 +467,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     justifyContent: 'center',
   },
-  charCard: {
+  charCardBorder: {
     flex: 1,
-    backgroundColor: '#08143C',
     borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 20,
+    padding: CARD_BORDER_WIDTH,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  charCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: RADIUS.lg - CARD_BORDER_WIDTH,
+    alignItems: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 20,
     overflow: 'hidden',
   },
   cardGlow: {
@@ -520,10 +501,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   guideBadgeText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 6.5,
-    letterSpacing: 0.8,
-    lineHeight: 10,
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: COLORS.navy,
+    letterSpacing: 1.2,
+    lineHeight: 13,
   },
   avatarOuterRing: {
     width: 140,
@@ -533,7 +515,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
-    backgroundColor: '#0C2054',
+    backgroundColor: COLORS.bgCardAlt,
   },
   avatarRing: {
     width: 126,
@@ -543,16 +525,17 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   charName: {
-    fontFamily: FONTS.pixel,
-    fontSize: 13,
+    fontFamily: FONTS.bold,
+    fontSize: 22,
+    color: COLORS.navy,
     textAlign: 'center',
-    marginBottom: 3,
-    lineHeight: 19,
+    marginBottom: 2,
+    lineHeight: 26,
   },
   charTitle: {
     fontFamily: FONTS.semiBold,
     fontSize: 11,
-    color: 'rgba(191, 215, 255, 0.70)',
+    color: COLORS.textMuted,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     textAlign: 'center',
@@ -571,9 +554,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#0C2054',
+    backgroundColor: COLORS.bgCardAlt,
     borderWidth: 1,
-    borderColor: '#1E3A8A',
+    borderColor: COLORS.border,
     borderRadius: RADIUS.pill,
     paddingHorizontal: 9,
     paddingVertical: 4,
@@ -581,12 +564,12 @@ const styles = StyleSheet.create({
   perkChipLabel: {
     fontFamily: FONTS.regular,
     fontSize: 10.5,
-    color: 'rgba(191, 215, 255, 0.85)',
+    color: COLORS.textSub,
   },
   charDesc: {
     fontFamily: FONTS.regular,
     fontSize: 12,
-    color: 'rgba(191, 215, 255, 0.80)',
+    color: COLORS.textSub,
     textAlign: 'center',
     fontStyle: 'italic',
     lineHeight: 16,
@@ -627,19 +610,23 @@ const styles = StyleSheet.create({
   },
 
   // ── Bottom Card ──────────────────────────────────────────────────────
-  bottomCard: {
-    backgroundColor: '#08143C',
+  bottomCardBorder: {
     borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
+    padding: CARD_BORDER_WIDTH,
     marginHorizontal: 16,
-    padding: 16,
     marginTop: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  bottomCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: RADIUS.lg - CARD_BORDER_WIDTH,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 16,
   },
   callsignHeader: {
     flexDirection: 'row',
@@ -648,33 +635,33 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   label: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7.5,
-    color: COLORS.gold,
-    letterSpacing: 0.8,
-    lineHeight: 11,
+    fontFamily: FONTS.bold,
+    fontSize: 12,
+    color: COLORS.navy,
+    letterSpacing: 1.2,
+    lineHeight: 15,
   },
   randomBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#0C2054',
+    backgroundColor: COLORS.accentSoft,
     borderWidth: 1,
-    borderColor: '#1E3A8A',
+    borderColor: COLORS.accentBorder,
     borderRadius: RADIUS.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   randomBtnText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 6.5,
-    color: '#38BDF8',
-    lineHeight: 10,
+    fontFamily: FONTS.bold,
+    fontSize: 11,
+    color: COLORS.accent,
+    lineHeight: 14,
   },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C2054',
+    backgroundColor: COLORS.bgCardAlt,
     borderRadius: RADIUS.sm,
     borderWidth: 1.5,
     paddingHorizontal: 14,
@@ -686,10 +673,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: FONTS.medium,
     fontSize: 13.5,
-    color: '#FFFFFF',
+    color: COLORS.text,
   },
   countBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(15, 23, 42, 0.06)',
     borderRadius: 4,
     paddingHorizontal: 5,
     paddingVertical: 2,
@@ -697,11 +684,14 @@ const styles = StyleSheet.create({
   countText: {
     fontFamily: FONTS.regular,
     fontSize: 10,
-    color: 'rgba(191, 215, 255, 0.60)',
+    color: COLORS.textMuted,
   },
   startBtn: {
     height: 50,
     borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.accent,
+    borderWidth: 1,
+    borderColor: COLORS.accentDark,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -712,10 +702,10 @@ const styles = StyleSheet.create({
   },
   startBtnDisabled: { opacity: 0.45 },
   startBtnText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 9,
-    color: '#08143C',
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    color: '#FFFFFF',
     letterSpacing: 0.5,
-    lineHeight: 14,
+    lineHeight: 18,
   },
 });

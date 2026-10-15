@@ -3,12 +3,14 @@ import {
   StyleSheet, Text, View, TouchableOpacity,
   ActivityIndicator, StatusBar, ScrollView, Animated, Easing,
   Dimensions,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT, onWhite } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
 import { getSpotTrivia, getIconTrivia, awardSpotBadge } from '../api/qrService';
 import { authService } from '../api/authService';
 import VintaStripe from '../components/VintaStripe';
@@ -63,6 +65,16 @@ const WRONG_ANSWER_MESSAGES = [
 ];
 
 // ─── Main Component ──────────────────────────────────────────────────────────
+// Shared LAKBAY backdrop: Vinta photo under a light navy dim.
+function Backdrop({ children }) {
+  return (
+    <ImageBackground source={require('../../reference/VINTA.jpeg')} style={styles.backdrop} resizeMode="cover">
+      <View style={styles.backdropDim} />
+      {children}
+    </ImageBackground>
+  );
+}
+
 export default function QuizScreen({ navigation, route }) {
   const icon     = route.params?.icon     ?? null;
   const spotId   = route.params?.spotId   ?? null;
@@ -399,6 +411,7 @@ export default function QuizScreen({ navigation, route }) {
     };
 
     return (
+      <Backdrop>
       <View style={styles.introContainer}>
         <StatusBar barStyle="light-content" backgroundColor="#040A26" />
 
@@ -499,10 +512,11 @@ export default function QuizScreen({ navigation, route }) {
           {/* Mission Objective Briefing */}
           <Animated.View
             style={[
-              styles.introBriefingCard,
+              styles.introBriefingWrap,
               { transform: [{ translateY: introBriefingSlide }] },
             ]}
           >
+            <VintaCard contentStyle={styles.introBriefingCard}>
             <Text style={styles.introObjectiveText}>
               {introConfig.objective}
             </Text>
@@ -510,13 +524,13 @@ export default function QuizScreen({ navigation, route }) {
             {/* Mission HUD Grid */}
             <View style={styles.introHudRow}>
               <View style={styles.introHudCell}>
-                <Ionicons name="help-circle" size={18} color="#FBBF24" />
+                <Ionicons name="help-circle" size={18} color={GOLD_TEXT} />
                 <Text style={styles.introHudVal}>5</Text>
                 <Text style={styles.introHudLabel}>QUESTIONS</Text>
               </View>
               <View style={styles.introHudDivider} />
               <View style={styles.introHudCell}>
-                <Ionicons name="flash" size={18} color="#10B981" />
+                <Ionicons name="flash" size={18} color="#059669" />
                 <Text style={styles.introHudVal}>+10 XP</Text>
                 <Text style={styles.introHudLabel}>PER HIT</Text>
               </View>
@@ -527,6 +541,7 @@ export default function QuizScreen({ navigation, route }) {
                 <Text style={styles.introHudLabel}>STREAKS</Text>
               </View>
             </View>
+            </VintaCard>
           </Animated.View>
 
           {/* Action / Countdown Area */}
@@ -553,12 +568,12 @@ export default function QuizScreen({ navigation, route }) {
                 style={styles.introStartBtn}
               >
                 <LinearGradient
-                  colors={['#FBBF24', '#D97706']}
+                  colors={[COLORS.accent, COLORS.accentDark]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.introStartGrad}
                 >
-                  <Ionicons name="game-controller" size={20} color="#0C2461" />
+                  <Ionicons name="game-controller" size={20} color="#FFFFFF" />
                   <Text style={styles.introStartText}>ENGAGE MISSION ▶</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -582,30 +597,34 @@ export default function QuizScreen({ navigation, route }) {
           ]}
         >
           <Text style={styles.letterboxBottomText}>
-            // PROTOCOL: ZAMBOANGA CULTURAL DISCOVERY • LAKBAY V1.0 //
+            {'// PROTOCOL: ZAMBOANGA CULTURAL DISCOVERY • LAKBAY V1.0 //'}
           </Text>
         </Animated.View>
       </View>
+      </Backdrop>
     );
   }
 
   // ── Loading Screen ──
   if (loading) {
     return (
+      <Backdrop>
       <SafeAreaView style={styles.centerBg}>
         <StatusBar barStyle="light-content" backgroundColor="#070714" />
         <View style={styles.loadingAura}>
-          <ActivityIndicator size="large" color="#A855F7" />
+          <ActivityIndicator size="large" color={COLORS.gold} />
         </View>
         <Text style={styles.loadingTitle}>POWERING UP TRIVIA</Text>
         <Text style={styles.loadingSub}>Loading cultural challenge for {displayName}…</Text>
       </SafeAreaView>
+      </Backdrop>
     );
   }
 
   // ── Error Screen ──
   if (error) {
     return (
+      <Backdrop>
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="#070714" />
         <View style={styles.topBar}>
@@ -622,11 +641,12 @@ export default function QuizScreen({ navigation, route }) {
           <Text style={styles.errorHeading}>Quiz Unavailable</Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.ghostBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-            <Ionicons name="arrow-back" size={18} color="#A855F7" style={{ marginRight: 6 }} />
+            <Ionicons name="arrow-back" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
             <Text style={styles.ghostBtnText}>Return to Radar</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
+      </Backdrop>
     );
   }
 
@@ -634,6 +654,7 @@ export default function QuizScreen({ navigation, route }) {
   if (showReward) {
     const accuracy = questions.length > 0 ? Math.round(((sessionXP / (questions.length * 10))) * 100) : 100;
     return (
+      <Backdrop>
       <SafeAreaView style={styles.rewardContainer}>
         <StatusBar barStyle="light-content" backgroundColor="#070714" />
         
@@ -656,9 +677,9 @@ export default function QuizScreen({ navigation, route }) {
           <Text style={styles.rewardSub}>You have proven your mastery of {displayName}!</Text>
 
           {/* Gamified Summary Stat Matrix */}
-          <View style={styles.statMatrix}>
+          <VintaCard style={styles.statFrame} contentStyle={styles.statMatrix}>
             <View style={styles.statCell}>
-              <Ionicons name="flash" size={20} color="#FBBF24" />
+              <Ionicons name="flash" size={20} color={GOLD_TEXT} />
               <Text style={styles.statCellValue}>+{sessionXP}</Text>
               <Text style={styles.statCellLabel}>XP GAINED</Text>
             </View>
@@ -670,20 +691,20 @@ export default function QuizScreen({ navigation, route }) {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statCell}>
-              <Ionicons name="shield-checkmark" size={20} color="#10B981" />
+              <Ionicons name="shield-checkmark" size={20} color="#059669" />
               <Text style={styles.statCellValue}>{questions.length}</Text>
               <Text style={styles.statCellLabel}>ANSWERED</Text>
             </View>
-          </View>
+          </VintaCard>
 
           {/* Reward Badges pill */}
-          <View style={styles.badgeRewardCard}>
-            <Ionicons name="medal" size={26} color="#A855F7" />
+          <VintaCard style={styles.badgeRewardFrame} contentStyle={styles.badgeRewardCard}>
+            <Ionicons name="medal" size={26} color="#7C3AED" />
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.badgeCardTitle}>Explorer Ranking Updated</Text>
               <Text style={styles.badgeCardSub}>XP is synced live to your Journey profile badges!</Text>
             </View>
-          </View>
+          </VintaCard>
         </ScrollView>
 
         <View style={styles.rewardFooter}>
@@ -697,6 +718,7 @@ export default function QuizScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </SafeAreaView>
+      </Backdrop>
     );
   }
 
@@ -704,6 +726,7 @@ export default function QuizScreen({ navigation, route }) {
   const progressPercent = ((currentIndex + 1) / questions.length) * 100;
 
   return (
+    <Backdrop>
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#070714" />
 
@@ -753,7 +776,7 @@ export default function QuizScreen({ navigation, route }) {
         {/* ── 3D Model Visual (icon catch mode) ── */}
         {isIconMode && (
           <View style={styles.modelSection}>
-            <View style={[styles.modelCard, { borderColor: accentColor + '66' }]}>
+            <VintaCard style={styles.modelFrame} contentStyle={styles.modelCard}>
               {viewerHTML ? (
                 <WebView
                   source={{ html: viewerHTML }}
@@ -767,10 +790,10 @@ export default function QuizScreen({ navigation, route }) {
                   <Ionicons name="cube-outline" size={40} color={accentColor} style={{ opacity: 0.5 }} />
                 </View>
               )}
-            </View>
+            </VintaCard>
             <View style={styles.modelTagPill}>
-              <Ionicons name="cube" size={12} color={accentColor} style={{ marginRight: 5 }} />
-              <Text style={[styles.modelTagText, { color: accentColor }]}>{icon.name}</Text>
+              <Ionicons name="cube" size={12} color={onWhite(accentColor)} style={{ marginRight: 5 }} />
+              <Text style={[styles.modelTagText, { color: onWhite(accentColor) }]}>{icon.name}</Text>
             </View>
           </View>
         )}
@@ -796,9 +819,10 @@ export default function QuizScreen({ navigation, route }) {
         </View>
 
         {/* ── Cyber Quest Question Card ── */}
-        <Animated.View style={[styles.questionCard, { transform: [{ scale: cardScaleAnim }] }]}>
-          <View style={styles.cardHeaderAccent} />
-          <Text style={styles.questionText}>{currentQ.question}</Text>
+        <Animated.View style={[styles.questionWrap, { transform: [{ scale: cardScaleAnim }] }]}>
+          <VintaCard contentStyle={styles.questionCard}>
+            <Text style={styles.questionText}>{currentQ.question}</Text>
+          </VintaCard>
         </Animated.View>
 
         {/* ── Multiple Choice Arcade Options (A, B, C, D) ── */}
@@ -807,26 +831,26 @@ export default function QuizScreen({ navigation, route }) {
             const isSelected = selectedOption === option;
             const letter = OPTION_LETTERS[idx] || String(idx + 1);
 
-            let cardBg = '#111126';
-            let cardBorder = 'rgba(255,255,255,0.08)';
-            let letterBg = 'rgba(255,255,255,0.06)';
-            let letterColor = '#94A3B8';
-            let textColor = '#F1F5F9';
+            let cardBg = '#FFFFFF';
+            let cardBorder = COLORS.border;
+            let letterBg = COLORS.bg;
+            let letterColor = COLORS.textMuted;
+            let textColor = COLORS.text;
             let rightIcon = null;
 
             if (isSelected && isCorrect) {
-              cardBg = '#064E3B';
+              cardBg = '#ECFDF5';
               cardBorder = '#10B981';
               letterBg = '#10B981';
               letterColor = '#FFF';
-              textColor = '#FFF';
+              textColor = '#065F46';
               rightIcon = <Ionicons name="checkmark-circle" size={22} color="#10B981" />;
             } else if (isSelected && !isCorrect) {
-              cardBg = '#4C0519';
+              cardBg = '#FEF2F2';
               cardBorder = '#EF4444';
               letterBg = '#EF4444';
               letterColor = '#FFF';
-              textColor = '#FFF';
+              textColor = '#991B1B';
               rightIcon = <Ionicons name="close-circle" size={22} color="#EF4444" />;
             }
 
@@ -857,7 +881,7 @@ export default function QuizScreen({ navigation, route }) {
             {/* ── CORRECT: show cultural insight + next button ── */}
             {isCorrect && currentQ.explanation ? (
               <View style={styles.explanationBox}>
-                <Ionicons name="bulb" size={20} color="#FBBF24" style={{ marginTop: 2 }} />
+                <Ionicons name="bulb" size={20} color={GOLD_TEXT} style={{ marginTop: 2 }} />
                 <View style={{ flex: 1, marginLeft: 10 }}>
                   <Text style={styles.explanationTitle}>CULTURAL INSIGHT</Text>
                   <Text style={styles.explanationText}>{currentQ.explanation}</Text>
@@ -889,16 +913,19 @@ export default function QuizScreen({ navigation, route }) {
         )}
       </ScrollView>
     </SafeAreaView>
+    </Backdrop>
   );
 }
 
 // ─── Gamified Styles ─────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#070714' },
+  backdrop: { flex: 1 },
+  backdropDim: { ...StyleSheet.absoluteFillObject, backgroundColor: BG_OVERLAY },
+  container: { flex: 1, backgroundColor: 'transparent' },
 
   centerBg: {
     flex: 1, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: '#070714', paddingHorizontal: 30,
+    backgroundColor: 'transparent', paddingHorizontal: 30,
   },
   loadingAura: {
     width: 80, height: 80, borderRadius: 40,
@@ -908,11 +935,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   loadingTitle: {
-    fontFamily: FONTS.bold, fontSize: 16, color: '#A855F7',
+    fontFamily: FONTS.bold, fontSize: 16, color: '#FFFFFF',
     letterSpacing: 2, marginBottom: 6,
   },
   loadingSub: {
-    fontFamily: FONTS.medium, fontSize: 13, color: '#64748B',
+    fontFamily: FONTS.medium, fontSize: 13, color: 'rgba(255,255,255,0.8)',
     textAlign: 'center',
   },
 
@@ -929,21 +956,21 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold, fontSize: 20, color: '#FFF', marginBottom: 8,
   },
   errorText: {
-    fontFamily: FONTS.medium, color: '#94A3B8', fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 24,
+    fontFamily: FONTS.medium, color: 'rgba(255,255,255,0.8)', fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 24,
   },
   ghostBtn: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 12, paddingHorizontal: 24,
-    backgroundColor: 'rgba(168,85,247,0.15)', borderRadius: 24,
-    borderWidth: 1.5, borderColor: '#A855F7',
+    backgroundColor: COLORS.accent, borderRadius: 24,
+    borderWidth: 1.5, borderColor: COLORS.accentDark,
   },
   ghostBtnText: { color: '#FFF', fontFamily: FONTS.bold, fontSize: 14 },
 
   // Top HUD Bar
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 12, backgroundColor: '#0B0B1E',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: 20, paddingVertical: 12, backgroundColor: 'rgba(8, 20, 60, 0.70)',
+    borderBottomWidth: 1, borderBottomColor: 'rgba(99, 179, 237, 0.20)',
   },
   iconBtn: {
     width: 38, height: 38, borderRadius: 19,
@@ -952,7 +979,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
   },
   topBarTitle: {
-    fontFamily: FONTS.bold, fontSize: 14, color: '#94A3B8', letterSpacing: 1.5,
+    fontFamily: FONTS.bold, fontSize: 14, color: '#FFFFFF', letterSpacing: 1.5,
   },
   streakPill: {
     flexDirection: 'row', alignItems: 'center',
@@ -991,17 +1018,14 @@ const styles = StyleSheet.create({
 
   // 3D Model Box
   modelSection: { alignItems: 'center', paddingHorizontal: 20, marginTop: 14 },
-  modelCard: {
-    width: '100%', height: 190,
-    borderRadius: 20, borderWidth: 1.5,
-    overflow: 'hidden', backgroundColor: '#0D0D22',
-  },
+  modelFrame: { width: '100%', height: 190, borderRadius: 20 },
+  modelCard: { flex: 1, backgroundColor: '#0F172A' },
   webview: { flex: 1, backgroundColor: 'transparent' },
   noModel: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   modelTagPill: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#13132B', paddingHorizontal: 14, paddingVertical: 6,
-    borderRadius: 16, marginTop: -14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 6,
+    borderRadius: 16, marginTop: -14, borderWidth: 1, borderColor: COLORS.border,
   },
   modelTagText: { fontFamily: FONTS.bold, fontSize: 13 },
 
@@ -1009,11 +1033,11 @@ const styles = StyleSheet.create({
   progressSection: { paddingHorizontal: 20, marginTop: 18, marginBottom: 14 },
   progressRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   badgeRound: {
-    backgroundColor: '#6366F1', width: 26, height: 26, borderRadius: 13,
+    backgroundColor: COLORS.accent, width: 26, height: 26, borderRadius: 13,
     justifyContent: 'center', alignItems: 'center', marginRight: 8,
   },
   badgeRoundText: { fontFamily: FONTS.bold, fontSize: 11, color: '#FFF' },
-  progressCounter: { fontFamily: FONTS.bold, fontSize: 12, color: '#94A3B8', letterSpacing: 1, flex: 1 },
+  progressCounter: { fontFamily: FONTS.bold, fontSize: 12, color: '#FFFFFF', letterSpacing: 1, flex: 1 },
   sessionPill: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(16,185,129,0.15)', paddingHorizontal: 10, paddingVertical: 4,
@@ -1021,28 +1045,19 @@ const styles = StyleSheet.create({
   },
   sessionPillText: { fontFamily: FONTS.bold, fontSize: 12, color: '#10B981' },
   progressBg: {
-    height: 8, backgroundColor: '#13132B', borderRadius: 6, overflow: 'hidden',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+    height: 8, backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 6, overflow: 'hidden',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
   },
   progressFill: {
     height: '100%', borderRadius: 6,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: COLORS.gold,
   },
 
   // Question Card
-  questionCard: {
-    marginHorizontal: 20, padding: 22,
-    backgroundColor: '#0F0F26', borderRadius: 22,
-    borderWidth: 1.5, borderColor: 'rgba(139,92,246,0.35)', marginBottom: 18,
-    shadowColor: '#8B5CF6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 14, elevation: 6,
-    position: 'relative', overflow: 'hidden',
-  },
-  cardHeaderAccent: {
-    position: 'absolute', top: 0, left: 0, right: 0, height: 3,
-    backgroundColor: '#8B5CF6',
-  },
+  questionWrap: { marginHorizontal: 20, marginBottom: 18 },
+  questionCard: { padding: 22 },
   questionText: {
-    fontFamily: FONTS.bold, fontSize: 17, color: '#FFF', lineHeight: 27,
+    fontFamily: FONTS.bold, fontSize: 17, color: COLORS.navy, lineHeight: 27,
   },
 
   // Options
@@ -1064,17 +1079,17 @@ const styles = StyleSheet.create({
   // Feedback & Next Button
   feedback: { marginTop: 16, paddingHorizontal: 20, paddingBottom: 20 },
   explanationBox: {
-    flexDirection: 'row', backgroundColor: '#0D1B2A',
-    padding: 16, borderRadius: 18, borderWidth: 1, borderColor: '#1E3A8A',
+    flexDirection: 'row', backgroundColor: '#FFFBEB',
+    padding: 16, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(251, 191, 36, 0.55)',
     alignItems: 'flex-start', marginBottom: 14,
   },
-  explanationTitle: { fontFamily: FONTS.bold, fontSize: 11, color: '#FBBF24', letterSpacing: 1, marginBottom: 4 },
-  explanationText: { fontFamily: FONTS.medium, fontSize: 13, color: '#CBD5E1', lineHeight: 20 },
+  explanationTitle: { fontFamily: FONTS.bold, fontSize: 11, color: GOLD_TEXT, letterSpacing: 1, marginBottom: 4 },
+  explanationText: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textSub, lineHeight: 20 },
 
   // Wrong-answer gamified retry card
   wrongBox: {
     flexDirection: 'row',
-    backgroundColor: '#2D0A0A',
+    backgroundColor: '#FEF2F2',
     padding: 16,
     borderRadius: 18,
     borderWidth: 1,
@@ -1083,12 +1098,12 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   wrongIcon: { fontSize: 28, lineHeight: 34 },
-  wrongTitle: { fontFamily: FONTS.bold, fontSize: 13, color: '#FCA5A5', marginBottom: 4, letterSpacing: 0.3 },
-  wrongDesc:  { fontFamily: FONTS.medium, fontSize: 12, color: '#94A3B8', lineHeight: 18 },
+  wrongTitle: { fontFamily: FONTS.bold, fontSize: 13, color: '#B91C1C', marginBottom: 4, letterSpacing: 0.3 },
+  wrongDesc:  { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textSub, lineHeight: 18 },
   nextBtn: {
-    flexDirection: 'row', backgroundColor: '#10B981', paddingVertical: 16,
+    flexDirection: 'row', backgroundColor: COLORS.accent, paddingVertical: 16,
     borderRadius: 28, justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#10B981', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 6,
+    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 6,
     gap: 8,
   },
   nextBtnText: {
@@ -1097,19 +1112,19 @@ const styles = StyleSheet.create({
 
   // Victory / Reward Modal
   rewardContainer: {
-    flex: 1, backgroundColor: '#070714', justifyContent: 'space-between',
+    flex: 1, backgroundColor: 'transparent', justifyContent: 'space-between',
   },
   victoryGlow: {
     position: 'absolute', top: 60, alignSelf: 'center',
     width: SCREEN_W * 0.9, height: SCREEN_W * 0.9, borderRadius: (SCREEN_W * 0.9) / 2,
-    backgroundColor: 'rgba(168,85,247,0.1)',
+    backgroundColor: 'rgba(251,191,36,0.10)',
   },
   rewardBody: {
     alignItems: 'center', paddingHorizontal: 24, paddingTop: 30, paddingBottom: 30,
   },
   trophyRingOuter: {
     width: 140, height: 140, borderRadius: 70,
-    backgroundColor: 'rgba(251,191,36,0.1)', borderWidth: 2, borderColor: 'rgba(251,191,36,0.4)',
+    backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 2, borderColor: 'rgba(251,191,36,0.4)',
     justifyContent: 'center', alignItems: 'center', marginBottom: 24, position: 'relative',
   },
   trophyRingInner: {
@@ -1118,7 +1133,7 @@ const styles = StyleSheet.create({
   },
   trophyStarPill: {
     position: 'absolute', bottom: -10, flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#8B5CF6', paddingHorizontal: 12, paddingVertical: 4,
+    backgroundColor: COLORS.accent, paddingHorizontal: 12, paddingVertical: 4,
     borderRadius: 12, gap: 4,
   },
   trophyStarText: { fontFamily: FONTS.bold, fontSize: 10, color: '#FFF', letterSpacing: 1 },
@@ -1126,33 +1141,30 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold, fontSize: 26, color: '#FFF', letterSpacing: 1, textAlign: 'center', marginBottom: 6,
   },
   rewardSub: {
-    fontFamily: FONTS.medium, fontSize: 14, color: '#94A3B8', textAlign: 'center', marginBottom: 26, paddingHorizontal: 20,
+    fontFamily: FONTS.medium, fontSize: 14, color: 'rgba(255,255,255,0.8)', textAlign: 'center', marginBottom: 26, paddingHorizontal: 20,
   },
 
   // Stat Matrix
+  statFrame: { width: '100%', marginBottom: 20, borderRadius: 20 },
   statMatrix: {
-    flexDirection: 'row', width: '100%', backgroundColor: '#0F0F26',
-    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
-    paddingVertical: 18, marginBottom: 20, justifyContent: 'space-around', alignItems: 'center',
+    flexDirection: 'row',
+    paddingVertical: 18, justifyContent: 'space-around', alignItems: 'center',
   },
   statCell: { alignItems: 'center' },
-  statCellValue: { fontFamily: FONTS.bold, fontSize: 18, color: '#FFF', marginTop: 4 },
-  statCellLabel: { fontFamily: FONTS.bold, fontSize: 10, color: '#64748B', letterSpacing: 1, marginTop: 2 },
-  statDivider: { width: 1, height: 35, backgroundColor: 'rgba(255,255,255,0.08)' },
+  statCellValue: { fontFamily: FONTS.bold, fontSize: 18, color: COLORS.navy, marginTop: 4 },
+  statCellLabel: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textMuted, letterSpacing: 1, marginTop: 2 },
+  statDivider: { width: 1, height: 35, backgroundColor: COLORS.borderLight },
 
-  badgeRewardCard: {
-    flexDirection: 'row', alignItems: 'center', width: '100%',
-    backgroundColor: '#12122D', padding: 16, borderRadius: 18,
-    borderWidth: 1, borderColor: 'rgba(168,85,247,0.3)',
-  },
-  badgeCardTitle: { fontFamily: FONTS.bold, fontSize: 14, color: '#FFF' },
-  badgeCardSub: { fontFamily: FONTS.medium, fontSize: 12, color: '#94A3B8', marginTop: 2 },
+  badgeRewardFrame: { width: '100%', borderRadius: 18 },
+  badgeRewardCard: { flexDirection: 'row', alignItems: 'center', padding: 16 },
+  badgeCardTitle: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.navy },
+  badgeCardSub: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
 
   rewardFooter: { paddingHorizontal: 24, paddingBottom: 36 },
   claimBtn: {
-    height: 56, borderRadius: 28, backgroundColor: '#8B5CF6',
+    height: 56, borderRadius: 28, backgroundColor: COLORS.accent,
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#8B5CF6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 8,
+    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 8,
   },
   claimBtnText: {
     fontFamily: FONTS.bold, fontSize: 15, color: '#FFF', letterSpacing: 1.5,
@@ -1161,7 +1173,7 @@ const styles = StyleSheet.create({
   // ── Cinematic Gamified Intro Styles ──
   introContainer: {
     flex: 1,
-    backgroundColor: '#040A26',
+    backgroundColor: 'transparent',
     justifyContent: 'space-between',
     alignItems: 'center',
     position: 'relative',
@@ -1175,7 +1187,7 @@ const styles = StyleSheet.create({
   letterboxTop: {
     width: '100%',
     height: 60,
-    backgroundColor: '#020617',
+    backgroundColor: 'rgba(2, 6, 23, 0.85)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(251, 191, 36, 0.25)',
     justifyContent: 'center',
@@ -1204,8 +1216,8 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   systemStatusText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 9,
+    fontFamily: FONTS.bold,
+    fontSize: 12,
     color: '#34D399',
     letterSpacing: 1.2,
   },
@@ -1226,7 +1238,7 @@ const styles = StyleSheet.create({
   letterboxBottom: {
     width: '100%',
     height: 50,
-    backgroundColor: '#020617',
+    backgroundColor: 'rgba(2, 6, 23, 0.85)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(251, 191, 36, 0.25)',
     justifyContent: 'center',
@@ -1295,8 +1307,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   introPillText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 9,
+    fontFamily: FONTS.bold,
+    fontSize: 12,
     letterSpacing: 1.2,
   },
   introTargetTitle: {
@@ -1310,24 +1322,18 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
   },
-  introBriefingCard: {
+  introBriefingWrap: {
     width: '100%',
-    backgroundColor: 'rgba(8, 20, 60, 0.85)',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.30)',
+    marginTop: 8,
+  },
+  introBriefingCard: {
     padding: 16,
     alignItems: 'center',
-    marginTop: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
   },
   introObjectiveText: {
     fontFamily: FONTS.medium,
     fontSize: 13,
-    color: '#E2E8F0',
+    color: COLORS.textSub,
     textAlign: 'center',
     lineHeight: 19,
     marginBottom: 14,
@@ -1335,13 +1341,13 @@ const styles = StyleSheet.create({
   introHudRow: {
     flexDirection: 'row',
     width: '100%',
-    backgroundColor: 'rgba(2, 6, 23, 0.70)',
+    backgroundColor: COLORS.bg,
     borderRadius: RADIUS.md,
     paddingVertical: 10,
     justifyContent: 'space-around',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: COLORS.borderLight,
   },
   introHudCell: {
     alignItems: 'center',
@@ -1350,18 +1356,18 @@ const styles = StyleSheet.create({
   introHudVal: {
     fontFamily: FONTS.bold,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: COLORS.navy,
   },
   introHudLabel: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7.5,
-    color: '#94A3B8',
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: COLORS.textMuted,
     letterSpacing: 0.5,
   },
   introHudDivider: {
     width: 1,
     height: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: COLORS.borderLight,
   },
   introActionWrap: {
     width: '100%',
@@ -1380,8 +1386,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   introLoadingText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 10,
+    fontFamily: FONTS.bold,
+    fontSize: 13,
     color: '#FBBF24',
     letterSpacing: 1,
   },
@@ -1389,7 +1395,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 52,
     borderRadius: RADIUS.pill,
-    shadowColor: '#FBBF24',
+    shadowColor: COLORS.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.45,
     shadowRadius: 14,
@@ -1406,13 +1412,13 @@ const styles = StyleSheet.create({
   introStartText: {
     fontFamily: FONTS.bold,
     fontSize: 15,
-    color: '#0C2461',
+    color: '#FFFFFF',
     letterSpacing: 1.5,
   },
   introCountdownSub: {
     fontFamily: FONTS.medium,
     fontSize: 11,
-    color: '#94A3B8',
+    color: 'rgba(255,255,255,0.8)',
     marginTop: 8,
     letterSpacing: 0.5,
   },

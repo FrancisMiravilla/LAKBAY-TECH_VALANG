@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Dimensions, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW, onWhite } from '../constants/theme';
+import VintaCard from './VintaCard';
 
 const OVERLAY_COLOR = 'rgba(6,18,49,0.86)';
 const PAD = 10;
@@ -128,8 +129,9 @@ export default function OnboardingTour({ visible, steps, onFinish }) {
             },
           ]}
         >
+          <VintaCard contentStyle={styles.cardInner}>
           <View style={[styles.iconCircle, { backgroundColor: accent + '22', borderColor: accent + '55' }]}>
-            <Ionicons name={step.icon || 'sparkles'} size={22} color={accent} />
+            <Ionicons name={step.icon || 'sparkles'} size={22} color={onWhite(accent)} />
           </View>
 
           <Text style={styles.stepCounter}>STEP {stepIndex + 1} OF {steps.length}</Text>
@@ -153,13 +155,14 @@ export default function OnboardingTour({ visible, steps, onFinish }) {
             )}
             <TouchableOpacity
               onPress={handleNext}
-              style={[styles.nextBtn, { backgroundColor: accent }, isLast && { flex: 1 }]}
+              style={[styles.nextBtn, { backgroundColor: onWhite(accent) }, isLast && { flex: 1 }]}
               activeOpacity={0.88}
             >
               <Text style={styles.nextText}>{isLast ? (step.ctaLabel || "Let's Go!") : 'Next'}</Text>
               <Ionicons name={isLast ? 'rocket' : 'arrow-forward'} size={15} color="#fff" style={{ marginLeft: 6 }} />
             </TouchableOpacity>
           </View>
+          </VintaCard>
         </Animated.View>
       </View>
     </Modal>
@@ -179,16 +182,9 @@ const styles = StyleSheet.create({
   },
   card: {
     position: 'absolute',
-    backgroundColor: 'rgba(8, 20, 56, 0.98)',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: 'rgba(99, 179, 237, 0.35)',
+  },
+  cardInner: {
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 12,
   },
   cardCentered: {
     alignSelf: 'center',
@@ -201,16 +197,16 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   stepCounter: {
-    fontFamily: FONTS.bold, fontSize: 9, color: '#94A3B8',
+    fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textMuted,
     letterSpacing: 2, marginBottom: 6,
   },
-  title: { fontFamily: FONTS.bold, fontSize: 17, color: '#FFFFFF', marginBottom: 8 },
-  text: { fontFamily: FONTS.medium, fontSize: 13, color: '#E2E8F0', lineHeight: 20, marginBottom: 16 },
+  title: { fontFamily: FONTS.bold, fontSize: 18, color: COLORS.navy, marginBottom: 8 },
+  text: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textSub, lineHeight: 20, marginBottom: 16 },
   dots: { flexDirection: 'row', gap: 6, marginBottom: 18 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255, 255, 255, 0.20)' },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.border },
   actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   skipBtn: { paddingVertical: 10, paddingHorizontal: 4 },
-  skipText: { fontFamily: FONTS.semiBold, fontSize: 12, color: '#94A3B8' },
+  skipText: { fontFamily: FONTS.semiBold, fontSize: 12, color: COLORS.textMuted },
   nextBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     borderRadius: RADIUS.sm, paddingVertical: 12, paddingHorizontal: 18,

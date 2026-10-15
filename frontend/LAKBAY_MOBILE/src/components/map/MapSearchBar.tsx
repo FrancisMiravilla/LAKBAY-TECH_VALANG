@@ -3,7 +3,7 @@ import {
   ActivityIndicator, FlatList, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FONTS } from '../../constants/theme';
+import { COLORS, FONTS } from '../../constants/theme';
 import { SPOT_TYPES, ZAMBOANGA_BBOX, type LngLat } from '../../constants/mapConfig';
 import type { MapSpot } from '../../hooks/useMapSpots';
 import { isInsideZamboanga, parseCoordinates } from '../../utils/geo';
@@ -121,20 +121,20 @@ function MapSearchBarBase({ spots, onSelect, onClose }: MapSearchBarProps) {
   return (
     <View style={styles.wrap}>
       <View style={styles.bar}>
-        <Ionicons name="search" size={18} color="#94A3B8" />
+        <Ionicons name="search" size={18} color={COLORS.textMuted} />
         <TextInput
           style={styles.input}
           value={query}
           onChangeText={setQuery}
           placeholder="Search spots, places or 6.92, 122.08"
-          placeholderTextColor="rgba(191,215,255,0.5)"
+          placeholderTextColor={COLORS.textFaint}
           autoFocus
           returnKeyType="search"
           autoCorrect={false}
         />
-        {loading && <ActivityIndicator size="small" color="#FBBF24" />}
+        {loading && <ActivityIndicator size="small" color={COLORS.accent} />}
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Close search">
-          <Ionicons name="close" size={20} color="#E2E8F0" />
+          <Ionicons name="close" size={20} color={COLORS.navy} />
         </TouchableOpacity>
       </View>
 
@@ -182,25 +182,25 @@ const styles = StyleSheet.create({
     height: 48,
     paddingHorizontal: 14,
     borderRadius: 24,
-    backgroundColor: 'rgba(8,20,60,0.95)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: 'rgba(251,191,36,0.55)',
+    borderColor: COLORS.accent,
     elevation: 8,
   },
-  input: { flex: 1, fontFamily: FONTS.semiBold, fontSize: 14, color: '#fff', paddingVertical: 0 },
+  input: { flex: 1, fontFamily: FONTS.semiBold, fontSize: 14, color: COLORS.text, paddingVertical: 0 },
   list: {
     marginTop: 6,
     maxHeight: 280,
     borderRadius: 16,
-    backgroundColor: 'rgba(8,20,60,0.97)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(99,179,237,0.3)',
+    borderColor: COLORS.border,
     elevation: 8,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 },
   rowIcon: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   rowText: { flex: 1 },
-  rowTitle: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
-  rowSub: { fontFamily: FONTS.regular, fontSize: 11, color: 'rgba(191,215,255,0.65)' },
-  rowSubWarn: { color: '#F87171', fontFamily: FONTS.semiBold },
+  rowTitle: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.navy },
+  rowSub: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textMuted },
+  rowSubWarn: { color: '#DC2626', fontFamily: FONTS.semiBold },
 });

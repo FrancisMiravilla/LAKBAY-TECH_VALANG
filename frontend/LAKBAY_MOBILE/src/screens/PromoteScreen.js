@@ -1,18 +1,19 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TextInput, TouchableOpacity,
-  Image, ScrollView, Alert, Dimensions, Animated, ImageBackground, StatusBar,
-  ActivityIndicator,
+  View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView, Dimensions, Animated, ImageBackground, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
 import { submitPromotion, updatePromotion } from '../api/promotionService';
 import VintaStripe from '../components/VintaStripe';
+import { useTabBarSpace } from '../navigation/tabBarLayout';
 
+import { useAppDialog } from '../components/useAppDialog';
 const { width: SCREEN_W } = Dimensions.get('window');
 
 const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN || 'your_mapbox_token_here';
@@ -170,9 +171,9 @@ const fStyles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(16, 185, 129, 0.35)',
     justifyContent: 'center', alignItems: 'center',
   },
-  text:     { fontFamily: FONTS.semiBold, fontSize: 13, color: '#FFFFFF', flex: 1 },
-  pill:     { backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: RADIUS.pill, paddingHorizontal: 8, paddingVertical: 2 },
-  pillText: { fontFamily: FONTS.medium, fontSize: 9, color: 'rgba(191,215,255,0.70)' },
+  text:     { fontFamily: FONTS.semiBold, fontSize: 13, color: COLORS.textSub, flex: 1 },
+  pill:     { backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.borderLight, borderRadius: RADIUS.pill, paddingHorizontal: 8, paddingVertical: 2 },
+  pillText: { fontFamily: FONTS.medium, fontSize: 10, color: COLORS.textMuted },
 });
 
 // ─── Upload Box ───────────────────────────────────────────────────────────────
@@ -191,7 +192,7 @@ function UploadBox({ onPress, icon, filledIcon, label, filledLabel, filled, fill
         {children || (
           <>
             <View style={[uploadStyles.iconRing, filled && { borderColor: (filledColor || COLORS.teal) + '88', backgroundColor: (filledColor || COLORS.teal) + '22' }]}>
-              <Ionicons name={filled ? filledIcon : icon} size={24} color={filled ? (filledColor || COLORS.teal) : 'rgba(191,215,255,0.6)'} />
+              <Ionicons name={filled ? filledIcon : icon} size={24} color={filled ? (filledColor || COLORS.teal) : COLORS.textMuted} />
             </View>
             <Text style={[uploadStyles.label, filled && { color: filledColor || COLORS.teal }]}>
               {filled ? filledLabel : label}
@@ -206,22 +207,24 @@ function UploadBox({ onPress, icon, filledIcon, label, filledLabel, filled, fill
 
 const uploadStyles = StyleSheet.create({
   box: {
-    height: 120, backgroundColor: 'rgba(8, 20, 60, 0.50)',
-    borderWidth: 1.5, borderColor: 'rgba(99, 179, 237, 0.3)', borderStyle: 'dashed',
+    height: 120, backgroundColor: COLORS.bgCardAlt,
+    borderWidth: 1.5, borderColor: COLORS.border, borderStyle: 'dashed',
     borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center',
     overflow: 'hidden', gap: 6,
   },
   iconRing: {
     width: 46, height: 46, borderRadius: 23, borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.25)', justifyContent: 'center', alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center',
+    backgroundColor: '#FFFFFF',
   },
-  label: { fontFamily: FONTS.semiBold, fontSize: 13, color: '#FFFFFF' },
-  hint:  { fontFamily: FONTS.regular,  fontSize: 11, color: 'rgba(191,215,255,0.55)' },
+  label: { fontFamily: FONTS.semiBold, fontSize: 13, color: COLORS.navy },
+  hint:  { fontFamily: FONTS.regular,  fontSize: 11, color: COLORS.textMuted },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function PromoteScreen({ route, navigation }) {
+  const { dialog, showAlert } = useAppDialog();
+  const tabBarSpace = useTabBarSpace();
   const editPromotion = route?.params?.editPromotion || route?.params?.promo || null;
   const isEditing = !!editPromotion;
   const passedSpotName = editPromotion?.spot_name || route?.params?.spotName || '';
@@ -264,22 +267,22 @@ export default function PromoteScreen({ route, navigation }) {
         setGlbUri(asset.uri);
         setGlbName(asset.name);
       } else {
-        Alert.alert('Invalid file', 'Please select a .glb or .gltf 3D model.');
+        showAlert('Invalid file', 'Please select a .glb or .gltf 3D model.');
       }
     }
   };
 
   const validateForm = () => {
     if (!spotName.trim()) {
-      Alert.alert('Missing Info', 'Please provide a spot or landmark name.');
+      showAlert('Missing Info', 'Please provide a spot or landmark name.');
       return false;
     }
     if (!description.trim()) {
-      Alert.alert('Missing Info', 'Please provide a description.');
+      showAlert('Missing Info', 'Please provide a description.');
       return false;
     }
     if (!location) {
-      Alert.alert('Missing Info', 'Please pin a location on the map.');
+      showAlert('Missing Info', 'Please pin a location on the map.');
       return false;
     }
     return true;
@@ -300,7 +303,7 @@ export default function PromoteScreen({ route, navigation }) {
           lng: location.lng,
           isPlace,
         });
-        Alert.alert(
+        showAlert(
           'Promotion Updated! 🎉',
           'Your landmark promotion and 3D model have been updated successfully.',
           [
@@ -321,7 +324,7 @@ export default function PromoteScreen({ route, navigation }) {
           isPlace,
           false // use_coins = false (submits for Admin Review)
         );
-        Alert.alert(
+        showAlert(
           'Submitted for Review! 🎉',
           'Your landmark promotion has been submitted to the admin team for review.\n\nYou do not need to pay yet. Once the admin approves your spot, you will receive a notification and can pay coins to publish it live!',
           [
@@ -364,7 +367,7 @@ export default function PromoteScreen({ route, navigation }) {
       if (e.response?.data?.detail) errMsg = e.response.data.detail;
       else if (e.response?.data?.error) errMsg = e.response.data.error;
       else if (e.message) errMsg = e.message;
-      Alert.alert('Error', errMsg);
+      showAlert('Error', errMsg);
     } finally {
       setSubmitting(false);
     }
@@ -392,23 +395,20 @@ export default function PromoteScreen({ route, navigation }) {
     >
       <View style={styles.bgOverlay} />
 
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
         {/* ── Header ── */}
         <View style={styles.header}>
-          {navigation.canGoBack() ? (
+          {isEditing && navigation.canGoBack() ? (
             <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
               <Ionicons name="arrow-back" size={20} color="#fff" />
             </TouchableOpacity>
-          ) : (
-            <View style={{ width: 38 }} />
-          )}
-          <View style={{ alignItems: 'center' }}>
+          ) : null}
+          <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>{isEditing ? 'EDIT PROMOTION' : 'PROMOTE A SPOT'}</Text>
             <Text style={styles.headerSub}>{isEditing ? 'UPDATE LANDMARK & 3D MODEL' : "SHARE ZAMBOANGA'S GEMS"}</Text>
           </View>
-          <View style={{ width: 38 }} />
         </View>
         <VintaStripe height={3} />
 
@@ -419,20 +419,20 @@ export default function PromoteScreen({ route, navigation }) {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]}
           keyboardShouldPersistTaps="handled"
         >
 
           {/* ── Info Banner ── */}
-          <View style={styles.infoBanner}>
-            <Ionicons name="sparkles" size={18} color={COLORS.gold} />
+          <VintaCard style={styles.infoFrame} contentStyle={styles.infoBanner}>
+            <Ionicons name="sparkles" size={18} color={GOLD_TEXT} />
             <Text style={styles.infoBannerText}>
               Fill in the spot details below. Once approved by our team, explorer rewards and map pins will be activated!
             </Text>
-          </View>
+          </VintaCard>
 
           {/* ── Section: Details ── */}
-          <View style={styles.sectionCard}>
+          <VintaCard style={styles.sectionFrame} contentStyle={styles.sectionCard}>
             <View style={styles.sectionCardHeader}>
               <View style={styles.sectionNum}><Text style={styles.sectionNumText}>1</Text></View>
               <Text style={styles.sectionCardTitle}>Spot Details</Text>
@@ -445,14 +445,14 @@ export default function PromoteScreen({ route, navigation }) {
               onChangeText={setSpotName}
               editable={isEditable}
               placeholder={isEditable ? 'e.g. Fort Pilar, Zamboanga' : ''}
-              placeholderTextColor="rgba(191,215,255,0.4)"
+              placeholderTextColor="#94A3B8"
             />
 
             <FieldLabel icon="chatbubble-ellipses-outline" text="Why should explorers visit?" />
             <TextInput
               style={styles.textArea}
               placeholder="Share cultural highlights, must-try food, promotions..."
-              placeholderTextColor="rgba(191,215,255,0.4)"
+              placeholderTextColor="#94A3B8"
               multiline
               value={description}
               onChangeText={setDescription}
@@ -465,20 +465,20 @@ export default function PromoteScreen({ route, navigation }) {
               activeOpacity={0.8}
             >
               <View style={[styles.toggleIcon, isPlace && styles.toggleIconActive]}>
-                <Ionicons name={isPlace ? 'location' : 'location-outline'} size={18} color={isPlace ? '#fff' : 'rgba(191,215,255,0.7)'} />
+                <Ionicons name={isPlace ? 'location' : 'location-outline'} size={18} color={isPlace ? '#fff' : COLORS.textMuted} />
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[styles.toggleLabel, isPlace && { color: COLORS.teal }]}>Mark as Heritage Landmark</Text>
+                <Text style={[styles.toggleLabel, isPlace && { color: '#059669' }]}>Mark as Heritage Landmark</Text>
                 <Text style={styles.toggleSub}>Will appear as a primary quest pin on the World Map</Text>
               </View>
               <View style={[styles.toggleSwitch, isPlace && styles.toggleSwitchOn]}>
                 <View style={[styles.toggleThumb, isPlace && styles.toggleThumbOn]} />
               </View>
             </TouchableOpacity>
-          </View>
+          </VintaCard>
 
           {/* ── Section: Location ── */}
-          <View style={styles.sectionCard}>
+          <VintaCard style={styles.sectionFrame} contentStyle={styles.sectionCard}>
             <View style={styles.sectionCardHeader}>
               <View style={[styles.sectionNum, locationPinned && styles.sectionNumDone]}>
                 {locationPinned
@@ -494,11 +494,11 @@ export default function PromoteScreen({ route, navigation }) {
               onPress={() => setMapModalVisible(true)}
               activeOpacity={0.85}
             >
-              <View style={[styles.mapTriggerIconWrap, locationPinned && { backgroundColor: 'rgba(56, 189, 248, 0.2)', borderColor: 'rgba(56, 189, 248, 0.5)' }]}>
-                <Ionicons name="map" size={24} color={locationPinned ? '#38BDF8' : COLORS.textMuted} />
+              <View style={[styles.mapTriggerIconWrap, locationPinned && { backgroundColor: 'rgba(2, 132, 199, 0.12)', borderColor: 'rgba(2, 132, 199, 0.45)' }]}>
+                <Ionicons name="map" size={24} color={locationPinned ? '#0284C7' : COLORS.textMuted} />
               </View>
               <View style={{ flex: 1, marginLeft: 14 }}>
-                <Text style={[styles.mapTriggerTitle, locationPinned && { color: '#38BDF8' }]}>
+                <Text style={[styles.mapTriggerTitle, locationPinned && { color: '#0284C7' }]}>
                   {locationPinned ? '📍 GPS Position Locked' : 'Open Tactical Map to Pin'}
                 </Text>
                 {locationPinned ? (
@@ -507,14 +507,14 @@ export default function PromoteScreen({ route, navigation }) {
                   <Text style={styles.mapHint}>Drag the crosshair to set the landmark location</Text>
                 )}
               </View>
-              <View style={[styles.mapChevron, locationPinned && { backgroundColor: '#38BDF8' }]}>
-                <Ionicons name="chevron-forward" size={16} color={locationPinned ? '#08143C' : 'rgba(191,215,255,0.7)'} />
+              <View style={[styles.mapChevron, locationPinned && { backgroundColor: '#0284C7' }]}>
+                <Ionicons name="chevron-forward" size={16} color={locationPinned ? '#FFFFFF' : COLORS.textMuted} />
               </View>
             </TouchableOpacity>
-          </View>
+          </VintaCard>
 
           {/* ── Section: Media ── */}
-          <View style={styles.sectionCard}>
+          <VintaCard style={styles.sectionFrame} contentStyle={styles.sectionCard}>
             <View style={styles.sectionCardHeader}>
               <View style={[styles.sectionNum, (imageUri || glbName) && styles.sectionNumDone]}>
                 {(imageUri || glbName)
@@ -565,10 +565,10 @@ export default function PromoteScreen({ route, navigation }) {
                 filledColor={COLORS.teal}
               />
             </View>
-          </View>
+          </VintaCard>
 
           {/* ── Section: Review & Submit ── */}
-          <View style={styles.sectionCard}>
+          <VintaCard style={styles.sectionFrame} contentStyle={styles.sectionCard}>
             <View style={styles.sectionCardHeader}>
               <View style={[styles.sectionNum, currentStep === 4 && styles.sectionNumDone]}>
                 <Text style={styles.sectionNumText}>4</Text>
@@ -620,24 +620,23 @@ export default function PromoteScreen({ route, navigation }) {
             >
               {submitting ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <ActivityIndicator size="small" color="#08143C" />
+                  <ActivityIndicator size="small" color="#FFFFFF" />
                   <Text style={styles.submitReviewBtnText}>{isEditing ? 'Saving Changes...' : 'Submitting to Admin Queue...'}</Text>
                 </View>
               ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Ionicons name={isEditing ? "checkmark-circle" : "paper-plane"} size={18} color="#08143C" />
+                  <Ionicons name={isEditing ? "checkmark-circle" : "paper-plane"} size={18} color="#FFFFFF" />
                   <Text style={styles.submitReviewBtnText}>{isEditing ? 'Save Changes & 3D Model' : 'Submit Landmark for Review'}</Text>
                 </View>
               )}
             </TouchableOpacity>
-          </View>
+          </VintaCard>
 
           <View style={styles.footerNote}>
             <Ionicons name="information-circle-outline" size={14} color="rgba(191,215,255,0.6)" />
             <Text style={styles.footerNoteText}>Coins are only deducted after your promotion has been approved.</Text>
           </View>
 
-          <View style={{ height: 36 }} />
         </ScrollView>
 
         {/* ── Map Picker Overlay ── */}
@@ -653,7 +652,7 @@ export default function PromoteScreen({ route, navigation }) {
                   <Text style={styles.modalSub}>Center the crosshair over your spot</Text>
                 </View>
                 <TouchableOpacity style={styles.modalConfirmBtn} onPress={confirmLocation}>
-                  <Ionicons name="checkmark" size={16} color="#08143C" />
+                  <Ionicons name="checkmark" size={16} color="#FFFFFF" />
                   <Text style={styles.modalConfirmText}>Lock In</Text>
                 </TouchableOpacity>
               </View>
@@ -671,6 +670,7 @@ export default function PromoteScreen({ route, navigation }) {
           </View>
         )}
 
+        {dialog}
       </SafeAreaView>
     </ImageBackground>
   );
@@ -685,7 +685,7 @@ const styles = StyleSheet.create({
   },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4, 10, 38, 0.85)',
+    backgroundColor: BG_OVERLAY,
   },
   container: {
     flex: 1,
@@ -700,22 +700,21 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(99, 179, 237, 0.20)',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
   },
   backBtn: {
-    width: 38, height: 38, borderRadius: 19,
+    width: 38, height: 38, borderRadius: 19, marginRight: 12,
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center', alignItems: 'center',
   },
   headerTitle: {
-    fontFamily: FONTS.pixel, fontSize: 10,
-    color: '#FFFFFF', letterSpacing: 2, lineHeight: 18,
+    fontFamily: FONTS.bold, fontSize: 20,
+    color: '#FFFFFF', letterSpacing: 2, lineHeight: 22,
   },
   headerSub: {
-    fontFamily: FONTS.medium, fontSize: 9,
-    color: 'rgba(191,215,255,0.70)', letterSpacing: 1.5, marginTop: 1, textAlign: 'center',
+    fontFamily: FONTS.semiBold, fontSize: 11,
+    color: 'rgba(191,215,255,0.70)', letterSpacing: 1.5, marginTop: 2, lineHeight: 14,
   },
 
   // Step
@@ -728,43 +727,29 @@ const styles = StyleSheet.create({
   content: { padding: 16 },
 
   // Info banner
+  infoFrame: {
+    marginBottom: 16,
+  },
   infoBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#08143C',
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.40)',
-    borderRadius: RADIUS.lg,
     padding: 14,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
   },
   infoBannerText: {
     fontFamily: FONTS.regular,
     fontSize: 12,
-    color: 'rgba(191,215,255,0.85)',
+    color: COLORS.textSub,
     flex: 1,
     lineHeight: 18,
   },
 
   // Section card
-  sectionCard: {
-    backgroundColor: '#08143C',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    padding: 16,
+  sectionFrame: {
     marginBottom: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+  },
+  sectionCard: {
+    padding: 16,
   },
   sectionCardHeader: {
     flexDirection: 'row',
@@ -774,8 +759,8 @@ const styles = StyleSheet.create({
   },
   sectionNum: {
     width: 26, height: 26, borderRadius: 13,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1.5, borderColor: '#1E3A8A',
+    backgroundColor: COLORS.bg,
+    borderWidth: 1.5, borderColor: COLORS.border,
     justifyContent: 'center', alignItems: 'center',
   },
   sectionNumDone: {
@@ -783,39 +768,39 @@ const styles = StyleSheet.create({
     borderColor: COLORS.teal,
   },
   sectionNumText: {
-    fontFamily: FONTS.bold, fontSize: 11, color: '#FFFFFF',
+    fontFamily: FONTS.bold, fontSize: 11, color: COLORS.navy,
   },
   sectionCardTitle: {
-    fontFamily: FONTS.pixel, fontSize: 10, color: '#FFFFFF', flex: 1, lineHeight: 16,
+    fontFamily: FONTS.bold, fontSize: 16, color: COLORS.navy, flex: 1, lineHeight: 20,
   },
   optionalPill: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: COLORS.bg,
+    borderWidth: 1, borderColor: COLORS.borderLight,
     borderRadius: RADIUS.pill,
     paddingHorizontal: 8, paddingVertical: 2,
   },
   optionalPillText: {
-    fontFamily: FONTS.medium, fontSize: 9, color: 'rgba(191,215,255,0.70)',
+    fontFamily: FONTS.medium, fontSize: 10, color: COLORS.textMuted,
   },
 
   // Inputs
   inputEditable: {
-    backgroundColor: '#0C2054',
-    borderWidth: 1, borderColor: '#1E3A8A',
+    backgroundColor: COLORS.bgCardAlt,
+    borderWidth: 1, borderColor: COLORS.border,
     borderRadius: RADIUS.sm, padding: 12,
-    color: '#FFFFFF', fontFamily: FONTS.regular, fontSize: 13,
+    color: COLORS.text, fontFamily: FONTS.regular, fontSize: 13,
   },
   inputDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderWidth: 1, borderColor: '#1E3A8A',
+    backgroundColor: COLORS.bg,
+    borderWidth: 1, borderColor: COLORS.borderLight,
     borderRadius: RADIUS.sm, padding: 12,
-    color: 'rgba(191,215,255,0.60)', fontFamily: FONTS.regular, fontSize: 13,
+    color: COLORS.textMuted, fontFamily: FONTS.regular, fontSize: 13,
   },
   textArea: {
-    backgroundColor: '#0C2054',
-    borderWidth: 1, borderColor: '#1E3A8A',
+    backgroundColor: COLORS.bgCardAlt,
+    borderWidth: 1, borderColor: COLORS.border,
     borderRadius: RADIUS.sm, padding: 12,
-    color: '#FFFFFF', fontFamily: FONTS.regular, fontSize: 13,
+    color: COLORS.text, fontFamily: FONTS.regular, fontSize: 13,
     height: 100, textAlignVertical: 'top',
   },
 
@@ -823,18 +808,18 @@ const styles = StyleSheet.create({
   toggleRow: {
     flexDirection: 'row', alignItems: 'center',
     marginTop: 16, padding: 14,
-    backgroundColor: '#0C2054',
+    backgroundColor: COLORS.bgCardAlt,
     borderRadius: RADIUS.md,
-    borderWidth: 1, borderColor: '#1E3A8A',
+    borderWidth: 1, borderColor: COLORS.border,
   },
   toggleRowActive: {
     borderColor: 'rgba(16, 185, 129, 0.45)',
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    backgroundColor: '#ECFDF5',
   },
   toggleIcon: {
     width: 36, height: 36, borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1, borderColor: '#1E3A8A',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: COLORS.border,
     justifyContent: 'center', alignItems: 'center',
   },
   toggleIconActive: {
@@ -842,15 +827,15 @@ const styles = StyleSheet.create({
     borderColor: COLORS.teal,
   },
   toggleLabel: {
-    fontFamily: FONTS.semiBold, fontSize: 13, color: '#FFFFFF',
+    fontFamily: FONTS.semiBold, fontSize: 13, color: COLORS.navy,
   },
   toggleSub: {
     fontFamily: FONTS.regular, fontSize: 10,
-    color: 'rgba(191,215,255,0.65)', marginTop: 2,
+    color: COLORS.textMuted, marginTop: 2,
   },
   toggleSwitch: {
     width: 42, height: 24, borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(15, 23, 42, 0.15)',
     justifyContent: 'center', paddingHorizontal: 3,
   },
   toggleSwitchOn: { backgroundColor: COLORS.teal },
@@ -864,48 +849,48 @@ const styles = StyleSheet.create({
   mapTrigger: {
     flexDirection: 'row', alignItems: 'center',
     marginTop: 14, padding: 14,
-    backgroundColor: '#0C2054',
+    backgroundColor: COLORS.bgCardAlt,
     borderRadius: RADIUS.md,
-    borderWidth: 1.5, borderColor: '#1E3A8A',
+    borderWidth: 1.5, borderColor: COLORS.border,
     borderStyle: 'dashed',
   },
   mapTriggerPinned: {
     borderStyle: 'solid',
-    borderColor: 'rgba(56, 189, 248, 0.45)',
-    backgroundColor: 'rgba(56, 189, 248, 0.10)',
+    borderColor: 'rgba(2, 132, 199, 0.45)',
+    backgroundColor: 'rgba(2, 132, 199, 0.08)',
   },
   mapTriggerIconWrap: {
     width: 46, height: 46, borderRadius: RADIUS.sm,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: COLORS.border,
     justifyContent: 'center', alignItems: 'center',
   },
   mapTriggerTitle: {
-    fontFamily: FONTS.pixel, fontSize: 10, color: '#FFFFFF', lineHeight: 16,
+    fontFamily: FONTS.bold, fontSize: 14, color: COLORS.navy, lineHeight: 18,
   },
   mapCoords: {
     fontFamily: FONTS.regular, fontSize: 12,
-    color: '#38BDF8', marginTop: 2, letterSpacing: 0.3,
+    color: '#0284C7', marginTop: 2, letterSpacing: 0.3,
   },
   mapHint: {
     fontFamily: FONTS.regular, fontSize: 11,
-    color: 'rgba(191,215,255,0.65)', marginTop: 2,
+    color: COLORS.textMuted, marginTop: 2,
   },
   mapChevron: {
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: COLORS.bg,
+    borderWidth: 1, borderColor: COLORS.borderLight,
     justifyContent: 'center', alignItems: 'center',
   },
 
   // Media
   mediaHintText: {
     fontFamily: FONTS.regular, fontSize: 11,
-    color: 'rgba(191,215,255,0.65)', marginTop: 6, lineHeight: 16,
+    color: COLORS.textMuted, marginTop: 6, lineHeight: 16,
   },
   mediaSubLabel: {
-    fontFamily: FONTS.pixel, fontSize: 9,
-    color: '#FFFFFF', marginBottom: 8, lineHeight: 14,
+    fontFamily: FONTS.bold, fontSize: 13,
+    color: COLORS.navy, marginBottom: 8, lineHeight: 16,
   },
   previewImg: { width: '100%', height: '100%' },
   imgOverlay: {
@@ -954,14 +939,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   modalTitle: {
-    fontFamily: FONTS.pixel, fontSize: 10, color: '#1E293B', lineHeight: 16,
+    fontFamily: FONTS.bold, fontSize: 16, color: '#1E293B', lineHeight: 20,
   },
   modalSub: {
     fontFamily: FONTS.regular, fontSize: 11, color: '#64748B', marginTop: 1,
   },
   modalConfirmBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: COLORS.teal,
+    backgroundColor: COLORS.accent,
     paddingHorizontal: 14, paddingVertical: 8,
     borderRadius: RADIUS.pill,
   },
@@ -978,44 +963,39 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill, paddingHorizontal: 8, paddingVertical: 2,
   },
   reviewBadgeText: {
-    fontFamily: FONTS.bold, fontSize: 10, color: COLORS.teal, letterSpacing: 0.5,
+    fontFamily: FONTS.bold, fontSize: 10, color: '#059669', letterSpacing: 0.5,
   },
   reviewIntroText: {
-    fontFamily: FONTS.regular, fontSize: 12, color: 'rgba(191,215,255,0.75)',
+    fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textSub,
     marginTop: 6, lineHeight: 18,
   },
   workflowCard: {
-    backgroundColor: '#08143C',
-    borderWidth: 1, borderColor: '#1E3A8A',
+    backgroundColor: COLORS.bg,
+    borderWidth: 1, borderColor: COLORS.borderLight,
     borderRadius: RADIUS.md, padding: 14, marginTop: 14,
     gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
   },
   workflowStep: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
   },
   workflowStepNum: {
     width: 22, height: 22, borderRadius: 11,
-    backgroundColor: 'rgba(56, 189, 248, 0.20)',
-    borderWidth: 1, borderColor: '#38BDF8',
+    backgroundColor: COLORS.accentSoft,
+    borderWidth: 1, borderColor: COLORS.accent,
     justifyContent: 'center', alignItems: 'center',
     marginTop: 1,
   },
   workflowStepNumText: {
-    fontFamily: FONTS.bold, fontSize: 10, color: '#38BDF8',
+    fontFamily: FONTS.bold, fontSize: 10, color: COLORS.accent,
   },
   workflowStepTitle: {
-    fontFamily: FONTS.pixel, fontSize: 9, color: '#FFFFFF', lineHeight: 14,
+    fontFamily: FONTS.bold, fontSize: 14, color: COLORS.navy, lineHeight: 17,
   },
   workflowStepSub: {
-    fontFamily: FONTS.regular, fontSize: 11, color: 'rgba(191,215,255,0.65)', marginTop: 2, lineHeight: 15,
+    fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textMuted, marginTop: 2, lineHeight: 15,
   },
   submitReviewBtn: {
-    backgroundColor: COLORS.teal,
+    backgroundColor: COLORS.accent,
     padding: 15, borderRadius: RADIUS.pill,
     alignItems: 'center', marginTop: 14,
     shadowColor: '#000',
@@ -1025,6 +1005,6 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   submitReviewBtnText: {
-    fontFamily: FONTS.bold, fontSize: 14, color: '#08143C', letterSpacing: 0.3,
+    fontFamily: FONTS.bold, fontSize: 14, color: '#FFFFFF', letterSpacing: 0.3,
   },
 });

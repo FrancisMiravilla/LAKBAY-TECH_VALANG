@@ -1,13 +1,12 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, Image, Dimensions, ImageBackground, StatusBar,
-  Modal, Alert, ScrollView,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, Dimensions, ImageBackground, StatusBar, Modal, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
 import {
   getWallet,
   getBundles,
@@ -17,7 +16,9 @@ import {
 } from '../api/promotionService';
 import { ORIGIN } from '../api/qrService';
 import VintaStripe from '../components/VintaStripe';
+import { useTabBarSpace } from '../navigation/tabBarLayout';
 
+import { useAppDialog } from '../components/useAppDialog';
 const { width } = Dimensions.get('window');
 
 const COIN_IMAGE = 'https://cdn-icons-png.flaticon.com/512/2850/2850730.png';
@@ -32,6 +33,8 @@ const formatImageUrl = (img) => {
 };
 
 export default function StoreScreen({ navigation }) {
+  const { dialog, showAlert } = useAppDialog();
+  const tabBarSpace = useTabBarSpace();
   const [wallet, setWallet] = useState(null);
   const [bundles, setBundles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -82,7 +85,7 @@ export default function StoreScreen({ navigation }) {
       startPolling(data.payment_intent_id);
     } catch (e) {
       console.log('Error generating bundle QR Ph', e);
-      Alert.alert('Payment Error', 'Failed to generate QR Ph code. Please check server connection.');
+      showAlert('Payment Error', 'Failed to generate QR Ph code. Please check server connection.');
     } finally {
       setBuying(false);
       setQrLoading(false);
@@ -114,10 +117,10 @@ export default function StoreScreen({ navigation }) {
         if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
         handlePaymentSuccess(res);
       } else {
-        Alert.alert('Payment Pending', 'Payment confirmation has not yet arrived from PayMongo. Please scan the QR Ph code and approve payment.');
+        showAlert('Payment Pending', 'Payment confirmation has not yet arrived from PayMongo. Please scan the QR Ph code and approve payment.');
       }
     } catch (e) {
-      Alert.alert('Error', 'Unable to verify payment with server.');
+      showAlert('Error', 'Unable to verify payment with server.');
     } finally {
       setVerifying(false);
     }
@@ -133,7 +136,7 @@ export default function StoreScreen({ navigation }) {
         handlePaymentSuccess(res);
       }
     } catch (e) {
-      Alert.alert('Error', 'Failed to simulate test payment.');
+      showAlert('Error', 'Failed to simulate test payment.');
     } finally {
       setVerifying(false);
     }
@@ -181,6 +184,7 @@ export default function StoreScreen({ navigation }) {
       disabled={buying || qrLoading}
       activeOpacity={0.82}
     >
+      <VintaCard style={styles.cardFrame} contentStyle={styles.cardInner}>
       <ImageBackground 
         source={{ uri: formatImageUrl(item.image) }} 
         style={styles.bundleBgImage} 
@@ -212,6 +216,7 @@ export default function StoreScreen({ navigation }) {
           </View>
         </View>
       </ImageBackground>
+      </VintaCard>
     </TouchableOpacity>
   );
 
@@ -223,21 +228,12 @@ export default function StoreScreen({ navigation }) {
     >
       <View style={styles.bgOverlay} />
 
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
         {/* ── Header ── */}
         <View style={styles.header}>
-          {navigation?.canGoBack?.() && (
-            <TouchableOpacity
-              style={styles.backBtn}
-              onPress={() => navigation.goBack()}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
-          <View style={{ alignItems: 'center' }}>
+          <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>LAKBAY STORE</Text>
             <Text style={styles.headerSub}>EXPEDITION COIN VAULT</Text>
           </View>
@@ -248,20 +244,19 @@ export default function StoreScreen({ navigation }) {
           key="2col"
           data={bundles}
           keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: tabBarSpace }]}
           numColumns={2}
           columnWrapperStyle={styles.columnWrapper}
           renderItem={renderBundleCard}
           ListHeaderComponent={
-            <View style={styles.walletCard}>
-              <View style={styles.walletGlowOrb} />
+            <VintaCard style={styles.walletFrame} contentStyle={styles.walletCard}>
               <View style={styles.walletHeaderRow}>
                 <View style={styles.vaultPill}>
-                  <Ionicons name="wallet-outline" size={12} color={COLORS.gold} />
+                  <Ionicons name="wallet-outline" size={12} color={GOLD_TEXT} />
                   <Text style={styles.vaultPillText}>TREASURY BALANCE</Text>
                 </View>
                 <TouchableOpacity onPress={fetchData} activeOpacity={0.7} style={styles.refreshBtn}>
-                  <Ionicons name="refresh" size={14} color="rgba(191,215,255,0.7)" />
+                  <Ionicons name="refresh" size={14} color={COLORS.textMuted} />
                 </TouchableOpacity>
               </View>
 
@@ -274,7 +269,7 @@ export default function StoreScreen({ navigation }) {
               <Text style={styles.walletHint}>
                 Coins are required to promote landmark spots on the map, unlock cosmetics, and access exclusive travel quests.
               </Text>
-            </View>
+            </VintaCard>
           }
           ListEmptyComponent={<Text style={styles.emptyText}>No treasure bundles available right now.</Text>}
         />
@@ -287,8 +282,7 @@ export default function StoreScreen({ navigation }) {
           onRequestClose={handleCloseQRModal}
         >
           <View style={styles.qrModalBackdrop}>
-            <View style={styles.qrModalCard}>
-              <VintaStripe height={4} />
+            <VintaCard style={styles.qrModalCard}>
 
               {/* Header */}
               <View style={styles.qrModalHeader}>
@@ -302,7 +296,7 @@ export default function StoreScreen({ navigation }) {
                   </View>
                 </View>
                 <TouchableOpacity style={styles.qrModalCloseBtn} onPress={handleCloseQRModal}>
-                  <Ionicons name="close" size={20} color="#FFFFFF" />
+                  <Ionicons name="close" size={20} color={COLORS.textSub} />
                 </TouchableOpacity>
               </View>
 
@@ -363,7 +357,7 @@ export default function StoreScreen({ navigation }) {
                   {/* Instructions */}
                   <View style={styles.qrInstructions}>
                     <Text style={styles.qrInstructionStep}>1. Open GCash, Maya, or any Banking app</Text>
-                    <Text style={styles.qrInstructionStep}>2. Tap 'Scan QR' and scan or upload screenshot</Text>
+                    <Text style={styles.qrInstructionStep}>2. Tap “Scan QR” and scan or upload screenshot</Text>
                     <Text style={styles.qrInstructionStep}>3. Approve ₱{qrData?.amount_php || selectedBundle?.price_php} payment to LAKBAY</Text>
                   </View>
 
@@ -373,7 +367,7 @@ export default function StoreScreen({ navigation }) {
                     onPress={handleManualCheck}
                     disabled={verifying}
                   >
-                    <Ionicons name="refresh" size={16} color="#08143C" />
+                    <Ionicons name="refresh" size={16} color="#FFFFFF" />
                     <Text style={styles.qrVerifyBtnText}>Check Payment Status</Text>
                   </TouchableOpacity>
 
@@ -392,9 +386,10 @@ export default function StoreScreen({ navigation }) {
                   </TouchableOpacity>
                 </ScrollView>
               )}
-            </View>
+            </VintaCard>
           </View>
         </Modal>
+        {dialog}
       </SafeAreaView>
     </ImageBackground>
   );
@@ -408,61 +403,30 @@ const styles = StyleSheet.create({
   },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4, 10, 38, 0.85)',
+    backgroundColor: BG_OVERLAY,
   },
   container: { flex: 1, backgroundColor: 'transparent' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 },
   loadingText: { fontFamily: FONTS.medium, fontSize: 13, color: 'rgba(191,215,255,0.85)' },
 
   header: {
-    paddingVertical: 16,
+    height: 64,
     backgroundColor: 'rgba(8, 20, 60, 0.70)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(99, 179, 237, 0.20)',
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+    paddingHorizontal: 16,
   },
-  backBtn: {
-    position: 'absolute',
-    left: 16,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(191, 215, 255, 0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  headerTitle: { fontFamily: FONTS.pixel, fontSize: 11, color: '#FFFFFF', letterSpacing: 2, lineHeight: 18 },
-  headerSub: { fontFamily: FONTS.medium, fontSize: 9, color: 'rgba(191,215,255,0.70)', letterSpacing: 1.5, marginTop: 1 },
+  headerTitle: { fontFamily: FONTS.bold, fontSize: 20, color: '#FFFFFF', letterSpacing: 2, lineHeight: 22 },
+  headerSub: { fontFamily: FONTS.semiBold, fontSize: 11, color: 'rgba(191,215,255,0.70)', letterSpacing: 1.5, marginTop: 2, lineHeight: 14 },
   
   // Wallet Vault Card
+  walletFrame: {
+    marginBottom: 20,
+  },
   walletCard: {
     padding: 20,
-    backgroundColor: '#08143C',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.40)',
-    marginBottom: 20,
-    overflow: 'hidden',
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  walletGlowOrb: {
-    position: 'absolute',
-    top: -40,
-    right: -40,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    opacity: 0,
   },
   walletHeaderRow: {
     flexDirection: 'row',
@@ -484,14 +448,14 @@ const styles = StyleSheet.create({
   vaultPillText: {
     fontFamily: FONTS.bold,
     fontSize: 9,
-    color: COLORS.gold,
+    color: GOLD_TEXT,
     letterSpacing: 1.5,
   },
   refreshBtn: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.bg,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -502,23 +466,23 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   walletBalance: {
-    fontFamily: FONTS.pixel,
-    fontSize: 22,
-    color: COLORS.gold,
+    fontFamily: FONTS.bold,
+    fontSize: 34,
+    color: GOLD_TEXT,
     letterSpacing: 1,
   },
   walletCoinsLabel: {
     fontFamily: FONTS.bold,
     fontSize: 11,
-    color: 'rgba(191,215,255,0.85)',
+    color: COLORS.textSub,
     letterSpacing: 1.5,
     marginTop: 4,
   },
   walletHint: {
     fontFamily: FONTS.regular,
-    fontSize: 11,
-    color: 'rgba(191,215,255,0.70)',
-    lineHeight: 16,
+    fontSize: 12,
+    color: COLORS.textSub,
+    lineHeight: 17,
   },
   
   list: { padding: 16, paddingBottom: 40 },
@@ -527,17 +491,12 @@ const styles = StyleSheet.create({
   // Bundle card
   cardContainer: {
     width: (width - 44) / 2,
+  },
+  cardFrame: {
     height: 180,
-    backgroundColor: '#08143C',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+  },
+  cardInner: {
+    flex: 1,
   },
   bundleBgImage: {
     width: '100%',
@@ -613,15 +572,6 @@ const styles = StyleSheet.create({
   },
   qrModalCard: {
     width: '100%', maxWidth: 380, maxHeight: '90%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1, borderColor: '#E2E8F0',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 8,
   },
   qrModalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -658,7 +608,7 @@ const styles = StyleSheet.create({
   qrAmountHeadline: {
     fontFamily: FONTS.bold, fontSize: 28, color: '#1E293B', letterSpacing: 0.5,
   },
-  qrAmountCurrency: { fontSize: 14, color: COLORS.teal },
+  qrAmountCurrency: { fontSize: 14, color: COLORS.accent},
   qrAmountSub: {
     fontFamily: FONTS.regular, fontSize: 12, color: '#64748B', marginTop: 2,
   },
@@ -703,7 +653,7 @@ const styles = StyleSheet.create({
 
   qrVerifyBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: COLORS.teal, width: '100%', padding: 13,
+    backgroundColor: COLORS.accent, width: '100%', padding: 13,
     borderRadius: RADIUS.pill, marginBottom: 8,
   },
   qrVerifyBtnText: {
@@ -738,7 +688,7 @@ const styles = StyleSheet.create({
     textAlign: 'center', lineHeight: 18,
   },
   qrSuccessBtn: {
-    backgroundColor: COLORS.teal, paddingHorizontal: 24, paddingVertical: 12,
+    backgroundColor: COLORS.accent, paddingHorizontal: 24, paddingVertical: 12,
     borderRadius: RADIUS.pill, marginTop: 10,
   },
   qrSuccessBtnText: {

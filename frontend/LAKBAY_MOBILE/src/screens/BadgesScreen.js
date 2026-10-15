@@ -14,8 +14,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import Svg, { Circle, Defs, LinearGradient, Stop, Polygon } from 'react-native-svg';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT, onWhite } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
 import VintaStripe from '../components/VintaStripe';
+import { useTabBarSpace } from '../navigation/tabBarLayout';
 import { authService } from '../api/authService';
 import { getMyScans, getSpots, getARTargets, getCatchIcons, getMilestones, ORIGIN } from '../api/qrService';
 import * as SecureStore from 'expo-secure-store';
@@ -141,7 +143,8 @@ function XPRing({ size, progressPct, level, rank, currentLevelXp }) {
   const strokeDashoffset = circumference - (progressPct * circumference);
 
   return (
-    <View style={{ alignItems: 'center', marginBottom: 8 }}>
+    // marginTop/halo space keeps the pulsing glow (size + 24, scaled 1.06) inside the card.
+    <View style={{ alignItems: 'center', marginTop: 20, marginBottom: 8 }}>
       <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
         <Animated.View style={{
           transform: [{ scale: pulseAnim }],
@@ -182,13 +185,20 @@ function XPRing({ size, progressPct, level, rank, currentLevelXp }) {
         </Svg>
         <View style={styles.ringInner}>
           <Text style={styles.rankIcon}>{rank.icon}</Text>
-          <Text style={[styles.levelLabel, { color: 'rgba(191,215,255,0.7)' }]}>LEVEL</Text>
-          <Text style={[styles.levelNumber, { color: rank.color }]}>{level}</Text>
-          <Text style={[styles.rankTitle, { color: rank.color }]}>{rank.title}</Text>
+          <Text style={[styles.levelLabel, { color: COLORS.textMuted }]}>LEVEL</Text>
+          <Text style={[styles.levelNumber, { color: onWhite(rank.color) }]}>{level}</Text>
+          <Text
+            style={[styles.rankTitle, { color: onWhite(rank.color), maxWidth: size - strokeWidth * 2 - 36 }]}
+            numberOfLines={2}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+          >
+            {rank.title}
+          </Text>
         </View>
       </View>
 
-      <Text style={styles.xpSubtext}>{currentLevelXp} / 100 XP to next level</Text>
+      <Text style={[styles.xpSubtext, { marginTop: 24 }]}>{currentLevelXp} / 100 XP to next level</Text>
     </View>
   );
 }
@@ -210,9 +220,9 @@ function MilestonedBar({ pct, color }) {
               left: `${m * 100}%`,
               width: 10, height: 10,
               borderRadius: 5,
-              backgroundColor: achieved ? color : 'rgba(8,20,60,0.9)',
+              backgroundColor: achieved ? color : '#FFFFFF',
               borderWidth: 2,
-              borderColor: achieved ? color : 'rgba(99,179,237,0.4)',
+              borderColor: achieved ? color : COLORS.border,
               marginLeft: -5,
             }} />
           );
@@ -233,13 +243,12 @@ function StatCard({ icon, value, label, color }) {
   };
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ flex: 1 }}>
-      <Animated.View style={[styles.statCard, { transform: [{ scale: scaleAnim }] }]}>
-        <View style={[styles.statTopBar, { backgroundColor: color }]} />
-        <View style={styles.statCardBody}>
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <VintaCard style={styles.statFrame} contentStyle={styles.statCardBody}>
           <Text style={styles.statIcon}>{icon}</Text>
-          <Text style={[styles.statValue, { color }]}>{value}</Text>
+          <Text style={[styles.statValue, { color: onWhite(color) }]}>{value}</Text>
           <Text style={styles.statLabel}>{label}</Text>
-        </View>
+        </VintaCard>
       </Animated.View>
     </TouchableOpacity>
   );
@@ -249,7 +258,7 @@ function StatCard({ icon, value, label, color }) {
 function QuestCard({ icon, title, sub, pct, color, questLabel }) {
   const isComplete = pct >= 1.0;
   return (
-    <View style={[styles.questCard, isComplete && styles.questCardComplete]}>
+    <VintaCard contentStyle={[styles.questCard, isComplete && styles.questCardComplete]}>
       {isComplete && (
         <View style={styles.completedBadge}>
           <Text style={styles.completedBadgeText}>✓ COMPLETED</Text>
@@ -264,25 +273,26 @@ function QuestCard({ icon, title, sub, pct, color, questLabel }) {
             <Text style={styles.questTitle}>{title}</Text>
             {questLabel && (
               <View style={[styles.questTypePill, { backgroundColor: color + '22', borderColor: color + '55' }]}>
-                <Text style={[styles.questTypeText, { color }]}>{questLabel}</Text>
+                <Text style={[styles.questTypeText, { color: onWhite(color) }]}>{questLabel}</Text>
               </View>
             )}
           </View>
           <Text style={styles.questSub}>{sub}</Text>
         </View>
-        <Text style={[styles.questPct, { color: isComplete ? COLORS.teal : color }]}>
+        <Text style={[styles.questPct, { color: onWhite(isComplete ? COLORS.teal : color) }]}>
           {isComplete ? '🏅' : `${Math.round(pct * 100)}%`}
         </Text>
       </View>
       <View style={{ marginTop: 12 }}>
         <MilestonedBar pct={pct} color={color} />
       </View>
-    </View>
+    </VintaCard>
   );
 }
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function BadgesScreen() {
+  const tabBarSpace = useTabBarSpace();
   const [profile, setProfile]                   = useState(null);
   const [scans, setScans]                       = useState([]);
   const [totalSpots, setTotalSpots]             = useState(12);
@@ -463,7 +473,7 @@ export default function BadgesScreen() {
     >
       <View style={styles.bgOverlay} />
 
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
         {/* ── Header ── */}
@@ -479,15 +489,15 @@ export default function BadgesScreen() {
         </View>
         <VintaStripe height={3} />
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scroll, { paddingBottom: tabBarSpace }]}>
 
           {/* ── XP Hero Glass Section ── */}
           <View style={styles.heroSection}>
-            <View style={styles.heroGlassCard}>
-              <XPRing size={160} progressPct={progressPct} level={level} rank={rank} currentLevelXp={currentLevelXp} />
+            <VintaCard style={styles.heroFrame} contentStyle={styles.heroGlassCard}>
+              <XPRing size={220} progressPct={progressPct} level={level} rank={rank} currentLevelXp={currentLevelXp} />
               <View style={[styles.milestoneRibbon, { borderColor: (nextMilestone ? (nextMilestone.color || '#1A56DB') : milestoneColor) + '55', backgroundColor: (nextMilestone ? (nextMilestone.color || '#1A56DB') : milestoneColor) + '18' }]}>
                 <Text style={styles.milestoneRibbonIcon}>{nextMilestone ? getMilestoneEmoji(nextMilestone.icon) : '👑'}</Text>
-                <Text style={[styles.milestoneRibbonText, { color: nextMilestone ? (nextMilestone.color || '#38BDF8') : COLORS.gold }]}>
+                <Text style={[styles.milestoneRibbonText, { color: onWhite(nextMilestone ? (nextMilestone.color || '#38BDF8') : COLORS.gold) }]}>
                   {nextMilestone
                     ? `${(nextMilestone.min_xp > xp ? nextMilestone.min_xp - xp : (nextMilestone.max_xp ? nextMilestone.max_xp - xp : 0))} XP until Tier ${nextMilestone.tier}: ${nextMilestone.name}`
                     : 'Max Expedition Rank Achieved! 👑'}
@@ -495,11 +505,11 @@ export default function BadgesScreen() {
               </View>
 
               {currentMilestone.tagline ? (
-                <Text style={{ fontSize: 12, fontStyle: 'italic', color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginTop: 8, paddingHorizontal: 16 }}>
+                <Text style={{ fontSize: 12, fontFamily: FONTS.regular, fontStyle: 'italic', color: COLORS.textSub, textAlign: 'center', marginTop: 8, paddingHorizontal: 16 }}>
                   {`"${currentMilestone.tagline}"`}
                 </Text>
               ) : null}
-            </View>
+            </VintaCard>
           </View>
 
           {/* ── Stats ── */}
@@ -544,11 +554,11 @@ export default function BadgesScreen() {
               ))}
 
               {/* XP Milestones */}
-              <View style={styles.milestoneSection}>
+              <VintaCard style={styles.milestoneFrame} contentStyle={styles.milestoneSection}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <Text style={styles.sectionTitle}>XP Milestone Tiers</Text>
+                  <Text style={[styles.sectionTitle, styles.sectionTitleOnCard]}>XP Milestone Tiers</Text>
                   <View style={[styles.sectionBadge, { backgroundColor: milestoneColor + '22', borderColor: milestoneColor + '66' }]}>
-                    <Text style={[styles.sectionBadgeText, { color: milestoneColor }]}>Tier {currentMilestone.tier}</Text>
+                    <Text style={[styles.sectionBadgeText, { color: onWhite(milestoneColor) }]}>Tier {currentMilestone.tier}</Text>
                   </View>
                 </View>
                 {activeMilestones.map((m, i) => {
@@ -558,22 +568,22 @@ export default function BadgesScreen() {
                   const itemEmoji = getMilestoneEmoji(m.icon);
                   return (
                     <View key={m.id || i} style={[styles.milestoneRow, i === activeMilestones.length - 1 && { borderBottomWidth: 0 }, isCurrent && { backgroundColor: itemColor + '12', borderRadius: 12, paddingHorizontal: 8, marginHorizontal: -8 }]}>
-                      <View style={[styles.milestoneDot, { backgroundColor: isEarned ? itemColor : 'rgba(255,255,255,0.06)', borderColor: isEarned ? itemColor : 'rgba(99,179,237,0.3)' }]}>
+                      <View style={[styles.milestoneDot, { backgroundColor: isEarned ? itemColor : COLORS.bg, borderColor: isEarned ? itemColor : COLORS.border }]}>
                         <Text style={{ fontSize: 13 }}>{isEarned ? itemEmoji : '🔒'}</Text>
                       </View>
                       <View style={{ flex: 1, marginHorizontal: 12 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                          <Text style={[styles.milestoneReward, { color: isEarned ? itemColor : 'rgba(255,255,255,0.7)', fontWeight: 'bold' }]}>
+                          <Text style={[styles.milestoneReward, { color: isEarned ? onWhite(itemColor) : COLORS.textMuted }]}>
                             Tier {m.tier}: {m.name}
                           </Text>
                           {isCurrent && (
                             <View style={{ backgroundColor: itemColor + '33', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, borderWidth: 1, borderColor: itemColor + '77' }}>
-                              <Text style={{ fontSize: 9, color: itemColor, fontWeight: 'bold' }}>CURRENT</Text>
+                              <Text style={{ fontSize: 10, fontFamily: FONTS.bold, color: onWhite(itemColor) }}>CURRENT</Text>
                             </View>
                           )}
                         </View>
                         {m.tagline ? (
-                          <Text style={{ fontSize: 11, fontStyle: 'italic', color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
+                          <Text style={{ fontSize: 11, fontFamily: FONTS.regular, fontStyle: 'italic', color: COLORS.textMuted, marginTop: 2 }}>
                             {`"${m.tagline}"`}
                           </Text>
                         ) : null}
@@ -583,7 +593,7 @@ export default function BadgesScreen() {
                       </View>
                       {isEarned ? (
                         <View style={[styles.achievedPill, { backgroundColor: itemColor + '22', borderColor: itemColor + '66' }]}>
-                          <Text style={[styles.achievedText, { color: itemColor }]}>Earned!</Text>
+                          <Text style={[styles.achievedText, { color: onWhite(itemColor) }]}>Earned!</Text>
                         </View>
                       ) : (
                         <Text style={styles.milestoneGap}>-{(m.min_xp - xp).toLocaleString()} XP</Text>
@@ -591,7 +601,7 @@ export default function BadgesScreen() {
                     </View>
                   );
                 })}
-              </View>
+              </VintaCard>
             </View>
           )}
 
@@ -608,7 +618,7 @@ export default function BadgesScreen() {
               </View>
 
               {caughtIcons.length > 0 ? (
-                <View style={styles.badgesGrid}>
+                <VintaCard contentStyle={styles.badgesGrid}>
                   {caughtIcons.map((b, idx) => {
                     const iconColor = b.color || '#A855F7';
                     return (
@@ -630,13 +640,13 @@ export default function BadgesScreen() {
                         </HexBadge>
                         <View style={[styles.rarityStrip, { backgroundColor: iconColor }]} />
                         <Text style={styles.badgeLabel} numberOfLines={1}>{b.name}</Text>
-                        <Text style={[styles.badgeRarity, { color: iconColor }]}>✦ CAUGHT</Text>
+                        <Text style={[styles.badgeRarity, { color: onWhite(iconColor) }]}>✦ CAUGHT</Text>
                       </View>
                     );
                   })}
-                </View>
+                </VintaCard>
               ) : (
-                <View style={styles.emptyState}>
+                <VintaCard contentStyle={styles.emptyState}>
                   <Text style={styles.emptyStateEmoji}>🎯</Text>
                   <Text style={styles.emptyStateTitle}>No icons caught yet</Text>
                   <Text style={styles.emptyStateSub}>
@@ -645,7 +655,7 @@ export default function BadgesScreen() {
                   <View style={styles.emptyHint}>
                     <Text style={styles.emptyHintText}>💡 Go to Catch &amp; Win to start collecting</Text>
                   </View>
-                </View>
+                </VintaCard>
               )}
 
               {/* Divider */}
@@ -660,7 +670,7 @@ export default function BadgesScreen() {
               </View>
 
               {collectedModels.length > 0 ? (
-                <View style={styles.badgesGrid}>
+                <VintaCard contentStyle={styles.badgesGrid}>
                   {collectedModels.map((b, idx) => {
                     const rarityStr = (b.rarity || 'common').toUpperCase();
                     const rarityColor = b.color || (rarityStr === 'LEGENDARY' ? '#F59E0B' : rarityStr === 'MYTHICAL' ? '#A855F7' : rarityStr === 'RARE' ? '#3B82F6' : '#10B981');
@@ -683,16 +693,16 @@ export default function BadgesScreen() {
                         </HexBadge>
                         <View style={[styles.rarityStrip, { backgroundColor: rarityColor }]} />
                         <Text style={styles.badgeLabel} numberOfLines={1}>{b.name}</Text>
-                        <Text style={[styles.badgeRarity, { color: rarityColor }]}>✦ {rarityStr}</Text>
-                        <Text style={{ fontSize: 9, fontFamily: FONTS.medium, color: 'rgba(191,215,255,0.7)', marginTop: 1 }}>
+                        <Text style={[styles.badgeRarity, { color: onWhite(rarityColor) }]}>✦ {rarityStr}</Text>
+                        <Text style={{ fontSize: 10, fontFamily: FONTS.medium, color: COLORS.textMuted, marginTop: 1 }}>
                           Building {b.building || 'S1'} · Slot #{b.slot_number || 1}/10
                         </Text>
                       </View>
                     );
                   })}
-                </View>
+                </VintaCard>
               ) : (
-                <View style={styles.emptyState}>
+                <VintaCard contentStyle={styles.emptyState}>
                   <Text style={styles.emptyStateEmoji}>🗺️</Text>
                   <Text style={styles.emptyStateTitle}>No AR models yet</Text>
                   <Text style={styles.emptyStateSub}>
@@ -701,12 +711,11 @@ export default function BadgesScreen() {
                   <View style={styles.emptyHint}>
                     <Text style={styles.emptyHintText}>💡 Scan AR markers at museums to unlock models</Text>
                   </View>
-                </View>
+                </VintaCard>
               )}
             </View>
           )}
 
-          <View style={{ height: 50 }} />
         </ScrollView>
       </SafeAreaView>
     </ImageBackground>
@@ -722,7 +731,7 @@ const styles = StyleSheet.create({
   },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4, 10, 38, 0.85)',
+    backgroundColor: BG_OVERLAY,
   },
   container: { flex: 1, backgroundColor: 'transparent' },
 
@@ -738,19 +747,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   headerTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 11,
+    fontFamily: FONTS.bold,
+    fontSize: 20,
     color: '#FFFFFF',
     letterSpacing: 2,
-    lineHeight: 18,
+    lineHeight: 22,
   },
   headerSub: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7,
+    fontFamily: FONTS.semiBold,
+    fontSize: 11,
     color: 'rgba(191,215,255,0.70)',
-    letterSpacing: 1,
+    letterSpacing: 1.5,
     marginTop: 2,
-    lineHeight: 11,
+    lineHeight: 14,
   },
   rankPill: {
     flexDirection: 'row',
@@ -762,7 +771,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   rankPillIcon: { fontSize: 13 },
-  rankPillText: { fontFamily: FONTS.pixel, fontSize: 7, letterSpacing: 0.5, lineHeight: 11 },
+  rankPillText: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 0.5, lineHeight: 15 },
 
   scroll: { paddingBottom: 20 },
 
@@ -773,20 +782,13 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     paddingHorizontal: 16,
   },
-  heroGlassCard: {
+  heroFrame: {
     width: '100%',
-    backgroundColor: '#08143C',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
+  },
+  heroGlassCard: {
     paddingVertical: 20,
     paddingHorizontal: 16,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
   },
   ringInner: {
     position: 'absolute',
@@ -794,32 +796,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     top: 0, bottom: 0, left: 0, right: 0,
   },
-  rankIcon: { fontSize: 22, marginBottom: -2 },
+  rankIcon: { fontSize: 26, marginBottom: 0 },
   levelLabel: {
-    fontFamily: FONTS.pixel,
-    fontSize: 8,
+    fontFamily: FONTS.semiBold,
+    fontSize: 12,
     letterSpacing: 2,
-    lineHeight: 12,
-  },
-  levelNumber: {
-    fontFamily: FONTS.pixel,
-    fontSize: 36,
-    lineHeight: 42,
-  },
-  rankTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 9,
-    letterSpacing: 1,
-    marginTop: -2,
     lineHeight: 14,
   },
+  levelNumber: {
+    fontFamily: FONTS.bold,
+    fontSize: 56,
+    lineHeight: 60,
+  },
+  rankTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    letterSpacing: 0.6,
+    marginTop: 0,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
   xpSubtext: {
-    fontFamily: FONTS.pixel,
-    fontSize: 8,
-    color: 'rgba(191,215,255,0.80)',
+    fontFamily: FONTS.semiBold,
+    fontSize: 13,
+    color: COLORS.textSub,
     marginTop: 12,
     letterSpacing: 0.4,
-    lineHeight: 13,
+    lineHeight: 16,
   },
   milestoneRibbon: {
     flexDirection: 'row',
@@ -832,39 +835,27 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   milestoneRibbonIcon: { fontSize: 13 },
-  milestoneRibbonText: { fontFamily: FONTS.pixel, fontSize: 8, letterSpacing: 0.3, lineHeight: 12 },
+  milestoneRibbonText: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 0.3, lineHeight: 15, flexShrink: 1 },
 
   // Stats
   statsSection: { paddingHorizontal: 16, marginBottom: 16 },
   statsGrid: { flexDirection: 'row', gap: 8 },
-  statCard: {
-    backgroundColor: '#08143C',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  statTopBar: { height: 3 },
+  statFrame: { borderRadius: RADIUS.md },
   statCardBody: { paddingVertical: 10, paddingHorizontal: 6, alignItems: 'center' },
   statIcon: { fontSize: 16, marginBottom: 2 },
-  statValue: { fontFamily: FONTS.pixel, fontSize: 13, lineHeight: 18 },
-  statLabel: { fontFamily: FONTS.pixel, fontSize: 7, color: 'rgba(191,215,255,0.70)', textAlign: 'center', marginTop: 4, letterSpacing: 0.3, lineHeight: 11 },
+  statValue: { fontFamily: FONTS.bold, fontSize: 19, lineHeight: 22 },
+  statLabel: { fontFamily: FONTS.semiBold, fontSize: 11, color: COLORS.textMuted, textAlign: 'center', marginTop: 2, letterSpacing: 0.3, lineHeight: 13 },
 
   // Tabs
   tabBar: {
     flexDirection: 'row',
     marginHorizontal: 16,
     marginBottom: 16,
-    backgroundColor: '#08143C',
+    backgroundColor: 'rgba(255,255,255,0.94)',
     borderRadius: RADIUS.pill,
     padding: 4,
     borderWidth: 1,
-    borderColor: '#1E3A8A',
+    borderColor: COLORS.border,
   },
   tabBtn: {
     flex: 1,
@@ -877,13 +868,13 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2,
   },
   tabBtnText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 8,
-    color: 'rgba(191,215,255,0.60)',
+    fontFamily: FONTS.bold,
+    fontSize: 13,
+    color: COLORS.textMuted,
     letterSpacing: 0.3,
-    lineHeight: 12,
+    lineHeight: 16,
   },
-  tabBtnTextActive: { color: '#FFFFFF', fontFamily: FONTS.pixel },
+  tabBtnTextActive: { color: '#FFFFFF', fontFamily: FONTS.bold },
 
   // Section
   section: { paddingHorizontal: 16, gap: 12 },
@@ -894,11 +885,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   sectionTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 10,
+    fontFamily: FONTS.bold,
+    fontSize: 18,
     color: '#FFFFFF',
     letterSpacing: 0.3,
-    lineHeight: 16,
+    lineHeight: 22,
+  },
+  sectionTitleOnCard: {
+    color: COLORS.navy,
   },
   sectionBadge: {
     backgroundColor: 'rgba(26,86,219,0.20)',
@@ -909,30 +903,19 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   sectionBadgeText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7,
+    fontFamily: FONTS.bold,
+    fontSize: 11,
     color: COLORS.accent,
     letterSpacing: 0.3,
-    lineHeight: 10,
+    lineHeight: 14,
   },
 
   // Quest Card
   questCard: {
-    backgroundColor: '#08143C',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
     padding: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
   },
   questCardComplete: {
-    borderColor: COLORS.teal + '77',
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    backgroundColor: '#ECFDF5',
   },
   completedBadge: {
     position: 'absolute',
@@ -945,11 +928,11 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   completedBadgeText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7,
-    color: COLORS.teal,
+    fontFamily: FONTS.bold,
+    fontSize: 10,
+    color: '#059669',
     letterSpacing: 1,
-    lineHeight: 10,
+    lineHeight: 13,
   },
   questHeader: { flexDirection: 'row', alignItems: 'center' },
   questIconWrap: {
@@ -960,48 +943,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   questIcon: { fontSize: 20 },
-  questTitle: { fontFamily: FONTS.pixel, fontSize: 9, color: '#FFFFFF', lineHeight: 14 },
+  questTitle: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.navy, lineHeight: 18 },
   questTypePill: {
     borderWidth: 1,
     borderRadius: RADIUS.pill,
     paddingHorizontal: 7,
     paddingVertical: 2,
   },
-  questTypeText: { fontFamily: FONTS.pixel, fontSize: 7, letterSpacing: 1, lineHeight: 10 },
-  questSub: { fontFamily: FONTS.pixel, fontSize: 7, color: 'rgba(191,215,255,0.70)', marginTop: 4, lineHeight: 11 },
-  questPct: { fontFamily: FONTS.pixel, fontSize: 10, lineHeight: 14 },
+  questTypeText: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1, lineHeight: 13 },
+  questSub: { fontFamily: FONTS.semiBold, fontSize: 12, color: COLORS.textMuted, marginTop: 2, lineHeight: 15 },
+  questPct: { fontFamily: FONTS.bold, fontSize: 16, lineHeight: 19 },
 
   // Progress bar
   progressBarBg: {
     height: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(15,23,42,0.08)',
     borderRadius: 4,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#1E3A8A',
+    borderColor: COLORS.borderLight,
   },
   progressBarFill: { height: '100%', borderRadius: 4 },
 
   // Milestone track
-  milestoneSection: {
-    backgroundColor: '#08143C',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    padding: 16,
+  milestoneFrame: {
     marginTop: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+  },
+  milestoneSection: {
+    padding: 16,
   },
   milestoneRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E3A8A',
+    borderBottomColor: COLORS.borderLight,
   },
   milestoneDot: {
     width: 22, height: 22,
@@ -1010,16 +986,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  milestoneReward: { fontFamily: FONTS.pixel, fontSize: 8, lineHeight: 12 },
-  milestoneXp: { fontFamily: FONTS.pixel, fontSize: 7, color: 'rgba(191,215,255,0.65)', marginTop: 2, lineHeight: 11 },
+  milestoneReward: { fontFamily: FONTS.bold, fontSize: 13, lineHeight: 16 },
+  milestoneXp: { fontFamily: FONTS.semiBold, fontSize: 11, color: COLORS.textMuted, marginTop: 2, lineHeight: 14 },
   achievedPill: {
     borderWidth: 1,
     borderRadius: RADIUS.pill,
     paddingHorizontal: 9,
     paddingVertical: 3,
   },
-  achievedText: { fontFamily: FONTS.pixel, fontSize: 7, lineHeight: 10 },
-  milestoneGap: { fontFamily: FONTS.pixel, fontSize: 7, color: 'rgba(191,215,255,0.50)', lineHeight: 10 },
+  achievedText: { fontFamily: FONTS.bold, fontSize: 11, lineHeight: 14 },
+  milestoneGap: { fontFamily: FONTS.semiBold, fontSize: 11, color: COLORS.textFaint, lineHeight: 14 },
 
   // Badges grid
   badgesGrid: {
@@ -1027,24 +1003,26 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 16,
-    paddingTop: 8,
+    paddingTop: 16,
+    paddingBottom: 16,
+    paddingHorizontal: 8,
   },
   badgeItem: { alignItems: 'center', width: 92 },
   rarityStrip: { height: 3, width: 44, borderRadius: 2, marginTop: 6, marginBottom: 4 },
   badgeEmoji: { fontSize: 30 },
   badgeLabel: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7,
-    color: '#FFFFFF',
+    fontFamily: FONTS.bold,
+    fontSize: 12,
+    color: COLORS.navy,
     textAlign: 'center',
-    lineHeight: 11,
+    lineHeight: 15,
   },
   badgeRarity: {
-    fontFamily: FONTS.pixel,
-    fontSize: 6.5,
+    fontFamily: FONTS.bold,
+    fontSize: 10,
     letterSpacing: 1,
     marginTop: 2,
-    lineHeight: 9,
+    lineHeight: 13,
   },
 
   // Empty state
@@ -1052,30 +1030,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 32,
     paddingHorizontal: 20,
-    backgroundColor: '#08143C',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
   },
   emptyStateEmoji: { fontSize: 48, marginBottom: 12 },
   emptyStateTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 11,
-    color: '#FFFFFF',
+    fontFamily: FONTS.bold,
+    fontSize: 16,
+    color: COLORS.navy,
     marginBottom: 6,
-    lineHeight: 16,
+    lineHeight: 20,
   },
   emptyStateSub: {
-    fontFamily: FONTS.pixel,
-    fontSize: 8,
-    color: 'rgba(191,215,255,0.75)',
+    fontFamily: FONTS.regular,
+    fontSize: 13,
+    color: COLORS.textSub,
     textAlign: 'center',
-    lineHeight: 13,
+    lineHeight: 18,
   },
   emptyHint: {
     marginTop: 16,
@@ -1087,10 +1056,10 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   emptyHintText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 8,
-    color: COLORS.gold,
+    fontFamily: FONTS.bold,
+    fontSize: 12,
+    color: GOLD_TEXT,
     textAlign: 'center',
-    lineHeight: 12,
+    lineHeight: 15,
   },
 });

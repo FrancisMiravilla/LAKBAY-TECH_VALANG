@@ -6,7 +6,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT, onWhite } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
 import { validateQR } from '../api/qrService';
 import VintaStripe from '../components/VintaStripe';
 
@@ -131,15 +132,14 @@ export default function QRScreen({ navigation }) {
         >
 
           {/* ── Mission Objective Card ── */}
-          <View style={styles.missionCard}>
-            <View style={styles.missionGlowOrb} />
+          <VintaCard style={styles.missionFrame} contentStyle={styles.missionCard}>
             <View style={styles.missionTopRow}>
               <View style={styles.missionBadge}>
-                <Ionicons name="scan" size={12} color={COLORS.teal} />
+                <Ionicons name="scan" size={12} color="#059669" />
                 <Text style={styles.missionBadgeText}>FIELD SCANNER</Text>
               </View>
               <View style={styles.xpRewardBadge}>
-                <Ionicons name="flash" size={11} color={COLORS.gold} />
+                <Ionicons name="flash" size={11} color={GOLD_TEXT} />
                 <Text style={styles.xpRewardText}>+50 XP</Text>
               </View>
             </View>
@@ -150,11 +150,11 @@ export default function QRScreen({ navigation }) {
               <Text style={styles.highlightTeal}>cultural stories</Text> and historical secrets of{' '}
               <Text style={styles.highlightGold}>Zamboanga City.</Text>
             </Text>
-          </View>
+          </VintaCard>
 
           {/* ── Tactical HUD Camera Viewport ── */}
           <View style={styles.scannerWrapper}>
-            <View style={styles.qrViewport}>
+            <VintaCard style={styles.qrFrame} contentStyle={styles.qrViewport}>
               {permission?.granted ? (
                 <CameraView
                   style={StyleSheet.absoluteFillObject}
@@ -234,7 +234,7 @@ export default function QRScreen({ navigation }) {
                   <Text style={styles.loadingSub}>Verifying marker coordinates</Text>
                 </View>
               )}
-            </View>
+            </VintaCard>
 
             {/* Error Notification Banner */}
             {errorMsg ? (
@@ -249,9 +249,9 @@ export default function QRScreen({ navigation }) {
           </View>
 
           {/* ── Tactical Protocol / Instructions ── */}
-          <View style={styles.instructionCard}>
+          <VintaCard style={styles.instructionFrame} contentStyle={styles.instructionCard}>
             <View style={styles.cardHeaderRow}>
-              <Ionicons name="compass-outline" size={16} color={COLORS.teal} />
+              <Ionicons name="compass-outline" size={16} color="#059669" />
               <Text style={styles.instructionHeader}>SCANNING PROTOCOL</Text>
             </View>
             <Text style={styles.instructionBody}>
@@ -261,7 +261,7 @@ export default function QRScreen({ navigation }) {
             <View style={styles.stepRow}>
               <View style={styles.stepItem}>
                 <View style={[styles.stepNumWrap, { borderColor: COLORS.teal + '66' }]}>
-                  <Text style={[styles.stepNum, { color: COLORS.teal }]}>1</Text>
+                  <Text style={[styles.stepNum, { color: onWhite(COLORS.teal) }]}>1</Text>
                 </View>
                 <Text style={styles.stepText}>Locate Marker</Text>
               </View>
@@ -275,12 +275,12 @@ export default function QRScreen({ navigation }) {
               <View style={styles.stepDivider} />
               <View style={styles.stepItem}>
                 <View style={[styles.stepNumWrap, { borderColor: COLORS.gold + '66' }]}>
-                  <Text style={[styles.stepNum, { color: COLORS.gold }]}>3</Text>
+                  <Text style={[styles.stepNum, { color: GOLD_TEXT }]}>3</Text>
                 </View>
                 <Text style={styles.stepText}>Unlock Lore</Text>
               </View>
             </View>
-          </View>
+          </VintaCard>
 
           {/* ── Field Tips & Intel ── */}
           <View style={styles.tipsSection}>
@@ -288,6 +288,7 @@ export default function QRScreen({ navigation }) {
               <Text style={styles.tipsSectionTitle}>FIELD INTEL &amp; TIPS</Text>
             </View>
 
+            <VintaCard>
             <View style={styles.tipItem}>
               <View style={styles.tipIconWrap}>
                 <Text style={styles.tipEmoji}>🗺️</Text>
@@ -298,6 +299,7 @@ export default function QRScreen({ navigation }) {
               </View>
             </View>
 
+            <View style={styles.tipDivider} />
             <View style={styles.tipItem}>
               <View style={styles.tipIconWrap}>
                 <Text style={styles.tipEmoji}>🧠</Text>
@@ -308,6 +310,7 @@ export default function QRScreen({ navigation }) {
               </View>
             </View>
 
+            <View style={styles.tipDivider} />
             <View style={styles.tipItem}>
               <View style={styles.tipIconWrap}>
                 <Text style={styles.tipEmoji}>🎓</Text>
@@ -317,6 +320,7 @@ export default function QRScreen({ navigation }) {
                 <Text style={styles.tipText}>Complete all heritage spots to earn your Explorer Certificate.</Text>
               </View>
             </View>
+            </VintaCard>
           </View>
 
           <View style={{ height: 36 }} />
@@ -330,16 +334,15 @@ export default function QRScreen({ navigation }) {
           statusBarTranslucent
         >
           <View style={styles.modalBackdrop}>
-            <View style={styles.modalCard}>
-              <View style={styles.modalGlowOrb} />
+            <VintaCard style={styles.modalFrame} contentStyle={styles.modalCard}>
               <View style={styles.modalIconWrap}>
-                <Ionicons name="checkmark-done-circle" size={48} color={COLORS.teal} />
+                <Ionicons name="checkmark-done-circle" size={48} color="#059669" />
               </View>
 
               <Text style={styles.modalTitle}>ALREADY DISCOVERED!</Text>
               <Text style={styles.modalSub}>
                 You have already scanned and unlocked{' '}
-                <Text style={{ color: '#FFFFFF', fontFamily: FONTS.bold }}>
+                <Text style={{ color: COLORS.navy, fontFamily: FONTS.bold }}>
                   {alreadyScannedModal?.spot?.name || 'this location'}
                 </Text>
                 . XP and discovery badges have already been awarded to your explorer profile.
@@ -371,7 +374,7 @@ export default function QRScreen({ navigation }) {
                   <Text style={styles.modalBtnPrimaryText}>View Lore Anyway</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </VintaCard>
           </View>
         </Modal>
 
@@ -383,8 +386,7 @@ export default function QRScreen({ navigation }) {
           statusBarTranslucent
         >
           <View style={styles.modalBackdrop}>
-            <View style={[styles.modalCard, { borderColor: 'rgba(239, 68, 68, 0.45)' }]}>
-              <View style={[styles.modalGlowOrb, { backgroundColor: 'rgba(239, 68, 68, 0.18)' }]} />
+            <VintaCard style={styles.modalFrame} contentStyle={styles.modalCard}>
               <View style={[styles.modalIconWrap, { backgroundColor: 'rgba(239, 68, 68, 0.18)', borderColor: 'rgba(239, 68, 68, 0.40)' }]}>
                 <Ionicons name="lock-closed" size={40} color="#EF4444" />
               </View>
@@ -401,11 +403,11 @@ export default function QRScreen({ navigation }) {
               </View>
 
               <Text style={styles.modalSub}>
-                <Text style={{ color: '#FFFFFF', fontFamily: FONTS.bold }}>
+                <Text style={{ color: COLORS.navy, fontFamily: FONTS.bold }}>
                   {lockedModal?.spotName || 'This landmark spot'}
                 </Text>{' '}
                 is locked! In order for you to unlock, reach{' '}
-                <Text style={{ color: COLORS.gold, fontFamily: FONTS.bold }}>
+                <Text style={{ color: GOLD_TEXT, fontFamily: FONTS.bold }}>
                   Explorer Level {lockedModal?.requiredLevel || 1}
                 </Text>{' '}
                 by collecting more XP in other features (AR Exhibits, Catch & Win, or lower-level QR spots).
@@ -420,7 +422,7 @@ export default function QRScreen({ navigation }) {
                   <Text style={[styles.modalBtnPrimaryText, { color: '#FFFFFF' }]}>Keep Exploring</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </VintaCard>
           </View>
         </Modal>
 
@@ -438,7 +440,7 @@ const styles = StyleSheet.create({
   },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4, 10, 38, 0.85)',
+    backgroundColor: BG_OVERLAY,
   },
   container: {
     flex: 1,
@@ -471,11 +473,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerLogo: {
-    fontFamily: FONTS.pixel,
-    fontSize: 10,
+    fontFamily: FONTS.bold,
+    fontSize: 20,
     color: '#FFFFFF',
     letterSpacing: 2,
-    lineHeight: 18,
+    lineHeight: 22,
   },
   headerSubLogo: {
     fontFamily: FONTS.medium,
@@ -514,25 +516,11 @@ const styles = StyleSheet.create({
   },
 
   // ── Mission Objective Card ───────────────────────────────────────────
-  missionCard: {
-    backgroundColor: 'rgba(8, 20, 60, 0.60)',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.25)',
-    padding: 18,
+  missionFrame: {
     marginBottom: 18,
-    overflow: 'hidden',
-    position: 'relative',
-    ...SHADOW.accent,
   },
-  missionGlowOrb: {
-    position: 'absolute',
-    top: -40,
-    right: -40,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(26,86,219,0.22)',
+  missionCard: {
+    padding: 18,
   },
   missionTopRow: {
     flexDirection: 'row',
@@ -554,7 +542,7 @@ const styles = StyleSheet.create({
   missionBadgeText: {
     fontFamily: FONTS.bold,
     fontSize: 9,
-    color: COLORS.teal,
+    color: '#059669',
     letterSpacing: 1.5,
   },
   xpRewardBadge: {
@@ -571,29 +559,29 @@ const styles = StyleSheet.create({
   xpRewardText: {
     fontFamily: FONTS.black,
     fontSize: 10,
-    color: COLORS.gold,
+    color: GOLD_TEXT,
     letterSpacing: 0.5,
   },
   missionTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 11,
-    color: '#FFFFFF',
+    fontFamily: FONTS.bold,
+    fontSize: 20,
+    color: COLORS.navy,
     letterSpacing: 1,
-    lineHeight: 20,
+    lineHeight: 24,
     marginBottom: 8,
   },
   missionDesc: {
     fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: 'rgba(191,215,255,0.85)',
+    fontSize: 13,
+    color: COLORS.textSub,
     lineHeight: 19,
   },
   highlightTeal: {
-    color: COLORS.teal,
+    color: '#059669',
     fontFamily: FONTS.bold,
   },
   highlightGold: {
-    color: COLORS.gold,
+    color: GOLD_TEXT,
     fontFamily: FONTS.bold,
   },
 
@@ -602,18 +590,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  qrViewport: {
+  qrFrame: {
     width: '100%',
     height: 270,
+  },
+  qrViewport: {
+    flex: 1,
     backgroundColor: '#070C1E',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: 'rgba(99, 179, 237, 0.35)',
-    overflow: 'hidden',
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
-    ...SHADOW.accent,
   },
   scanLine: {
     position: 'absolute',
@@ -782,8 +768,8 @@ const styles = StyleSheet.create({
   },
   loadingTitle: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontFamily: FONTS.pixel,
+    fontSize: 15,
+    fontFamily: FONTS.bold,
     letterSpacing: 1,
     marginTop: 6,
   },
@@ -852,14 +838,11 @@ const styles = StyleSheet.create({
   },
 
   // ── Instructions Card ────────────────────────────────────────────────
-  instructionCard: {
-    backgroundColor: 'rgba(8, 20, 60, 0.60)',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.25)',
-    padding: 18,
+  instructionFrame: {
     marginBottom: 18,
-    ...SHADOW.accent,
+  },
+  instructionCard: {
+    padding: 18,
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -868,14 +851,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   instructionHeader: {
-    color: COLORS.teal,
-    fontSize: 10,
+    color: '#059669',
+    fontSize: 12,
     fontFamily: FONTS.bold,
     letterSpacing: 1.5,
   },
   instructionBody: {
-    color: 'rgba(191,215,255,0.80)',
-    fontSize: 12,
+    color: COLORS.textSub,
+    fontSize: 13,
     fontFamily: FONTS.regular,
     lineHeight: 18,
     marginBottom: 16,
@@ -884,10 +867,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(26,86,219,0.10)',
+    backgroundColor: COLORS.bg,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: 'rgba(99,179,237,0.20)',
+    borderColor: COLORS.borderLight,
     paddingVertical: 12,
     paddingHorizontal: 14,
   },
@@ -901,7 +884,7 @@ const styles = StyleSheet.create({
     height: 26,
     borderRadius: 13,
     borderWidth: 1.5,
-    backgroundColor: 'rgba(8,20,60,0.80)',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -911,14 +894,14 @@ const styles = StyleSheet.create({
   },
   stepText: {
     fontFamily: FONTS.semiBold,
-    fontSize: 9,
-    color: '#FFFFFF',
+    fontSize: 11,
+    color: COLORS.navy,
     letterSpacing: 0.3,
   },
   stepDivider: {
     width: 14,
     height: 1,
-    backgroundColor: 'rgba(99,179,237,0.30)',
+    backgroundColor: COLORS.border,
     marginBottom: 18,
   },
 
@@ -931,28 +914,29 @@ const styles = StyleSheet.create({
   },
   tipsSectionTitle: {
     fontFamily: FONTS.semiBold,
-    fontSize: 9,
-    color: COLORS.gold,
+    fontSize: 11,
+    color: '#FFFFFF',
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   tipItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(8, 20, 60, 0.58)',
-    borderRadius: RADIUS.md,
     padding: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(99, 179, 237, 0.20)',
     gap: 12,
+  },
+  tipDivider: {
+    height: 1,
+    backgroundColor: COLORS.borderLight,
+    marginHorizontal: 14,
   },
   tipIconWrap: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(26,86,219,0.15)',
+    backgroundColor: COLORS.accentSoft,
     borderWidth: 1,
-    borderColor: 'rgba(99,179,237,0.30)',
+    borderColor: COLORS.accentBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -964,14 +948,14 @@ const styles = StyleSheet.create({
   },
   tipTitle: {
     fontFamily: FONTS.bold,
-    fontSize: 12,
-    color: '#FFFFFF',
+    fontSize: 14,
+    color: COLORS.navy,
     marginBottom: 2,
   },
   tipText: {
     fontFamily: FONTS.regular,
-    fontSize: 11,
-    color: 'rgba(191,215,255,0.75)',
+    fontSize: 12,
+    color: COLORS.textMuted,
     lineHeight: 16,
   },
 
@@ -983,26 +967,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
   },
-  modalCard: {
+  modalFrame: {
     width: '100%',
-    backgroundColor: 'rgba(8, 20, 60, 0.92)',
     borderRadius: RADIUS.xl,
-    borderWidth: 1.5,
-    borderColor: 'rgba(16,185,129,0.45)',
+  },
+  modalCard: {
     padding: 24,
     alignItems: 'center',
-    overflow: 'hidden',
-    position: 'relative',
-    ...SHADOW.accent,
-  },
-  modalGlowOrb: {
-    position: 'absolute',
-    top: -50,
-    right: -50,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(16,185,129,0.15)',
   },
   modalIconWrap: {
     width: 76,
@@ -1016,9 +987,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(16,185,129,0.40)',
   },
   modalTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 12,
-    color: COLORS.teal,
+    fontFamily: FONTS.bold,
+    fontSize: 20,
+    color: '#059669',
     letterSpacing: 1,
     marginBottom: 10,
     textAlign: 'center',
@@ -1054,13 +1025,13 @@ const styles = StyleSheet.create({
   lockedUserPillText: {
     fontFamily: FONTS.bold,
     fontSize: 10,
-    color: COLORS.gold,
+    color: GOLD_TEXT,
     letterSpacing: 0.5,
   },
   modalSub: {
     fontFamily: FONTS.medium,
-    fontSize: 12,
-    color: 'rgba(191,215,255,0.80)',
+    fontSize: 13,
+    color: COLORS.textSub,
     lineHeight: 19,
     textAlign: 'center',
     marginBottom: 22,
@@ -1074,31 +1045,31 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: RADIUS.pill,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.bg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: COLORS.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalBtnSecondaryText: {
     fontFamily: FONTS.bold,
-    fontSize: 11,
-    color: '#E2E8F0',
+    fontSize: 13,
+    color: COLORS.textSub,
     letterSpacing: 0.5,
   },
   modalBtnPrimary: {
     flex: 1.3,
     paddingVertical: 12,
     borderRadius: RADIUS.pill,
-    backgroundColor: COLORS.teal,
+    backgroundColor: COLORS.accent,
     justifyContent: 'center',
     alignItems: 'center',
     ...SHADOW.accent,
   },
   modalBtnPrimaryText: {
     fontFamily: FONTS.bold,
-    fontSize: 11,
-    color: '#08143C',
+    fontSize: 13,
+    color: '#FFFFFF',
     letterSpacing: 0.5,
   },
 });

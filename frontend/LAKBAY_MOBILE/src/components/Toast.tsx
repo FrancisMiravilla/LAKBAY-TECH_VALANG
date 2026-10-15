@@ -73,9 +73,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 14,
     borderWidth: 1.5,
-    backgroundColor: 'rgba(8,20,60,0.96)',
+    backgroundColor: '#FFFFFF',
     elevation: 30,
     zIndex: 100,
   },
-  text: { flex: 1, fontFamily: FONTS.semiBold, fontSize: 13, color: '#fff' },
+  text: { flex: 1, fontFamily: FONTS.semiBold, fontSize: 13, color: COLORS.navy },
 });

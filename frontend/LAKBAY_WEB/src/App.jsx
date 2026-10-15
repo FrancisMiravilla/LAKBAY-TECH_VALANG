@@ -58,6 +58,7 @@ import qrService from './api/qrService';
 import QRCodeLib from 'qrcode';
 import ErrorModal from './ErrorModal';
 import PromotionModeration from './PromotionModeration';
+import LakbayMap from './map/LakbayMap';
 import PromotionSettings from './PromotionSettings';
 import CoinBundleManagement from './CoinBundleManagement';
 import LandingPage from './LandingPage';
@@ -140,12 +141,6 @@ const BUILDING_CONFIG = {
 };
 
 // Inline SVG glyphs for map marker pins (mirrors the mobile app's markers)
-const PIN_ICON_SVG = {
-  ar: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5"/><path d="M12 12v10"/></svg>',
-  qr: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="3" height="3" fill="#fff" stroke="none"/><rect x="18" y="18" width="3" height="3" fill="#fff" stroke="none"/><rect x="14" y="18" width="3" height="3" fill="#fff" stroke="none"/></svg>',
-  catch: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 5H4a1 1 0 0 0-1 1 5 5 0 0 0 4 4.9M17 5h3a1 1 0 0 1 1 1 5 5 0 0 1-4 4.9"/></svg>',
-};
-
 // Initial QR Codes Mock Data
 const INITIAL_QRCODES = [
   { id: 1, exhibitName: 'Great Santa Cruz Island', scanCount: 1450, status: 'Active', hook: 'A pink sand paradise!', historicalBackground: 'Used as an outpost during the colonial period.', culturalSignificance: 'A preserved natural treasure for the locals.', funFact: 'The pink sand comes from crushed red organ pipe corals.' },
@@ -312,11 +307,6 @@ function App() {
 
   const selectedMapPin = useMemo(() => spots.find(p => p.id === selectedMapPinId), [spots, selectedMapPinId]);
 
-  // Map Refs
-  const mapContainerRef = useRef(null);
-  const mapRef = useRef(null);
-  const markerElemsRef = useRef({}); // { pinId: { el, circle, badgeEl, cfg, baseSize, selSize } }
-
   // Modal mini-map refs
   const modalMapContainerRef = useRef(null);
   const modalMapRef = useRef(null);
@@ -325,150 +315,6 @@ function App() {
   const editModalMapContainerRef = useRef(null);
   const editModalMapRef = useRef(null);
   const editModalMarkerRef = useRef(null);
-
-  // Initialize Mapbox map — only rebuilds on tab/theme/pins change, NOT on pin selection
-  useEffect(() => {
-    if (activeTab !== 'map' || !mapContainerRef.current) return;
-
-    const styleUrl = theme === 'dark'
-      ? 'mapbox://styles/mapbox/dark-v11'
-      : 'mapbox://styles/mapbox/light-v11';
-
-    const map = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: styleUrl,
-      center: [122.0790, 6.9214],
-      zoom: 12,
-    });
-
-    map.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-    const geolocateControl = new mapboxgl.GeolocateControl({
-      positionOptions: { enableHighAccuracy: true },
-      trackUserLocation: true,
-      showUserHeading: true,
-      showAccuracyCircle: true,
-    });
-    map.addControl(geolocateControl, 'top-right');
-
-    map.on('load', () => {
-      // Automatically request user location and center map
-      geolocateControl.trigger();
-    });
-
-    mapRef.current = map;
-
-    spots.forEach(pin => {
-      const primaryType = pin.feature_types && pin.feature_types.length > 0 ? pin.feature_types[0] : 'qr';
-      const cfg = PIN_TYPE_CONFIG[primaryType] || PIN_TYPE_CONFIG.qr;
-      const isSelected = selectedMapPinId === pin.id;
-      const hasModel = primaryType === 'catch' && !!pin.model_3d;
-      const baseSize = hasModel ? 46 : 34;
-      const selSize = hasModel ? 54 : 42;
-      const size = isSelected ? selSize : baseSize;
-
-      // Outer positioning wrapper (kept overflow-visible so the badge below isn't clipped)
-      const el = document.createElement('div');
-      el.className = 'custom-map-marker';
-      el.title = pin.name;
-      el.style.cssText = `width: ${size}px; height: ${size}px; position: relative; cursor: pointer;`;
-
-      // Clipped, colored circle holding either the type icon or a live 3D model
-      const circle = document.createElement('div');
-      circle.className = 'pin-circle';
-      circle.style.cssText = `
-        width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
-        background-color: ${cfg.color};
-        border: 3px solid ${isSelected ? '#fff' : 'rgba(255,255,255,0.85)'};
-        box-shadow: 0 0 ${isSelected ? 20 : 10}px ${cfg.glow}, 0 0 0 ${isSelected ? '5px' : '0px'} ${cfg.glow};
-        display: flex; align-items: center; justify-content: center;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
-      `;
-      el.appendChild(circle);
-
-      if (hasModel) {
-        const mv = document.createElement('model-viewer');
-        mv.setAttribute('src', qrService.getMediaUrl(pin.model_3d));
-        mv.setAttribute('auto-rotate', '');
-        mv.setAttribute('rotation-per-second', '28deg');
-        mv.setAttribute('disable-zoom', '');
-        mv.setAttribute('interaction-prompt', 'none');
-        mv.setAttribute('exposure', '1.1');
-        mv.style.cssText = 'width:100%;height:100%;background:transparent;pointer-events:none;';
-        circle.appendChild(mv);
-      } else {
-        const iconWrap = document.createElement('div');
-        iconWrap.innerHTML = PIN_ICON_SVG[primaryType] || PIN_ICON_SVG.qr;
-        iconWrap.style.cssText = 'width:58%;height:58%;display:flex;align-items:center;justify-content:center;pointer-events:none;';
-        circle.appendChild(iconWrap);
-      }
-
-      // Type badge below marker
-      const badgeEl = document.createElement('div');
-      badgeEl.className = 'pin-badge';
-      badgeEl.innerText = primaryType.toUpperCase();
-      badgeEl.style.cssText = `
-        position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 4px;
-        background: ${cfg.color}; color: #fff; font-size: 7px; font-weight: 800;
-        letter-spacing: 0.5px; padding: 1px 4px; border-radius: 3px;
-        white-space: nowrap; pointer-events: none; opacity: ${isSelected ? 1 : 0.85};
-      `;
-      el.appendChild(badgeEl);
-
-      // Store refs for highlight updates
-      markerElemsRef.current[pin.id] = { el, circle, badgeEl, cfg, baseSize, selSize };
-
-      el.addEventListener('click', () => setSelectedMapPinId(pin.id));
-
-      // Rich popup
-      const typeLabels = (pin.feature_types || []).map(t => `<span style="background:${PIN_TYPE_CONFIG[t]?.color};color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;margin-right:4px">${PIN_TYPE_CONFIG[t]?.label}</span>`).join('');
-      const popupHtml = `
-        <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:4px 0;min-width:180px">
-          <div style="margin-bottom:6px">${typeLabels}</div>
-          <strong style="font-size:13px;color:#1a1a2e;display:block;margin-bottom:4px">${pin.name}</strong>
-          <p style="font-size:11px;color:#555;margin:0 0 6px 0;line-height:1.5">${pin.description || 'No description available.'}</p>
-          <p style="font-size:10px;color:#999;margin:0">📍 ${parseFloat(pin.latitude || 0).toFixed(4)}° N, ${parseFloat(pin.longitude || 0).toFixed(4)}° E</p>
-        </div>`;
-
-      const coord = [parseFloat(pin.longitude) || 0, parseFloat(pin.latitude) || 0];
-      const popup = new mapboxgl.Popup({ offset: [0, -(size / 2 + 8)] }).setHTML(popupHtml);
-
-      new mapboxgl.Marker({ element: el })
-        .setLngLat(coord)
-        .setPopup(popup)
-        .addTo(map);
-    });
-
-    return () => { map.remove(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, theme, spots, selectedMapPinId]);
-
-  // Update marker highlight styles WITHOUT rebuilding the map
-  useEffect(() => {
-    Object.entries(markerElemsRef.current).forEach(([idStr, { el, circle, badgeEl, cfg, baseSize, selSize }]) => {
-      const isSelected = parseInt(idStr) === selectedMapPinId;
-      const size = isSelected ? selSize : baseSize;
-      el.style.width = `${size}px`;
-      el.style.height = `${size}px`;
-      el.style.zIndex = isSelected ? 1000 : 1;
-      circle.style.border = `3px solid ${isSelected ? '#fff' : 'rgba(255,255,255,0.85)'}`;
-      circle.style.boxShadow = `0 0 ${isSelected ? 20 : 10}px ${cfg.glow}, 0 0 0 ${isSelected ? '5px' : '0px'} ${cfg.glow}`;
-      badgeEl.style.opacity = isSelected ? '1' : '0.85';
-    });
-  }, [selectedMapPinId]);
-
-  // Handle flyTo when selectedMapPinId changes
-  useEffect(() => {
-    if (!mapRef.current || activeTab !== 'map') return;
-    try {
-      const pin = spots.find(p => p.id === selectedMapPinId);
-      if (pin && pin.latitude) {
-        mapRef.current.flyTo({ center: [parseFloat(pin.longitude), parseFloat(pin.latitude)], zoom: 14 });
-      }
-    } catch (err) {
-      console.warn("Mapbox flyTo skipped due to rendering state:", err);
-    }
-  }, [selectedMapPinId, spots, activeTab]);
 
 
   const toggleNewSpotType = (type) => {
@@ -489,14 +335,6 @@ function App() {
     }));
   };
 
-  // Handle map resize when fullscreen changes
-  useEffect(() => {
-    if (mapRef.current) {
-      setTimeout(() => {
-        mapRef.current.resize();
-      }, 150);
-    }
-  }, [isMapFullscreen]);
 
   // Initialize modal map when Add Spot modal opens
   useEffect(() => {
@@ -2483,16 +2321,6 @@ function App() {
                     Zamboanga City — Feature Map {isMapFullscreen && '(Fullscreen)'}
                   </h3>
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    {/* Legend */}
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      {Object.entries(PIN_TYPE_CONFIG).map(([type, cfg]) => (
-                        <span key={type} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                          <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: cfg.color, boxShadow: `0 0 6px ${cfg.glow}` }} />
-                          {cfg.label}
-                        </span>
-                      ))}
-                    </div>
-
                     <button className="btn btn-primary" onClick={() => setIsAddSpotModalOpen(true)}>
                       <Plus size={16} />
                       Add New Spot
@@ -2510,8 +2338,14 @@ function App() {
                 </div>
 
                 {/* Map canvas */}
-                <div style={{ position: 'relative', width: '100%', height: isMapFullscreen ? 'calc(100vh - 90px)' : '420px', borderRadius: isMapFullscreen ? '0' : '12px', overflow: 'hidden', border: isMapFullscreen ? 'none' : '1px solid var(--card-border)', marginTop: '16px' }}>
-                  <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
+                <div style={{ position: 'relative', width: '100%', height: isMapFullscreen ? 'calc(100vh - 90px)' : '560px', borderRadius: isMapFullscreen ? '0' : '12px', overflow: 'hidden', border: isMapFullscreen ? 'none' : '1px solid var(--card-border)', marginTop: '16px' }}>
+                  <LakbayMap
+                    spots={spots}
+                    catchIcons={catchIcons}
+                    appTheme={theme}
+                    selectedSpotId={selectedMapPinId}
+                    onSelectSpot={setSelectedMapPinId}
+                  />
 
                   {/* Floating pin detail when fullscreen */}
                   {isMapFullscreen && selectedMapPin && (

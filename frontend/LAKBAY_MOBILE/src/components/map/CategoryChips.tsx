@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FONTS } from '../../constants/theme';
+import { COLORS, FONTS } from '../../constants/theme';
 import { SPOT_TYPES, SPOT_TYPE_ORDER, type SpotType } from '../../constants/mapConfig';
 
 interface CategoryChipsProps {
@@ -39,9 +39,9 @@ function CategoryChipsBase({ counts, active, onToggle }: CategoryChipsProps) {
             <View style={[styles.dot, { backgroundColor: isActive ? '#fff' : cfg.color }]}>
               <Ionicons name={cfg.icon} size={10} color={isActive ? cfg.color : '#fff'} />
             </View>
-            <Text style={styles.label}>{cfg.shortLabel}</Text>
+            <Text style={[styles.label, isActive && styles.labelActive]}>{cfg.shortLabel}</Text>
             <View style={[styles.count, isActive && styles.countActive]}>
-              <Text style={styles.countText}>{counts[type]}</Text>
+              <Text style={[styles.countText, isActive && styles.countTextActive]}>{counts[type]}</Text>
             </View>
           </TouchableOpacity>
         );
@@ -62,23 +62,25 @@ const styles = StyleSheet.create({
     paddingLeft: 6,
     paddingRight: 8,
     borderRadius: 18,
-    backgroundColor: 'rgba(8,20,60,0.88)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: 'rgba(99,179,237,0.35)',
+    borderColor: COLORS.border,
     elevation: 4,
   },
   dimmed: { opacity: 0.55 },
   dot: { width: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
-  label: { fontFamily: FONTS.bold, fontSize: 12, color: '#fff' },
+  label: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.navy },
+  labelActive: { color: '#FFFFFF' },
   count: {
     minWidth: 22,
     paddingHorizontal: 6,
     height: 20,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: COLORS.bg,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  countActive: { backgroundColor: 'rgba(0,0,0,0.2)' },
-  countText: { fontFamily: FONTS.bold, fontSize: 11, color: '#fff' },
+  countActive: { backgroundColor: 'rgba(0,0,0,0.18)' },
+  countText: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.navy },
+  countTextActive: { color: '#FFFFFF' },
 });

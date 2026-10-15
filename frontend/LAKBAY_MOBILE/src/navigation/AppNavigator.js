@@ -1,11 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS } from '../constants/theme';
-import VintaStripe from '../components/VintaStripe';
+import { COLORS } from '../constants/theme';
+import { TAB_BAR_HEIGHT, TAB_BAR_PADDING, TAB_BAR_SIDE_MARGIN, TAB_ICON_SIZE, useTabBarBottom } from './tabBarLayout';
 
 import HomeScreen from '../screens/HomeScreen';
 import QRScreen from '../screens/QRScreen';
@@ -43,23 +42,19 @@ const TABS = [
 ];
 
 function MainTabs({ route }) {
-  const insets = useSafeAreaInsets();
+  const tabBarBottom = useTabBarBottom();
   const showOnboarding = route?.params?.showOnboarding;
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarStyle: [
-          tabStyles.tabBar,
-          { 
-            height: 70 + insets.bottom,
-            paddingBottom: insets.bottom,
-          }
-        ],
+        // Screens draw behind the floating bar; they pad their own scroll content.
+        sceneStyle: { backgroundColor: 'transparent' },
+        tabBarStyle: [tabStyles.tabBar, { bottom: tabBarBottom }],
         tabBarBackground: () => (
-          <View style={{ flex: 1, backgroundColor: COLORS.navy }}>
-            <VintaStripe height={3} />
+          <View style={tabStyles.glass}>
+            <View style={tabStyles.glassSheen} />
           </View>
         ),
         tabBarIcon: ({ focused }) => {
@@ -68,11 +63,11 @@ function MainTabs({ route }) {
           const color = focused ? '#FBBF24' : '#94A3B8';
           
           return (
-            <View style={[tabStyles.pill, focused && tabStyles.pillActive]}>
-              <Ionicons name={iconName} size={22} color={color} style={{ marginBottom: 2 }} />
-              <Text style={[tabStyles.pillText, focused && tabStyles.pillTextActive]}>
-                {tab?.label ?? route.name}
-              </Text>
+            <View
+              style={[tabStyles.pill, focused && tabStyles.pillActive]}
+              accessibilityLabel={tab?.label ?? route.name}
+            >
+              <Ionicons name={iconName} size={26} color={color} />
             </View>
           );
         },
@@ -85,6 +80,7 @@ function MainTabs({ route }) {
         tabBarItemStyle: {
           padding: 0,
           margin: 0,
+          height: TAB_BAR_HEIGHT,
         },
       })}
     >
@@ -145,39 +141,52 @@ export default function AppNavigator() {
 }
 
 const tabStyles = StyleSheet.create({
+  // Floating oval glass bar
   tabBar: {
-    backgroundColor: COLORS.navy,
+    position: 'absolute',
+    left: TAB_BAR_SIDE_MARGIN,
+    right: TAB_BAR_SIDE_MARGIN,
+    height: TAB_BAR_HEIGHT,
+    borderRadius: TAB_BAR_HEIGHT / 2,
     borderTopWidth: 0,
-    paddingHorizontal: 12,
-    elevation: 24,
+    backgroundColor: 'transparent',
+    paddingHorizontal: TAB_BAR_PADDING,
+    paddingTop: 0,
+    paddingBottom: 0,
+    elevation: 0,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.30,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+  },
+  glass: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: TAB_BAR_HEIGHT / 2,
+    backgroundColor: 'rgba(6, 14, 42, 0.82)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+    overflow: 'hidden',
+  },
+  glassSheen: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: TAB_BAR_HEIGHT / 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
   pill: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
+    width: TAB_ICON_SIZE,
+    height: TAB_ICON_SIZE,
+    borderRadius: TAB_ICON_SIZE / 2,
+    borderWidth: 1.5,
     borderColor: 'transparent',
-    minWidth: 80,
   },
   pillActive: {
-    backgroundColor: 'rgba(251,191,36,0.15)',
-    borderColor: 'rgba(251,191,36,0.40)',
-  },
-  pillText: {
-    fontSize: 9,
-    fontFamily: FONTS.semiBold,
-    color: '#94A3B8',
-    letterSpacing: 0.5,
-  },
-  pillTextActive: {
-    color: '#FBBF24',
-    fontFamily: FONTS.bold,
+    backgroundColor: 'rgba(251,191,36,0.20)',
+    borderColor: '#FBBF24',
   },
   activeDot: {
     width: 4,

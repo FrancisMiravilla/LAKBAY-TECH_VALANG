@@ -7,10 +7,12 @@ import {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
-import { COLORS, FONTS, RADIUS, SHADOW } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOW, CARD_BORDER_WIDTH, BG_OVERLAY, GOLD_TEXT } from '../constants/theme';
+import VintaCard from '../components/VintaCard';
 import { authService } from '../api/authService';
 import ErrorModal from '../components/ErrorModal';
 import VintaStripe from '../components/VintaStripe';
+
 
 export default function CreateAccountScreen({ navigation }) {
   const [firstName, setFirstName]         = useState('');
@@ -116,11 +118,6 @@ export default function CreateAccountScreen({ navigation }) {
             style={[styles.heroBanner, { opacity: heroFade, transform: [{ translateY: heroSlide }] }]}
           >
             <View style={styles.heroContent}>
-              <View style={styles.eyebrowBadge}>
-                <Ionicons name="sparkles" size={11} color={COLORS.gold} />
-                <Text style={styles.heroEyebrow}>EXPEDITION RECRUITMENT</Text>
-              </View>
-
               <View style={styles.logoRing}>
                 <Image
                   source={require('../assets/lakbay_icon_glyph.png')}
@@ -156,11 +153,8 @@ export default function CreateAccountScreen({ navigation }) {
           <VintaStripe height={4} />
 
           {/* ── Form Card ──────────────────────────────────────────── */}
-          <View style={styles.card}>
+          <VintaCard style={styles.cardBorder} contentStyle={styles.card}>
             <View style={styles.cardHeader}>
-              <View style={styles.cardBadge}>
-                <Text style={styles.cardBadgeText}>STAGE 1 : RECRUIT IDENTIFICATION</Text>
-              </View>
               <Text style={styles.heading}>Create Explorer Profile</Text>
               <Text style={styles.subHeading}>
                 Establish your identity to explore landmarks, scan AR artifacts, and earn badges.
@@ -177,7 +171,7 @@ export default function CreateAccountScreen({ navigation }) {
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. Juan"
-                  placeholderTextColor="rgba(191, 215, 255, 0.40)"
+                  placeholderTextColor="#94A3B8"
                   autoCapitalize="words"
                   value={firstName}
                   onChangeText={setFirstName}
@@ -196,7 +190,7 @@ export default function CreateAccountScreen({ navigation }) {
                   <TextInput
                     style={styles.input}
                     placeholder="e.g. Dela Cruz"
-                    placeholderTextColor="rgba(191, 215, 255, 0.40)"
+                    placeholderTextColor="#94A3B8"
                     autoCapitalize="words"
                     value={lastName}
                     onChangeText={setLastName}
@@ -213,7 +207,7 @@ export default function CreateAccountScreen({ navigation }) {
                   <TextInput
                     style={[styles.input, { textAlign: 'center' }]}
                     placeholder="D."
-                    placeholderTextColor="rgba(191, 215, 255, 0.40)"
+                    placeholderTextColor="#94A3B8"
                     autoCapitalize="characters"
                     maxLength={2}
                     value={middleInitial}
@@ -233,7 +227,7 @@ export default function CreateAccountScreen({ navigation }) {
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. Zamboanga City"
-                  placeholderTextColor="rgba(191, 215, 255, 0.40)"
+                  placeholderTextColor="#94A3B8"
                   autoCapitalize="words"
                   value={location}
                   onChangeText={setLocation}
@@ -248,11 +242,11 @@ export default function CreateAccountScreen({ navigation }) {
                   <Ionicons
                     name={isLocal ? 'home' : 'airplane'}
                     size={14}
-                    color={isLocal ? COLORS.teal : '#38BDF8'}
+                    color={isLocal ? COLORS.teal : COLORS.accent}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.guildTitle, { color: isLocal ? COLORS.teal : '#38BDF8' }]}>
+                  <Text style={[styles.guildTitle, { color: isLocal ? COLORS.teal : COLORS.accent }]}>
                     Guild: {visitorType}
                   </Text>
                   <Text style={styles.guildDesc}>
@@ -274,7 +268,7 @@ export default function CreateAccountScreen({ navigation }) {
                 <TextInput
                   style={styles.input}
                   placeholder="explorer@lakbay.ph"
-                  placeholderTextColor="rgba(191, 215, 255, 0.40)"
+                  placeholderTextColor="#94A3B8"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={email}
@@ -299,7 +293,7 @@ export default function CreateAccountScreen({ navigation }) {
                 <TextInput
                   style={[styles.input, { flex: 1 }]}
                   placeholder="Min. 8 characters with number & symbol"
-                  placeholderTextColor="rgba(191, 215, 255, 0.40)"
+                  placeholderTextColor="#94A3B8"
                   secureTextEntry={!showPass}
                   value={password}
                   onChangeText={setPassword}
@@ -308,7 +302,7 @@ export default function CreateAccountScreen({ navigation }) {
                   <Ionicons
                     name={showPass ? 'eye-outline' : 'eye-off-outline'}
                     size={17}
-                    color="rgba(191, 215, 255, 0.70)"
+                    color="#64748B"
                   />
                 </TouchableOpacity>
               </View>
@@ -330,7 +324,7 @@ export default function CreateAccountScreen({ navigation }) {
                 <TextInput
                   style={[styles.input, { flex: 1 }]}
                   placeholder="Re-enter password"
-                  placeholderTextColor="rgba(191, 215, 255, 0.40)"
+                  placeholderTextColor="#94A3B8"
                   secureTextEntry={!showConfirm}
                   value={confirmPass}
                   onChangeText={setConfirmPass}
@@ -339,7 +333,7 @@ export default function CreateAccountScreen({ navigation }) {
                   <Ionicons
                     name={showConfirm ? 'eye-outline' : 'eye-off-outline'}
                     size={17}
-                    color="rgba(191, 215, 255, 0.70)"
+                    color="#64748B"
                   />
                 </TouchableOpacity>
               </View>
@@ -364,7 +358,7 @@ export default function CreateAccountScreen({ navigation }) {
               onPress={() => setAgreed(!agreed)}
             >
               <View style={[styles.checkbox, agreed && styles.checkboxActive]}>
-                {agreed && <Ionicons name="checkmark" size={13} color="#08143C" />}
+                {agreed && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
               </View>
               <Text style={styles.termsText}>
                 I accept the{' '}
@@ -393,13 +387,13 @@ export default function CreateAccountScreen({ navigation }) {
             >
               {loading ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <ActivityIndicator color="#08143C" />
+                  <ActivityIndicator color="#FFFFFF" />
                   <Text style={styles.createBtnText}>Enlisting Explorer...</Text>
                 </View>
               ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Text style={styles.createBtnText}>Proceed to Guide Selection</Text>
-                  <Ionicons name="arrow-forward" size={15} color="#08143C" />
+                  <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
                 </View>
               )}
             </TouchableOpacity>
@@ -412,8 +406,8 @@ export default function CreateAccountScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-          </View>
-          <View style={{ height: 32 }} />
+          </VintaCard>
+          <View style={{ height: 24 }} />
         </KeyboardAwareScrollView>
 
         <ErrorModal
@@ -436,69 +430,49 @@ const styles = StyleSheet.create({
   },
   bgOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4, 10, 38, 0.88)',
+    backgroundColor: BG_OVERLAY,
   },
   container: { flex: 1, backgroundColor: 'transparent' },
   scroll:    { flexGrow: 1, paddingBottom: 24 },
 
   // ── Hero Banner ────────────────────────────────────────────────────
   heroBanner: {
-    paddingTop: 28,
-    paddingBottom: 20,
+    paddingTop: 6,
+    paddingBottom: 12,
     alignItems: 'center',
   },
   heroContent: { alignItems: 'center', zIndex: 2 },
-  eyebrowBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(251, 191, 36, 0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.40)',
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginBottom: 12,
-  },
-  heroEyebrow: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7.5,
-    color: COLORS.gold,
-    letterSpacing: 1,
-    lineHeight: 11,
-  },
   logoRing: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: '#08143C',
     borderWidth: 2,
     borderColor: '#1E3A8A',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
-  logoImg: { width: 50, height: 50 },
+  logoImg: { width: 44, height: 44 },
   logoTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 18,
+    fontFamily: FONTS.bold,
+    fontSize: 30,
     color: '#FFFFFF',
-    letterSpacing: 3,
-    lineHeight: 26,
-    marginBottom: 3,
+    letterSpacing: 5,
+    lineHeight: 34,
   },
   logoSub: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7.5,
+    fontFamily: FONTS.semiBold,
+    fontSize: 11,
     color: 'rgba(191, 215, 255, 0.70)',
-    letterSpacing: 1.5,
-    lineHeight: 12,
-    marginBottom: 14,
+    letterSpacing: 2.5,
+    lineHeight: 14,
+    marginBottom: 10,
   },
 
   // ── Stepper ────────────────────────────────────────────────────────
@@ -535,16 +509,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stepNumTextActive: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7,
+    fontFamily: FONTS.bold,
+    fontSize: 11,
     color: '#08143C',
-    lineHeight: 9,
+    lineHeight: 13,
   },
   stepLabelActive: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7,
+    fontFamily: FONTS.semiBold,
+    fontSize: 12,
     color: '#FFFFFF',
-    lineHeight: 10,
+    lineHeight: 15,
   },
   stepperLine: {
     width: 16,
@@ -560,66 +534,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stepNumText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7,
+    fontFamily: FONTS.bold,
+    fontSize: 11,
     color: 'rgba(191, 215, 255, 0.50)',
-    lineHeight: 9,
+    lineHeight: 13,
   },
   stepLabel: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7,
+    fontFamily: FONTS.semiBold,
+    fontSize: 12,
     color: 'rgba(191, 215, 255, 0.50)',
-    lineHeight: 10,
+    lineHeight: 15,
   },
 
   // ── Card ───────────────────────────────────────────────────────────
-  card: {
-    backgroundColor: '#08143C',
+  cardBorder: {
     borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
+    padding: CARD_BORDER_WIDTH,
     marginHorizontal: 16,
-    marginTop: 14,
-    paddingHorizontal: 20,
-    paddingVertical: 22,
+    marginTop: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: RADIUS.lg - CARD_BORDER_WIDTH,
+    paddingHorizontal: 20,
+    paddingTop: 44,
+    paddingBottom: 18,
+  },
   cardHeader: {
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  cardBadge: {
-    backgroundColor: 'rgba(26, 86, 219, 0.20)',
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginBottom: 8,
-  },
-  cardBadgeText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 6.5,
-    color: '#38BDF8',
-    letterSpacing: 0.8,
-    lineHeight: 10,
+    marginBottom: 12,
   },
   heading: {
-    fontFamily: FONTS.pixel,
-    fontSize: 12,
-    color: '#FFFFFF',
-    marginBottom: 6,
+    fontFamily: FONTS.bold,
+    fontSize: 20,
+    color: COLORS.navy,
+    marginBottom: 4,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 24,
   },
   subHeading: {
     fontFamily: FONTS.regular,
     fontSize: 12,
-    color: 'rgba(191, 215, 255, 0.70)',
+    color: COLORS.textMuted,
     textAlign: 'center',
     lineHeight: 17,
     paddingHorizontal: 8,
@@ -637,12 +598,12 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: FONTS.semiBold,
     fontSize: 12,
-    color: 'rgba(191, 215, 255, 0.90)',
+    color: COLORS.textSub,
   },
   optionalLabel: {
     fontFamily: FONTS.regular,
     fontSize: 10,
-    color: 'rgba(191, 215, 255, 0.45)',
+    color: COLORS.textFaint,
   },
   validCheck: {
     flexDirection: 'row',
@@ -651,18 +612,18 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   validText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 6.5,
+    fontFamily: FONTS.bold,
+    fontSize: 11,
     color: COLORS.teal,
-    lineHeight: 9,
+    lineHeight: 13,
   },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0C2054',
+    backgroundColor: COLORS.bgCardAlt,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: '#1E3A8A',
+    borderColor: COLORS.border,
     paddingHorizontal: 14,
     height: 48,
   },
@@ -673,7 +634,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: FONTS.medium,
     fontSize: 13,
-    color: '#FFFFFF',
+    color: COLORS.text,
   },
   eyeBtn: { padding: 6 },
 
@@ -692,26 +653,26 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(16, 185, 129, 0.40)',
   },
   guildTourist: {
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
-    borderColor: 'rgba(56, 189, 248, 0.40)',
+    backgroundColor: COLORS.accentSoft,
+    borderColor: COLORS.accentBorder,
   },
   guildIconWrap: {
     width: 28,
     height: 28,
     borderRadius: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
   },
   guildTitle: {
-    fontFamily: FONTS.pixel,
-    fontSize: 7.5,
-    lineHeight: 12,
+    fontFamily: FONTS.bold,
+    fontSize: 13,
+    lineHeight: 16,
   },
   guildDesc: {
     fontFamily: FONTS.regular,
     fontSize: 10.5,
-    color: 'rgba(191, 215, 255, 0.80)',
+    color: COLORS.textSub,
     marginTop: 2,
     lineHeight: 14,
   },
@@ -731,7 +692,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: FONTS.medium,
     fontSize: 11,
-    color: '#FCA5A5',
+    color: '#B91C1C',
     lineHeight: 15,
   },
   termsRow: {
@@ -745,24 +706,24 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 1.5,
-    borderColor: '#1E3A8A',
-    backgroundColor: '#0C2054',
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bgCardAlt,
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkboxActive: {
-    backgroundColor: COLORS.gold,
-    borderColor: '#FDE68A',
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accentDark,
   },
   termsText: {
     flex: 1,
     fontFamily: FONTS.regular,
     fontSize: 11.5,
-    color: 'rgba(191, 215, 255, 0.75)',
+    color: COLORS.textSub,
     lineHeight: 16,
   },
   termsLink: {
-    color: '#38BDF8',
+    color: COLORS.accent,
     fontFamily: FONTS.bold,
   },
 
@@ -770,11 +731,11 @@ const styles = StyleSheet.create({
   createBtn: {
     height: 50,
     borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.gold,
+    backgroundColor: COLORS.accent,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: COLORS.accentDark,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
@@ -785,11 +746,11 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   createBtnText: {
-    fontFamily: FONTS.pixel,
-    fontSize: 8.5,
-    color: '#08143C',
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    color: '#FFFFFF',
     letterSpacing: 0.5,
-    lineHeight: 13,
+    lineHeight: 18,
   },
 
   signinRow: {
@@ -801,11 +762,11 @@ const styles = StyleSheet.create({
   signinPrompt: {
     fontFamily: FONTS.regular,
     fontSize: 12,
-    color: 'rgba(191, 215, 255, 0.70)',
+    color: COLORS.textMuted,
   },
   signinLink: {
     fontFamily: FONTS.bold,
     fontSize: 12,
-    color: COLORS.gold,
+    color: GOLD_TEXT,
   },
 });
