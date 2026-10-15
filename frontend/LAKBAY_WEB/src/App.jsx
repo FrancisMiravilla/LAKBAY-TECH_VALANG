@@ -761,68 +761,104 @@ function App() {
 
 
   // Handlers
-  const handleAddSpot = async (e) => {
+  // Add/edit spot are optimistic: the modal closes and the list updates right away, the
+  // upload (images, 3D model) runs in the background, and a failure restores the form.
+  const handleAddSpot = (e) => {
     e.preventDefault();
     if (!newSpot.name || !newSpot.location_name) return;
-    try {
-      const { data } = await qrService.createSpot({
-        name: newSpot.name,
-        location_name: newSpot.location_name,
-        latitude: parseFloat(newSpot.latitude) || 0,
-        longitude: parseFloat(newSpot.longitude) || 0,
-        description: newSpot.description,
-        historical_background: newSpot.historical_background,
-        cultural_significance: newSpot.cultural_significance,
-        fun_fact: newSpot.fun_fact,
-        hook: newSpot.featureTypes?.includes('catch') ? newSpot.hook : '',
-        feature_types: newSpot.featureTypes,
-        image: newSpot.images[0] || null,
-        image2: newSpot.images[1] || null,
-        image3: newSpot.images[2] || null,
-        model_3d: newSpot.model_3d || null,
-        required_level: parseInt(newSpot.required_level) || 1,
-        xp_reward: parseInt(newSpot.xp_reward) || 50,
-        is_featured: newSpot.is_featured,
+    const payload = {
+      name: newSpot.name,
+      location_name: newSpot.location_name,
+      latitude: parseFloat(newSpot.latitude) || 0,
+      longitude: parseFloat(newSpot.longitude) || 0,
+      description: newSpot.description,
+      historical_background: newSpot.historical_background,
+      cultural_significance: newSpot.cultural_significance,
+      fun_fact: newSpot.fun_fact,
+      hook: newSpot.featureTypes?.includes('catch') ? newSpot.hook : '',
+      feature_types: newSpot.featureTypes,
+      image: newSpot.images[0] || null,
+      image2: newSpot.images[1] || null,
+      image3: newSpot.images[2] || null,
+      model_3d: newSpot.model_3d || null,
+      required_level: parseInt(newSpot.required_level) || 1,
+      xp_reward: parseInt(newSpot.xp_reward) || 50,
+      is_featured: newSpot.is_featured,
+    };
+    const draft = newSpot;
+    const tempId = `saving-${Date.now()}`;
+
+    setSpots(prev => [...prev, { ...normalizeSpot({ ...payload, id: tempId }), saving: true }]);
+    setIsAddSpotModalOpen(false);
+    setNewSpot({ name: '', location_name: '', latitude: '', longitude: '', description: '', historical_background: '', cultural_significance: '', fun_fact: '', hook: '', featureTypes: ['qr'], images: ['', '', ''], model_3d: null, required_level: 1, xp_reward: 50, is_featured: false });
+
+    qrService.createSpot(payload)
+      .then(({ data }) => {
+        setSpots(prev => prev.map(s => (s.id === tempId ? normalizeSpot(data) : s)));
+        setNotifications(prev => [{ id: Date.now(), text: `Spot "${data.name}" created.`, time: 'Just now' }, ...prev]);
+      })
+      .catch((err) => {
+        console.error(err);
+        setSpots(prev => prev.filter(s => s.id !== tempId));
+        setNewSpot(draft);
+        setIsAddSpotModalOpen(true);
+        showError(`"${payload.name}" could not be saved. Your details are back in the form so you can try again.`, 'Spot Not Saved', 'error');
       });
-      setSpots(prev => [...prev, normalizeSpot(data)]);
-      setIsAddSpotModalOpen(false);
-      setNewSpot({ name: '', location_name: '', latitude: '', longitude: '', description: '', historical_background: '', cultural_significance: '', fun_fact: '', hook: '', featureTypes: ['qr'], images: ['', '', ''], model_3d: null, required_level: 1, xp_reward: 50, is_featured: false });
-      setNotifications(prev => [{ id: Date.now(), text: `Spot "${data.name}" created.`, time: 'Just now' }, ...prev]);
-    } catch (err) {
-      console.error(err);
-    }
   };
 
-  const handleEditSpotSubmit = async (e) => {
+  const handleEditSpotSubmit = (e) => {
     e.preventDefault();
     if (!editingSpot.name || !editingSpot.location) return;
-    try {
-      const { data } = await qrService.updateSpot(editingSpot.id, {
-        name: editingSpot.name,
-        location_name: editingSpot.location || editingSpot.location_name,
-        latitude: editingSpot.latitude || 0,
-        longitude: editingSpot.longitude || 0,
-        description: editingSpot.description || editingSpot.aboutPlace || '',
-        historical_background: editingSpot.historical_background || '',
-        cultural_significance: editingSpot.cultural_significance || '',
-        fun_fact: editingSpot.fun_fact || '',
-        hook: (editingSpot.feature_types || []).includes('catch') ? (editingSpot.hook || '') : '',
-        feature_types: editingSpot.feature_types || [],
-        required_level: parseInt(editingSpot.required_level) || 1,
-        xp_reward: parseInt(editingSpot.xp_reward) || 50,
-        ...(editingSpot.images?.[0]?.startsWith('data:') && { image: editingSpot.images[0] }),
-        ...(editingSpot.images?.[1]?.startsWith('data:') && { image2: editingSpot.images[1] }),
-        ...(editingSpot.images?.[2]?.startsWith('data:') && { image3: editingSpot.images[2] }),
-        ...(editingSpot.model_3d?.startsWith('data:') && { model_3d: editingSpot.model_3d }),
-        is_featured: editingSpot.is_featured || false,
+    const draft = editingSpot;
+    const original = spots.find(s => s.id === draft.id);
+    const payload = {
+      name: draft.name,
+      location_name: draft.location || draft.location_name,
+      latitude: draft.latitude || 0,
+      longitude: draft.longitude || 0,
+      description: draft.description || draft.aboutPlace || '',
+      historical_background: draft.historical_background || '',
+      cultural_significance: draft.cultural_significance || '',
+      fun_fact: draft.fun_fact || '',
+      hook: (draft.feature_types || []).includes('catch') ? (draft.hook || '') : '',
+      feature_types: draft.feature_types || [],
+      required_level: parseInt(draft.required_level) || 1,
+      xp_reward: parseInt(draft.xp_reward) || 50,
+      ...(draft.images?.[0]?.startsWith('data:') && { image: draft.images[0] }),
+      ...(draft.images?.[1]?.startsWith('data:') && { image2: draft.images[1] }),
+      ...(draft.images?.[2]?.startsWith('data:') && { image3: draft.images[2] }),
+      ...(draft.model_3d?.startsWith('data:') && { model_3d: draft.model_3d }),
+      is_featured: draft.is_featured || false,
+    };
+
+    const [image, image2, image3] = draft.images || [];
+    setSpots(prev => prev.map(s => (s.id === draft.id
+      ? { ...normalizeSpot({ ...payload, id: draft.id, image, image2, image3, model_3d: draft.model_3d }), saving: true }
+      : s)));
+    setIsEditSpotModalOpen(false);
+    setEditingSpot(null);
+
+    qrService.updateSpot(draft.id, payload)
+      .then(({ data }) => {
+        setSpots(prev => prev.map(s => (s.id === data.id ? normalizeSpot(data) : s)));
+        setQrcodes(prev => prev.map(q => (q.spot_id === data.id ? { ...q, exhibitName: data.name } : q)));
+      })
+      .catch((err) => {
+        console.error(err);
+        if (original) setSpots(prev => prev.map(s => (s.id === draft.id ? original : s)));
+        setEditingSpot(draft);
+        setIsEditSpotModalOpen(true);
+        showError(`Changes to "${draft.name}" could not be saved. Your edits are back in the form so you can try again.`, 'Spot Not Saved', 'error');
       });
-      setSpots(prev => prev.map(s => s.id === data.id ? normalizeSpot(data) : s));
-      setQrcodes(prev => prev.map(q => q.spot_id === data.id ? { ...q, exhibitName: data.name } : q));
-      setIsEditSpotModalOpen(false);
-      setEditingSpot(null);
-    } catch (err) {
-      console.error(err);
+  };
+
+  const openEditSpot = (spot) => {
+    if (spot?.saving) {
+      showError(`"${spot.name}" is still saving. Try again in a moment.`, 'Still Saving', 'info');
+      return;
     }
+    setEditingSpot(spot);
+    setIsEditSpotModalOpen(true);
   };
 
   const handleAddQr = async (e) => {
@@ -865,6 +901,10 @@ function App() {
 
   const handleDeleteSpot = async (id) => {
     const spotToDelete = spots.find(s => s.id === id);
+    if (spotToDelete?.saving) {
+      showError(`"${spotToDelete.name}" is still saving. Try again in a moment.`, 'Still Saving', 'info');
+      return;
+    }
     if (!confirm(`Are you sure you want to delete "${spotToDelete?.name}"? This will also remove any linked QR codes.`)) return;
     try {
       await qrService.deleteSpot(id);
@@ -1185,7 +1225,7 @@ function App() {
   const catchQuizOptions = useMemo(() => {
     const infoLength = (...fields) => fields.reduce((n, f) => n + String(f || '').trim().length, 0);
     const entries = [
-      ...spots.filter(s => (s.feature_types || []).includes('catch')).map(s => ({
+      ...spots.filter(s => !s.saving && (s.feature_types || []).includes('catch')).map(s => ({
         value: `spot_${s.id}`,
         name: s.name,
         label: s.hook ? `${s.name} (${s.hook})` : s.name,
@@ -1749,8 +1789,8 @@ function App() {
                             {(() => {
                               const cfg = PIN_TYPE_CONFIG[(spot.feature_types && spot.feature_types[0]) || 'qr'] || PIN_TYPE_CONFIG.qr;
                               return (
-                                <span className="badge" style={{ backgroundColor: cfg.color, color: '#fff' }}>
-                                  {spot.status}
+                                <span className="badge" style={{ backgroundColor: spot.saving ? '#94A3B8' : cfg.color, color: '#fff' }}>
+                                  {spot.saving ? 'Saving…' : spot.status}
                                 </span>
                               );
                             })()}
@@ -1760,10 +1800,7 @@ function App() {
                               <button 
                                 className="icon-action-btn"
                                 title="Edit Spot"
-                                onClick={() => {
-                                  setEditingSpot(spot);
-                                  setIsEditSpotModalOpen(true);
-                                }}
+                                onClick={() => openEditSpot(spot)}
                               >
                                 <Edit size={14} />
                               </button>
@@ -2229,7 +2266,7 @@ function App() {
                       </p>
                       <div style={{ display: 'flex', gap: '6px', marginTop: '12px' }}>
                         <button className="btn btn-secondary" style={{ padding: '6px 10px', flex: 1, fontSize: '11px' }}
-                          onClick={() => { setEditingSpot(selectedMapPin); setIsEditSpotModalOpen(true); }}>
+                          onClick={() => openEditSpot(selectedMapPin)}>
                           <Edit size={12} /> Edit
                         </button>
                         <button className="btn btn-secondary" style={{ padding: '6px 10px', fontSize: '11px', color: 'var(--accent-pink)' }}
@@ -2357,10 +2394,7 @@ function App() {
                           className="btn btn-secondary"
                           style={{ padding: '8px 10px', fontSize: '12px' }}
                           title="Edit Spot"
-                          onClick={() => {
-                            setEditingSpot(selectedMapPin);
-                            setIsEditSpotModalOpen(true);
-                          }}
+                          onClick={() => openEditSpot(selectedMapPin)}
                         >
                           <Edit size={14} />
                         </button>
@@ -3965,7 +3999,7 @@ function App() {
                   <select className="form-select" value={newQr.spot_id}
                     onChange={(e) => setNewQr({...newQr, spot_id: e.target.value})} required>
                     <option value="">— Select a spot —</option>
-                    {spots.filter(s => s.feature_types?.includes('qr') || !s.feature_types?.includes('ar')).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    {spots.filter(s => !s.saving && (s.feature_types?.includes('qr') || !s.feature_types?.includes('ar'))).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
 
@@ -4028,7 +4062,7 @@ function App() {
                   <select className="form-select" value={editingQr.spot_id || ''}
                     onChange={(e) => setEditingQr({...editingQr, spot_id: parseInt(e.target.value)})} required>
                     <option value="">— Select a spot —</option>
-                    {spots.filter(s => s.feature_types?.includes('qr') || !s.feature_types?.includes('ar')).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    {spots.filter(s => !s.saving && (s.feature_types?.includes('qr') || !s.feature_types?.includes('ar'))).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
 
@@ -4221,7 +4255,7 @@ function App() {
                   <select className="form-select" value={editingTrivia.spot_id}
                     onChange={(e) => setEditingTrivia({ ...editingTrivia, spot_id: e.target.value })} required>
                     <option value="">— Select a spot —</option>
-                    {spots.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    {spots.filter(s => !s.saving).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
                 <div className="form-group">
@@ -4306,7 +4340,7 @@ function App() {
                     onChange={(e) => setGenerateQuizContentId(e.target.value)}
                   >
                     <option value="">— Select {generateQuizType === 'icon' ? 'a Catch Zone' : 'a Spot'} —</option>
-                    {generateQuizType === 'qr' && spots.filter(s => !(s.feature_types || []).includes('catch')).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    {generateQuizType === 'qr' && spots.filter(s => !s.saving && !(s.feature_types || []).includes('catch')).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     {generateQuizType === 'icon' && catchQuizOptions.map(o => (
                       <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
