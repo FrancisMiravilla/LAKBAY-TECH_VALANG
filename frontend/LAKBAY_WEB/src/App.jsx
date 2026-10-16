@@ -351,6 +351,7 @@ function App() {
   const [trivia, setTrivia] = useState(INITIAL_TRIVIA);
   const [triviaQuestions, setTriviaQuestions] = useState([]);
   const [triviaSpotFilter, setTriviaSpotFilter] = useState('');
+  const [triviaLoadState, setTriviaLoadState] = useState('idle'); // idle | loading | error
   const [isEditTriviaModalOpen, setIsEditTriviaModalOpen] = useState(false);
   const [editingTrivia, setEditingTrivia] = useState(null);
   const [expandedBatch, setExpandedBatch] = useState(null);
@@ -558,10 +559,7 @@ function App() {
       setCatchIcons(items);
     }).catch(console.error);
     
-    qrService.getTriviaQuestions().then(({ data }) => {
-      const items = Array.isArray(data) ? data : (data.results || []);
-      setTriviaQuestions(items);
-    }).catch(console.error);
+    loadTriviaQuestions();
 
     qrService.getARTargets().then(({ data }) => {
       const items = Array.isArray(data) ? data : (data.results || []);
@@ -1175,14 +1173,34 @@ function App() {
     setIsEditTriviaModalOpen(true);
   };
 
+  // Trivia changes outside this tab (AI generation, tour guide approvals in another
+  // session), so the list is reloaded whenever the Trivia tab is opened.
+  const loadTriviaQuestions = () => {
+    setTriviaLoadState('loading');
+    return qrService.getTriviaQuestions()
+      .then(({ data }) => {
+        setTriviaQuestions(Array.isArray(data) ? data : (data.results || []));
+        setTriviaLoadState('idle');
+      })
+      .catch((err) => {
+        console.error(err);
+        setTriviaLoadState('error');
+      });
+  };
+
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'trivia' && currentUser?.role !== 'tourist_guide') loadTriviaQuestions();
+  }, [activeTab]);
+
   const handleGenerateAIQuiz = async () => {
     if (!generateQuizContentId) return;
     setIsGeneratingQuiz(true);
     try {
       const { data } = await qrService.generateAITrivia(generateQuizType, generateQuizContentId, generateQuizCount);
       showError(`Successfully generated pending quizzes. They must be reviewed before appearing on mobile.`, 'Success', 'info');
-      // Refresh pending quizzes
+      // Refresh pending quizzes and the trivia list
       qrService.getPendingQuizzes().then(res => setPendingQuizzes(res.data || [])).catch(console.error);
+      loadTriviaQuestions();
       setIsGenerateQuizModalOpen(false);
       setGenerateQuizStep(1);
     } catch (err) {
@@ -2817,7 +2835,14 @@ function App() {
                     <tbody>
                       <tr>
                         <td colSpan="3" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)' }}>
-                          {triviaSpotFilter ? 'No questions for this spot yet. Add one!' : 'No trivia questions yet. Add some to get started.'}
+                          {triviaLoadState === 'loading' ? 'Loading trivia questions…'
+                            : triviaLoadState === 'error' ? (
+                              <span>
+                                Could not load trivia questions. Your session may have expired or another account signed in on this browser.{' '}
+                                <button type="button" className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '12px', marginLeft: '6px' }} onClick={loadTriviaQuestions}>Retry</button>
+                              </span>
+                            )
+                            : triviaSpotFilter ? 'No questions for this spot yet. Add one!' : 'No trivia questions yet. Add some to get started.'}
                         </td>
                       </tr>
                     </tbody>
