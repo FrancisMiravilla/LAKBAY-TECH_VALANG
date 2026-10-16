@@ -986,32 +986,46 @@ function App() {
     } catch (e) { console.error(e); }
   };
 
-  const handleAddARTarget = async (e) => {
+  const arTargetErrorText = (err) => (err.response?.data
+    ? (typeof err.response.data === 'object' ? JSON.stringify(err.response.data) : String(err.response.data))
+    : err.message);
+
+  // Add/edit AR target are optimistic like spots: the card updates at once and the
+  // image + 3D model upload in the background; a failure restores the form.
+  const handleAddARTarget = (e) => {
     e.preventDefault();
-    try {
-      const payload = {
-        name: newARTarget.name,
-        description: newARTarget.description || '',
-        building: newARTarget.building || 'S1',
-        slot_number: Number(newARTarget.slot_number) || 1,
-        rarity: newARTarget.rarity || 'common',
-        hint: newARTarget.hint || '',
-        image: newARTarget.image || null,
-        model_3d: newARTarget.model_3d || null,
-      };
-      const res = await qrService.createARTarget(payload);
-      setArTargets([...arTargets, res.data]);
-      setNotifications(prev => [
-        { id: generateNotificationId(), text: `AR Target "${newARTarget.name}" added to Building ${newARTarget.building || 'S1'}.`, time: 'Just now' },
-        ...prev,
-      ]);
-      setNewARTarget({ name: '', description: '', image: null, model_3d: null, model_3d_preview: null, building: 'S1', slot_number: 1, rarity: 'common', hint: '' });
-      setIsAddARTargetModalOpen(false);
-    } catch (err) {
-      console.error(err);
-      const errMsg = err.response?.data ? (typeof err.response.data === 'object' ? JSON.stringify(err.response.data) : String(err.response.data)) : err.message;
-      showError(`Failed to add AR Target: ${errMsg}`, 'Error', 'error');
-    }
+    const payload = {
+      name: newARTarget.name,
+      description: newARTarget.description || '',
+      building: newARTarget.building || 'S1',
+      slot_number: Number(newARTarget.slot_number) || 1,
+      rarity: newARTarget.rarity || 'common',
+      hint: newARTarget.hint || '',
+      image: newARTarget.image || null,
+      model_3d: newARTarget.model_3d || null,
+    };
+    const draft = newARTarget;
+    const tempId = `saving-${Date.now()}`;
+
+    setArTargets(prev => [...prev, { ...payload, id: tempId, saving: true }]);
+    setNewARTarget({ name: '', description: '', image: null, model_3d: null, model_3d_preview: null, building: 'S1', slot_number: 1, rarity: 'common', hint: '' });
+    setIsAddARTargetModalOpen(false);
+
+    qrService.createARTarget(payload)
+      .then((res) => {
+        setArTargets(prev => prev.map(t => (t.id === tempId ? res.data : t)));
+        setNotifications(prev => [
+          { id: generateNotificationId(), text: `AR Target "${payload.name}" added to Building ${payload.building}.`, time: 'Just now' },
+          ...prev,
+        ]);
+      })
+      .catch((err) => {
+        console.error(err);
+        setArTargets(prev => prev.filter(t => t.id !== tempId));
+        setNewARTarget(draft);
+        setIsAddARTargetModalOpen(true);
+        showError(`"${payload.name}" could not be saved: ${arTargetErrorText(err)}. Your details are back in the form so you can try again.`, 'AR Target Not Saved', 'error');
+      });
   };
 
   const handleEditARTargetImageChange = (e) => {
@@ -1031,38 +1045,54 @@ function App() {
     reader.readAsDataURL(file);
   };
 
-  const handleEditARTargetSubmit = async (e) => {
+  const handleEditARTargetSubmit = (e) => {
     e.preventDefault();
     if (!editingARTarget?.name) return;
-    try {
-      const payload = {
-        name: editingARTarget.name,
-        description: editingARTarget.description || '',
-        building: editingARTarget.building || 'S1',
-        slot_number: Number(editingARTarget.slot_number) || 1,
-        rarity: editingARTarget.rarity || 'common',
-        hint: editingARTarget.hint || '',
-        // Only send media when the admin picked a new file (data: URL); an
-        // existing URL string must be omitted so the backend keeps the file.
-        ...(typeof editingARTarget.image === 'string' && editingARTarget.image.startsWith('data:') && { image: editingARTarget.image }),
-        ...(typeof editingARTarget.model_3d === 'string' && editingARTarget.model_3d.startsWith('data:') && { model_3d: editingARTarget.model_3d }),
-      };
-      const res = await qrService.updateARTarget(editingARTarget.id, payload);
-      setArTargets(prev => prev.map(t => t.id === res.data.id ? res.data : t));
-      setNotifications(prev => [
-        { id: generateNotificationId(), text: `AR Target "${res.data.name}" updated.`, time: 'Just now' },
-        ...prev,
-      ]);
-      setEditingARTarget(null);
-    } catch (err) {
-      console.error(err);
-      const errMsg = err.response?.data ? (typeof err.response.data === 'object' ? JSON.stringify(err.response.data) : String(err.response.data)) : err.message;
-      showError(`Failed to update AR Target: ${errMsg}`, 'Error', 'error');
-    }
+    const draft = editingARTarget;
+    const original = arTargets.find(t => t.id === draft.id);
+    const payload = {
+      name: draft.name,
+      description: draft.description || '',
+      building: draft.building || 'S1',
+      slot_number: Number(draft.slot_number) || 1,
+      rarity: draft.rarity || 'common',
+      hint: draft.hint || '',
+      // Only send media when the admin picked a new file (data: URL); an
+      // existing URL string must be omitted so the backend keeps the file.
+      ...(typeof draft.image === 'string' && draft.image.startsWith('data:') && { image: draft.image }),
+      ...(typeof draft.model_3d === 'string' && draft.model_3d.startsWith('data:') && { model_3d: draft.model_3d }),
+    };
+
+    setArTargets(prev => prev.map(t => (t.id === draft.id
+      ? { ...t, ...payload, image: draft.image, model_3d: draft.model_3d, saving: true }
+      : t)));
+    setEditingARTarget(null);
+
+    qrService.updateARTarget(draft.id, payload)
+      .then((res) => {
+        setArTargets(prev => prev.map(t => (t.id === res.data.id ? res.data : t)));
+        setNotifications(prev => [
+          { id: generateNotificationId(), text: `AR Target "${res.data.name}" updated.`, time: 'Just now' },
+          ...prev,
+        ]);
+      })
+      .catch((err) => {
+        console.error(err);
+        if (original) setArTargets(prev => prev.map(t => (t.id === draft.id ? original : t)));
+        setEditingARTarget(draft);
+        showError(`Changes to "${draft.name}" could not be saved: ${arTargetErrorText(err)}. Your edits are back in the form so you can try again.`, 'AR Target Not Saved', 'error');
+      });
+  };
+
+  const arTargetIsSaving = (target) => {
+    if (!target?.saving) return false;
+    showError(`"${target.name}" is still saving. Try again in a moment.`, 'Still Saving', 'info');
+    return true;
   };
 
   const handleDeleteARTarget = async (id) => {
     const target = arTargets.find(t => t.id === id);
+    if (arTargetIsSaving(target)) return;
     if (!confirm(`Delete AR target "${target?.name}"? This cannot be undone.`)) return;
     try {
       await qrService.deleteARTarget(id);
@@ -2550,7 +2580,7 @@ function App() {
                       const rarityCfg = RARITY_CONFIG[target.rarity] || RARITY_CONFIG.common;
                       const bldCfg = BUILDING_CONFIG[target.building] || BUILDING_CONFIG.S1;
                       return (
-                      <div key={target.id} onClick={() => setSelectedARTarget(target)}
+                      <div key={target.id} onClick={() => { if (!arTargetIsSaving(target)) setSelectedARTarget(target); }}
                         title="Click to view details"
                         onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.15)'; }}
                         onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)'; }}
@@ -2567,6 +2597,12 @@ function App() {
                           <span style={{ position: 'absolute', top: '10px', left: '10px', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 9px', borderRadius: '999px', fontSize: '10px', fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase', color: '#fff', backgroundColor: PIN_TYPE_CONFIG.ar.color, boxShadow: '0 2px 6px rgba(0,0,0,0.25)' }}>
                             <Eye size={11} /> Slot #{target.slot_number || 1}
                           </span>
+                          {target.saving && (
+                            <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', backgroundColor: 'rgba(15,23,42,0.55)', color: '#fff', fontSize: '12px', fontWeight: 700, letterSpacing: '0.4px' }}>
+                              <span className="spinner" style={{ width: '14px', height: '14px', border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                              Saving…
+                            </span>
+                          )}
                           <span style={{ position: 'absolute', top: '10px', right: '10px', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 9px', borderRadius: '999px', fontSize: '10px', fontWeight: 800, letterSpacing: '0.4px', textTransform: 'uppercase', color: rarityCfg.color, backgroundColor: 'rgba(0,0,0,0.7)', border: `1px solid ${rarityCfg.color}66`, boxShadow: '0 2px 6px rgba(0,0,0,0.25)' }}>
                             <span>{rarityCfg.icon}</span> {rarityCfg.label}
                           </span>
@@ -2595,7 +2631,7 @@ function App() {
                             </div>
                           ) : null}
                           <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); setEditingARTarget(target); }}
+                            <button type="button" onClick={(e) => { e.stopPropagation(); if (!arTargetIsSaving(target)) setEditingARTarget(target); }}
                               className="btn btn-secondary" style={{ flex: 1, padding: '5px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                               <Edit size={12} /> Edit
                             </button>

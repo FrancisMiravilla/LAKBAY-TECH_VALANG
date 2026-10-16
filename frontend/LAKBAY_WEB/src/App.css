@@ -182,3 +182,6 @@
     border-right-color: var(--border);
   }
 }
+
+/* Shared spinner rotation (used by inline "spin" animations) */
+@keyframes spin { to { transform: rotate(360deg); } }
