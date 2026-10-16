@@ -87,7 +87,9 @@ class TriviaQuestionViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAdminUser]
 
     def get_queryset(self):
-        qs = TriviaQuestion.objects.select_related('spot').all()
+        qs = TriviaQuestion.objects.select_related(
+            'spot', 'icon', 'ar_target', 'generated_by', 'reviewed_by'
+        ).all()
         spot_id = self.request.query_params.get('spot')
         if spot_id:
             qs = qs.filter(spot_id=spot_id)
