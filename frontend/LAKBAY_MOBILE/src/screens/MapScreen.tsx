@@ -166,7 +166,9 @@ function ResetPitch({ when }: { when: number }) {
 }
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
-export default function MapScreen() {
+type MapScreenProps = { route?: { params?: { focusSpotId?: number } } };
+
+export default function MapScreen({ route }: MapScreenProps) {
   const insets = useSafeAreaInsets();
   const { spots, profile, loading, error } = useMapSpots();
   const userXp = profile?.xp ?? 0;
@@ -344,6 +346,18 @@ export default function MapScreen() {
       setLocating(false);
     }
   }, [isNavigating, showToast]);
+
+  // Opened from a place's detail page: fly to that spot once spots have loaded.
+  const focusSpotId = route?.params?.focusSpotId;
+  const focusedRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (focusSpotId == null || focusedRef.current === focusSpotId || spots.length === 0) return;
+    const spot = spots.find((s) => s.id === `spot-${focusSpotId}`);
+    if (!spot) return;
+    focusedRef.current = focusSpotId;
+    setFlyTarget({ coordinate: [spot.longitude, spot.latitude], zoom: 15.5, key: Date.now() });
+    openSpot(spot.id);
+  }, [focusSpotId, spots, openSpot]);
 
   // ── Search ────────────────────────────────────────────────────────────────
   const handleSearchSelect = useCallback(

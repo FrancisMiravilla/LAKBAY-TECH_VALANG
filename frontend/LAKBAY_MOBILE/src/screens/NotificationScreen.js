@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT, onWhite } from '../constants/theme';
 import VintaCard from '../components/VintaCard';
+import LucideIcon from '../components/LucideIcon';
 import { useApp } from '../context/AppContext';
 import VintaStripe from '../components/VintaStripe';
 
@@ -213,7 +214,7 @@ export default function NotificationScreen({ navigation }) {
                     {/* Left Icon Avatar */}
                     <View style={[styles.iconWrap, { backgroundColor: conf.color + '22', borderColor: conf.color + '66' }]}>
                       {n.icon ? (
-                        <Text style={styles.iconEmoji}>{n.icon}</Text>
+                        <LucideIcon name={n.icon} size={20} color={onWhite(conf.color)} />
                       ) : (
                         <Ionicons name={conf.iconName} size={20} color={onWhite(conf.color)} />
                       )}
@@ -446,9 +447,6 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     marginRight: 4,
     flexShrink: 0,
-  },
-  iconEmoji: {
-    fontSize: 20,
   },
   contentWrap: {
     flex: 1,

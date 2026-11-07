@@ -5,6 +5,7 @@ import {
   ScrollView, Animated, Easing, ActivityIndicator, ImageBackground, Modal, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import LucideIcon from '../components/LucideIcon';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT, onWhite } from '../constants/theme';
 import VintaCard from '../components/VintaCard';
@@ -291,7 +292,7 @@ export default function QRScreen({ navigation }) {
             <VintaCard>
             <View style={styles.tipItem}>
               <View style={styles.tipIconWrap}>
-                <Text style={styles.tipEmoji}>🗺️</Text>
+                <LucideIcon name="map" size={18} color={COLORS.accent} />
               </View>
               <View style={styles.tipContent}>
                 <Text style={styles.tipTitle}>Cultural Hotspots</Text>
@@ -302,7 +303,7 @@ export default function QRScreen({ navigation }) {
             <View style={styles.tipDivider} />
             <View style={styles.tipItem}>
               <View style={styles.tipIconWrap}>
-                <Text style={styles.tipEmoji}>🧠</Text>
+                <LucideIcon name="brain" size={18} color={COLORS.accent} />
               </View>
               <View style={styles.tipContent}>
                 <Text style={styles.tipTitle}>Trivia Challenges</Text>
@@ -313,7 +314,7 @@ export default function QRScreen({ navigation }) {
             <View style={styles.tipDivider} />
             <View style={styles.tipItem}>
               <View style={styles.tipIconWrap}>
-                <Text style={styles.tipEmoji}>🎓</Text>
+                <LucideIcon name="graduation" size={18} color={COLORS.accent} />
               </View>
               <View style={styles.tipContent}>
                 <Text style={styles.tipTitle}>Explorer Certification</Text>
@@ -939,9 +940,6 @@ const styles = StyleSheet.create({
     borderColor: COLORS.accentBorder,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  tipEmoji: {
-    fontSize: 18,
   },
   tipContent: {
     flex: 1,

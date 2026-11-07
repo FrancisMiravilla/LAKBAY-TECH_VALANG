@@ -20,6 +20,7 @@ import { authService } from '../api/authService';
 import ErrorModal from '../components/ErrorModal';
 import VintaStripe from '../components/VintaStripe';
 import { ARNavCards, ARGroundPath, ARRoundButtons } from '../components/ARGuidance';
+import LucideIcon from '../components/LucideIcon';
 import { Svg, Polygon, Path, Circle, G, Defs, LinearGradient, Stop, Line, ClipPath } from 'react-native-svg';
 
 const { width: W, height: H } = Dimensions.get('window');
@@ -1047,9 +1048,8 @@ function ProximitySheet({ spot, icon, distanceM, isAlreadyCaught, onCatch, onDis
               pointerEvents="none"
             />
           ) : (
-            /* Fallback: use a styled emoji or fish icon */
             <View style={proximityStyles.fallbackIconWrap}>
-              <Text style={proximityStyles.fallbackEmoji}>🐟</Text>
+              <LucideIcon name="fish" size={52} color={onWhite(icon.color)} strokeWidth={1.8} />
             </View>
           )}
         </Animated.View>
@@ -1071,7 +1071,10 @@ function ProximitySheet({ spot, icon, distanceM, isAlreadyCaught, onCatch, onDis
         <Text style={proximityStyles.sheetTitle}>
           {isAlreadyCaught ? `${icon.name}\nAlready Caught!` : `${icon.name} is\nnearby!`}
         </Text>
-        <Text style={proximityStyles.sheetLocation}>📍 {spot.location_name || spot.name}</Text>
+        <View style={proximityStyles.sheetLocationRow}>
+          <LucideIcon name="pin" size={13} color={COLORS.textMuted} />
+          <Text style={[proximityStyles.sheetLocation, { marginBottom: 0 }]}>{spot.location_name || spot.name}</Text>
+        </View>
         <Text style={proximityStyles.sheetDesc}>
           {isAlreadyCaught
             ? 'You have already caught and mastered this cultural model in your Journey collection. You can still inspect it in AR anytime.'
@@ -1316,7 +1319,7 @@ export default function CatchScreen({ navigation }) {
 
         addNotification({
           type: 'catch',
-          icon: '✨',
+          icon: 'sparkles',
           title: 'Model Caught!',
           sub: `${newEntry.name} caught and added to your Badges collection! +150 XP`,
         });
@@ -1452,7 +1455,7 @@ export default function CatchScreen({ navigation }) {
               <View style={styles.progressFooter}>
                 <Text style={styles.progressSubText}>
                   {caughtCount === totalCatchIcons
-                    ? '🎉 Master Collector Trophy Achieved!'
+                    ? 'Master Collector Trophy Achieved!'
                     : `Collect ${totalCatchIcons - caughtCount} more icons to complete the set (+80 XP each)`}
                 </Text>
               </View>
@@ -2020,7 +2023,6 @@ const proximityStyles = StyleSheet.create({
     width: 110, height: 110,
     justifyContent: 'center', alignItems: 'center',
   },
-  fallbackEmoji: { fontSize: 52 },
   modelLabel: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 10, paddingVertical: 4,
@@ -2034,6 +2036,7 @@ const proximityStyles = StyleSheet.create({
   },
   distanceText: { fontFamily: FONTS.bold, fontSize: 12, color: '#16A34A' },
   sheetTitle: { fontFamily: FONTS.bold, fontSize: 26, color: COLORS.navy, textAlign: 'center', lineHeight: 34, marginBottom: 6 },
+  sheetLocationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 14 },
   sheetLocation: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMuted, marginBottom: 14 },
   sheetDesc: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textSub, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
   catchBtn: {

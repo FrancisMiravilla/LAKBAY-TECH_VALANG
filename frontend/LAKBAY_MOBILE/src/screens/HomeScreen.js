@@ -1,11 +1,16 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   StyleSheet, Text, View, ScrollView, TouchableOpacity,
   StatusBar, Animated, Image, ImageBackground, Dimensions,
 } from 'react-native';
-import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT, onWhite } from '../constants/theme';
+import { COLORS, FONTS, SHADOW, BG_OVERLAY, GOLD_TEXT, GUIDE_FONTS, onWhite } from '../constants/theme';
 import VintaCard from '../components/VintaCard';
+import LucideIcon from '../components/LucideIcon';
+import PlaceDeck from '../components/PlaceDeck';
+import GuideWelcome from '../components/GuideWelcome';
+import GuideGreetingModal from '../components/GuideGreetingModal';
+import { SPOT_TYPES } from '../constants/mapConfig';
 import { Ionicons } from '@expo/vector-icons';
 import CustomModal from '../components/CustomModal';
 import DailyStreakModal from '../components/DailyStreakModal';
@@ -15,7 +20,7 @@ import OnboardingTour from '../components/OnboardingTour';
 import { WebView } from 'react-native-webview';
 import { useApp } from '../context/AppContext';
 import { getSpots, ORIGIN } from '../api/qrService';
-import { getPublishedPromotions, getPromotions } from '../api/promotionService';
+import { getPublishedPromotions, getPromotions, getWallet } from '../api/promotionService';
 import { authService } from '../api/authService';
 import { streakService } from '../api/streakService';
 
@@ -61,14 +66,13 @@ function buildMiniMapHTML(spots, userLevel = 1) {
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
-    html,body{width:100%;height:100%;background:#080F23;overflow:hidden;}
-    #map{width:100%;height:100%;filter:saturate(1.2) brightness(0.85);}
-    .pin{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,0.95);display:flex;align-items:center;justify-content:center;}
-    .pin::after{content:'';width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.95);}
-    .pin-qr{background:#1A56DB;box-shadow:0 0 12px rgba(26,86,219,0.8),0 0 0 4px rgba(26,86,219,0.2);}
-    .pin-ar{background:#10B981;box-shadow:0 0 12px rgba(16,185,129,0.8),0 0 0 4px rgba(16,185,129,0.2);}
-    .pin-catch{background:#FBBF24;box-shadow:0 0 12px rgba(251,191,36,0.8),0 0 0 4px rgba(251,191,36,0.2);}
-    .pin.is-locked{background:#EF4444!important;box-shadow:0 0 12px rgba(239,68,68,0.8),0 0 0 4px rgba(239,68,68,0.25)!important;}
+    html,body{width:100%;height:100%;background:#DDE7F5;overflow:hidden;}
+    #map{width:100%;height:100%;}
+    .pin{width:18px;height:18px;border-radius:50%;border:3px solid #FFFFFF;box-shadow:0 2px 6px rgba(12,36,97,0.45);}
+    .pin-qr{background:${SPOT_TYPES.qr.color};}
+    .pin-ar{background:${SPOT_TYPES.ar.color};}
+    .pin-catch{background:${SPOT_TYPES.catch.color};}
+    .pin.is-locked{background:#94A3B8!important;}
   </style>
 </head>
 <body>
@@ -77,10 +81,11 @@ function buildMiniMapHTML(spots, userLevel = 1) {
 mapboxgl.accessToken = '${MAPBOX_TOKEN}';
 var map = new mapboxgl.Map({
   container: 'map',
-  style: 'mapbox://styles/mapbox/dark-v11',
+  style: 'mapbox://styles/mapbox/streets-v12',
   center: [122.07, 6.885],
-  zoom: 11,
-  interactive: false
+  zoom: 11.3,
+  interactive: false,
+  attributionControl: false
 });
 var markers = ${JSON.stringify(markers)};
 markers.forEach(function(m){
@@ -94,22 +99,31 @@ markers.forEach(function(m){
 }
 
 // ── Static Data ───────────────────────────────────────────────────────────────
-const PROMO_STATS = [
-  { value: '350+', label: 'Years of History', icon: '🏛️' },
-  { value: '3',    label: 'Cultures United',  icon: '🌐' },
-  { value: '12+',  label: 'Heritage Sites',   icon: '📍' },
+const GUIDE_IMAGE = require('../assets/guide_character.png');
+
+const MAP_LEGEND = [
+  { key: 'qr', label: 'QR' },
+  { key: 'ar', label: 'AR' },
+  { key: 'catch', label: 'Catch' },
+];
+
+// Quest tiles: the three game features; each opens its feature notice first.
+const CATEGORY_TILES = [
+  { key: 'ar',      label: 'AR Museum',  icon: 'camera',    color: COLORS.accent, bg: '#EAF1FF', qa: 'AR' },
+  { key: 'qr',      label: 'QR Discover', icon: 'search',   color: COLORS.teal,   bg: '#E7F8F1', qa: 'QR' },
+  { key: 'catch',   label: 'Catch & Win', icon: 'trophy',   color: '#D97706',     bg: '#FEF6E0', qa: 'CATCH' },
 ];
 
 const QA_CARDS = [
-  { emoji: '📷', badge: 'AR',    title: 'Augmented\nReality', color: COLORS.accent, shadow: SHADOW.accent, route: 'MindAR',  icon: 'camera',  message: 'You need to find 10 mythical models in each building where it has 3 buildings 10 for each.' },
-  { emoji: '🔍', badge: 'QR',    title: 'Scan &\nDiscover',  color: COLORS.teal,   shadow: SHADOW.card,   route: 'QR',      icon: 'scan',    message: 'This feature works only on tourist spots.' },
-  { emoji: '🏆', badge: 'CATCH', title: 'Collect\n& Win',    color: COLORS.gold,   shadow: SHADOW.gold,   route: 'Catch',   icon: 'trophy',  message: 'This only works 4 symbols to catch which are the curacha, vinta, weave, and the lantaka.' },
+  { lucide: 'camera', badge: 'AR',    title: 'Augmented\nReality', color: COLORS.accent, shadow: SHADOW.accent, route: 'MindAR',  icon: 'camera',  message: 'You need to find 10 mythical models in each building where it has 3 buildings 10 for each.' },
+  { lucide: 'search', badge: 'QR',    title: 'Scan &\nDiscover',  color: COLORS.teal,   shadow: SHADOW.card,   route: 'QR',      icon: 'scan',    message: 'This feature works only on tourist spots.' },
+  { lucide: 'trophy', badge: 'CATCH', title: 'Collect\n& Win',    color: COLORS.gold,   shadow: SHADOW.gold,   route: 'Catch',   icon: 'trophy',  message: 'This only works 4 symbols to catch which are the curacha, vinta, weave, and the lantaka.' },
 ];
 
 const TOUR_STEPS = [
   { key: 'notif', icon: 'notifications-outline', color: COLORS.gold,   title: 'Stay In The Loop',    text: 'Tap the bell anytime to see trip alerts, XP rewards, and badge unlocks.', refKey: 'bellRef' },
   { key: 'map',   icon: 'map-outline',            color: COLORS.accent, title: 'Explore The Map',     text: 'This live map shows every heritage site in Zamboanga City. Tap it to open the full interactive map and start planning your route.', refKey: 'mapCardRef' },
-  { key: 'quick', icon: 'flash-outline',          color: COLORS.teal,   title: 'Quick Access Quests', text: 'Scan QR codes at tourist spots, catch hidden cultural symbols, and unlock AR exhibits at the museum — every action earns you XP!', refKey: 'qaRowRef' },
+  { key: 'quick', icon: 'flash-outline',          color: COLORS.teal,   title: 'Choose Your Quest',   text: 'Pick a quest: scan QR codes at tourist spots, catch hidden cultural symbols, and unlock AR exhibits at the museum — every action earns you XP!', refKey: 'qaRowRef' },
   { key: 'tabs',  icon: 'trophy-outline',         color: COLORS.gold,   title: 'Track Your Journey',  text: "Visit the Badges tab to see what you've unlocked, or Profile to check your level, XP bar, and explorer identity.", getRect: (insets, w, h) => { const tabBarHeight = 70 + insets.bottom; return { x: 8, y: h - tabBarHeight + 4, width: w - 16, height: tabBarHeight - 8 }; } },
   { key: 'done',  icon: 'rocket-outline',         color: COLORS.accent, title: "You're All Set!",      text: 'Time to start exploring Zamboanga City. Good luck, explorer!', ctaLabel: "Let's Go!" },
 ];
@@ -127,7 +141,12 @@ export default function HomeScreen({ navigation, route }) {
   const userLevel = Math.floor(userXp / 100) + 1;
   const [featuredPlaces, setFeaturedPlaces] = useState([]);
   const [promotedPlaces, setPromotedPlaces] = useState([]);
+  const [coins, setCoins] = useState(null);
   const [showTour, setShowTour] = useState(false);
+  // Guide greeting right after login; the streak reward waits until it closes.
+  const greetingPending = useRef(!!route?.params?.justLoggedIn);
+  const streakAfterGreeting = useRef(false);
+  const [greetingVisible, setGreetingVisible] = useState(false);
   const [streakData, setStreakData] = useState({ streak: 1, claimedToday: false, canClaim: false });
   const [streakModalVisible, setStreakModalVisible] = useState(false);
   const [claimingStreak, setClaimingStreak] = useState(false);
@@ -138,9 +157,9 @@ export default function HomeScreen({ navigation, route }) {
 
   const categoryTabs = useMemo(() => [
     { id: 'all', label: 'All', icon: 'sparkles', count: spots.length + promotedPlaces.length, color: COLORS.accent },
-    { id: 'qr', label: 'QR Discovery', icon: 'qr-code-outline', count: spots.filter(s => s.feature_types?.includes('qr')).length, color: COLORS.teal },
-    { id: 'catch', label: 'Catch Zones', icon: 'trophy-outline', count: spots.filter(s => s.feature_types?.includes('catch')).length, color: COLORS.gold },
-    { id: 'ar', label: 'AR Museum', icon: 'cube-outline', count: spots.filter(s => s.feature_types?.includes('ar')).length, color: '#A855F7' },
+    { id: 'qr', label: 'QR', icon: 'qr-code-outline', count: spots.filter(s => s.feature_types?.includes('qr')).length, color: COLORS.teal },
+    { id: 'catch', label: 'Catch', icon: 'trophy-outline', count: spots.filter(s => s.feature_types?.includes('catch')).length, color: COLORS.gold },
+    { id: 'ar', label: 'AR', icon: 'cube-outline', count: spots.filter(s => s.feature_types?.includes('ar')).length, color: '#A855F7' },
     ...(promotedPlaces.length > 0 ? [{ id: 'sponsored', label: 'Sponsored', icon: 'megaphone-outline', count: promotedPlaces.length, color: '#F59E0B' }] : []),
   ], [spots, promotedPlaces]);
 
@@ -152,9 +171,115 @@ export default function HomeScreen({ navigation, route }) {
     return [...spots].sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0));
   }, [spots, selectedCategory]);
 
-  const shouldShowSponsored = selectedCategory === 'all' || selectedCategory === 'sponsored';
-  const displayedSponsored  = shouldShowSponsored ? promotedPlaces : [];
-  const displayTotalCount   = displayedPlaces.length + displayedSponsored.length;
+  const displayedSponsored = useMemo(
+    () => (selectedCategory === 'all' || selectedCategory === 'sponsored' ? promotedPlaces : []),
+    [selectedCategory, promotedPlaces]
+  );
+
+  const openPlace = useCallback(
+    (place) => navigation.navigate('Details', { destination: place.destination, userLevel }),
+    [navigation, userLevel]
+  );
+
+  // Featured quest card rotates every 5 s: admin-featured spots the player can
+  // enter; if fewer than two, every open spot (featured first) so it still cycles.
+  const featuredList = useMemo(() => {
+    const open = spots.filter((s) => !s.required_level || s.required_level <= userLevel);
+    const featured = open.filter((s) => s.is_featured);
+    if (featured.length >= 2) return featured;
+    const rest = open.filter((s) => !s.is_featured);
+    const list = [...featured, ...rest];
+    return list.length ? list : spots.slice(0, 1);
+  }, [spots, userLevel]);
+  const [featuredIndex, setFeaturedIndex] = useState(0);
+  const featureFade = useRef(new Animated.Value(1)).current;
+  const featuredSpot = featuredList.length ? featuredList[featuredIndex % featuredList.length] : null;
+
+  useEffect(() => {
+    if (featuredList.length < 2) return undefined;
+    const id = setInterval(() => {
+      Animated.timing(featureFade, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => {
+        setFeaturedIndex((i) => (i + 1) % featuredList.length);
+        Animated.timing(featureFade, { toValue: 1, duration: 320, useNativeDriver: true }).start();
+      });
+    }, 5000);
+    return () => clearInterval(id);
+  }, [featuredList.length, featureFade]);
+
+  // Cards for the Places to Experience deck (sponsored first, then spots).
+  const deckPlaces = useMemo(() => {
+    const TYPE = {
+      qr:    { label: 'QR DISCOVERY',  icon: 'search', color: COLORS.teal },
+      ar:    { label: 'AR EXPERIENCE', icon: 'camera', color: '#7EA6FF' },
+      catch: { label: 'COLLECT & WIN', icon: 'trophy', color: COLORS.gold },
+    };
+    const sponsored = displayedSponsored.map((p) => {
+      const image = formatImageUrl(p.image_file);
+      return {
+        key: `promo-${p.id}`,
+        title: p.spot_name,
+        image,
+        typeLabel: 'SPONSORED',
+        typeIcon: 'megaphone',
+        color: COLORS.gold,
+        locked: false,
+        tiles: [
+          { icon: 'megaphone', label: 'Listing', value: 'Sponsored' },
+          { icon: 'pin', label: 'Location', value: p.is_place ? 'Place' : 'Business' },
+          { icon: 'compass', label: 'Activity', value: 'Visit & Discover' },
+          { icon: 'star', label: 'Status', value: 'Featured' },
+        ],
+        destination: {
+          title: p.spot_name,
+          location: 'Promoted Place',
+          description: p.description,
+          images: [image],
+          latitude: p.latitude,
+          longitude: p.longitude,
+          sponsored: true,
+        },
+      };
+    });
+    const places = displayedPlaces.map((d) => {
+      const primaryType = d.feature_types?.[0] || 'qr';
+      const t = TYPE[primaryType] || TYPE.qr;
+      const isLocked = !!d.required_level && d.required_level > userLevel;
+      const images = [d.image, d.image2, d.image3].filter(Boolean).map(formatImageUrl);
+      return {
+        key: `spot-${d.id}`,
+        title: d.name,
+        image: images[0] || null,
+        typeLabel: t.label,
+        typeIcon: t.icon,
+        color: t.color,
+        locked: isLocked,
+        tiles: [
+          { icon: t.icon, label: 'Quest', value: (d.feature_types || [primaryType]).map((f) => f.toUpperCase()).join(' · ') },
+          { icon: 'zap', label: 'Reward', value: `+${d.xp_reward || 50} XP` },
+          { icon: isLocked ? 'lock' : 'shield', label: 'Level', value: isLocked ? `Locked · Lv ${d.required_level}` : `Lv ${d.required_level || 1}` },
+          { icon: 'pin', label: 'Location', value: d.location_name || 'Zamboanga City' },
+        ],
+        destination: {
+          id: d.id,
+          title: d.name,
+          location: d.location_name,
+          description: d.description,
+          historical_background: d.historical_background,
+          cultural_significance: d.cultural_significance,
+          fun_fact: d.fun_fact,
+          image: images[0] || null,
+          images,
+          feature_types: d.feature_types || [],
+          required_level: d.required_level,
+          xp_reward: d.xp_reward,
+          is_featured: d.is_featured,
+          latitude: d.latitude,
+          longitude: d.longitude,
+        },
+      };
+    });
+    return [...sponsored, ...places];
+  }, [displayedSponsored, displayedPlaces, userLevel]);
 
   const bellRef    = useRef(null);
   const mapCardRef = useRef(null);
@@ -170,11 +295,12 @@ export default function HomeScreen({ navigation, route }) {
           authService.getProfile().catch(() => null),
         ]);
         if (profileData) setProfile(profileData);
+        getWallet().then((w) => setCoins(w?.balance ?? 0)).catch(() => {});
         const allSpots = Array.isArray(data) ? data : (data.results || []);
         setSpots(allSpots);
         setFeaturedPlaces(allSpots.filter(s => s.is_featured));
         if (prevSpotCountRef.current > 0 && allSpots.length > prevSpotCountRef.current) {
-          addNotification({ type: 'admin', icon: '📍', title: 'New Place Added!', sub: 'The admin just posted a new place to experience. Check it out on the map!' });
+          addNotification({ type: 'admin', icon: 'pin', title: 'New Place Added!', sub: 'The admin just posted a new place to experience. Check it out on the map!' });
         }
         prevSpotCountRef.current = allSpots.length;
         const promoData = await getPublishedPromotions();
@@ -192,7 +318,7 @@ export default function HomeScreen({ navigation, route }) {
                 addNotification({
                   id: notifId,
                   type: 'promo',
-                  icon: '🎉',
+                  icon: 'party',
                   title: 'Promotion Approved!',
                   sub: `"${p.spot_name}" was approved by admin! Tap to pay with coins & publish.`,
                   screen: 'MyPromotions',
@@ -214,9 +340,13 @@ export default function HomeScreen({ navigation, route }) {
         const streakInfo = await streakService.recordLoginStreak();
         setStreakData(streakInfo);
         if (streakInfo.canClaim) {
-          setTimeout(() => {
-            setStreakModalVisible(true);
-          }, 700);
+          if (greetingPending.current) {
+            streakAfterGreeting.current = true;
+          } else {
+            setTimeout(() => {
+              setStreakModalVisible(true);
+            }, 700);
+          }
         }
       } catch (err) {
         console.log('Streak check error:', err);
@@ -237,7 +367,7 @@ export default function HomeScreen({ navigation, route }) {
         setProfile(prev => prev ? { ...prev, xp: (prev.xp || 0) + 10 } : prev);
         addNotification({
           type: 'xp',
-          icon: '🔥',
+          icon: 'flame',
           title: 'Daily Streak Bonus!',
           sub: `You claimed +10 XP for Day ${streakData.streak} login streak!`,
         });
@@ -253,6 +383,30 @@ export default function HomeScreen({ navigation, route }) {
       Animated.timing(heroSlide, { toValue: 0, duration: 800, useNativeDriver: true }),
     ]).start();
   }, []);
+
+  // Show the guide once the profile (IGN) is in, or after 3 s if it is slow.
+  useEffect(() => {
+    if (!greetingPending.current) return undefined;
+    const open = () => {
+      if (!greetingPending.current) return;
+      greetingPending.current = false;
+      setGreetingVisible(true);
+    };
+    if (profile) {
+      const t = setTimeout(open, 350);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(open, 3000);
+    return () => clearTimeout(t);
+  }, [profile]);
+
+  const closeGreeting = () => {
+    setGreetingVisible(false);
+    if (streakAfterGreeting.current) {
+      streakAfterGreeting.current = false;
+      setTimeout(() => setStreakModalVisible(true), 400);
+    }
+  };
 
   useEffect(() => {
     if (route?.params?.showOnboarding) {
@@ -274,24 +428,23 @@ export default function HomeScreen({ navigation, route }) {
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-        {/* ── Header ── */}
+        {/* ── Top bar: notifications + XP / coins ── */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Ionicons name="sparkles" size={18} color={COLORS.gold} style={{ marginRight: 6 }} />
-            <View>
-              <Text style={styles.logoTitle}>LAKBAY</Text>
-              <Text style={styles.logoSub}>ZAMBOANGA CITY</Text>
-            </View>
-          </View>
-          <View style={styles.headerRight}>
-            <TouchableOpacity
-              ref={bellRef}
-              style={styles.headerBtn}
-              onPress={() => navigation.navigate('Notifications')}
-            >
-              <Ionicons name="notifications-outline" size={20} color="#FFF" />
-              {notifs.some(n => !n.read) && <View style={styles.unreadBadge} />}
-            </TouchableOpacity>
+          <TouchableOpacity
+            ref={bellRef}
+            style={styles.headerBtn}
+            onPress={() => navigation.navigate('Notifications')}
+            accessibilityLabel="Notifications"
+          >
+            <Ionicons name="notifications-outline" size={20} color="#FFF" />
+            {notifs.some(n => !n.read) && <View style={styles.unreadBadge} />}
+          </TouchableOpacity>
+          <View style={styles.statsPill}>
+            <LucideIcon name="zap" size={15} color={COLORS.gold} />
+            <Text style={styles.statsPillText}>{userXp.toLocaleString()}</Text>
+            <View style={styles.statsPillDivider} />
+            <Ionicons name="logo-bitcoin" size={15} color={COLORS.gold} />
+            <Text style={styles.statsPillText}>{(coins ?? 0).toLocaleString()}</Text>
           </View>
         </View>
         <VintaStripe height={4} />
@@ -300,116 +453,114 @@ export default function HomeScreen({ navigation, route }) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.scroll, { paddingBottom: tabBarSpace }]}
         >
-
-          {/* ── Hero Banner ── */}
-          <Animated.View
-            style={[styles.heroBanner, { opacity: heroFade, transform: [{ translateY: heroSlide }] }]}
-          >
-            <VintaCard contentStyle={styles.heroGlass}>
-
-              <View style={styles.heroContent}>
-                <View style={styles.heroEyebrowRow}>
-                  <View style={styles.heroEyebrowDot} />
-                  <Text style={styles.heroEyebrow}>CITY OF COLORS  ✦  ZAMBOANGA</Text>
-                </View>
-
-                <Text style={styles.heroTitle}>DISCOVER{'\n'}ZAMBOANGA</Text>
-
-                <Text style={styles.heroDesc}>
-                  Explore heritage, culture and hidden gems through immersive AR experiences and guided trails.
-                </Text>
-
-                <View style={styles.pills}>
-                  {[
-                    { label: 'Heritage', icon: '🏛️', color: COLORS.accent },
-                    { label: 'Culture',  icon: '🎨', color: COLORS.teal   },
-                    { label: 'Adventure',icon: '⚡', color: COLORS.gold   },
-                  ].map((p) => (
-                    <View key={p.label} style={[styles.pill, { borderColor: p.color + '55', backgroundColor: p.color + '18' }]}>
-                      <Text style={styles.pillIcon}>{p.icon}</Text>
-                      <Text style={[styles.pillText, { color: onWhite(p.color) }]}>{p.label}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              {/* Bottom XP tease strip */}
-              <View style={styles.heroXpStrip}>
-                <Ionicons name="flash" size={13} color={GOLD_TEXT} />
-                <Text style={styles.heroXpText}>Earn XP by exploring real-world cultural sites</Text>
-                <View style={styles.heroXpBadge}>
-                  <Text style={styles.heroXpBadgeText}>START →</Text>
-                </View>
-              </View>
-            </VintaCard>
+          {/* ── Guide welcome ── */}
+          <Animated.View style={{ opacity: heroFade, transform: [{ translateY: heroSlide }] }}>
+            <GuideWelcome />
           </Animated.View>
 
-          {/* ── Quick Access ── */}
+          {/* ── Choose Your Quest (category tiles) ── */}
           <View style={styles.section}>
-            <View style={styles.sectionTitleRow}>
-              <View style={styles.accentBar} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.sectionEyebrow}>⚔  ACTIVE QUESTS</Text>
-                <Text style={styles.sectionTitle}>Quick Access</Text>
+            <View style={styles.placesHeader}>
+              <View style={styles.categoryTitleRow}>
+                <Text style={styles.guideSectionTitle}>Choose Your Quest</Text>
+                <View style={styles.countBadge}>
+                  <Text style={styles.countBadgeText}>{spots.length}</Text>
+                </View>
               </View>
+              <TouchableOpacity onPress={() => navigation.navigate('Map')} hitSlop={8} style={styles.viewAllRow}>
+                <Text style={[styles.seeAllText, { fontFamily: GUIDE_FONTS.semiBold, fontSize: 13 }]}>View all</Text>
+                <Ionicons name="chevron-forward" size={14} color={COLORS.gold} />
+              </TouchableOpacity>
             </View>
 
-            <View ref={qaRowRef} style={styles.qaRow}>
-              {QA_CARDS.map((qa) => (
+            <View ref={qaRowRef} collapsable={false} style={styles.catRow}>
+              {CATEGORY_TILES.map((tile) => (
                 <TouchableOpacity
-                  key={qa.badge}
-                  style={styles.qaTouch}
-                  activeOpacity={0.82}
-                  onPress={() => { setSelectedQa(qa); setModalVisible(true); }}
+                  key={tile.key}
+                  style={[styles.catTile, { backgroundColor: tile.bg, borderColor: tile.color + '55' }]}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    const qa = QA_CARDS.find((q) => q.badge === tile.qa);
+                    if (qa) { setSelectedQa(qa); setModalVisible(true); }
+                    else navigation.navigate(tile.route);
+                  }}
                 >
-                  <VintaCard style={styles.qaFrame} contentStyle={styles.qaCard}>
-
-                  <View style={styles.qaIconWrap}>
-                    <View style={[styles.qaIconCircle, { backgroundColor: qa.color + '22', borderColor: qa.color + '55' }]}>
-                      <Text style={styles.qaIconText}>{qa.emoji}</Text>
-                    </View>
+                  <View style={[styles.catIcon, { backgroundColor: tile.color }]}>
+                    <LucideIcon name={tile.icon} size={24} color="#FFFFFF" />
                   </View>
-
-                  <View style={[styles.qaBadgePill, { backgroundColor: qa.color + '22', borderColor: qa.color + '55' }]}>
-                    <Text style={[styles.qaBadge, { color: onWhite(qa.color) }]}>{qa.badge}</Text>
-                  </View>
-
-                  <Text style={styles.qaTitle}>{qa.title}</Text>
-                  <View style={[styles.qaAccentLine, { backgroundColor: qa.color }]} />
-
-                  <View style={[styles.qaArrow, { backgroundColor: qa.color + '18', borderColor: qa.color + '44' }]}>
-                    <Ionicons name="arrow-forward" size={10} color={onWhite(qa.color)} />
-                  </View>
-                  </VintaCard>
+                  <Text style={[styles.catLabel, { color: onWhite(tile.color) }]} numberOfLines={1}>{tile.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
-          {/* ── Explore Map ── */}
+          {/* ── Featured quest card ── */}
+          {featuredSpot && (
+            <View style={styles.section}>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => {
+                  const place = deckPlaces.find((p) => p.key === `spot-${featuredSpot.id}`);
+                  if (place) navigation.navigate('Details', { destination: place.destination, userLevel });
+                }}
+              >
+                <VintaCard contentStyle={styles.featureCard}>
+                  <Animated.View style={{ opacity: featureFade }}>
+                  <View style={styles.featureTop}>
+                    <View style={styles.featureChip}>
+                      <LucideIcon name="zap" size={13} color={GOLD_TEXT} />
+                      <Text style={styles.featureChipText}>+{featuredSpot.xp_reward || 50}</Text>
+                    </View>
+                    <View style={styles.featureChip}>
+                      <LucideIcon name="shield" size={13} color={COLORS.teal} />
+                      <Text style={styles.featureChipText}>Lv {featuredSpot.required_level || 1}</Text>
+                    </View>
+                    <View style={styles.flameBtn}>
+                      <LucideIcon name="flame" size={20} color="#F97316" />
+                    </View>
+                  </View>
+                  <View style={styles.featureBody}>
+                    <Image source={GUIDE_IMAGE} style={styles.featureGuide} resizeMode="contain" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.featureKicker}>{featuredSpot.is_featured ? 'Featured Quest' : 'Quest Unlocked'}</Text>
+                      <Text style={styles.featureTitle} numberOfLines={2}>{featuredSpot.name}</Text>
+                      <Text style={styles.featureDesc} numberOfLines={3}>
+                        {featuredSpot.description || 'Visit this spot to discover its story and earn XP.'}
+                      </Text>
+                    </View>
+                  </View>
+                  </Animated.View>
+                  {featuredList.length > 1 && (
+                    <View style={styles.featureDots}>
+                      {featuredList.map((s, i) => (
+                        <View
+                          key={s.id}
+                          style={[styles.featureDot, i === featuredIndex % featuredList.length && styles.featureDotActive]}
+                        />
+                      ))}
+                    </View>
+                  )}
+                </VintaCard>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* ── Explore Zamboanga (map preview) ── */}
           <View style={styles.section}>
-            <View style={styles.sectionTitleRow}>
-              <View style={styles.accentBar} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.sectionEyebrow}>🗺  FIELD MAP</Text>
-                <Text style={styles.sectionTitle}>Explore Zamboanga</Text>
-              </View>
-              <View style={styles.mapLiveBadge}>
-                <View style={styles.mapLiveDot} />
-                <Text style={styles.mapLiveText}>LIVE</Text>
-              </View>
-              <TouchableOpacity onPress={() => navigation.navigate('Map')} style={styles.mapViewAllBtn}>
-                <Ionicons name="chevron-forward" size={13} color={COLORS.accent} />
+            <View style={styles.placesHeader}>
+              <Text style={[styles.guideSectionTitle, { flex: 1 }]}>Explore Zamboanga</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Map')} hitSlop={8} style={styles.viewAllRow}>
+                <Text style={[styles.seeAllText, { fontFamily: GUIDE_FONTS.semiBold, fontSize: 13 }]}>Open map</Text>
+                <Ionicons name="chevron-forward" size={14} color={COLORS.gold} />
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity
               ref={mapCardRef}
-              style={styles.mapTouch}
               activeOpacity={0.92}
               onPress={() => navigation.navigate('Map')}
+              style={styles.mapCard}
             >
-              <VintaCard style={styles.mapFrame} contentStyle={styles.mapCard}>
               <WebView
                 source={{ html: buildMiniMapHTML(spots, userLevel), baseUrl: 'https://localhost' }}
                 style={styles.map}
@@ -421,143 +572,76 @@ export default function HomeScreen({ navigation, route }) {
                 pointerEvents="none"
               />
 
-              {/* HUD top-left: coordinates */}
-              <View style={styles.mapHudCoords} pointerEvents="none">
-                <Text style={styles.mapHudCoordsText}>6°54′N  122°4′E</Text>
+              <View style={styles.mapTopRow} pointerEvents="none">
+                <View style={styles.mapGlassChip}>
+                  <LucideIcon name="pin" size={14} color="#FFFFFF" />
+                  <Text style={styles.mapGlassText}>Zamboanga City</Text>
+                </View>
+                <View style={styles.mapGlassRound}>
+                  <LucideIcon name="compass" size={18} color="#FFFFFF" />
+                </View>
               </View>
 
-              {/* HUD top-right: compass */}
-              <View style={styles.mapCompass} pointerEvents="none">
-                <Text style={styles.mapCompassLabel}>N</Text>
-                <Text style={styles.mapCompassArrow}>↑</Text>
-              </View>
-
-              {/* Radar rings */}
-              <View style={styles.mapRadarRing1} pointerEvents="none" />
-              <View style={styles.mapRadarRing2} pointerEvents="none" />
-
-              {/* Top dark fade */}
-              <View style={styles.mapTopFade} pointerEvents="none" />
-
-              {/* Spot count chips */}
-              <View style={styles.mapHudChips} pointerEvents="none">
-                {[
-                  { label: 'QR',    color: COLORS.accent, count: spots.filter(s => s.feature_types?.includes('qr')).length    || '?' },
-                  { label: 'AR',    color: COLORS.teal,   count: spots.filter(s => s.feature_types?.includes('ar')).length    || '?' },
-                  { label: 'CATCH', color: COLORS.gold,   count: spots.filter(s => s.feature_types?.includes('catch')).length || '?' },
-                ].map(chip => (
-                  <View key={chip.label} style={[styles.mapHudChip, { borderColor: chip.color + '88', backgroundColor: chip.color + '22' }]}>
-                    <View style={[styles.mapHudChipDot, { backgroundColor: chip.color }]} />
-                    <Text style={[styles.mapHudChipCount, { color: chip.color }]}>{chip.count}</Text>
-                    <Text style={styles.mapHudChipLabel}>{chip.label}</Text>
+              <View style={styles.mapPanel} pointerEvents="none">
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.mapPanelTitle}>{spots.length} heritage spots near you</Text>
+                  <View style={styles.mapLegend}>
+                    {MAP_LEGEND.map((t) => (
+                      <View key={t.key} style={styles.mapLegendItem}>
+                        <View style={[styles.mapLegendDot, { backgroundColor: SPOT_TYPES[t.key].color }]} />
+                        <Text style={styles.mapLegendText}>
+                          {spots.filter((s) => s.feature_types?.includes(t.key)).length} {t.label}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
-                ))}
+                </View>
+                <View style={styles.mapGoBtn}>
+                  <Ionicons name="navigate" size={20} color="#FFFFFF" />
+                </View>
               </View>
-
-              {/* Bottom fade */}
-              <View style={styles.mapBottomFade} pointerEvents="none" />
-
-              {/* CTA pill */}
-              <View style={styles.mapTapPill} pointerEvents="none">
-                <Ionicons name="navigate" size={14} color="#FFF" />
-                <Text style={styles.mapTapText}>OPEN WORLD MAP</Text>
-                <Ionicons name="arrow-forward" size={14} color="#FFF" />
-              </View>
-              </VintaCard>
             </TouchableOpacity>
           </View>
 
-          {/* ── Welcome Zamboanga Banner ── */}
-          <View style={styles.section}>
-            <VintaCard style={styles.welcomeFrame} contentStyle={styles.welcomeGlass}>
-
-              <View style={styles.welcomeContent}>
-                <Text style={styles.welcomeEyebrow}>✦  BIENVENIDOS A  ✦</Text>
-                <Text style={styles.welcomeCity}>ZAMBOANGA CITY</Text>
-                <Text style={styles.welcomeTagline}>
-                  &ldquo;Asia&apos;s Latin City&rdquo; — where Spanish roots, Islamic heritage, and indigenous Chavacano culture weave into one unforgettable experience.
-                </Text>
-
-                {/* Stat chips */}
-                <View style={styles.statRow}>
-                  {PROMO_STATS.map((s) => (
-                    <View key={s.label} style={styles.statChip}>
-                      <Text style={styles.statIcon}>{s.icon}</Text>
-                      <Text style={styles.statValue}>{s.value}</Text>
-                      <Text style={styles.statLabel}>{s.label}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            </VintaCard>
-          </View>
-
-          {/* ── Places to Experience ── */}
-          {/* ── Places to Experience ── */}
+          {/* ── Places to Experience (stacked card deck) ── */}
           {(promotedPlaces.length > 0 || spots.length > 0) && (
             <View style={styles.section}>
-              <View style={[styles.sectionTitleRow, { marginBottom: 14 }]}>
-                <View style={styles.accentBar} />
+              <View style={styles.placesHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.sectionEyebrow}>⚔  ACTIVE QUESTS</Text>
+                  <View style={styles.eyebrowRow}>
+                    <LucideIcon name="swords" size={11} color={COLORS.teal} />
+                    <Text style={styles.sectionEyebrow}>ACTIVE QUESTS</Text>
+                  </View>
                   <Text style={styles.sectionTitle}>Places to Experience</Text>
                 </View>
-                <View style={styles.questCountPill}>
-                  <Text style={styles.questCountText}>
-                    {displayTotalCount} {displayTotalCount === 1 ? 'Quest' : 'Quests'}
-                  </Text>
-                </View>
+                <TouchableOpacity onPress={() => navigation.navigate('Map')} hitSlop={8}>
+                  <Text style={styles.seeAllText}>See All</Text>
+                </TouchableOpacity>
               </View>
 
-              {/* Category Filter Pills */}
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                style={styles.categoryTabsScroll}
-                contentContainerStyle={styles.categoryTabsContent}
+                contentContainerStyle={styles.placeChips}
               >
                 {categoryTabs.map((tab) => {
                   const isActive = selectedCategory === tab.id;
                   return (
                     <TouchableOpacity
                       key={tab.id}
-                      style={[
-                        styles.categoryTabPill,
-                        isActive && { borderColor: COLORS.accent, backgroundColor: COLORS.accent }
-                      ]}
-                      activeOpacity={0.8}
+                      style={[styles.placeChip, isActive && styles.placeChipActive]}
+                      activeOpacity={0.85}
                       onPress={() => setSelectedCategory(tab.id)}
                     >
-                      <Ionicons
-                        name={tab.icon}
-                        size={13}
-                        color={isActive ? '#FFFFFF' : 'rgba(191,215,255,0.65)'}
-                        style={{ marginRight: 6 }}
-                      />
-                      <Text style={[
-                        styles.categoryTabText,
-                        isActive && { color: '#FFFFFF', fontFamily: FONTS.bold }
-                      ]}>
-                        {tab.label}
+                      <Text style={[styles.placeChipText, isActive && styles.placeChipTextActive]}>
+                        {tab.label} · {tab.count}
                       </Text>
-                      <View style={[
-                        styles.categoryBadgePill,
-                        isActive ? { backgroundColor: '#FFFFFF' } : { backgroundColor: 'rgba(255,255,255,0.08)' }
-                      ]}>
-                        <Text style={[
-                          styles.categoryBadgeText,
-                          isActive ? { color: COLORS.accent } : { color: 'rgba(191,215,255,0.7)' }
-                        ]}>
-                          {tab.count}
-                        </Text>
-                      </View>
                     </TouchableOpacity>
                   );
                 })}
               </ScrollView>
 
-              {/* Empty State */}
-              {displayTotalCount === 0 && (
+              {deckPlaces.length === 0 ? (
                 <VintaCard style={styles.categoryEmptyFrame} contentStyle={styles.categoryEmptyCard}>
                   <Ionicons name="compass-outline" size={38} color={COLORS.textFaint} />
                   <Text style={styles.categoryEmptyTitle}>No Quests Found</Text>
@@ -565,147 +649,12 @@ export default function HomeScreen({ navigation, route }) {
                     There are currently no active spots in this category. Check back soon for new expeditions!
                   </Text>
                 </VintaCard>
+              ) : (
+                <PlaceDeck
+                  places={deckPlaces}
+                  onOpen={openPlace}
+                />
               )}
-
-              {/* Promoted Places */}
-              {displayedSponsored.map((p) => (
-                <TouchableOpacity
-                  key={`promo-${p.id}`}
-                  style={styles.questTouch}
-                  activeOpacity={0.88}
-                  onPress={() => navigation.navigate('Details', { destination: { title: p.spot_name, location: 'Promoted Place', description: p.description, images: [formatImageUrl(p.image_file)] } })}
-                >
-                  <VintaCard contentStyle={styles.questCard}>
-                  <ImageBackground
-                    source={{ uri: formatImageUrl(p.image_file) }}
-                    style={styles.questCardImage}
-                    imageStyle={{ borderTopLeftRadius: RADIUS.lg, borderTopRightRadius: RADIUS.lg }}
-                    resizeMode="cover"
-                  >
-                    <View style={styles.questImageOverlay} />
-                    <View style={styles.questCardTopRow}>
-                      <View style={[styles.questTypeBadge, { backgroundColor: 'rgba(251,191,36,0.18)', borderColor: COLORS.gold }]}>
-                        <View style={[styles.questTypeDot, { backgroundColor: COLORS.gold }]} />
-                        <Text style={[styles.questTypeLabel, { color: COLORS.gold }]}>📣  SPONSORED</Text>
-                      </View>
-                    </View>
-                    <View style={styles.questCardImageBottom}>
-                      <Text style={styles.questCardName} numberOfLines={1}>{p.spot_name}</Text>
-                    </View>
-                  </ImageBackground>
-                  <View style={styles.questCardBody}>
-                    <Text style={styles.questCardDesc} numberOfLines={2}>{p.description}</Text>
-                    <View style={styles.questCardFooter}>
-                      <View style={styles.questObjective}>
-                        <Ionicons name="flag-outline" size={11} color={COLORS.textMuted} />
-                        <Text style={styles.questObjectiveText}>Visit & Discover</Text>
-                      </View>
-                      <View style={styles.questCtaBtn}>
-                        <Text style={styles.questCtaText}>START QUEST →</Text>
-                      </View>
-                    </View>
-                  </View>
-                  </VintaCard>
-                </TouchableOpacity>
-              ))}
-
-              {/* Categorized Places */}
-              {displayedPlaces.map((d) => {
-                const primaryType = d.feature_types && d.feature_types.length > 0 ? d.feature_types[0] : 'qr';
-                let questEmoji = '🔍', questTypeLabel = 'QR DISCOVERY', questColor = COLORS.teal;
-                if (primaryType === 'ar') { questEmoji = '📷'; questTypeLabel = 'AR EXPERIENCE'; questColor = COLORS.accent; }
-                else if (primaryType === 'catch') { questEmoji = '🏆'; questTypeLabel = 'COLLECT & WIN'; questColor = COLORS.gold; }
-                const isLocked = d.required_level && d.required_level > userLevel;
-                const imageUri = formatImageUrl(d.image);
-                return (
-                  <TouchableOpacity
-                    key={d.id}
-                    style={styles.questTouch}
-                    activeOpacity={0.88}
-                    onPress={() => {
-                      const combinedImages = [d.image, d.image2, d.image3].filter(img => img).map(formatImageUrl);
-                      navigation.navigate('Details', {
-                        destination: {
-                          title: d.name,
-                          location: d.location_name,
-                          description: d.description,
-                          historical_background: d.historical_background,
-                          cultural_significance: d.cultural_significance,
-                          fun_fact: d.fun_fact,
-                          image: imageUri,
-                          images: combinedImages,
-                          required_level: d.required_level,
-                          xp_reward: d.xp_reward,
-                        }
-                      });
-                    }}
-                  >
-                    <VintaCard contentStyle={styles.questCard}>
-                    <ImageBackground
-                      source={{ uri: imageUri }}
-                      style={styles.questCardImage}
-                      imageStyle={{ borderTopLeftRadius: RADIUS.lg, borderTopRightRadius: RADIUS.lg }}
-                      resizeMode="cover"
-                    >
-                      <View style={styles.questImageOverlay} />
-                      <View style={styles.questCardTopRow}>
-                        <View style={[styles.questTypeBadge, { backgroundColor: questColor + '22', borderColor: questColor + '88' }]}>
-                          <View style={[styles.questTypeDot, { backgroundColor: questColor }]} />
-                          <Text style={[styles.questTypeLabel, { color: questColor }]}>{questEmoji}  {questTypeLabel}</Text>
-                        </View>
-                        {isLocked ? (
-                          <View style={[styles.questTypeBadge, { backgroundColor: 'rgba(239, 68, 68, 0.22)', borderColor: 'rgba(239, 68, 68, 0.7)' }]}>
-                            <Ionicons name="lock-closed" size={11} color="#EF4444" style={{ marginRight: 3 }} />
-                            <Text style={[styles.questTypeLabel, { color: '#EF4444' }]}>LVL {d.required_level}</Text>
-                          </View>
-                        ) : d.is_featured ? (
-                          <View style={[styles.questTypeBadge, { backgroundColor: 'rgba(251, 191, 36, 0.22)', borderColor: 'rgba(251, 191, 36, 0.7)' }]}>
-                            <Ionicons name="star" size={10} color={COLORS.gold} style={{ marginRight: 3 }} />
-                            <Text style={[styles.questTypeLabel, { color: COLORS.gold }]}>FEATURED</Text>
-                          </View>
-                        ) : null}
-                      </View>
-                      <View style={styles.questCardImageBottom}>
-                        <Text style={styles.questCardName} numberOfLines={1}>{d.name}</Text>
-                      </View>
-                    </ImageBackground>
-                    <View style={styles.questCardBody}>
-                      <View style={styles.questLocationRow}>
-                        <Ionicons name="location-outline" size={11} color={onWhite(questColor)} />
-                        <Text style={[styles.questLocationText, { color: onWhite(questColor) }]} numberOfLines={1}>{d.location_name || 'Zamboanga City'}</Text>
-                      </View>
-                      <Text style={styles.questCardDesc} numberOfLines={2}>{d.description}</Text>
-                      {d.feature_types && d.feature_types.length > 1 && (
-                        <View style={styles.questTagsRow}>
-                          {d.feature_types.slice(0, 3).map((ft) => {
-                            const ftColor = ft === 'qr' ? COLORS.teal : ft === 'ar' ? COLORS.accent : COLORS.gold;
-                            const ftLabel = ft === 'qr' ? 'QR' : ft === 'ar' ? 'AR' : 'CATCH';
-                            return (
-                              <View key={ft} style={[styles.questMiniTag, { borderColor: ftColor + '66', backgroundColor: ftColor + '18' }]}>
-                                <Text style={[styles.questMiniTagText, { color: onWhite(ftColor) }]}>{ftLabel}</Text>
-                              </View>
-                            );
-                          })}
-                        </View>
-                      )}
-                      <View style={styles.questCardFooter}>
-                        <View style={styles.questObjective}>
-                          <Ionicons name="flag-outline" size={11} color={COLORS.textMuted} />
-                          <Text style={styles.questObjectiveText}>
-                            {d.xp_reward ? `+${d.xp_reward} XP • Explore` : 'Explore & Earn'}
-                          </Text>
-                        </View>
-                        <View style={[styles.questCtaBtn, isLocked && styles.questCtaBtnLocked]}>
-                          <Text style={[styles.questCtaText, isLocked && styles.questCtaTextLocked]}>
-                            {isLocked ? `LOCKED (LVL ${d.required_level})` : 'START QUEST →'}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                    </VintaCard>
-                  </TouchableOpacity>
-                );
-              })}
             </View>
           )}
 
@@ -731,6 +680,12 @@ export default function HomeScreen({ navigation, route }) {
           loading={claimingStreak}
           onClaim={handleClaimStreak}
           onClose={() => setStreakModalVisible(false)}
+        />
+
+        <GuideGreetingModal
+          visible={greetingVisible}
+          name={profile?.in_game_name}
+          onClose={closeGreeting}
         />
 
         <OnboardingTour
@@ -772,29 +727,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(99, 179, 237, 0.20)',
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  logoTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 20,
-    color: '#FFFFFF',
-    letterSpacing: 3,
-    lineHeight: 22,
-  },
-  logoSub: {
-    fontFamily: FONTS.medium,
-    fontSize: 9,
-    color: 'rgba(191,215,255,0.70)',
-    letterSpacing: 2,
-    marginTop: 1,
-  },
   headerBtn: {
     width: 38,
     height: 38,
@@ -822,18 +754,97 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 20,
   },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 14,
+  statsPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 22,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 14, paddingVertical: 8,
   },
-  accentBar: {
-    width: 4,
-    height: 22,
-    borderRadius: 2,
-    backgroundColor: COLORS.accent,
+  statsPillText: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 14, color: '#FFFFFF' },
+  statsPillDivider: { width: 1, height: 16, backgroundColor: 'rgba(255,255,255,0.3)', marginHorizontal: 4 },
+  guideSectionTitle: { fontFamily: GUIDE_FONTS.bold, fontSize: 19, color: '#FFFFFF' },
+  categoryTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  countBadge: {
+    minWidth: 30, height: 26, borderRadius: 13, paddingHorizontal: 8,
+    backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center',
   },
+  countBadgeText: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 13, color: '#FFFFFF' },
+  viewAllRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  catRow: { flexDirection: 'row', gap: 10 },
+  catTile: {
+    flex: 1, height: 108, borderRadius: 20, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center', gap: 10,
+  },
+  catIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  catLabel: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 12 },
+  featureCard: { padding: 14, backgroundColor: '#FFF8E6' },
+  featureTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  featureChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: COLORS.border,
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  featureChipText: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 12, color: COLORS.navy },
+  flameBtn: {
+    marginLeft: 'auto', width: 42, height: 42, borderRadius: 21,
+    backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: COLORS.border,
+  },
+  featureBody: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 4 },
+  featureGuide: { width: 112, height: 140, marginLeft: -8, marginBottom: -14 },
+  featureDots: { flexDirection: 'row', justifyContent: 'flex-end', gap: 5, marginTop: 10 },
+  featureDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(12,36,97,0.2)' },
+  featureDotActive: { width: 18, backgroundColor: '#D97706' },
+  featureKicker: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 12, color: '#D97706' },
+  featureTitle: { fontFamily: GUIDE_FONTS.bold, fontSize: 22, lineHeight: 27, color: COLORS.navy, marginTop: 2 },
+  featureDesc: { fontFamily: GUIDE_FONTS.regular, fontSize: 12, lineHeight: 18, color: COLORS.textSub, marginTop: 4 },
+  mapCard: {
+    height: 250, borderRadius: 28, overflow: 'hidden',
+    borderWidth: 3, borderColor: '#FFFFFF', backgroundColor: '#DDE7F5',
+    ...SHADOW.card,
+  },
+  mapTopRow: {
+    position: 'absolute', top: 12, left: 12, right: 12,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+  },
+  mapGlassChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(12,36,97,0.72)', borderRadius: 18,
+    paddingHorizontal: 12, paddingVertical: 7,
+  },
+  mapGlassText: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 12, color: '#FFFFFF' },
+  mapGlassRound: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: 'rgba(12,36,97,0.72)', alignItems: 'center', justifyContent: 'center',
+  },
+  mapPanel: {
+    position: 'absolute', left: 10, right: 10, bottom: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#FFFFFF', borderRadius: 22,
+    paddingVertical: 12, paddingLeft: 16, paddingRight: 10,
+    ...SHADOW.card,
+  },
+  mapPanelTitle: { fontFamily: GUIDE_FONTS.bold, fontSize: 15, color: COLORS.navy },
+  mapLegend: { flexDirection: 'row', gap: 12, marginTop: 6 },
+  mapLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  mapLegendDot: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: '#FFFFFF', elevation: 1 },
+  mapLegendText: { fontFamily: GUIDE_FONTS.medium, fontSize: 12, color: COLORS.textSub },
+  mapGoBtn: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center',
+    borderBottomWidth: 3, borderBottomColor: COLORS.accentDark,
+  },
+  placesHeader: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12 },
+  seeAllText: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.gold, marginBottom: 2 },
+  placeChips: { gap: 8, paddingBottom: 6, paddingRight: 8 },
+  placeChip: {
+    paddingHorizontal: 18, paddingVertical: 10, borderRadius: 22,
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: COLORS.border,
+  },
+  placeChipActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
+  placeChipText: { fontFamily: FONTS.semiBold, fontSize: 13, color: COLORS.textSub },
+  placeChipTextActive: { color: '#FFFFFF', fontFamily: FONTS.bold },
+  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   sectionEyebrow: {
     fontFamily: FONTS.semiBold,
     fontSize: 9,
@@ -848,579 +859,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  // ── Hero Banner ──────────────────────────────────────────────────────
-  heroBanner: {
-    marginHorizontal: 16,
-    marginTop: 18,
-    marginBottom: 4,
-  },
-  heroGlass: {
-    overflow: 'hidden',
-  },
-  heroContent: {
-    padding: 24,
-  },
-  heroEyebrowRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  heroEyebrowDot: {
-    width: 6, height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.teal,
-  },
-  heroEyebrow: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 9,
-    color: COLORS.teal,
-    letterSpacing: 2.5,
-    textTransform: 'uppercase',
-  },
-  heroTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 30,
-    color: COLORS.navy,
-    letterSpacing: 1,
-    lineHeight: 32,
-    marginBottom: 12,
-  },
-  heroDesc: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
-    color: COLORS.textSub,
-    lineHeight: 20,
-    marginBottom: 18,
-  },
-  pills: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  pillIcon: {
-    fontSize: 12,
-  },
-  pillText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 11,
-  },
-  heroXpStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-    backgroundColor: COLORS.bg,
-  },
-  heroXpText: {
-    flex: 1,
-    fontFamily: FONTS.medium,
-    fontSize: 11,
-    color: COLORS.textSub,
-  },
-  heroXpBadge: {
-    backgroundColor: COLORS.accent,
-    borderRadius: RADIUS.pill,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  heroXpBadgeText: {
-    fontFamily: FONTS.bold,
-    fontSize: 9,
-    color: '#FFFFFF',
-    letterSpacing: 1,
-  },
-
-  // ── Quick Access ──────────────────────────────────────────────────────
-  qaRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  qaTouch: {
-    flex: 1,
-  },
-  qaFrame: {
-    flex: 1,
-    borderRadius: RADIUS.md,
-  },
-  qaCard: {
-    flex: 1,
-    padding: 12,
-    minHeight: 130,
-  },
-  qaIconWrap: {
-    marginBottom: 10,
-  },
-  qaIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  qaIconText: {
-    fontSize: 20,
-  },
-  qaBadgePill: {
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    alignSelf: 'flex-start',
-    marginBottom: 6,
-  },
-  qaBadge: {
-    fontFamily: FONTS.black,
-    fontSize: 9,
-    letterSpacing: 1.5,
-  },
-  qaTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 13,
-    color: COLORS.navy,
-    lineHeight: 16,
-    marginBottom: 10,
-  },
-  qaAccentLine: {
-    height: 2,
-    borderRadius: 1,
-    width: '40%',
-    marginBottom: 8,
-  },
-  qaArrow: {
-    alignSelf: 'flex-end',
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // ── Map ────────────────────────────────────────────────────────────────
-  mapTouch: {
-    marginBottom: 4,
-  },
-  mapFrame: {
-    height: 240,
-  },
-  mapCard: {
-    flex: 1,
-    position: 'relative',
-  },
   map: {
     flex: 1,
-    backgroundColor: '#080F23',
-  },
-  mapTopFade: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0,
-    height: 56,
-    backgroundColor: 'rgba(8,20,60,0.20)',
-  },
-  mapBottomFade: {
-    position: 'absolute',
-    bottom: 0, left: 0, right: 0,
-    height: 72,
-    backgroundColor: 'rgba(8,20,60,0.15)',
-  },
-  mapHudCoords: {
-    position: 'absolute',
-    top: 12, left: 12,
-    backgroundColor: '#08143C',
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    paddingVertical: 4,
-    paddingHorizontal: 9,
-  },
-  mapHudCoordsText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 9,
-    color: '#FFFFFF',
-    letterSpacing: 0.8,
-  },
-  mapCompass: {
-    position: 'absolute',
-    right: 12, top: 12,
-    width: 32, height: 32,
-    borderRadius: 16,
-    backgroundColor: '#08143C',
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mapCompassLabel: {
-    fontFamily: FONTS.bold,
-    color: '#FFFFFF',
-    fontSize: 8,
-  },
-  mapCompassArrow: {
-    color: COLORS.accent,
-    fontSize: 11,
-    marginTop: -2,
-  },
-  mapRadarRing1: {
-    position: 'absolute',
-    bottom: 58, right: 16,
-    width: 60, height: 60,
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(26,86,219,0.30)',
-  },
-  mapRadarRing2: {
-    position: 'absolute',
-    bottom: 73, right: 31,
-    width: 30, height: 30,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(26,86,219,0.20)',
-  },
-  mapHudChips: {
-    position: 'absolute',
-    bottom: 60, left: 12,
-    flexDirection: 'row',
-    gap: 6,
-  },
-  mapHudChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    backgroundColor: '#08143C',
-    borderColor: '#1E3A8A',
-  },
-  mapHudChipDot: {
-    width: 5, height: 5,
-    borderRadius: 3,
-  },
-  mapHudChipCount: {
-    fontFamily: FONTS.black,
-    fontSize: 11,
-  },
-  mapHudChipLabel: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 9,
-    color: 'rgba(191,215,255,0.80)',
-    letterSpacing: 0.8,
-  },
-  mapTapPill: {
-    position: 'absolute',
-    left: 12, right: 12, bottom: 12,
-    height: 42,
-    borderRadius: RADIUS.pill,
-    backgroundColor: COLORS.accent,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    ...SHADOW.accent,
-  },
-  mapTapText: {
-    fontFamily: FONTS.bold,
-    color: '#FFF',
-    fontSize: 12,
-    letterSpacing: 1,
-  },
-  mapLiveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(239,68,68,0.12)',
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.40)',
-    paddingVertical: 4,
-    paddingHorizontal: 9,
-    marginRight: 6,
-  },
-  mapLiveDot: {
-    width: 6, height: 6,
-    borderRadius: 3,
-    backgroundColor: '#EF4444',
-  },
-  mapLiveText: {
-    fontFamily: FONTS.bold,
-    fontSize: 9,
-    color: '#EF4444',
-    letterSpacing: 1.5,
-  },
-  mapViewAllBtn: {
-    width: 28, height: 28,
-    borderRadius: 14,
-    backgroundColor: '#0C2054',
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#DDE7F5',
   },
 
-  // ── Welcome Glass Banner ───────────────────────────────────────────────
-  welcomeFrame: {
-    marginBottom: 4,
-  },
-  welcomeGlass: {
-    overflow: 'hidden',
-  },
-  welcomeContent: {
-    padding: 22,
-  },
-  welcomeEyebrow: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 9,
-    color: GOLD_TEXT,
-    letterSpacing: 3,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  welcomeCity: {
-    fontFamily: FONTS.bold,
-    fontSize: 24,
-    color: COLORS.navy,
-    letterSpacing: 1,
-    lineHeight: 28,
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  welcomeTagline: {
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: COLORS.textSub,
-    lineHeight: 19,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  statRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  statChip: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingVertical: 12,
-    alignItems: 'center',
-    gap: 2,
-  },
-  statIcon: {
-    fontSize: 16,
-    marginBottom: 2,
-  },
-  statValue: {
-    fontFamily: FONTS.black,
-    fontSize: 18,
-    color: COLORS.accent,
-    lineHeight: 22,
-  },
-  statLabel: {
-    fontFamily: FONTS.regular,
-    fontSize: 9,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    marginTop: 1,
-    letterSpacing: 0.3,
-  },
 
   // ── Quest Board ─────────────────────────────────────────────────────────
-  questCountPill: {
-    backgroundColor: '#0C2054',
-    borderRadius: RADIUS.pill,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-  },
-  questCountText: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: COLORS.accent,
-    letterSpacing: 0.5,
-  },
 
   // ── Quest Card ───────────────────────────────────────────────────
-  questTouch: {
-    marginBottom: 18,
-  },
-  questCard: {
-    overflow: 'hidden',
-  },
-  questCardImage: {
-    width: '100%',
-    height: 175,
-    justifyContent: 'space-between',
-  },
-  questImageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4,10,38,0.58)',
-    borderTopLeftRadius: RADIUS.lg,
-    borderTopRightRadius: RADIUS.lg,
-  },
-  questCardTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-  },
-  questTypeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-  },
-  questTypeDot: {
-    width: 6, height: 6,
-    borderRadius: 3,
-  },
-  questTypeLabel: {
-    fontFamily: FONTS.bold,
-    fontSize: 9,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-  },
-  questCardImageBottom: {
-    padding: 12,
-  },
-  questCardName: {
-    fontFamily: FONTS.bold,
-    fontSize: 19,
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-    lineHeight: 22,
-    textShadowColor: 'rgba(0,0,0,0.85)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
-    marginBottom: 6,
-  },
-  questCardBody: {
-    padding: 14,
-  },
-  questLocationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 6,
-  },
-  questLocationText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 11,
-    letterSpacing: 0.3,
-  },
-  questCardDesc: {
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: COLORS.textSub,
-    lineHeight: 18,
-    marginBottom: 10,
-  },
-  questTagsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 10,
-  },
-  questMiniTag: {
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    paddingVertical: 3,
-    paddingHorizontal: 9,
-  },
-  questMiniTagText: {
-    fontFamily: FONTS.bold,
-    fontSize: 9,
-    letterSpacing: 1,
-  },
-  questCardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  questObjective: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  questObjectiveText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 11,
-    color: COLORS.textMuted,
-    letterSpacing: 0.2,
-  },
-  questCtaBtn: {
-    borderRadius: RADIUS.pill,
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    backgroundColor: COLORS.accent,
-  },
-  questCtaText: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: '#FFFFFF',
-    letterSpacing: 0.8,
-  },
-  questCtaBtnLocked: {
-    backgroundColor: COLORS.borderLight,
-  },
-  questCtaTextLocked: {
-    color: COLORS.textMuted,
-  },
-  categoryTabsScroll: {
-    marginBottom: 14,
-    marginHorizontal: -16,
-  },
-  categoryTabsContent: {
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  categoryTabPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 13,
-    borderRadius: RADIUS.pill,
-    backgroundColor: 'rgba(8, 20, 56, 0.65)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  categoryTabText: {
-    fontFamily: FONTS.medium,
-    fontSize: 12,
-    color: 'rgba(191, 215, 255, 0.75)',
-    marginRight: 6,
-  },
-  categoryBadgePill: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: RADIUS.pill,
-    minWidth: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryBadgeText: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-  },
   categoryEmptyFrame: {
     marginVertical: 10,
   },

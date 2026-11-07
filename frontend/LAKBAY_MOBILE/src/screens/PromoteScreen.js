@@ -5,6 +5,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LocationPickerMap } from '../components/map/LocationPickerMap';
 import { Ionicons } from '@expo/vector-icons';
+import LucideIcon from '../components/LucideIcon';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT } from '../constants/theme';
@@ -222,7 +223,7 @@ export default function PromoteScreen({ route, navigation }) {
           isPlace,
         });
         showAlert(
-          'Promotion Updated! 🎉',
+          'Promotion Updated!',
           'Your landmark promotion and 3D model have been updated successfully.',
           [
             {
@@ -243,7 +244,7 @@ export default function PromoteScreen({ route, navigation }) {
           false // use_coins = false (submits for Admin Review)
         );
         showAlert(
-          'Submitted for Review! 🎉',
+          'Submitted for Review!',
           'Your landmark promotion has been submitted to the admin team for review.\n\nYou do not need to pay yet. Once the admin approves your spot, you will receive a notification and can pay coins to publish it live!',
           [
             {
@@ -410,7 +411,7 @@ export default function PromoteScreen({ route, navigation }) {
               </View>
               <View style={{ flex: 1, marginLeft: 14 }}>
                 <Text style={[styles.mapTriggerTitle, locationPinned && { color: '#0284C7' }]}>
-                  {locationPinned ? '📍 GPS Position Locked' : 'Open Tactical Map to Pin'}
+                  {locationPinned ? 'GPS Position Locked' : 'Open Tactical Map to Pin'}
                 </Text>
                 {locationPinned ? (
                   <Text style={styles.mapCoords}>{location.lat.toFixed(5)}°N,  {location.lng.toFixed(5)}°E</Text>
@@ -441,7 +442,10 @@ export default function PromoteScreen({ route, navigation }) {
 
             {/* Photo Upload */}
             <View style={{ marginTop: 14 }}>
-              <Text style={styles.mediaSubLabel}>📷  Cover Photo</Text>
+              <View style={styles.mediaSubLabelRow}>
+                <LucideIcon name="camera" size={15} color={COLORS.navy} />
+                <Text style={[styles.mediaSubLabel, { marginBottom: 0 }]}>Cover Photo</Text>
+              </View>
               <UploadBox
                 onPress={pickImage}
                 icon="camera-outline"
@@ -465,7 +469,10 @@ export default function PromoteScreen({ route, navigation }) {
 
             {/* 3D Model Upload */}
             <View style={{ marginTop: 14 }}>
-              <Text style={styles.mediaSubLabel}>🧊  3D AR Model (.glb / .gltf)</Text>
+              <View style={styles.mediaSubLabelRow}>
+                <LucideIcon name="box" size={15} color={COLORS.navy} />
+                <Text style={[styles.mediaSubLabel, { marginBottom: 0 }]}>3D AR Model (.glb / .gltf)</Text>
+              </View>
               <UploadBox
                 onPress={pickGlb}
                 icon="cube-outline"
@@ -792,6 +799,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular, fontSize: 11,
     color: COLORS.textMuted, marginTop: 6, lineHeight: 16,
   },
+  mediaSubLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   mediaSubLabel: {
     fontFamily: FONTS.bold, fontSize: 13,
     color: COLORS.navy, marginBottom: 8, lineHeight: 16,

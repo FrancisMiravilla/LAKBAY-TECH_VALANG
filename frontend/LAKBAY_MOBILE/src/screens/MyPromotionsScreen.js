@@ -16,16 +16,17 @@ import {
   attach3DModel,
 } from '../api/promotionService';
 import VintaStripe from '../components/VintaStripe';
+import LucideIcon from '../components/LucideIcon';
 
 import { useAppDialog } from '../components/useAppDialog';
 const getCuratorRank = (publishedCount) => {
   if (publishedCount >= 3) {
-    return { title: 'Master Landmark Architect', icon: '🏛️', color: COLORS.gold };
+    return { title: 'Master Landmark Architect', icon: 'landmark', color: COLORS.gold };
   }
   if (publishedCount >= 1) {
-    return { title: 'City Chronicler', icon: '📜', color: '#38BDF8' };
+    return { title: 'City Chronicler', icon: 'scroll', color: '#38BDF8' };
   }
-  return { title: 'Novice Scout', icon: '🧭', color: '#A78BFA' };
+  return { title: 'Novice Scout', icon: 'compass', color: '#A78BFA' };
 };
 
 export default function MyPromotionsScreen({ navigation }) {
@@ -85,7 +86,7 @@ export default function MyPromotionsScreen({ navigation }) {
       await publishPromotion(selectedPromo.id);
       setConfirmModalVisible(false);
       showAlert(
-        'Landmark Published! 🎉',
+        'Landmark Published!',
         `"${selectedPromo.spot_name}" is now live on the interactive map for all explorers across Zamboanga City!`
       );
       fetchData();
@@ -134,7 +135,7 @@ export default function MyPromotionsScreen({ navigation }) {
               try {
                 await attach3DModel(promo.id, asset.uri);
                 showAlert(
-                  '3D Model Attached! 🎉',
+                  '3D Model Attached!',
                   `"${asset.name}" has been attached to "${promo.spot_name}". Admin reviewers can now inspect the 3D model.`
                 );
                 fetchData();
@@ -299,7 +300,7 @@ export default function MyPromotionsScreen({ navigation }) {
                 2. Review
               </Text>
               <Text style={[styles.stepLabel, config.step >= 3 && { color: COLORS.navy }]}>3. Payment</Text>
-              <Text style={[styles.stepLabel, config.step >= 4 && { color: COLORS.navy }]}>4. Live 🌐</Text>
+              <Text style={[styles.stepLabel, config.step >= 4 && { color: COLORS.navy }]}>4. Live</Text>
             </View>
           </View>
 
@@ -356,7 +357,7 @@ export default function MyPromotionsScreen({ navigation }) {
                 activeOpacity={0.85}
               >
                 <Ionicons name="map-outline" size={15} color="#FFFFFF" />
-                <Text style={styles.viewMapBtnText}>View on Interactive Map 📍</Text>
+                <Text style={styles.viewMapBtnText}>View on Interactive Map</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -441,7 +442,7 @@ export default function MyPromotionsScreen({ navigation }) {
           <View style={styles.curatorTopRow}>
             <View style={styles.curatorTitleWrap}>
               <View style={[styles.curatorRankBadge, { borderColor: curatorRank.color + '66' }]}>
-                <Text style={styles.curatorRankIcon}>{curatorRank.icon}</Text>
+                <LucideIcon name={curatorRank.icon} size={18} color={onWhite(curatorRank.color)} />
               </View>
               <View>
                 <Text style={styles.curatorRankLabel}>CURATOR REPUTATION</Text>
@@ -498,7 +499,7 @@ export default function MyPromotionsScreen({ navigation }) {
             <View style={styles.emptyIconWrap}>
               <Ionicons name="compass-outline" size={50} color={GOLD_TEXT} />
             </View>
-            <Text style={styles.emptyTitle}>Begin Your Curator Quest! 🗺️</Text>
+            <Text style={styles.emptyTitle}>Begin Your Curator Quest!</Text>
             <Text style={styles.emptySub}>
               Have a favorite historical spot, landmark, or hidden gem in Zamboanga? Submit it for guild review, earn explorer prestige, and broadcast it to thousands of tourists!
             </Text>
@@ -657,7 +658,10 @@ export default function MyPromotionsScreen({ navigation }) {
                   {publishing ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
-                    <Text style={styles.modalBtnConfirmText}>Pay {publishCost} Coins 🚀</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.modalBtnConfirmText}>Pay {publishCost} Coins</Text>
+                      <LucideIcon name="rocket" size={15} color="#FFFFFF" />
+                    </View>
                   )}
                 </TouchableOpacity>
               </View>
@@ -777,7 +781,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  curatorRankIcon: { fontSize: 18 },
   curatorRankLabel: {
     fontFamily: FONTS.medium,
     fontSize: 10,

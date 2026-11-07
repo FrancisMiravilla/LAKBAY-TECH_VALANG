@@ -8,12 +8,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT, onWhite } from '../constants/theme';
+import { Svg, Path } from 'react-native-svg';
+import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT } from '../constants/theme';
 import VintaCard from '../components/VintaCard';
-import { getSpotTrivia, getIconTrivia, awardSpotBadge } from '../api/qrService';
+import LucideIcon from '../components/LucideIcon';
+import { getSpotTrivia, getIconTrivia, awardSpotBadge, ORIGIN } from '../api/qrService';
 import { authService } from '../api/authService';
-import VintaStripe from '../components/VintaStripe';
+import DecoratedAvatar from '../components/DecoratedAvatar';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -54,15 +55,35 @@ const OPTION_LETTERS = ['A', 'B', 'C', 'D'];
 
 // ─── Gamified wrong-answer messages (rotated randomly, no correct answer revealed) ──
 const WRONG_ANSWER_MESSAGES = [
-  { icon: '🎯', line1: 'Not quite, Explorer!', line2: 'Every great adventurer misses a shot — reload and try again!' },
-  { icon: '🧩', line1: 'Hmm, close but no cigar!', line2: 'The answer is still out there waiting — give it another shot!' },
-  { icon: '⚔️', line1: 'Quest failed… this round!', line2: 'A true champion doesn\'t give up. Retry and conquer!' },
-  { icon: '🔍', line1: 'Your instincts need recalibrating!', line2: 'Look deeper, think harder — you\'ve got this!' },
-  { icon: '💡', line1: 'Interesting guess, but not the one!', line2: 'Shake it off and come back stronger, Explorer!' },
-  { icon: '🗺️', line1: 'Wrong path, but keep exploring!', line2: 'Every wrong turn teaches you the right one. Try again!' },
-  { icon: '🎮', line1: 'Oops! Wrong move!', line2: 'Even legends respawn. Step back up and try again!' },
-  { icon: '🌟', line1: 'Not this time, brave one!', line2: 'Stars aren\'t born overnight — keep pushing!' },
+  { icon: 'target', line1: 'Not quite, Explorer!', line2: 'Every great adventurer misses a shot — reload and try again!' },
+  { icon: 'puzzle', line1: 'Hmm, close but no cigar!', line2: 'The answer is still out there waiting — give it another shot!' },
+  { icon: 'swords', line1: 'Quest failed… this round!', line2: 'A true champion doesn\'t give up. Retry and conquer!' },
+  { icon: 'search', line1: 'Your instincts need recalibrating!', line2: 'Look deeper, think harder — you\'ve got this!' },
+  { icon: 'lightbulb', line1: 'Interesting guess, but not the one!', line2: 'Shake it off and come back stronger, Explorer!' },
+  { icon: 'map', line1: 'Wrong path, but keep exploring!', line2: 'Every wrong turn teaches you the right one. Try again!' },
+  { icon: 'gamepad', line1: 'Oops! Wrong move!', line2: 'Even legends respawn. Step back up and try again!' },
+  { icon: 'star', line1: 'Not this time, brave one!', line2: 'Stars aren\'t born overnight — keep pushing!' },
 ];
+
+// Answer letters get the app's accent palette (blue, gold, teal, coral).
+const OPTION_COLORS = [COLORS.accent, COLORS.gold, COLORS.teal, '#E05A47'];
+const OPTION_SHADES = [COLORS.accentDark, '#B7791F', '#047857', '#B03A2E'];
+const STAT_TILES = [
+  { key: 'questions', label: 'Questions Answered', bg: COLORS.accent, shade: COLORS.accentDark },
+  { key: 'accuracy',  label: 'Accuracy',           bg: COLORS.teal,   shade: '#047857' },
+  { key: 'xp',        label: 'XP Earned',          bg: COLORS.gold,   shade: '#B7791F' },
+  { key: 'streak',    label: 'Best Streak',        bg: '#E05A47',     shade: '#B03A2E' },
+];
+const HERO_H = 230;
+const GUIDE_IMAGE = require('../assets/guide_character.png');
+const FALLBACK_HERO = require('../assets/zamboanga.jpg');
+
+const resolveImage = (img) => {
+  if (!img) return null;
+  const s = String(img);
+  if (s.startsWith('http') || s.startsWith('data:')) return s.replace(/^http:\/\//, 'https://');
+  return `${ORIGIN}${s.startsWith('/') ? '' : '/'}${s}`;
+};
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 // Shared LAKBAY backdrop: Vinta photo under a light navy dim.
@@ -75,30 +96,49 @@ function Backdrop({ children }) {
   );
 }
 
+// Wavy bottom edge under the intro hero image.
+function HeroWave() {
+  return (
+    <Svg width={SCREEN_W} height={36} viewBox={`0 0 ${SCREEN_W} 36`} style={styles.heroWave} preserveAspectRatio="none">
+      <Path
+        d={`M0 18 C ${SCREEN_W * 0.2} 2, ${SCREEN_W * 0.35} 34, ${SCREEN_W * 0.55} 18 S ${SCREEN_W * 0.85} 4, ${SCREEN_W} 16 L ${SCREEN_W} 36 L 0 36 Z`}
+        fill="#FFFFFF"
+      />
+    </Svg>
+  );
+}
+
+// Spot photo or the creature's 3D model, used by the intro hero and the question card.
+function QuizMedia({ viewerHTML, imageUri, style, imageStyle }) {
+  if (viewerHTML) {
+    return (
+      <View style={style}>
+        <WebView
+          source={{ html: viewerHTML }}
+          style={styles.webview}
+          javaScriptEnabled
+          originWhitelist={['https://*']}
+          scrollEnabled={false}
+        />
+      </View>
+    );
+  }
+  return (
+    <ImageBackground source={imageUri ? { uri: imageUri } : FALLBACK_HERO} style={style} imageStyle={imageStyle} resizeMode="cover" />
+  );
+}
+
 export default function QuizScreen({ navigation, route }) {
-  const icon     = route.params?.icon     ?? null;
-  const spotId   = route.params?.spotId   ?? null;
-  const spotName = route.params?.spotName ?? 'Cultural Spot';
+  const icon      = route.params?.icon      ?? null;
+  const spotId    = route.params?.spotId    ?? null;
+  const spotName  = route.params?.spotName  ?? 'Cultural Spot';
+  const spotImage = resolveImage(route.params?.spotImage);
 
   const isIconMode  = !spotId && !!icon;
-  const accentColor = icon?.color ?? '#A855F7';
   const displayName = spotName || icon?.name || 'Challenge';
   const featureType = route.params?.feature ?? (icon ? 'catch' : (spotId ? 'qr' : 'ar'));
 
-  // ── Cinematic Gamified Intro States & Animations ──
-  const [showIntro, setShowIntro]                   = useState(true);
-  const [countdown, setCountdown]                   = useState(3);
-  const [introReadyToStart, setIntroReadyToStart]   = useState(false);
-
-  const introFlashAnim     = useRef(new Animated.Value(1)).current;
-  const introScaleAnim     = useRef(new Animated.Value(0.4)).current;
-  const introOpacityAnim   = useRef(new Animated.Value(0)).current;
-  const introPulseAnim     = useRef(new Animated.Value(1)).current;
-  const introBriefingSlide = useRef(new Animated.Value(30)).current;
-  const introLetterboxTop  = useRef(new Animated.Value(-60)).current;
-  const introLetterboxBot  = useRef(new Animated.Value(60)).current;
-  const introFadeOut       = useRef(new Animated.Value(1)).current;
-
+  const [showIntro, setShowIntro]           = useState(true);
   const [loading, setLoading]               = useState(true);
   const [error, setError]                   = useState('');
   const [questions, setQuestions]           = useState([]);
@@ -106,126 +146,28 @@ export default function QuizScreen({ navigation, route }) {
   const [selectedOption, setSelectedOption] = useState(null);
   const [isCorrect, setIsCorrect]           = useState(null);
   const [showReward, setShowReward]         = useState(false);
-  const [reward, setReward]                 = useState({ xp_earned: 0, total_xp: 0, awarded: false });
-  
-  // Gamification states: XP, streaks, combo multiplier
+
+  // Gamification states: XP, streaks, accuracy
   const [userProfile, setUserProfile]       = useState(null);
   const [sessionXP, setSessionXP]           = useState(0);
   const [streak, setStreak]                 = useState(0);
   const [maxStreak, setMaxStreak]           = useState(0);
+  const [wrongCount, setWrongCount]         = useState(0);
   const [floatingToast, setFloatingToast]   = useState(null); // { text, color, iconName }
   const [wrongMessage, setWrongMessage]     = useState(null); // randomly picked on wrong answer
 
   // Animations
+  const introAnim      = useRef(new Animated.Value(0)).current;
   const toastFadeAnim  = useRef(new Animated.Value(0)).current;
   const toastSlideAnim = useRef(new Animated.Value(20)).current;
   const cardScaleAnim  = useRef(new Animated.Value(1)).current;
   const streakScale    = useRef(new Animated.Value(1)).current;
-  const pulseGlow      = useRef(new Animated.Value(0)).current;
-  const trophySpin     = useRef(new Animated.Value(0)).current;
-
-  // Intro entrance sequence
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(introFlashAnim, {
-        toValue: 0,
-        duration: 600,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.spring(introLetterboxTop, {
-        toValue: 0,
-        friction: 6,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-      Animated.spring(introLetterboxBot, {
-        toValue: 0,
-        friction: 6,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-      Animated.sequence([
-        Animated.delay(80),
-        Animated.parallel([
-          Animated.spring(introScaleAnim, {
-            toValue: 1,
-            friction: 4,
-            tension: 50,
-            useNativeDriver: true,
-          }),
-          Animated.timing(introOpacityAnim, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]),
-      Animated.sequence([
-        Animated.delay(300),
-        Animated.timing(introBriefingSlide, {
-          toValue: 0,
-          duration: 400,
-          easing: Easing.out(Easing.back(1.5)),
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(introPulseAnim, { toValue: 1.25, duration: 900, useNativeDriver: true }),
-        Animated.timing(introPulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
-
-  // Intro countdown timer
-  useEffect(() => {
-    if (!showIntro) return;
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setIntroReadyToStart(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [showIntro]);
-
-  const handleStartQuiz = () => {
-    if (loading) return;
-    Animated.parallel([
-      Animated.timing(introFadeOut, { toValue: 0, duration: 250, useNativeDriver: true }),
-      Animated.timing(introScaleAnim, { toValue: 1.15, duration: 250, useNativeDriver: true }),
-    ]).start(() => {
-      setShowIntro(false);
-    });
-  };
-
-  // Auto-transition when countdown expires and questions are ready
-  useEffect(() => {
-    if (introReadyToStart && !loading && questions.length > 0) {
-      const autoTimer = setTimeout(() => {
-        handleStartQuiz();
-      }, 1000);
-      return () => clearTimeout(autoTimer);
-    }
-  }, [introReadyToStart, loading, questions.length]);
 
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseGlow, { toValue: 1, duration: 1500, useNativeDriver: true }),
-        Animated.timing(pulseGlow, { toValue: 0, duration: 1500, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
+    Animated.timing(introAnim, { toValue: 1, duration: 450, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [introAnim]);
 
-  // 3-D viewer model
+  // 3-D viewer model (catch creatures)
   const modelUrl = icon?.model_3d || null;
   const viewerHTML = useMemo(() => {
     if (!modelUrl) return null;
@@ -297,20 +239,17 @@ export default function QuizScreen({ navigation, route }) {
       setStreak(newStreak);
       if (newStreak > maxStreak) setMaxStreak(newStreak);
 
-      // Streak celebration animation
       Animated.sequence([
         Animated.timing(streakScale, { toValue: 1.3, duration: 150, useNativeDriver: true }),
         Animated.timing(streakScale, { toValue: 1, duration: 150, useNativeDriver: true }),
       ]).start();
 
-      // Bonus XP calculation for streaks
       const earnedXP = 10;
       setSessionXP(prev => prev + earnedXP);
-      
-      const toastMsg = newStreak > 1 ? `+${earnedXP} XP! 🔥 ${newStreak}x STREAK!` : `+${earnedXP} XP! ✨ Perfect!`;
+
+      const toastMsg = newStreak > 1 ? `+${earnedXP} XP! ${newStreak}x STREAK!` : `+${earnedXP} XP! Perfect!`;
       showFloatingToast(toastMsg, '#10B981', newStreak > 1 ? 'flame' : 'sparkles');
 
-      // Card pop animation
       Animated.sequence([
         Animated.timing(cardScaleAnim, { toValue: 1.03, duration: 140, useNativeDriver: true }),
         Animated.timing(cardScaleAnim, { toValue: 1, duration: 140, useNativeDriver: true }),
@@ -322,8 +261,8 @@ export default function QuizScreen({ navigation, route }) {
 
     } else {
       setStreak(0);
+      setWrongCount(c => c + 1);
 
-      // Pick a random gamified retry message
       const msg = WRONG_ANSWER_MESSAGES[Math.floor(Math.random() * WRONG_ANSWER_MESSAGES.length)];
       setWrongMessage(msg);
 
@@ -331,11 +270,10 @@ export default function QuizScreen({ navigation, route }) {
 
       if (currentTotalXP === 0 && sessionXP === 0) {
         // Beginner Protection Shield
-        showFloatingToast('Extra Chance! 🛡️ Shield Active', '#38BDF8', 'shield-checkmark');
+        showFloatingToast('Extra Chance! Shield Active', '#38BDF8', 'shield-checkmark');
       } else {
-        // Penalty
         setSessionXP(prev => Math.max(0, prev - 5));
-        showFloatingToast('-5 XP 💔 Keep Going!', '#EF4444', 'alert-circle');
+        showFloatingToast('-5 XP Keep Going!', '#EF4444', 'alert-circle');
 
         authService.adjustXP(-5).then(res => {
           if (res?.xp != null) setUserProfile(p => p ? { ...p, xp: res.xp } : p);
@@ -360,1090 +298,417 @@ export default function QuizScreen({ navigation, route }) {
     } else {
       if (!isIconMode && spotId) {
         try {
-          const result = await awardSpotBadge(spotId);
-          setReward(result);
+          await awardSpotBadge(spotId);
         } catch {
-          setReward({ xp_earned: sessionXP, total_xp: userProfile?.xp || 0, awarded: true });
+          // Badge endpoint is optional; the quiz result still counts.
         }
-      } else {
-        setReward({ xp_earned: sessionXP, total_xp: userProfile?.xp || 0, awarded: true });
       }
       setShowReward(true);
     }
   };
 
-  // ── Cinematic Gamified Intro Screen ──
+  const topBar = (right) => (
+    <View style={styles.topBar}>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn} activeOpacity={0.8} accessibilityLabel="Leave quiz">
+        <Ionicons name="arrow-back" size={20} color="#FFF" />
+      </TouchableOpacity>
+      {right}
+    </View>
+  );
+
+  const xpPill = (
+    <View style={styles.xpPill}>
+      <LucideIcon name="zap" size={14} color={GOLD_TEXT} />
+      <Text style={styles.xpPillText}>{(userProfile?.xp ?? 0).toLocaleString()} XP</Text>
+    </View>
+  );
+
+  // ── Intro: hero image, title, guide, question count, Start ──
   if (showIntro) {
     const isCatchMode = featureType === 'catch';
     const isQrMode    = featureType === 'qr';
-
-    const introConfig = {
-      tag: isCatchMode
-        ? '⚔️ CULTURAL GUARDIAN ENCOUNTER'
-        : isQrMode
-        ? '🏛️ CULTURAL EXPEDITION'
-        : '🏺 MUSEUM AR REVELATION',
-      subBadge: isCatchMode
-        ? 'WILD ICON ENCOUNTER'
-        : isQrMode
-        ? 'QR CHECKPOINT VERIFIED'
-        : 'EXHIBIT ARTIFACT SCANNED',
-      accentColor: isCatchMode
-        ? (icon?.color || '#FBBF24')
-        : isQrMode
-        ? '#FBBF24'
-        : '#A855F7',
-      emoji: isCatchMode
-        ? (icon?.emoji || '🏆')
-        : isQrMode
-        ? '🏛️'
-        : '🏺',
-      objective: isCatchMode
-        ? `Answer all trivia questions correctly to capture ${displayName} into your collection!`
-        : isQrMode
-        ? `Verify your on-site exploration of ${displayName} to earn +XP and unlock landmark badges!`
-        : `Demonstrate your historical insights to master this museum exhibit!`,
-      rewardTag: isCatchMode
-        ? 'ICON CATCH + BADGE'
-        : isQrMode
-        ? 'SPOT BADGE + CERT'
-        : 'EXHIBIT MASTERY',
-    };
+    const subtitle = isCatchMode
+      ? `Let's see what you know about ${displayName} before you catch it!`
+      : isQrMode
+      ? `Let's see what you remember from ${displayName}!`
+      : `Let's see what you learned from this exhibit!`;
+    const count = questions.length || 5;
 
     return (
-      <Backdrop>
-      <View style={styles.introContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#040A26" />
-
-        {/* Screen flash on entry */}
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.introFlash, { opacity: introFlashAnim }]}
-        />
-
-        {/* Top Cinematic Letterbox */}
-        <Animated.View
-          style={[
-            styles.letterboxTop,
-            { transform: [{ translateY: introLetterboxTop }] },
-          ]}
-        >
-          <View style={styles.letterboxTopContent}>
-            <View style={styles.systemStatusWrap}>
-              <View style={styles.pulsingGreenDot} />
-              <Text style={styles.systemStatusText}>MISSION: ENGAGED</Text>
-            </View>
-            <TouchableOpacity
-              onPress={handleStartQuiz}
-              style={styles.skipBtn}
-              activeOpacity={0.7}
-              disabled={loading}
-            >
-              <Text style={[styles.skipBtnText, loading && { opacity: 0.5 }]}>
-                {loading ? 'SYNCING...' : 'SKIP ▶'}
-              </Text>
+      <View style={styles.introScreen}>
+        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+        <View style={styles.introHero}>
+          <QuizMedia viewerHTML={isCatchMode ? viewerHTML : null} imageUri={spotImage} style={StyleSheet.absoluteFill} />
+          <View style={styles.introHeroDim} />
+          <SafeAreaView edges={['top']} style={styles.introHeroBar}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn} activeOpacity={0.8} accessibilityLabel="Leave quiz">
+              <Ionicons name="arrow-back" size={20} color="#FFF" />
             </TouchableOpacity>
-          </View>
-        </Animated.View>
+          </SafeAreaView>
+          <HeroWave />
+        </View>
 
-        {/* Main Stage Content */}
         <Animated.View
           style={[
-            styles.introStage,
-            {
-              opacity: introFadeOut,
-              transform: [{ scale: introScaleAnim }],
-            },
+            styles.introBody,
+            { opacity: introAnim, transform: [{ translateY: introAnim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }] },
           ]}
         >
-          {/* Ambient Aura Rings */}
-          <Animated.View
-            style={[
-              styles.introAuraRing,
-              {
-                borderColor: introConfig.accentColor,
-                transform: [{ scale: introPulseAnim }],
-              },
-            ]}
-          />
-          <View
-            style={[
-              styles.introAuraRingStatic,
-              { borderColor: introConfig.accentColor },
-            ]}
-          />
+          <Text style={styles.introTitle} numberOfLines={3}>{displayName}</Text>
+          <Text style={styles.introSubtitle}>{subtitle}</Text>
 
-          {/* Central Emblem */}
-          <View
-            style={[
-              styles.introEmblemWrap,
-              { borderColor: introConfig.accentColor },
-            ]}
-          >
-            <Text style={styles.introEmblemEmoji}>{introConfig.emoji}</Text>
+          <View style={styles.guideWrap}>
+            <View style={styles.guideHalo} />
+            <ImageBackground source={GUIDE_IMAGE} style={styles.guideImage} resizeMode="contain" />
           </View>
 
-          {/* Tag Pill */}
-          <View
-            style={[
-              styles.introPill,
-              { borderColor: introConfig.accentColor },
-            ]}
-          >
-            <Text
-              style={[
-                styles.introPillText,
-                { color: introConfig.accentColor },
-              ]}
-            >
-              {introConfig.tag}
-            </Text>
-          </View>
-
-          {/* Target Display Title */}
-          <Text style={styles.introTargetTitle}>
-            {displayName.toUpperCase()}
-          </Text>
-
-          <View style={{ width: '60%', marginVertical: 8 }}>
-            <VintaStripe height={3} />
-          </View>
-
-          {/* Mission Objective Briefing */}
-          <Animated.View
-            style={[
-              styles.introBriefingWrap,
-              { transform: [{ translateY: introBriefingSlide }] },
-            ]}
-          >
-            <VintaCard contentStyle={styles.introBriefingCard}>
-            <Text style={styles.introObjectiveText}>
-              {introConfig.objective}
-            </Text>
-
-            {/* Mission HUD Grid */}
-            <View style={styles.introHudRow}>
-              <View style={styles.introHudCell}>
-                <Ionicons name="help-circle" size={18} color={GOLD_TEXT} />
-                <Text style={styles.introHudVal}>5</Text>
-                <Text style={styles.introHudLabel}>QUESTIONS</Text>
-              </View>
-              <View style={styles.introHudDivider} />
-              <View style={styles.introHudCell}>
-                <Ionicons name="flash" size={18} color="#059669" />
-                <Text style={styles.introHudVal}>+10 XP</Text>
-                <Text style={styles.introHudLabel}>PER HIT</Text>
-              </View>
-              <View style={styles.introHudDivider} />
-              <View style={styles.introHudCell}>
-                <Ionicons name="flame" size={18} color="#EF4444" />
-                <Text style={styles.introHudVal}>COMBO</Text>
-                <Text style={styles.introHudLabel}>STREAKS</Text>
-              </View>
+          {loading ? (
+            <View style={styles.introStatusRow}>
+              <ActivityIndicator size="small" color={COLORS.accent} />
+              <Text style={styles.introInfo}>Preparing your questions…</Text>
             </View>
-            </VintaCard>
-          </Animated.View>
+          ) : error ? (
+            <Text style={[styles.introInfo, { color: '#B91C1C' }]}>{error}</Text>
+          ) : (
+            <Text style={styles.introInfo}>
+              You&apos;ll get {count} question{count === 1 ? '' : 's'}. Earn +10 XP for every correct answer!
+            </Text>
+          )}
 
-          {/* Action / Countdown Area */}
-          <View style={styles.introActionWrap}>
-            {loading ? (
-              <View style={styles.introLoadingBtn}>
-                <ActivityIndicator size="small" color="#FBBF24" style={{ marginRight: 10 }} />
-                <Text style={styles.introLoadingText}>SYNCHRONIZING ARCHIVES...</Text>
-              </View>
-            ) : error ? (
-              <View style={styles.introErrorWrap}>
-                <Text style={styles.introErrorText}>{error}</Text>
-                <TouchableOpacity
-                  onPress={() => navigation.goBack()}
-                  style={styles.introErrorBtn}
-                >
-                  <Text style={styles.introErrorBtnText}>Return to Radar</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                onPress={handleStartQuiz}
-                activeOpacity={0.85}
-                style={styles.introStartBtn}
-              >
-                <LinearGradient
-                  colors={[COLORS.accent, COLORS.accentDark]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.introStartGrad}
-                >
-                  <Ionicons name="game-controller" size={20} color="#FFFFFF" />
-                  <Text style={styles.introStartText}>ENGAGE MISSION ▶</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
-
-            {!loading && !error && (
-              <Text style={styles.introCountdownSub}>
-                {countdown > 0
-                  ? `⚡ Auto-commencing in ${countdown}s...`
-                  : 'Tap button above to enter!'}
-              </Text>
-            )}
-          </View>
-        </Animated.View>
-
-        {/* Bottom Cinematic Letterbox */}
-        <Animated.View
-          style={[
-            styles.letterboxBottom,
-            { transform: [{ translateY: introLetterboxBot }] },
-          ]}
-        >
-          <Text style={styles.letterboxBottomText}>
-            {'// PROTOCOL: ZAMBOANGA CULTURAL DISCOVERY • LAKBAY V1.0 //'}
-          </Text>
+          <TouchableOpacity
+            style={[styles.primaryBtn, (loading || error) && styles.primaryBtnMuted]}
+            onPress={() => (error ? navigation.goBack() : setShowIntro(false))}
+            disabled={loading}
+            activeOpacity={0.88}
+          >
+            <Text style={styles.primaryBtnText}>{error ? 'Go Back' : 'Start Quiz'}</Text>
+          </TouchableOpacity>
         </Animated.View>
       </View>
-      </Backdrop>
     );
   }
 
-  // ── Loading Screen ──
-  if (loading) {
-    return (
-      <Backdrop>
-      <SafeAreaView style={styles.centerBg}>
-        <StatusBar barStyle="light-content" backgroundColor="#070714" />
-        <View style={styles.loadingAura}>
-          <ActivityIndicator size="large" color={COLORS.gold} />
-        </View>
-        <Text style={styles.loadingTitle}>POWERING UP TRIVIA</Text>
-        <Text style={styles.loadingSub}>Loading cultural challenge for {displayName}…</Text>
-      </SafeAreaView>
-      </Backdrop>
-    );
-  }
-
-  // ── Error Screen ──
-  if (error) {
-    return (
-      <Backdrop>
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#070714" />
-        <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-            <Ionicons name="close" size={22} color="#FFF" />
-          </TouchableOpacity>
-          <Text style={styles.topBarTitle}>CHALLENGE ERROR</Text>
-          <View style={{ width: 40 }} />
-        </View>
-        <View style={styles.centerContent}>
-          <View style={styles.errorIconWrap}>
-            <Ionicons name="help-circle-outline" size={54} color="rgba(255,255,255,0.4)" />
-          </View>
-          <Text style={styles.errorHeading}>Quiz Unavailable</Text>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.ghostBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-            <Ionicons name="arrow-back" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-            <Text style={styles.ghostBtnText}>Return to Radar</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-      </Backdrop>
-    );
-  }
-
-  // ── Reward / Victory Screen ──
+  // ── Results: avatar, XP pill, 2×2 stat tiles ──
   if (showReward) {
-    const accuracy = questions.length > 0 ? Math.round(((sessionXP / (questions.length * 10))) * 100) : 100;
+    const total = questions.length;
+    const accuracy = total > 0 ? Math.round((total / (total + wrongCount)) * 100) : 100;
+    const values = { questions: total, accuracy: `${accuracy}%`, xp: `+${sessionXP}`, streak: `${maxStreak}x` };
+
     return (
       <Backdrop>
-      <SafeAreaView style={styles.rewardContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#070714" />
-        
-        {/* Confetti Aura Background */}
-        <View style={styles.victoryGlow} />
+        <SafeAreaView style={styles.container}>
+          <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+          {topBar(<Text style={styles.topBarTitle}>Quiz Results</Text>)}
+          <ScrollView contentContainerStyle={styles.resultBody} showsVerticalScrollIndicator={false}>
+            <VintaCard contentStyle={styles.resultCard}>
+              <DecoratedAvatar
+                character={userProfile?.chosen_character}
+                size={84}
+                hat={userProfile?.avatar_hat}
+                frame={userProfile?.avatar_frame || 'gold'}
+                pin={userProfile?.avatar_pin}
+              />
+              <Text style={styles.resultName}>{userProfile?.in_game_name || 'Explorer'}</Text>
+              <Text style={styles.resultSub}>Completed {displayName}</Text>
+              <View style={styles.resultPill}>
+                <LucideIcon name="star" size={14} color={GOLD_TEXT} />
+                <Text style={styles.resultPillText}>
+                  {(userProfile?.xp ?? 0).toLocaleString()} XP total · {maxStreak}x best streak
+                </Text>
+              </View>
 
-        <ScrollView contentContainerStyle={styles.rewardBody} showsVerticalScrollIndicator={false}>
-          {/* Animated Trophy Banner */}
-          <View style={styles.trophyRingOuter}>
-            <View style={styles.trophyRingInner}>
-              <Ionicons name="trophy" size={76} color="#FBBF24" />
-            </View>
-            <View style={styles.trophyStarPill}>
-              <Ionicons name="sparkles" size={14} color="#FFF" />
-              <Text style={styles.trophyStarText}>CHALLENGE COMPLETE</Text>
-            </View>
+              <View style={styles.tileGrid}>
+                {STAT_TILES.map((t) => (
+                  <View key={t.key} style={[styles.tile, { backgroundColor: t.bg, borderBottomColor: t.shade }]}>
+                    <Text style={styles.tileValue}>{values[t.key]}</Text>
+                    <Text style={styles.tileLabel}>{t.label}</Text>
+                  </View>
+                ))}
+              </View>
+            </VintaCard>
+          </ScrollView>
+
+          <View style={styles.footer}>
+            <TouchableOpacity style={styles.primaryBtn} activeOpacity={0.88} onPress={() => navigation.navigate('MainTabs')}>
+              <Text style={styles.primaryBtnText}>Claim &amp; Continue</Text>
+            </TouchableOpacity>
           </View>
-
-          <Text style={styles.rewardTitle}>QUEST COMPLETED!</Text>
-          <Text style={styles.rewardSub}>You have proven your mastery of {displayName}!</Text>
-
-          {/* Gamified Summary Stat Matrix */}
-          <VintaCard style={styles.statFrame} contentStyle={styles.statMatrix}>
-            <View style={styles.statCell}>
-              <Ionicons name="flash" size={20} color={GOLD_TEXT} />
-              <Text style={styles.statCellValue}>+{sessionXP}</Text>
-              <Text style={styles.statCellLabel}>XP GAINED</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statCell}>
-              <Ionicons name="flame" size={20} color="#EF4444" />
-              <Text style={styles.statCellValue}>{maxStreak}x</Text>
-              <Text style={styles.statCellLabel}>BEST STREAK</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statCell}>
-              <Ionicons name="shield-checkmark" size={20} color="#059669" />
-              <Text style={styles.statCellValue}>{questions.length}</Text>
-              <Text style={styles.statCellLabel}>ANSWERED</Text>
-            </View>
-          </VintaCard>
-
-          {/* Reward Badges pill */}
-          <VintaCard style={styles.badgeRewardFrame} contentStyle={styles.badgeRewardCard}>
-            <Ionicons name="medal" size={26} color="#7C3AED" />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.badgeCardTitle}>Explorer Ranking Updated</Text>
-              <Text style={styles.badgeCardSub}>XP is synced live to your Journey profile badges!</Text>
-            </View>
-          </VintaCard>
-        </ScrollView>
-
-        <View style={styles.rewardFooter}>
-          <TouchableOpacity
-            style={styles.claimBtn}
-            activeOpacity={0.88}
-            onPress={() => navigation.navigate('MainTabs')}
-          >
-            <Ionicons name="sparkles" size={20} color="#FFF" style={{ marginRight: 8 }} />
-            <Text style={styles.claimBtnText}>CLAIM & CONTINUE</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+        </SafeAreaView>
       </Backdrop>
     );
   }
 
   const currentQ = questions[currentIndex];
-  const progressPercent = ((currentIndex + 1) / questions.length) * 100;
+  const answered = selectedOption !== null && isCorrect;
 
+  // ── Question: counter + segments, media card, question, 2×2 answers, Next ──
   return (
     <Backdrop>
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#070714" />
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+        {topBar(xpPill)}
 
-      {/* ── Arcade Top HUD ── */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn} activeOpacity={0.8}>
-          <Ionicons name="close" size={20} color="#FFF" />
-        </TouchableOpacity>
-
-        {/* Streak Counter Badge */}
-        {streak > 1 && (
-          <Animated.View style={[styles.streakPill, { transform: [{ scale: streakScale }] }]}>
-            <Ionicons name="flame" size={16} color="#FF6B00" />
-            <Text style={styles.streakText}>{streak}x STREAK</Text>
+        {floatingToast && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.floatingToast,
+              { backgroundColor: floatingToast.color, opacity: toastFadeAnim, transform: [{ translateY: toastSlideAnim }] },
+            ]}
+          >
+            <Ionicons name={floatingToast.iconName || 'sparkles'} size={16} color="#FFF" style={{ marginRight: 6 }} />
+            <Text style={styles.floatingToastText}>{floatingToast.text}</Text>
           </Animated.View>
         )}
 
-        {/* Live Total XP Badge */}
-        <View style={styles.topXPBadge}>
-          <Ionicons name="flash" size={14} color="#FBBF24" />
-          <Text style={styles.topXPText}>{(userProfile?.xp ?? 0)} XP</Text>
-        </View>
-      </View>
-
-      {/* Floating Animated Reward Toast */}
-      {floatingToast && (
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.floatingToast,
-            {
-              backgroundColor: floatingToast.color,
-              opacity: toastFadeAnim,
-              transform: [{ translateY: toastSlideAnim }],
-            },
-          ]}
-        >
-          <Ionicons name={floatingToast.iconName || 'sparkles'} size={16} color="#FFF" style={{ marginRight: 6 }} />
-          <Text style={styles.floatingToastText}>{floatingToast.text}</Text>
-        </Animated.View>
-      )}
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-      >
-        {/* ── 3D Model Visual (icon catch mode) ── */}
-        {isIconMode && (
-          <View style={styles.modelSection}>
-            <VintaCard style={styles.modelFrame} contentStyle={styles.modelCard}>
-              {viewerHTML ? (
-                <WebView
-                  source={{ html: viewerHTML }}
-                  style={styles.webview}
-                  javaScriptEnabled
-                  originWhitelist={['https://*']}
-                  scrollEnabled={false}
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+          <View style={styles.counterWrap}>
+            <Text style={styles.counterText}>{currentIndex + 1}/{questions.length}Q</Text>
+            <View style={styles.segments}>
+              {questions.map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.segment,
+                    i < currentIndex && styles.segmentDone,
+                    i === currentIndex && styles.segmentActive,
+                  ]}
                 />
-              ) : (
-                <View style={styles.noModel}>
-                  <Ionicons name="cube-outline" size={40} color={accentColor} style={{ opacity: 0.5 }} />
-                </View>
-              )}
-            </VintaCard>
-            <View style={styles.modelTagPill}>
-              <Ionicons name="cube" size={12} color={onWhite(accentColor)} style={{ marginRight: 5 }} />
-              <Text style={[styles.modelTagText, { color: onWhite(accentColor) }]}>{icon.name}</Text>
+              ))}
             </View>
+            {streak > 1 && (
+              <Animated.View style={[styles.streakPill, { transform: [{ scale: streakScale }] }]}>
+                <LucideIcon name="flame" size={13} color="#FF6B00" />
+                <Text style={styles.streakText}>{streak}x streak</Text>
+              </Animated.View>
+            )}
           </View>
-        )}
 
-        {/* ── Neon Progress Header ── */}
-        <View style={styles.progressSection}>
-          <View style={styles.progressRow}>
-            <View style={styles.badgeRound}>
-              <Text style={styles.badgeRoundText}>Q{currentIndex + 1}</Text>
-            </View>
-            <Text style={styles.progressCounter}>
-              QUESTION {currentIndex + 1} OF {questions.length}
-            </Text>
-            <View style={styles.sessionPill}>
-              <Ionicons name="add-circle" size={13} color="#10B981" />
-              <Text style={styles.sessionPillText}>+{sessionXP} XP</Text>
-            </View>
-          </View>
-          
-          <View style={styles.progressBg}>
-            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
-          </View>
-        </View>
-
-        {/* ── Cyber Quest Question Card ── */}
-        <Animated.View style={[styles.questionWrap, { transform: [{ scale: cardScaleAnim }] }]}>
-          <VintaCard contentStyle={styles.questionCard}>
-            <Text style={styles.questionText}>{currentQ.question}</Text>
+          <VintaCard style={styles.mediaFrame} contentStyle={styles.mediaCard}>
+            <QuizMedia viewerHTML={viewerHTML} imageUri={spotImage} style={styles.mediaInner} imageStyle={styles.mediaImage} />
           </VintaCard>
-        </Animated.View>
 
-        {/* ── Multiple Choice Arcade Options (A, B, C, D) ── */}
-        <View style={styles.options}>
-          {currentQ.choices.map((option, idx) => {
-            const isSelected = selectedOption === option;
-            const letter = OPTION_LETTERS[idx] || String(idx + 1);
+          <Animated.Text style={[styles.questionText, { transform: [{ scale: cardScaleAnim }] }]}>
+            {currentQ.question}
+          </Animated.Text>
 
-            let cardBg = '#FFFFFF';
-            let cardBorder = COLORS.border;
-            let letterBg = COLORS.bg;
-            let letterColor = COLORS.textMuted;
-            let textColor = COLORS.text;
-            let rightIcon = null;
+          <View style={styles.grid}>
+            {currentQ.choices.map((option, idx) => {
+              const isSelected = selectedOption === option;
+              const letter = OPTION_LETTERS[idx] || String(idx + 1);
+              let tint = OPTION_COLORS[idx % OPTION_COLORS.length];
+              let shade = OPTION_SHADES[idx % OPTION_SHADES.length];
+              let bg = '#FFFFFF';
+              if (isSelected && isCorrect) { tint = '#10B981'; shade = '#047857'; bg = '#ECFDF5'; }
+              else if (isSelected && !isCorrect) { tint = '#EF4444'; shade = '#B91C1C'; bg = '#FEF2F2'; }
 
-            if (isSelected && isCorrect) {
-              cardBg = '#ECFDF5';
-              cardBorder = '#10B981';
-              letterBg = '#10B981';
-              letterColor = '#FFF';
-              textColor = '#065F46';
-              rightIcon = <Ionicons name="checkmark-circle" size={22} color="#10B981" />;
-            } else if (isSelected && !isCorrect) {
-              cardBg = '#FEF2F2';
-              cardBorder = '#EF4444';
-              letterBg = '#EF4444';
-              letterColor = '#FFF';
-              textColor = '#991B1B';
-              rightIcon = <Ionicons name="close-circle" size={22} color="#EF4444" />;
-            }
-
-            return (
-              <TouchableOpacity
-                key={idx}
-                style={[styles.optionBtn, { backgroundColor: cardBg, borderColor: cardBorder }]}
-                activeOpacity={0.78}
-                onPress={() => handleSelect(option)}
-              >
-                {/* Option Letter Tag (A, B, C, D) */}
-                <View style={[styles.letterBox, { backgroundColor: letterBg }]}>
-                  <Text style={[styles.letterText, { color: letterColor }]}>{letter}</Text>
-                </View>
-
-                {/* Option Content Text */}
-                <Text style={[styles.optionText, { color: textColor }]}>{option}</Text>
-                {rightIcon}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* ── Explanation & Next / Wrong-Answer Retry Banner ── */}
-        {selectedOption !== null && (
-          <View style={styles.feedback}>
-
-            {/* ── CORRECT: show cultural insight + next button ── */}
-            {isCorrect && currentQ.explanation ? (
-              <View style={styles.explanationBox}>
-                <Ionicons name="bulb" size={20} color={GOLD_TEXT} style={{ marginTop: 2 }} />
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={styles.explanationTitle}>CULTURAL INSIGHT</Text>
-                  <Text style={styles.explanationText}>{currentQ.explanation}</Text>
-                </View>
-              </View>
-            ) : null}
-
-            {isCorrect && (
-              <TouchableOpacity style={styles.nextBtn} onPress={handleNext} activeOpacity={0.88}>
-                <Text style={styles.nextBtnText}>
-                  {currentIndex < questions.length - 1 ? 'NEXT QUESTION' : 'COMPLETE CHALLENGE'}
-                </Text>
-                <Ionicons name="arrow-forward" size={18} color="#FFF" />
-              </TouchableOpacity>
-            )}
-
-            {/* ── WRONG: gamified retry message, no correct answer shown ── */}
-            {!isCorrect && wrongMessage && (
-              <View style={styles.wrongBox}>
-                <Text style={styles.wrongIcon}>{wrongMessage.icon}</Text>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.wrongTitle}>{wrongMessage.line1}</Text>
-                  <Text style={styles.wrongDesc}>{wrongMessage.line2}</Text>
-                </View>
-              </View>
-            )}
-
+              return (
+                <TouchableOpacity
+                  key={idx}
+                  style={[styles.answer, { backgroundColor: bg, borderColor: tint + '88', borderBottomColor: shade }]}
+                  activeOpacity={0.8}
+                  onPress={() => handleSelect(option)}
+                  disabled={selectedOption !== null}
+                >
+                  <View style={[styles.letterBadge, { backgroundColor: tint }]}>
+                    {isSelected ? (
+                      <Ionicons name={isCorrect ? 'checkmark' : 'close'} size={16} color="#FFF" />
+                    ) : (
+                      <Text style={styles.letterText}>{letter}</Text>
+                    )}
+                  </View>
+                  <Text style={styles.answerText}>{option}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+
+          {answered && currentQ.explanation ? (
+            <VintaCard style={styles.feedbackFrame} contentStyle={styles.explanationBox}>
+              <LucideIcon name="lightbulb" size={20} color={GOLD_TEXT} />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={styles.explanationTitle}>Cultural Insight</Text>
+                <Text style={styles.explanationText}>{currentQ.explanation}</Text>
+              </View>
+            </VintaCard>
+          ) : null}
+
+          {selectedOption !== null && !isCorrect && wrongMessage && (
+            <VintaCard style={styles.feedbackFrame} contentStyle={styles.wrongBox}>
+              <LucideIcon name={wrongMessage.icon} size={26} color="#EF4444" />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.wrongTitle}>{wrongMessage.line1}</Text>
+                <Text style={styles.wrongDesc}>{wrongMessage.line2}</Text>
+              </View>
+            </VintaCard>
+          )}
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.primaryBtn, !answered && styles.primaryBtnMuted]}
+            onPress={handleNext}
+            disabled={!answered}
+            activeOpacity={0.88}
+          >
+            <Text style={styles.primaryBtnText}>
+              {currentIndex < questions.length - 1 ? 'Next Question' : 'Finish Quiz'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     </Backdrop>
   );
 }
 
-// ─── Gamified Styles ─────────────────────────────────────────────────────────
+// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   backdrop: { flex: 1 },
   backdropDim: { ...StyleSheet.absoluteFillObject, backgroundColor: BG_OVERLAY },
   container: { flex: 1, backgroundColor: 'transparent' },
+  webview: { flex: 1, backgroundColor: 'transparent' },
 
-  centerBg: {
-    flex: 1, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: 'transparent', paddingHorizontal: 30,
-  },
-  loadingAura: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: 'rgba(168,85,247,0.12)',
-    justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1.5, borderColor: 'rgba(168,85,247,0.3)',
-    marginBottom: 20,
-  },
-  loadingTitle: {
-    fontFamily: FONTS.bold, fontSize: 16, color: '#FFFFFF',
-    letterSpacing: 2, marginBottom: 6,
-  },
-  loadingSub: {
-    fontFamily: FONTS.medium, fontSize: 13, color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center',
-  },
-
-  centerContent: {
-    flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32,
-  },
-  errorIconWrap: {
-    width: 90, height: 90, borderRadius: 45,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    justifyContent: 'center', alignItems: 'center',
-    marginBottom: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-  },
-  errorHeading: {
-    fontFamily: FONTS.bold, fontSize: 20, color: '#FFF', marginBottom: 8,
-  },
-  errorText: {
-    fontFamily: FONTS.medium, color: 'rgba(255,255,255,0.8)', fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 24,
-  },
-  ghostBtn: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 12, paddingHorizontal: 24,
-    backgroundColor: COLORS.accent, borderRadius: 24,
-    borderWidth: 1.5, borderColor: COLORS.accentDark,
-  },
-  ghostBtnText: { color: '#FFF', fontFamily: FONTS.bold, fontSize: 14 },
-
-  // Top HUD Bar
+  // Top bar
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 12, backgroundColor: 'rgba(8, 20, 60, 0.70)',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(99, 179, 237, 0.20)',
+    paddingHorizontal: 18, paddingVertical: 10,
   },
   iconBtn: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(8,20,60,0.55)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
     justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
   },
-  topBarTitle: {
-    fontFamily: FONTS.bold, fontSize: 14, color: '#FFFFFF', letterSpacing: 1.5,
+  topBarTitle: { fontFamily: FONTS.bold, fontSize: 18, color: '#FFFFFF', marginRight: 'auto', marginLeft: 12 },
+  xpPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#FEF3C7', borderRadius: RADIUS.pill,
+    borderWidth: 1, borderColor: COLORS.gold,
+    paddingHorizontal: 12, paddingVertical: 6,
   },
+  xpPillText: { fontFamily: FONTS.bold, fontSize: 13, color: GOLD_TEXT },
+
+  // Intro
+  introScreen: { flex: 1, backgroundColor: '#FFFFFF' },
+  introHero: { height: HERO_H + 40, backgroundColor: COLORS.navy, overflow: 'hidden' },
+  introHeroDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(12,36,97,0.18)' },
+  introHeroBar: { paddingHorizontal: 18, paddingTop: 8 },
+  heroWave: { position: 'absolute', bottom: -1, left: 0 },
+  introBody: { flex: 1, alignItems: 'center', paddingHorizontal: 24, paddingBottom: 28 },
+  introTitle: {
+    fontFamily: FONTS.bold, fontSize: 28, lineHeight: 32, color: COLORS.navy,
+    textAlign: 'center', marginTop: 4,
+  },
+  introSubtitle: {
+    fontFamily: FONTS.medium, fontSize: 14, lineHeight: 19, color: COLORS.textSub,
+    textAlign: 'center', marginTop: 6, maxWidth: 300,
+  },
+  guideWrap: { flex: 1, minHeight: 150, width: '100%', alignItems: 'center', justifyContent: 'center' },
+  guideHalo: {
+    position: 'absolute', width: 170, height: 170, borderRadius: 85,
+    backgroundColor: COLORS.accentSoft,
+  },
+  guideImage: { width: 180, height: 180 },
+  introStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 18 },
+  introInfo: {
+    fontFamily: FONTS.semiBold, fontSize: 16, lineHeight: 21, color: COLORS.navy,
+    textAlign: 'center', marginBottom: 18, maxWidth: 300,
+  },
+
+  // Primary pill button (Start / Next / Claim)
+  primaryBtn: {
+    alignSelf: 'stretch', height: 54, borderRadius: 27,
+    backgroundColor: COLORS.accent,
+    borderBottomWidth: 4, borderBottomColor: COLORS.accentDark,
+    alignItems: 'center', justifyContent: 'center',
+    ...SHADOW.accent,
+  },
+  primaryBtnMuted: { opacity: 0.45 },
+  primaryBtnText: { fontFamily: FONTS.bold, fontSize: 17, color: '#FFFFFF', letterSpacing: 0.3 },
+  footer: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 18 },
+
+  // Question screen
+  scroll: { paddingHorizontal: 18, paddingBottom: 16 },
+  counterWrap: { alignItems: 'center', marginBottom: 14 },
+  counterText: { fontFamily: FONTS.bold, fontSize: 22, color: '#FFFFFF', letterSpacing: 0.5 },
+  segments: { flexDirection: 'row', gap: 6, marginTop: 6 },
+  segment: { width: 26, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.35)' },
+  segmentDone: { backgroundColor: COLORS.gold },
+  segmentActive: { backgroundColor: COLORS.gold, width: 34 },
   streakPill: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(255,107,0,0.18)',
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,107,0,0.5)',
-    gap: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8,
+    backgroundColor: 'rgba(255,107,0,0.18)', borderRadius: RADIUS.pill,
+    borderWidth: 1, borderColor: 'rgba(255,107,0,0.55)',
+    paddingHorizontal: 10, paddingVertical: 3,
   },
-  streakText: {
-    fontFamily: FONTS.bold, fontSize: 12, color: '#FF8C00', letterSpacing: 0.5,
-  },
-  topXPBadge: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(251,191,36,0.15)',
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 16, borderWidth: 1, borderColor: 'rgba(251,191,36,0.4)',
-    gap: 5,
-  },
-  topXPText: {
-    fontFamily: FONTS.bold, fontSize: 13, color: '#FBBF24',
-  },
+  streakText: { fontFamily: FONTS.bold, fontSize: 12, color: '#FFB066' },
 
-  // Floating Toast
-  floatingToast: {
-    position: 'absolute', top: 75, alignSelf: 'center', zIndex: 999,
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 10,
-    borderRadius: 24, shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 12, elevation: 10,
-  },
-  floatingToastText: {
-    fontFamily: FONTS.bold, fontSize: 14, color: '#FFF', letterSpacing: 0.5,
-  },
+  mediaFrame: { marginBottom: 16 },
+  mediaCard: { padding: 0, overflow: 'hidden', borderRadius: 18 },
+  mediaInner: { height: 170, width: '100%' },
+  mediaImage: { borderRadius: 16 },
 
-  scroll: { paddingBottom: 40 },
-
-  // 3D Model Box
-  modelSection: { alignItems: 'center', paddingHorizontal: 20, marginTop: 14 },
-  modelFrame: { width: '100%', height: 190, borderRadius: 20 },
-  modelCard: { flex: 1, backgroundColor: '#0F172A' },
-  webview: { flex: 1, backgroundColor: 'transparent' },
-  noModel: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  modelTagPill: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 6,
-    borderRadius: 16, marginTop: -14, borderWidth: 1, borderColor: COLORS.border,
-  },
-  modelTagText: { fontFamily: FONTS.bold, fontSize: 13 },
-
-  // Progress Section
-  progressSection: { paddingHorizontal: 20, marginTop: 18, marginBottom: 14 },
-  progressRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  badgeRound: {
-    backgroundColor: COLORS.accent, width: 26, height: 26, borderRadius: 13,
-    justifyContent: 'center', alignItems: 'center', marginRight: 8,
-  },
-  badgeRoundText: { fontFamily: FONTS.bold, fontSize: 11, color: '#FFF' },
-  progressCounter: { fontFamily: FONTS.bold, fontSize: 12, color: '#FFFFFF', letterSpacing: 1, flex: 1 },
-  sessionPill: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(16,185,129,0.15)', paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(16,185,129,0.3)', gap: 4,
-  },
-  sessionPillText: { fontFamily: FONTS.bold, fontSize: 12, color: '#10B981' },
-  progressBg: {
-    height: 8, backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 6, overflow: 'hidden',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
-  },
-  progressFill: {
-    height: '100%', borderRadius: 6,
-    backgroundColor: COLORS.gold,
-  },
-
-  // Question Card
-  questionWrap: { marginHorizontal: 20, marginBottom: 18 },
-  questionCard: { padding: 22 },
   questionText: {
-    fontFamily: FONTS.bold, fontSize: 17, color: COLORS.navy, lineHeight: 27,
+    fontFamily: FONTS.bold, fontSize: 21, lineHeight: 26, color: '#FFFFFF',
+    textAlign: 'center', marginBottom: 16, paddingHorizontal: 6,
   },
 
-  // Options
-  options: { paddingHorizontal: 20, gap: 12 },
-  optionBtn: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 14,
-    borderRadius: 18, borderWidth: 1.5,
-  },
-  letterBox: {
-    width: 32, height: 32, borderRadius: 10,
-    justifyContent: 'center', alignItems: 'center', marginRight: 12,
-  },
-  letterText: { fontFamily: FONTS.bold, fontSize: 14 },
-  optionText: {
-    fontFamily: FONTS.semiBold, fontSize: 14, flex: 1, marginRight: 8, lineHeight: 20,
-  },
-
-  // Feedback & Next Button
-  feedback: { marginTop: 16, paddingHorizontal: 20, paddingBottom: 20 },
-  explanationBox: {
-    flexDirection: 'row', backgroundColor: '#FFFBEB',
-    padding: 16, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(251, 191, 36, 0.55)',
-    alignItems: 'flex-start', marginBottom: 14,
-  },
-  explanationTitle: { fontFamily: FONTS.bold, fontSize: 11, color: GOLD_TEXT, letterSpacing: 1, marginBottom: 4 },
-  explanationText: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textSub, lineHeight: 20 },
-
-  // Wrong-answer gamified retry card
-  wrongBox: {
-    flexDirection: 'row',
-    backgroundColor: '#FEF2F2',
-    padding: 16,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#EF4444',
-    alignItems: 'flex-start',
-    marginBottom: 14,
-  },
-  wrongIcon: { fontSize: 28, lineHeight: 34 },
-  wrongTitle: { fontFamily: FONTS.bold, fontSize: 13, color: '#B91C1C', marginBottom: 4, letterSpacing: 0.3 },
-  wrongDesc:  { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textSub, lineHeight: 18 },
-  nextBtn: {
-    flexDirection: 'row', backgroundColor: COLORS.accent, paddingVertical: 16,
-    borderRadius: 28, justifyContent: 'center', alignItems: 'center',
-    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 6,
-    gap: 8,
-  },
-  nextBtnText: {
-    fontFamily: FONTS.bold, fontSize: 14, color: '#FFF', letterSpacing: 1.2,
-  },
-
-  // Victory / Reward Modal
-  rewardContainer: {
-    flex: 1, backgroundColor: 'transparent', justifyContent: 'space-between',
-  },
-  victoryGlow: {
-    position: 'absolute', top: 60, alignSelf: 'center',
-    width: SCREEN_W * 0.9, height: SCREEN_W * 0.9, borderRadius: (SCREEN_W * 0.9) / 2,
-    backgroundColor: 'rgba(251,191,36,0.10)',
-  },
-  rewardBody: {
-    alignItems: 'center', paddingHorizontal: 24, paddingTop: 30, paddingBottom: 30,
-  },
-  trophyRingOuter: {
-    width: 140, height: 140, borderRadius: 70,
-    backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 2, borderColor: 'rgba(251,191,36,0.4)',
-    justifyContent: 'center', alignItems: 'center', marginBottom: 24, position: 'relative',
-  },
-  trophyRingInner: {
-    width: 110, height: 110, borderRadius: 55,
-    backgroundColor: 'rgba(251,191,36,0.18)', justifyContent: 'center', alignItems: 'center',
-  },
-  trophyStarPill: {
-    position: 'absolute', bottom: -10, flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.accent, paddingHorizontal: 12, paddingVertical: 4,
-    borderRadius: 12, gap: 4,
-  },
-  trophyStarText: { fontFamily: FONTS.bold, fontSize: 10, color: '#FFF', letterSpacing: 1 },
-  rewardTitle: {
-    fontFamily: FONTS.bold, fontSize: 26, color: '#FFF', letterSpacing: 1, textAlign: 'center', marginBottom: 6,
-  },
-  rewardSub: {
-    fontFamily: FONTS.medium, fontSize: 14, color: 'rgba(255,255,255,0.8)', textAlign: 'center', marginBottom: 26, paddingHorizontal: 20,
-  },
-
-  // Stat Matrix
-  statFrame: { width: '100%', marginBottom: 20, borderRadius: 20 },
-  statMatrix: {
-    flexDirection: 'row',
-    paddingVertical: 18, justifyContent: 'space-around', alignItems: 'center',
-  },
-  statCell: { alignItems: 'center' },
-  statCellValue: { fontFamily: FONTS.bold, fontSize: 18, color: COLORS.navy, marginTop: 4 },
-  statCellLabel: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textMuted, letterSpacing: 1, marginTop: 2 },
-  statDivider: { width: 1, height: 35, backgroundColor: COLORS.borderLight },
-
-  badgeRewardFrame: { width: '100%', borderRadius: 18 },
-  badgeRewardCard: { flexDirection: 'row', alignItems: 'center', padding: 16 },
-  badgeCardTitle: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.navy },
-  badgeCardSub: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
-
-  rewardFooter: { paddingHorizontal: 24, paddingBottom: 36 },
-  claimBtn: {
-    height: 56, borderRadius: 28, backgroundColor: COLORS.accent,
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 8,
-  },
-  claimBtnText: {
-    fontFamily: FONTS.bold, fontSize: 15, color: '#FFF', letterSpacing: 1.5,
-  },
-
-  // ── Cinematic Gamified Intro Styles ──
-  introContainer: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  introFlash: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#FFFFFF',
-    zIndex: 999,
-  },
-  letterboxTop: {
-    width: '100%',
-    height: 60,
-    backgroundColor: 'rgba(2, 6, 23, 0.85)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(251, 191, 36, 0.25)',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    zIndex: 10,
-  },
-  letterboxTopContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  systemStatusWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  pulsingGreenDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#10B981',
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-  },
-  systemStatusText: {
-    fontFamily: FONTS.bold,
-    fontSize: 12,
-    color: '#34D399',
-    letterSpacing: 1.2,
-  },
-  skipBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.20)',
-  },
-  skipBtnText: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: '#FBBF24',
-    letterSpacing: 1,
-  },
-  letterboxBottom: {
-    width: '100%',
-    height: 50,
-    backgroundColor: 'rgba(2, 6, 23, 0.85)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(251, 191, 36, 0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  letterboxBottomText: {
-    fontFamily: FONTS.medium,
-    fontSize: 10,
-    color: '#64748B',
-    letterSpacing: 1.5,
-  },
-  introStage: {
-    width: '100%',
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    position: 'relative',
-  },
-  introAuraRing: {
-    position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
+  answer: {
+    width: (SCREEN_W - 36 - 12) / 2,
+    minHeight: 112,
+    borderRadius: 20,
     borderWidth: 2,
-    borderStyle: 'dashed',
-    opacity: 0.35,
-    top: '15%',
-    alignSelf: 'center',
-  },
-  introAuraRingStatic: {
-    position: 'absolute',
-    width: 170,
-    height: 170,
-    borderRadius: 85,
-    borderWidth: 1,
-    opacity: 0.20,
-    top: '18%',
-    alignSelf: 'center',
-  },
-  introEmblemWrap: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    backgroundColor: 'rgba(8, 20, 60, 0.90)',
-    borderWidth: 2.5,
+    borderBottomWidth: 5,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#FBBF24',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 18,
-    elevation: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
   },
-  introEmblemEmoji: {
-    fontSize: 46,
+  letterBadge: {
+    width: 30, height: 30, borderRadius: 9,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 8,
   },
-  introPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    borderRadius: RADIUS.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    marginBottom: 10,
+  letterText: { fontFamily: FONTS.bold, fontSize: 15, color: '#FFFFFF' },
+  answerText: { fontFamily: FONTS.semiBold, fontSize: 14, lineHeight: 18, color: COLORS.navy, textAlign: 'center' },
+
+  feedbackFrame: { marginTop: 14 },
+  explanationBox: { flexDirection: 'row', alignItems: 'flex-start', padding: 14 },
+  explanationTitle: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 1, color: GOLD_TEXT, textTransform: 'uppercase' },
+  explanationText: { fontFamily: FONTS.medium, fontSize: 14, lineHeight: 20, color: COLORS.textSub, marginTop: 2 },
+  wrongBox: { flexDirection: 'row', alignItems: 'center', padding: 14 },
+  wrongTitle: { fontFamily: FONTS.bold, fontSize: 15, color: '#B91C1C' },
+  wrongDesc: { fontFamily: FONTS.medium, fontSize: 13, lineHeight: 18, color: COLORS.textSub, marginTop: 2 },
+
+  floatingToast: {
+    position: 'absolute', top: 70, alignSelf: 'center', zIndex: 50,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 9, borderRadius: 20,
+    ...SHADOW.card,
   },
-  introPillText: {
-    fontFamily: FONTS.bold,
-    fontSize: 12,
-    letterSpacing: 1.2,
+  floatingToastText: { fontFamily: FONTS.bold, fontSize: 14, color: '#FFFFFF' },
+
+  // Results
+  resultBody: { paddingHorizontal: 18, paddingBottom: 16 },
+  resultCard: { alignItems: 'center', paddingHorizontal: 16, paddingTop: 22, paddingBottom: 18 },
+  resultName: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.navy, marginTop: 10 },
+  resultSub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMuted, marginTop: 2, textAlign: 'center' },
+  resultPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10,
+    backgroundColor: '#FEF3C7', borderRadius: RADIUS.pill,
+    borderWidth: 1, borderColor: COLORS.gold,
+    paddingHorizontal: 14, paddingVertical: 6,
   },
-  introTargetTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 22,
-    color: '#FFFFFF',
-    textAlign: 'center',
-    letterSpacing: 0.8,
-    lineHeight: 28,
-    textShadowColor: 'rgba(251, 191, 36, 0.6)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+  resultPillText: { fontFamily: FONTS.bold, fontSize: 13, color: GOLD_TEXT },
+  tileGrid: {
+    alignSelf: 'stretch', flexDirection: 'row', flexWrap: 'wrap',
+    justifyContent: 'space-between', rowGap: 12, marginTop: 20,
   },
-  introBriefingWrap: {
-    width: '100%',
-    marginTop: 8,
+  tile: {
+    width: '48%', minHeight: 104, borderRadius: 20,
+    borderBottomWidth: 5,
+    alignItems: 'center', justifyContent: 'center', padding: 10,
   },
-  introBriefingCard: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  introObjectiveText: {
-    fontFamily: FONTS.medium,
-    fontSize: 13,
-    color: COLORS.textSub,
-    textAlign: 'center',
-    lineHeight: 19,
-    marginBottom: 14,
-  },
-  introHudRow: {
-    flexDirection: 'row',
-    width: '100%',
-    backgroundColor: COLORS.bg,
-    borderRadius: RADIUS.md,
-    paddingVertical: 10,
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  introHudCell: {
-    alignItems: 'center',
-    gap: 3,
-  },
-  introHudVal: {
-    fontFamily: FONTS.bold,
-    fontSize: 13,
-    color: COLORS.navy,
-  },
-  introHudLabel: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: COLORS.textMuted,
-    letterSpacing: 0.5,
-  },
-  introHudDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: COLORS.borderLight,
-  },
-  introActionWrap: {
-    width: '100%',
-    alignItems: 'center',
-    marginTop: 18,
-  },
-  introLoadingBtn: {
-    width: '100%',
-    height: 50,
-    borderRadius: RADIUS.pill,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.3)',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  introLoadingText: {
-    fontFamily: FONTS.bold,
-    fontSize: 13,
-    color: '#FBBF24',
-    letterSpacing: 1,
-  },
-  introStartBtn: {
-    width: '100%',
-    height: 52,
-    borderRadius: RADIUS.pill,
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45,
-    shadowRadius: 14,
-    elevation: 8,
-  },
-  introStartGrad: {
-    flex: 1,
-    borderRadius: RADIUS.pill,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 10,
-  },
-  introStartText: {
-    fontFamily: FONTS.bold,
-    fontSize: 15,
-    color: '#FFFFFF',
-    letterSpacing: 1.5,
-  },
-  introCountdownSub: {
-    fontFamily: FONTS.medium,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 8,
-    letterSpacing: 0.5,
-  },
-  introErrorWrap: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  introErrorText: {
-    fontFamily: FONTS.medium,
-    fontSize: 12,
-    color: '#EF4444',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  introErrorBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: RADIUS.pill,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderWidth: 1,
-    borderColor: '#EF4444',
-  },
-  introErrorBtnText: {
-    fontFamily: FONTS.bold,
-    fontSize: 12,
-    color: '#EF4444',
-  },
+  tileValue: { fontFamily: FONTS.bold, fontSize: 30, lineHeight: 34, color: '#FFFFFF' },
+  tileLabel: { fontFamily: FONTS.semiBold, fontSize: 13, color: '#FFFFFF', textAlign: 'center', marginTop: 2 },
 });

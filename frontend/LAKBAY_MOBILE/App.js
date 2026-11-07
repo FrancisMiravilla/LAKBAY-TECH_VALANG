@@ -1,8 +1,14 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useFonts, Rajdhani_300Light, Rajdhani_400Regular, Rajdhani_500Medium, Rajdhani_600SemiBold, Rajdhani_700Bold } from '@expo-google-fonts/rajdhani';
+import { useFonts } from 'expo-font';
 import { PressStart2P_400Regular } from '@expo-google-fonts/press-start-2p';
+import { Lexend_300Light } from '@expo-google-fonts/lexend/300Light';
+import { Lexend_400Regular } from '@expo-google-fonts/lexend/400Regular';
+import { Lexend_500Medium } from '@expo-google-fonts/lexend/500Medium';
+import { Lexend_600SemiBold } from '@expo-google-fonts/lexend/600SemiBold';
+import { Lexend_700Bold } from '@expo-google-fonts/lexend/700Bold';
+import { Unbounded_800ExtraBold } from '@expo-google-fonts/unbounded/800ExtraBold';
 import { View, ActivityIndicator } from 'react-native';
 import * as Font from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,12 +21,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
-    Rajdhani_300Light,
-    Rajdhani_400Regular,
-    Rajdhani_500Medium,
-    Rajdhani_600SemiBold,
-    Rajdhani_700Bold,
     PressStart2P_400Regular,
+    Lexend_300Light,
+    Lexend_400Regular,
+    Lexend_500Medium,
+    Lexend_600SemiBold,
+    Lexend_700Bold,
+    Unbounded_800ExtraBold,
     ...Ionicons.font,
   });
 

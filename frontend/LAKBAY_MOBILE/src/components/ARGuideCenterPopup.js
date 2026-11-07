@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, GOLD_TEXT, onWhite } from '../constants/theme';
 import VintaCard from './VintaCard';
+import LucideIcon from './LucideIcon';
 
 const GUIDE_IMAGE = require('../assets/guide_character.png');
 
@@ -24,6 +25,7 @@ export default function ARGuideCenterPopup({
   arTargets = [],
   activeTarget = null,
   onOpenFullList,
+  onGuide,
   rarityThemes = {},
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -133,9 +135,12 @@ export default function ARGuideCenterPopup({
 
               {currentTarget ? (
                 <>
-                  <Text style={styles.targetSlotText}>
-                    🏛️ Building {currentTarget.building || 'S1'} · Slot #{currentTarget.slot_number || 1}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                    <LucideIcon name="landmark" size={12} color="#0284C7" />
+                    <Text style={[styles.targetSlotText, { marginBottom: 0 }]}>
+                      Building {currentTarget.building || 'S1'} · Slot #{currentTarget.slot_number || 1}
+                    </Text>
+                  </View>
                   <Text style={styles.targetNameText} numberOfLines={1}>{currentTarget.name}</Text>
 
                   <Text style={styles.hintText}>
@@ -178,10 +183,22 @@ export default function ARGuideCenterPopup({
               )}
             </View>
 
-            <TouchableOpacity style={styles.actionBtn} onPress={onClose} activeOpacity={0.85}>
-              <Ionicons name="scan-outline" size={18} color="#FFF" style={{ marginRight: 6 }} />
-              <Text style={styles.actionBtnText}>Got It! Search Now</Text>
-            </TouchableOpacity>
+            {onGuide && currentTarget ? (
+              <View style={styles.actionRow}>
+                <TouchableOpacity style={[styles.actionBtn, styles.actionBtnGhost]} onPress={onClose} activeOpacity={0.85}>
+                  <Text style={[styles.actionBtnText, styles.actionBtnGhostText]}>Search on my own</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.actionBtn, { flex: 1.2 }]} onPress={() => onGuide(currentTarget)} activeOpacity={0.85}>
+                  <Ionicons name="compass" size={18} color="#FFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.actionBtnText}>Guide Me</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.actionBtn} onPress={onClose} activeOpacity={0.85}>
+                <Ionicons name="scan-outline" size={18} color="#FFF" style={{ marginRight: 6 }} />
+                <Text style={styles.actionBtnText}>Got It! Search Now</Text>
+              </TouchableOpacity>
+            )}
           </VintaCard>
         </Animated.View>
       </View>
@@ -331,4 +348,14 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   actionBtnText: { fontFamily: FONTS.bold, fontSize: 15, color: '#FFF' },
+  actionRow: { flexDirection: 'row', gap: 10 },
+  actionBtnGhost: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  actionBtnGhostText: { color: COLORS.navy, fontSize: 13 },
 });

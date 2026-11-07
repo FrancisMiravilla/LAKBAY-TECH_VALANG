@@ -7,7 +7,7 @@ function inferType(title = '', confirmBtn) {
   if (confirmBtn?.style === 'destructive') return 'error';
   if (/(error|failed|fail)/.test(t)) return 'error';
   if (/(missing|invalid|validation|pending|required)/.test(t)) return 'warning';
-  if (/(success|🎉|published|submitted|updated|attached|done|complete)/.test(t)) return 'success';
+  if (/(success|published|submitted|updated|attached|done|complete)/.test(t)) return 'success';
   return 'info';
 }
 

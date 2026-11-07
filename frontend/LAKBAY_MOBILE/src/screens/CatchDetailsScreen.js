@@ -395,6 +395,7 @@ export default function CatchDetailsScreen({ route, navigation }) {
                 icon: icon ? { ...icon, color: RARITY.color } : null,
                 spotId: spot?.id ?? null,
                 spotName: spot?.name || icon?.name || 'Cultural Icon',
+                spotImage: spot?.image || null,
                 feature: 'catch',
               });
             }}

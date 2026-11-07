@@ -58,7 +58,7 @@ export default function ARScannedScreen({ navigation, route }) {
     requestPermission();
     addNotification({
       type: 'scan',
-      icon: '✨',
+      icon: 'sparkles',
       title: 'AR Scanned!',
       sub: `You discovered ${exhibit.name} in AR!`,
     });

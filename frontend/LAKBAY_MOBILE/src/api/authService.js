@@ -74,6 +74,16 @@ export const authService = {
     }
   },
 
+  getCosmetics: async () => {
+    const response = await apiClient.get('cosmetics/');
+    return response.data;
+  },
+
+  saveCosmetics: async (equipped) => {
+    const response = await apiClient.patch('cosmetics/', equipped);
+    return response.data;
+  },
+
   getLeaderboard: async (limit = 50) => {
     const response = await apiClient.get('leaderboard/', { params: { limit } });
     return response.data;

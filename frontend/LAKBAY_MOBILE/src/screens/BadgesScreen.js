@@ -18,6 +18,7 @@ import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT, onWhite } from '.
 import VintaCard from '../components/VintaCard';
 import VintaStripe from '../components/VintaStripe';
 import Leaderboard from '../components/Leaderboard';
+import LucideIcon from '../components/LucideIcon';
 import { useTabBarSpace } from '../navigation/tabBarLayout';
 import { authService } from '../api/authService';
 import { getMyScans, getSpots, getARTargets, getCatchIcons, getMilestones, ORIGIN } from '../api/qrService';
@@ -66,16 +67,17 @@ export const DEFAULT_MILESTONES = [
   { tier: 6, name: 'Admiral of the Western Seas', tagline: 'Commands the full maritime legacy of Zamboanga.', min_xp: 2201, max_xp: null, icon: 'crown', color: '#FF6B00' },
 ];
 
-export const getMilestoneEmoji = (iconName) => {
+// Milestone icon names from the CMS → LucideIcon keys.
+export const getMilestoneIcon = (iconName) => {
   switch (iconName) {
-    case 'navigation': return '⛵';
-    case 'map': return '🗺️';
-    case 'shield': return '🛡️';
-    case 'anchor': return '⚓';
-    case 'crown': return '👑';
-    case 'award': return '🏅';
+    case 'navigation': return 'sailboat';
+    case 'map': return 'map';
+    case 'shield': return 'shield';
+    case 'anchor': return 'anchor';
+    case 'crown': return 'crown';
+    case 'award': return 'medal';
     case 'compass':
-    default: return '🧭';
+    default: return 'compass';
   }
 };
 
@@ -185,7 +187,7 @@ function XPRing({ size, progressPct, level, rank, currentLevelXp }) {
           />
         </Svg>
         <View style={styles.ringInner}>
-          <Text style={styles.rankIcon}>{rank.icon}</Text>
+          <LucideIcon name={rank.icon} size={28} color={onWhite(rank.color)} style={styles.rankIcon} />
           <Text style={[styles.levelLabel, { color: COLORS.textMuted }]}>LEVEL</Text>
           <Text style={[styles.levelNumber, { color: onWhite(rank.color) }]}>{level}</Text>
           <Text
@@ -246,7 +248,7 @@ function StatCard({ icon, value, label, color }) {
     <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ flex: 1 }}>
       <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
         <VintaCard style={styles.statFrame} contentStyle={styles.statCardBody}>
-          <Text style={styles.statIcon}>{icon}</Text>
+          <LucideIcon name={icon} size={18} color={onWhite(color)} style={styles.statIcon} />
           <Text style={[styles.statValue, { color: onWhite(color) }]}>{value}</Text>
           <Text style={styles.statLabel}>{label}</Text>
         </VintaCard>
@@ -262,12 +264,13 @@ function QuestCard({ icon, title, sub, pct, color, questLabel }) {
     <VintaCard contentStyle={[styles.questCard, isComplete && styles.questCardComplete]}>
       {isComplete && (
         <View style={styles.completedBadge}>
-          <Text style={styles.completedBadgeText}>✓ COMPLETED</Text>
+          <LucideIcon name="check" size={11} color="#059669" strokeWidth={3} />
+          <Text style={styles.completedBadgeText}>COMPLETED</Text>
         </View>
       )}
       <View style={styles.questHeader}>
         <View style={[styles.questIconWrap, { backgroundColor: color + '20', borderColor: color + '55' }]}>
-          <Text style={styles.questIcon}>{icon}</Text>
+          <LucideIcon name={icon} size={20} color={onWhite(color)} />
         </View>
         <View style={{ flex: 1, marginLeft: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -280,9 +283,11 @@ function QuestCard({ icon, title, sub, pct, color, questLabel }) {
           </View>
           <Text style={styles.questSub}>{sub}</Text>
         </View>
-        <Text style={[styles.questPct, { color: onWhite(isComplete ? COLORS.teal : color) }]}>
-          {isComplete ? '🏅' : `${Math.round(pct * 100)}%`}
-        </Text>
+        {isComplete ? (
+          <LucideIcon name="medal" size={22} color={onWhite(COLORS.teal)} />
+        ) : (
+          <Text style={[styles.questPct, { color: onWhite(color) }]}>{`${Math.round(pct * 100)}%`}</Text>
+        )}
       </View>
       <View style={{ marginTop: 12 }}>
         <MilestonedBar pct={pct} color={color} />
@@ -420,11 +425,11 @@ export default function BadgesScreen() {
   const nextMilestone = activeMilestones.find(m => (m.min_xp > 0 && xp < m.min_xp) || (m.max_xp !== null && xp < m.max_xp && m !== currentMilestone)) || null;
 
   const milestoneColor = currentMilestone.color || '#1A56DB';
-  const milestoneEmoji = getMilestoneEmoji(currentMilestone.icon);
+  const milestoneIcon = getMilestoneIcon(currentMilestone.icon);
 
   const rank = {
     title: currentMilestone.name,
-    icon: milestoneEmoji,
+    icon: milestoneIcon,
     color: milestoneColor,
     glow: milestoneColor + '55',
     tier: currentMilestone.tier,
@@ -438,16 +443,16 @@ export default function BadgesScreen() {
   const pctAR          = Math.min(1, arDone / 5);
 
   const STATS = [
-    { icon: '⚡', value: xp.toLocaleString(),               label: 'XP Earned',   color: COLORS.gold    },
-    { icon: '🔍', value: scansCount.toString(),              label: 'QR Scanned',  color: COLORS.teal    },
-    { icon: '📸', value: arDone.toString(),                  label: 'AR Explored', color: COLORS.accent  },
-    { icon: '🏅', value: collectedCount.toString(),          label: 'Collected',   color: '#E05A47'      },
+    { icon: 'zap',    value: xp.toLocaleString(),               label: 'XP Earned',   color: COLORS.gold    },
+    { icon: 'search', value: scansCount.toString(),              label: 'QR Scanned',  color: COLORS.teal    },
+    { icon: 'camera', value: arDone.toString(),                  label: 'AR Explored', color: COLORS.accent  },
+    { icon: 'medal',  value: collectedCount.toString(),          label: 'Collected',   color: '#E05A47'      },
   ];
 
   const QUESTS = [
-    { icon: '🔍', title: 'QR Explorer',   questLabel: 'QUEST', sub: `${scansCount} / ${totalSpots} locations scanned`,           pct: pctQR,                       color: COLORS.teal   },
-    { icon: '📸', title: 'AR Adventurer', questLabel: 'QUEST', sub: `${arDone} / 5 museum AR experiences`,                       pct: pctAR,                       color: COLORS.accent },
-    { icon: '🏆', title: 'Collector',     questLabel: 'QUEST', sub: `${collectedCount} / 4 cultural symbols caught`,              pct: Math.min(1, collectedCount / 4), color: COLORS.gold   },
+    { icon: 'search', title: 'QR Explorer',   questLabel: 'QUEST', sub: `${scansCount} / ${totalSpots} locations scanned`,           pct: pctQR,                       color: COLORS.teal   },
+    { icon: 'camera', title: 'AR Adventurer', questLabel: 'QUEST', sub: `${arDone} / 5 museum AR experiences`,                       pct: pctAR,                       color: COLORS.accent },
+    { icon: 'trophy', title: 'Collector',     questLabel: 'QUEST', sub: `${collectedCount} / 4 cultural symbols caught`,              pct: Math.min(1, collectedCount / 4), color: COLORS.gold   },
   ];
 
   if (loading) {
@@ -484,7 +489,7 @@ export default function BadgesScreen() {
             <Text style={styles.headerSub}>EXPEDITION RANKS &amp; TROPHIES</Text>
           </View>
           <View style={[styles.rankPill, { borderColor: rank.color + '88', backgroundColor: rank.color + '22' }]}>
-            <Text style={styles.rankPillIcon}>{rank.icon}</Text>
+            <LucideIcon name={rank.icon} size={14} color={rank.color} />
             <Text style={[styles.rankPillText, { color: rank.color }]}>{rank.title}</Text>
           </View>
         </View>
@@ -497,11 +502,15 @@ export default function BadgesScreen() {
             <VintaCard style={styles.heroFrame} contentStyle={styles.heroGlassCard}>
               <XPRing size={220} progressPct={progressPct} level={level} rank={rank} currentLevelXp={currentLevelXp} />
               <View style={[styles.milestoneRibbon, { borderColor: (nextMilestone ? (nextMilestone.color || '#1A56DB') : milestoneColor) + '55', backgroundColor: (nextMilestone ? (nextMilestone.color || '#1A56DB') : milestoneColor) + '18' }]}>
-                <Text style={styles.milestoneRibbonIcon}>{nextMilestone ? getMilestoneEmoji(nextMilestone.icon) : '👑'}</Text>
+                <LucideIcon
+                  name={nextMilestone ? getMilestoneIcon(nextMilestone.icon) : 'crown'}
+                  size={15}
+                  color={onWhite(nextMilestone ? (nextMilestone.color || '#38BDF8') : COLORS.gold)}
+                />
                 <Text style={[styles.milestoneRibbonText, { color: onWhite(nextMilestone ? (nextMilestone.color || '#38BDF8') : COLORS.gold) }]}>
                   {nextMilestone
                     ? `${(nextMilestone.min_xp > xp ? nextMilestone.min_xp - xp : (nextMilestone.max_xp ? nextMilestone.max_xp - xp : 0))} XP until Tier ${nextMilestone.tier}: ${nextMilestone.name}`
-                    : 'Max Expedition Rank Achieved! 👑'}
+                    : 'Max Expedition Rank Achieved!'}
                 </Text>
               </View>
 
@@ -525,9 +534,9 @@ export default function BadgesScreen() {
           {/* ── Tab Switcher ── */}
           <View style={styles.tabBar}>
             {[
-              { key: 'progress',   label: '⚔️  Quests'     },
-              { key: 'collection', label: '🧩  Collection' },
-              { key: 'leaderboard', label: '🏆  Leaderboard' },
+              { key: 'progress',    label: 'Quests',      icon: 'swords' },
+              { key: 'collection',  label: 'Collection',  icon: 'puzzle' },
+              { key: 'leaderboard', label: 'Leaderboard', icon: 'trophy' },
             ].map(tab => (
               <TouchableOpacity
                 key={tab.key}
@@ -535,6 +544,7 @@ export default function BadgesScreen() {
                 onPress={() => setActiveTab(tab.key)}
                 activeOpacity={0.75}
               >
+                <LucideIcon name={tab.icon} size={14} color={activeTab === tab.key ? '#FFFFFF' : COLORS.textMuted} />
                 <Text
                   style={[styles.tabBtnText, activeTab === tab.key && styles.tabBtnTextActive]}
                   numberOfLines={1}
@@ -571,11 +581,11 @@ export default function BadgesScreen() {
                   const isCurrent = m.id ? m.id === currentMilestone.id : m.tier === currentMilestone.tier;
                   const isEarned = xp >= m.min_xp;
                   const itemColor = m.color || '#1A56DB';
-                  const itemEmoji = getMilestoneEmoji(m.icon);
+                  const itemIcon = getMilestoneIcon(m.icon);
                   return (
                     <View key={m.id || i} style={[styles.milestoneRow, i === activeMilestones.length - 1 && { borderBottomWidth: 0 }, isCurrent && { backgroundColor: itemColor + '12', borderRadius: 12, paddingHorizontal: 8, marginHorizontal: -8 }]}>
                       <View style={[styles.milestoneDot, { backgroundColor: isEarned ? itemColor : COLORS.bg, borderColor: isEarned ? itemColor : COLORS.border }]}>
-                        <Text style={{ fontSize: 13 }}>{isEarned ? itemEmoji : '🔒'}</Text>
+                        <LucideIcon name={isEarned ? itemIcon : 'lock'} size={14} color={isEarned ? '#FFFFFF' : COLORS.textMuted} />
                       </View>
                       <View style={{ flex: 1, marginHorizontal: 12 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -624,7 +634,10 @@ export default function BadgesScreen() {
 
               {/* ── Catch & Win Collection ── */}
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>🏆 Catch &amp; Win</Text>
+                <View style={styles.sectionTitleRow}>
+                  <LucideIcon name="trophy" size={18} color="#FFFFFF" />
+                  <Text style={styles.sectionTitle}>Catch &amp; Win</Text>
+                </View>
                 <View style={[styles.sectionBadge, { backgroundColor: 'rgba(251,191,36,0.18)', borderColor: 'rgba(251,191,36,0.45)' }]}>
                   <Text style={[styles.sectionBadgeText, { color: COLORS.gold }]}>{caughtIcons.length} / 4</Text>
                 </View>
@@ -648,25 +661,29 @@ export default function BadgesScreen() {
                               />
                             </View>
                           ) : (
-                            <Text style={styles.badgeEmoji}>🏺</Text>
+                            <LucideIcon name="amphora" size={30} color={onWhite(iconColor)} />
                           )}
                         </HexBadge>
                         <View style={[styles.rarityStrip, { backgroundColor: iconColor }]} />
                         <Text style={styles.badgeLabel} numberOfLines={1}>{b.name}</Text>
-                        <Text style={[styles.badgeRarity, { color: onWhite(iconColor) }]}>✦ CAUGHT</Text>
+                        <View style={styles.badgeRarityRow}>
+                          <LucideIcon name="sparkle" size={10} color={onWhite(iconColor)} />
+                          <Text style={[styles.badgeRarity, { color: onWhite(iconColor) }]}>CAUGHT</Text>
+                        </View>
                       </View>
                     );
                   })}
                 </VintaCard>
               ) : (
                 <VintaCard contentStyle={styles.emptyState}>
-                  <Text style={styles.emptyStateEmoji}>🎯</Text>
+                  <LucideIcon name="target" size={44} color={COLORS.textMuted} style={styles.emptyStateEmoji} />
                   <Text style={styles.emptyStateTitle}>No icons caught yet</Text>
                   <Text style={styles.emptyStateSub}>
                     Visit the 4 cultural icon spots around Zamboanga City to catch them!
                   </Text>
                   <View style={styles.emptyHint}>
-                    <Text style={styles.emptyHintText}>💡 Go to Catch &amp; Win to start collecting</Text>
+                    <LucideIcon name="lightbulb" size={14} color={GOLD_TEXT} />
+                    <Text style={styles.emptyHintText}>Go to Catch &amp; Win to start collecting</Text>
                   </View>
                 </VintaCard>
               )}
@@ -676,7 +693,10 @@ export default function BadgesScreen() {
 
               {/* ── AR Exhibit Collection ── */}
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>📸 AR Exhibit</Text>
+                <View style={styles.sectionTitleRow}>
+                  <LucideIcon name="camera" size={18} color="#FFFFFF" />
+                  <Text style={styles.sectionTitle}>AR Exhibit</Text>
+                </View>
                 <View style={[styles.sectionBadge, { backgroundColor: 'rgba(26,86,219,0.22)', borderColor: 'rgba(99,179,237,0.45)' }]}>
                   <Text style={[styles.sectionBadgeText, { color: COLORS.accent }]}>{collectedModels.length} Scanned</Text>
                 </View>
@@ -701,12 +721,15 @@ export default function BadgesScreen() {
                               />
                             </View>
                           ) : (
-                            <Text style={styles.badgeEmoji}>{b.emoji || '🎨'}</Text>
+                            <LucideIcon name={b.emoji} fallback="palette" size={30} color={onWhite(rarityColor)} />
                           )}
                         </HexBadge>
                         <View style={[styles.rarityStrip, { backgroundColor: rarityColor }]} />
                         <Text style={styles.badgeLabel} numberOfLines={1}>{b.name}</Text>
-                        <Text style={[styles.badgeRarity, { color: onWhite(rarityColor) }]}>✦ {rarityStr}</Text>
+                        <View style={styles.badgeRarityRow}>
+                          <LucideIcon name="sparkle" size={10} color={onWhite(rarityColor)} />
+                          <Text style={[styles.badgeRarity, { color: onWhite(rarityColor) }]}>{rarityStr}</Text>
+                        </View>
                         <Text style={{ fontSize: 10, fontFamily: FONTS.medium, color: COLORS.textMuted, marginTop: 1 }}>
                           Building {b.building || 'S1'} · Slot #{b.slot_number || 1}/10
                         </Text>
@@ -716,13 +739,14 @@ export default function BadgesScreen() {
                 </VintaCard>
               ) : (
                 <VintaCard contentStyle={styles.emptyState}>
-                  <Text style={styles.emptyStateEmoji}>🗺️</Text>
+                  <LucideIcon name="map" size={44} color={COLORS.textMuted} style={styles.emptyStateEmoji} />
                   <Text style={styles.emptyStateTitle}>No AR models yet</Text>
                   <Text style={styles.emptyStateSub}>
                     Scan AR markers at the National Museum exhibits to collect 3D models!
                   </Text>
                   <View style={styles.emptyHint}>
-                    <Text style={styles.emptyHintText}>💡 Scan AR markers at museums to unlock models</Text>
+                    <LucideIcon name="lightbulb" size={14} color={GOLD_TEXT} />
+                    <Text style={styles.emptyHintText}>Scan AR markers at museums to unlock models</Text>
                   </View>
                 </VintaCard>
               )}
@@ -783,7 +807,6 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     gap: 5,
   },
-  rankPillIcon: { fontSize: 13 },
   rankPillText: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 0.5, lineHeight: 15 },
 
   scroll: { paddingBottom: 20 },
@@ -809,7 +832,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     top: 0, bottom: 0, left: 0, right: 0,
   },
-  rankIcon: { fontSize: 26, marginBottom: 0 },
+  rankIcon: { marginBottom: 2 },
   levelLabel: {
     fontFamily: FONTS.semiBold,
     fontSize: 12,
@@ -847,7 +870,6 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 14,
   },
-  milestoneRibbonIcon: { fontSize: 13 },
   milestoneRibbonText: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 0.3, lineHeight: 15, flexShrink: 1 },
 
   // Stats
@@ -855,7 +877,7 @@ const styles = StyleSheet.create({
   statsGrid: { flexDirection: 'row', gap: 8 },
   statFrame: { borderRadius: RADIUS.md },
   statCardBody: { paddingVertical: 10, paddingHorizontal: 6, alignItems: 'center' },
-  statIcon: { fontSize: 16, marginBottom: 2 },
+  statIcon: { marginBottom: 4 },
   statValue: { fontFamily: FONTS.bold, fontSize: 19, lineHeight: 22 },
   statLabel: { fontFamily: FONTS.semiBold, fontSize: 11, color: COLORS.textMuted, textAlign: 'center', marginTop: 2, letterSpacing: 0.3, lineHeight: 13 },
 
@@ -875,7 +897,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 4,
     borderRadius: RADIUS.pill,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
   },
   tabBtnActive: {
     backgroundColor: COLORS.accent,
@@ -898,6 +923,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 4,
   },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  badgeRarityRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
   sectionTitle: {
     fontFamily: FONTS.bold,
     fontSize: 18,
@@ -940,6 +967,9 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill,
     paddingHorizontal: 8,
     paddingVertical: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   completedBadgeText: {
     fontFamily: FONTS.bold,
@@ -956,7 +986,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  questIcon: { fontSize: 20 },
   questTitle: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.navy, lineHeight: 18 },
   questTypePill: {
     borderWidth: 1,
@@ -1023,7 +1052,6 @@ const styles = StyleSheet.create({
   },
   badgeItem: { alignItems: 'center', width: 92 },
   rarityStrip: { height: 3, width: 44, borderRadius: 2, marginTop: 6, marginBottom: 4 },
-  badgeEmoji: { fontSize: 30 },
   badgeLabel: {
     fontFamily: FONTS.bold,
     fontSize: 12,
@@ -1045,7 +1073,7 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
     paddingHorizontal: 20,
   },
-  emptyStateEmoji: { fontSize: 48, marginBottom: 12 },
+  emptyStateEmoji: { marginBottom: 12 },
   emptyStateTitle: {
     fontFamily: FONTS.bold,
     fontSize: 16,
@@ -1068,6 +1096,9 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill,
     paddingHorizontal: 14,
     paddingVertical: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   emptyHintText: {
     fontFamily: FONTS.bold,

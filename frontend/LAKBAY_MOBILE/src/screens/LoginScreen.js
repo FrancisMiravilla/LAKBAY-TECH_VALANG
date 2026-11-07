@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
+import LucideIcon from '../components/LucideIcon';
 import { COLORS, FONTS, RADIUS, SHADOW, CARD_BORDER_WIDTH, BG_OVERLAY, GOLD_TEXT } from '../constants/theme';
 import VintaCard from '../components/VintaCard';
 import { authService } from '../api/authService';
@@ -45,7 +46,7 @@ export default function LoginScreen({ navigation }) {
       if (result && result.access) {
         // Record today's login streak
         await streakService.recordLoginStreak();
-        navigation.replace('MainTabs', { showDailyStreak: true });
+        navigation.replace('MainTabs', { showDailyStreak: true, justLoggedIn: true });
       }
     } catch (error) {
       setLoading(false);
@@ -109,15 +110,15 @@ export default function LoginScreen({ navigation }) {
               {/* Gamified quest chips */}
               <View style={styles.pills}>
                 <View style={styles.pill}>
-                  <Text style={styles.pillEmoji}>🗺️</Text>
+                  <LucideIcon name="map" size={12} color="rgba(191, 215, 255, 0.90)" />
                   <Text style={styles.pillText}>Quests</Text>
                 </View>
                 <View style={styles.pill}>
-                  <Text style={styles.pillEmoji}>🧊</Text>
+                  <LucideIcon name="box" size={12} color="rgba(191, 215, 255, 0.90)" />
                   <Text style={styles.pillText}>3D AR</Text>
                 </View>
                 <View style={styles.pill}>
-                  <Text style={styles.pillEmoji}>🏆</Text>
+                  <LucideIcon name="trophy" size={12} color="rgba(191, 215, 255, 0.90)" />
                   <Text style={styles.pillText}>Badges</Text>
                 </View>
               </View>
@@ -138,7 +139,7 @@ export default function LoginScreen({ navigation }) {
             {/* Daily Streak Incentive Banner */}
             <View style={styles.streakBanner}>
               <View style={styles.streakIconWrap}>
-                <Text style={{ fontSize: 18 }}>⚡</Text>
+                <LucideIcon name="zap" size={18} color={COLORS.accent} />
               </View>
               <View style={styles.streakText}>
                 <Text style={styles.streakTitle}>Daily Expedition Streak</Text>
@@ -321,7 +322,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 5,
   },
-  pillEmoji: { fontSize: 11 },
   pillText: {
     fontFamily: FONTS.semiBold,
     fontSize: 11,

@@ -3,6 +3,8 @@ import { StyleSheet, Text, View, Image, ActivityIndicator, TouchableOpacity } fr
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, GOLD_TEXT } from '../constants/theme';
 import VintaCard from './VintaCard';
+import LucideIcon from './LucideIcon';
+import DecoratedAvatar from './DecoratedAvatar';
 import { authService } from '../api/authService';
 import { getCharacterDetails } from '../constants/characters';
 
@@ -12,8 +14,20 @@ const MEDALS = {
   3: { color: '#CD7F32', label: '3rd' },
 };
 
-function Avatar({ character, size, ringColor }) {
-  const details = getCharacterDetails(character);
+// Players who equipped decorations show them; others keep the plain medal/accent ring.
+function Avatar({ player, size, ringColor }) {
+  if (player.hat || player.frame || player.pin) {
+    return (
+      <DecoratedAvatar
+        character={player.chosen_character}
+        size={size}
+        hat={player.hat}
+        frame={player.frame}
+        pin={player.pin}
+      />
+    );
+  }
+  const details = getCharacterDetails(player.chosen_character);
   return (
     <View style={[styles.avatarRing, { width: size + 6, height: size + 6, borderRadius: (size + 6) / 2, borderColor: ringColor }]}>
       <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: COLORS.bg }}>
@@ -33,8 +47,8 @@ function PodiumSpot({ player, place }) {
   if (!player) return <View style={styles.podiumCol} />;
   return (
     <View style={[styles.podiumCol, first && styles.podiumColFirst]}>
-      {first && <Text style={styles.crown}>👑</Text>}
-      <Avatar character={player.chosen_character} size={first ? 74 : 58} ringColor={medal.color} />
+      {first && <LucideIcon name="crown" size={24} color="#F4B400" style={styles.crown} />}
+      <Avatar player={player} size={first ? 74 : 58} ringColor={medal.color} />
       <View style={[styles.medalChip, { backgroundColor: medal.color }]}>
         <Text style={styles.medalChipText}>{player.rank}</Text>
       </View>
@@ -52,7 +66,7 @@ function PlayerRow({ player, last }) {
   return (
     <View style={[styles.row, last && { borderBottomWidth: 0 }, player.is_me && styles.rowMe]}>
       <Text style={styles.rowRank}>{player.rank}</Text>
-      <Avatar character={player.chosen_character} size={38} ringColor={player.is_me ? COLORS.accent : COLORS.border} />
+      <Avatar player={player} size={38} ringColor={player.is_me ? COLORS.accent : COLORS.border} />
       <View style={styles.rowText}>
         <Text style={[styles.rowName, player.is_me && styles.meText]} numberOfLines={1}>
           {player.in_game_name}{player.is_me ? '  (You)' : ''}
@@ -118,7 +132,7 @@ export default function Leaderboard() {
           <Text style={styles.meLabel}>YOUR RANK</Text>
           <View style={styles.meRow}>
             <Text style={styles.meRank}>#{me.rank}</Text>
-            <Avatar character={me.chosen_character} size={44} ringColor={COLORS.accent} />
+            <Avatar player={me} size={44} ringColor={COLORS.accent} />
             <View style={styles.rowText}>
               <Text style={styles.rowName} numberOfLines={1}>{me.in_game_name}</Text>
               <Text style={styles.rowSub}>of {data.total_players} explorers · Lv {me.level}</Text>
@@ -186,7 +200,7 @@ const styles = StyleSheet.create({
   podium: { flexDirection: 'row', alignItems: 'flex-end' },
   podiumCol: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
   podiumColFirst: { marginBottom: 0 },
-  crown: { fontSize: 22, marginBottom: 2 },
+  crown: { marginBottom: 2 },
   avatarRing: { borderWidth: 3, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   medalChip: {
     marginTop: -12, minWidth: 24, height: 24, borderRadius: 12, paddingHorizontal: 6,

@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, Image, TouchableOpacity } from 'react-native';
 import { COLORS, FONTS, RADIUS, SHADOW, SPACING, SIZES } from '../constants/theme';
+import LucideIcon from './LucideIcon';
 
 export default function TravelCard({
   title,
@@ -22,13 +23,16 @@ export default function TravelCard({
           <Image source={{ uri: imageUri }} style={styles.image} />
         ) : (
           <View style={styles.imagePlaceholder}>
-            <Text style={styles.placeholderEmoji}>🌴</Text>
+            <LucideIcon name="palm" size={38} color={COLORS.accent} />
             <Text style={styles.placeholderText}>Lakbay Vista</Text>
           </View>
         )}
         {/* Rating badge */}
         <View style={styles.ratingBadge}>
-          <Text style={styles.ratingText}>⭐ {rating || '4.8'}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <LucideIcon name="star" size={11} color={COLORS.gold} />
+            <Text style={styles.ratingText}>{rating || '4.8'}</Text>
+          </View>
         </View>
         {/* Category label */}
         {category && (
@@ -41,7 +45,10 @@ export default function TravelCard({
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.locationText}>📍 {location || 'Philippines'}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+          <LucideIcon name="pin" size={11} color={COLORS.gold} />
+          <Text style={styles.locationText}>{location || 'Philippines'}</Text>
+        </View>
         <Text style={styles.titleText}>{title || 'Scenic Destination'}</Text>
 
         <View style={styles.footer}>
@@ -89,7 +96,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  placeholderEmoji: { fontSize: 38 },
   placeholderText: {
     fontFamily: FONTS.semiBold,
     color: COLORS.accent,

@@ -112,14 +112,25 @@ export const SHADOW = {
   },
 };
 
+// App-wide typeface: Lexend (from reference/guide.png). Rajdhani was the old face.
 export const FONTS = {
   pixel:   'PressStart2P_400Regular',
-  light:   'Rajdhani_300Light',
-  regular: 'Rajdhani_400Regular',
-  medium:  'Rajdhani_500Medium',
-  semiBold:'Rajdhani_600SemiBold',
-  bold:    'Rajdhani_700Bold',
-  black:   'Rajdhani_700Bold',
+  light:   'Lexend_300Light',
+  regular: 'Lexend_400Regular',
+  medium:  'Lexend_500Medium',
+  semiBold:'Lexend_600SemiBold',
+  bold:    'Lexend_700Bold',
+  black:   'Lexend_700Bold',
+};
+
+// Font pair from reference/guide.png, used by the guide-styled Home sections:
+// Unbounded for the big display number, Lexend for headings and body text.
+export const GUIDE_FONTS = {
+  display:  'Unbounded_800ExtraBold',
+  regular:  'Lexend_400Regular',
+  medium:   'Lexend_500Medium',
+  semiBold: 'Lexend_600SemiBold',
+  bold:     'Lexend_700Bold',
 };
 
 // ── LAKBAY card concept ─────────────────────────────────────────────

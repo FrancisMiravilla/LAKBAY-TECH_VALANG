@@ -6,6 +6,7 @@ import {
   ImageBackground, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import LucideIcon from '../components/LucideIcon';
 import * as SecureStore from 'expo-secure-store';
 import { COLORS, FONTS, RADIUS, SHADOW, CARD_BORDER_WIDTH, BG_OVERLAY, GOLD_TEXT } from '../constants/theme';
 import VintaCard from '../components/VintaCard';
@@ -115,7 +116,7 @@ export default function CharacterSelectScreen({ navigation }) {
 
   const handleConfirm = async () => {
     if (!explorerName.trim()) {
-      showErr('Explorer Callsign Required', 'Please enter your in-game name or tap 🎲 to roll a callsign.');
+      showErr('Explorer Callsign Required', 'Please enter your in-game name or tap Roll Name to get a callsign.');
       return;
     }
     setLoading(true);
@@ -314,7 +315,7 @@ export default function CharacterSelectScreen({ navigation }) {
                   onPress={handleRandomCallsign}
                   activeOpacity={0.8}
                 >
-                  <Text style={{ fontSize: 13 }}>🎲</Text>
+                  <LucideIcon name="dices" size={14} color={COLORS.accent} />
                   <Text style={styles.randomBtnText}>Roll Name</Text>
                 </TouchableOpacity>
               </View>

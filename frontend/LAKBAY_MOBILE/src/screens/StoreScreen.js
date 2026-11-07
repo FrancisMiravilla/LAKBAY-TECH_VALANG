@@ -304,7 +304,7 @@ export default function StoreScreen({ navigation }) {
                 /* Success State */
                 <View style={styles.qrSuccessWrap}>
                   <Ionicons name="checkmark-circle" size={64} color={COLORS.teal} />
-                  <Text style={styles.qrSuccessTitle}>Payment Received! 🎉</Text>
+                  <Text style={styles.qrSuccessTitle}>Payment Received!</Text>
                   <Text style={styles.qrSuccessCoins}>
                     +{qrData?.coins_amount || selectedBundle?.coins_amount} Gold Coins
                   </Text>

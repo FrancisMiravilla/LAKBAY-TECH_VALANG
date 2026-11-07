@@ -34,7 +34,7 @@ describe('ARScreen', () => {
     expect(getByText('AR ACTIVE')).toBeTruthy();
     expect(getByText('CAMERA READY')).toBeTruthy();
 
-    const simulateButton = getByText('📸 Tap to Simulate AR Scan');
+    const simulateButton = getByText('Tap to Simulate AR Scan');
     expect(simulateButton).toBeTruthy();
     
     fireEvent.press(simulateButton);

@@ -189,7 +189,7 @@ export default function ARGuideCompanion({
     color: '#10B981',
     bg: 'rgba(16, 185, 129, 0.18)',
     border: '#10B981',
-    emoji: '🏺',
+    emoji: 'amphora',
   };
 
   const bubbleScale = expandAnim.interpolate({

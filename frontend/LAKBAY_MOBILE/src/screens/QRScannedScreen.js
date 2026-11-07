@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import LucideIcon from '../components/LucideIcon';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, onWhite } from '../constants/theme';
 import VintaCard from '../components/VintaCard';
@@ -86,7 +87,7 @@ export default function QRScannedScreen({ navigation, route }) {
     if (spot && !already_scanned) {
       addNotification({
         type: 'scan',
-        icon: '📷',
+        icon: 'camera',
         title: 'QR Scanned!',
         sub: `You unlocked ${spot.name} — +${xpReward} XP`,
       });
@@ -199,7 +200,7 @@ export default function QRScannedScreen({ navigation, route }) {
               </ScrollView>
             ) : (
               <View style={styles.heroPlaceholder}>
-                <Text style={{ fontSize: 56 }}>🏛️</Text>
+                <LucideIcon name="landmark" size={56} color={COLORS.gold} strokeWidth={1.6} />
               </View>
             )}
 
@@ -274,7 +275,7 @@ export default function QRScannedScreen({ navigation, route }) {
             <TouchableOpacity
               style={styles.quizBtn}
               activeOpacity={0.85}
-              onPress={() => navigation.navigate('QuizScreen', { spotId: spot.id, spotName: spot.name, feature: 'qr' })}
+              onPress={() => navigation.navigate('QuizScreen', { spotId: spot.id, spotName: spot.name, spotImage: combinedImages[0] || null, feature: 'qr' })}
             >
               <LinearGradient
                 colors={[COLORS.accent, '#1E40AF']}

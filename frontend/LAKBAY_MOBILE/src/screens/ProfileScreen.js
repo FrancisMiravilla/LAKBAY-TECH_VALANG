@@ -16,14 +16,16 @@ import { useTabBarSpace } from '../navigation/tabBarLayout';
 
 import { useAppDialog } from '../components/useAppDialog';
 import { getCharacterDetails } from '../constants/characters';
+import LucideIcon from '../components/LucideIcon';
+import DecoratedAvatar, { ProfileBackdrop } from '../components/DecoratedAvatar';
 // ─── Rank helpers ─────────────────────────────────────────────────────────────
 const getRank = (xp) => {
-  if (xp >= 2201) return { title: 'Admiral of the Western Seas', icon: '👑', color: '#FF6B00', glow: 'rgba(255,107,0,0.35)' };
-  if (xp >= 1401) return { title: 'Archipelago Voyager',        icon: '⚓', color: '#9B59B6', glow: 'rgba(155,89,182,0.35)' };
-  if (xp >= 801)  return { title: 'Harbor Sentinel',            icon: '🛡️', color: '#FBBF24', glow: 'rgba(251,191,36,0.35)' };
-  if (xp >= 401)  return { title: 'Strait Navigator',           icon: '🗺️', color: '#10B981', glow: 'rgba(16,185,129,0.35)' };
-  if (xp >= 151)  return { title: 'Vinta Helmsman',             icon: '⛵', color: '#38BDF8', glow: 'rgba(56,189,248,0.35)' };
-  return                 { title: 'Coastal Scout',              icon: '🧭', color: COLORS.accent, glow: 'rgba(26,86,219,0.35)' };
+  if (xp >= 2201) return { title: 'Admiral of the Western Seas', icon: 'crown', color: '#FF6B00', glow: 'rgba(255,107,0,0.35)' };
+  if (xp >= 1401) return { title: 'Archipelago Voyager',        icon: 'anchor', color: '#9B59B6', glow: 'rgba(155,89,182,0.35)' };
+  if (xp >= 801)  return { title: 'Harbor Sentinel',            icon: 'shield', color: '#FBBF24', glow: 'rgba(251,191,36,0.35)' };
+  if (xp >= 401)  return { title: 'Strait Navigator',           icon: 'map', color: '#10B981', glow: 'rgba(16,185,129,0.35)' };
+  if (xp >= 151)  return { title: 'Vinta Helmsman',             icon: 'sailboat', color: '#38BDF8', glow: 'rgba(56,189,248,0.35)' };
+  return                 { title: 'Coastal Scout',              icon: 'compass', color: COLORS.accent, glow: 'rgba(26,86,219,0.35)' };
 };
 
 
@@ -100,7 +102,7 @@ function StatPill({ icon, value, label, color }) {
   return (
     <View style={statStyles.pill}>
       <View style={[statStyles.iconWrap, { backgroundColor: color + '18', borderColor: color + '40' }]}>
-        <Text style={statStyles.icon}>{icon}</Text>
+        <LucideIcon name={icon} size={17} color={onWhite(color)} />
       </View>
       <Text style={[statStyles.value, { color: onWhite(color) }]}>{value}</Text>
       <Text style={statStyles.label}>{label}</Text>
@@ -110,7 +112,6 @@ function StatPill({ icon, value, label, color }) {
 const statStyles = StyleSheet.create({
   pill:     { flex: 1, alignItems: 'center', gap: 5 },
   iconWrap: { width: 34, height: 34, borderRadius: 10, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
-  icon:     { fontSize: 15 },
   value:    { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.navy, lineHeight: 19 },
   label:    { fontFamily: FONTS.semiBold, fontSize: 11, color: COLORS.textMuted, letterSpacing: 0.2, textAlign: 'center', lineHeight: 13, minHeight: 26 },
 });
@@ -134,7 +135,7 @@ function MenuItem({ item, onPress }) {
           menuStyles.iconBox,
           { backgroundColor: (item.color || COLORS.accent) + '18', borderColor: (item.color || COLORS.accent) + '40' },
         ]}>
-          <Text style={menuStyles.icon}>{item.icon}</Text>
+          <LucideIcon name={item.icon} size={18} color={item.color || COLORS.accent} />
         </View>
         <Text style={[menuStyles.label, item.color && { color: item.color }]}>{item.label}</Text>
         {item.badge && (
@@ -160,7 +161,6 @@ const menuStyles = StyleSheet.create({
     width: 38, height: 38, borderRadius: 10,
     borderWidth: 1, justifyContent: 'center', alignItems: 'center', marginRight: 14,
   },
-  icon:  { fontSize: 18 },
   label: { flex: 1, fontFamily: FONTS.bold, fontSize: 15, color: COLORS.navy, lineHeight: 18 },
   badge: {
     backgroundColor: COLORS.accent, borderRadius: RADIUS.pill,
@@ -178,11 +178,12 @@ const menuStyles = StyleSheet.create({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 const MENU_OPTIONS = [
-  { id: 'edit',       icon: '✏️', label: 'Edit Profile'       },
-  { id: 'promotions', icon: '📢', label: 'My Promotions'      },
-  { id: 'notif',      icon: '🔔', label: 'Notifications'      },
-  { id: 'priv',       icon: '🔒', label: 'Privacy & Security' },
-  { id: 'help',       icon: '❓', label: 'Help & Support'     },
+  { id: 'customize',  icon: 'sparkles',  label: 'Customize Avatar'   },
+  { id: 'edit',       icon: 'pencil',    label: 'Edit Profile'       },
+  { id: 'promotions', icon: 'megaphone', label: 'My Promotions'      },
+  { id: 'notif',      icon: 'bell',      label: 'Notifications'      },
+  { id: 'priv',       icon: 'lock',      label: 'Privacy & Security' },
+  { id: 'help',       icon: 'help',      label: 'Help & Support'     },
 ];
 
 export default function ProfileScreen({ navigation }) {
@@ -295,6 +296,7 @@ export default function ProfileScreen({ navigation }) {
 
   const handleMenuPress = (id) => {
     if (id === 'logout')          handleLogout();
+    else if (id === 'customize')  navigation.navigate('Customize');
     else if (id === 'edit')       navigation.navigate('EditProfile');
     else if (id === 'promotions') navigation.navigate('MyPromotions');
     else if (id === 'notif')      navigation.navigate('Notifications');
@@ -350,22 +352,27 @@ export default function ProfileScreen({ navigation }) {
 
               {/* ── Hero Card ── */}
               <VintaCard style={styles.heroFrame} contentStyle={styles.heroCard}>
+                {/* Player's chosen backdrop behind the avatar */}
+                <ProfileBackdrop id={profile?.profile_backdrop} style={styles.heroBackdrop}>
+                  <View style={styles.heroBackdropFade} />
+                </ProfileBackdrop>
 
                 {/* Avatar + XP Ring */}
                 <View style={styles.avatarWrapper}>
                   <XPArc size={160} progressPct={progressPct} rank={rank} />
-                  {/* Avatar sits inside the arc */}
+                  {/* Decorated avatar sits inside the arc; the hat may rise above it */}
                   <View style={styles.avatarInner}>
-                    <View style={styles.avatarImgClip}>
-                      <Image
-                        source={charDetails.image}
-                        style={{ width: '100%', height: '100%', transform: [{ scale: charDetails.zoom || 1 }] }}
-                        resizeMode="cover"
-                      />
-                    </View>
+                    <DecoratedAvatar
+                      character={profile?.chosen_character || profile?.character}
+                      size={96}
+                      hat={profile?.avatar_hat}
+                      frame={profile?.avatar_frame}
+                      pin={profile?.avatar_pin}
+                      reserveHatSpace={false}
+                    />
                     {/* Rank badge on avatar */}
                     <View style={[styles.rankBadge, { backgroundColor: rank.color, borderColor: rank.color + 'AA' }]}>
-                      <Text style={styles.rankBadgeIcon}>{rank.icon}</Text>
+                      <LucideIcon name={rank.icon} size={14} color="#FFFFFF" />
                     </View>
                   </View>
                 </View>
@@ -375,7 +382,8 @@ export default function ProfileScreen({ navigation }) {
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
                   <View style={[styles.rankPill, { borderColor: rank.color + '66', backgroundColor: rank.color + '22' }]}>
-                    <Text style={[styles.rankPillText, { color: onWhite(rank.color) }]}>{rank.icon}  {rank.title}</Text>
+                    <LucideIcon name={rank.icon} size={13} color={onWhite(rank.color)} />
+                    <Text style={[styles.rankPillText, { color: onWhite(rank.color) }]}>{rank.title}</Text>
                   </View>
                   <View style={styles.levelPill}>
                     <Text style={styles.levelPillText}>LVL {level}</Text>
@@ -384,7 +392,9 @@ export default function ProfileScreen({ navigation }) {
 
                 {/* Explorer tag */}
                 <View style={styles.explorerTag}>
-                  <Text style={styles.explorerTagText}>✦  {profile?.in_game_name || 'Zamboanga Explorer'}  ✦</Text>
+                  <LucideIcon name="sparkle" size={11} color={GOLD_TEXT} />
+                  <Text style={styles.explorerTagText}>{profile?.in_game_name || 'Zamboanga Explorer'}</Text>
+                  <LucideIcon name="sparkle" size={11} color={GOLD_TEXT} />
                 </View>
 
                 {/* Companion chip */}
@@ -398,7 +408,10 @@ export default function ProfileScreen({ navigation }) {
                 {/* XP progress bar */}
                 <View style={styles.xpBarSection}>
                   <View style={styles.xpBarRow}>
-                    <Text style={styles.xpBarLabel}>⚡ {xp.toLocaleString()} XP</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <LucideIcon name="zap" size={13} color={GOLD_TEXT} />
+                      <Text style={styles.xpBarLabel}>{xp.toLocaleString()} XP</Text>
+                    </View>
                     <Text style={styles.xpBarLabel}>{levelXp} / 100 to LVL {level + 1}</Text>
                   </View>
                   <View style={styles.xpBarBg}>
@@ -409,13 +422,13 @@ export default function ProfileScreen({ navigation }) {
 
                 {/* Stats row */}
                 <View style={styles.statsRow}>
-                  <StatPill icon="🔍" value={scansCount.toString()}  label="QR Scanned"    color={COLORS.teal}   />
+                  <StatPill icon="search" value={scansCount.toString()}  label="QR Scanned"    color={COLORS.teal}   />
                   <View style={styles.statDivider} />
-                  <StatPill icon="📸" value={arDone.toString()}       label="AR Explored"   color={COLORS.accent} />
+                  <StatPill icon="camera" value={arDone.toString()}       label="AR Explored"   color={COLORS.accent} />
                   <View style={styles.statDivider} />
-                  <StatPill icon="🎯" value={caughtCount.toString()}  label="Models Caught" color="#E05A47"       />
+                  <StatPill icon="target" value={caughtCount.toString()}  label="Models Caught" color="#E05A47"       />
                   <View style={styles.statDivider} />
-                  <StatPill icon="⚡" value={xp.toLocaleString()}     label="Total XP"      color={COLORS.gold}   />
+                  <StatPill icon="zap" value={xp.toLocaleString()}     label="Total XP"      color={COLORS.gold}   />
                 </View>
               </VintaCard>
 
@@ -427,7 +440,7 @@ export default function ProfileScreen({ navigation }) {
               >
                 <VintaCard contentStyle={styles.achievementTeaser}>
                 <View style={styles.achievementLeft}>
-                  <Text style={styles.achievementEmoji}>🏆</Text>
+                  <LucideIcon name="trophy" size={28} color={GOLD_TEXT} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.achievementTitle}>Quests, Badges &amp; Collections</Text>
                     <Text style={styles.achievementSub}>View your 3D models &amp; discovery certificates</Text>
@@ -454,7 +467,7 @@ export default function ProfileScreen({ navigation }) {
                 {/* Log out */}
                 <VintaCard style={{ marginTop: 12 }}>
                   <MenuItem
-                    item={{ id: 'logout', icon: '🚪', label: 'Log Out', color: '#EF4444' }}
+                    item={{ id: 'logout', icon: 'door', label: 'Log Out', color: '#EF4444' }}
                     onPress={handleLogout}
                   />
                 </VintaCard>
@@ -462,7 +475,10 @@ export default function ProfileScreen({ navigation }) {
 
               {/* Version / branding footer */}
               <View style={styles.footer}>
-                <Text style={styles.footerLogo}>⛵  LAKBAY</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <LucideIcon name="sailboat" size={16} color="rgba(255,255,255,0.85)" />
+                  <Text style={styles.footerLogo}>LAKBAY</Text>
+                </View>
                 <Text style={styles.footerVersion}>v1.0.0 · Zamboanga City</Text>
               </View>
 
@@ -546,18 +562,13 @@ const styles = StyleSheet.create({
     width: 120, height: 120,
     justifyContent: 'center', alignItems: 'center',
   },
-  avatarImgClip: {
-    width: 110, height: 110, borderRadius: 55,
-    overflow: 'hidden',
-    borderWidth: 3, borderColor: COLORS.border,
-    backgroundColor: COLORS.bg,
-  },
+  heroBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, height: 150, overflow: 'hidden' },
+  heroBackdropFade: { flex: 1, backgroundColor: 'rgba(255,255,255,0.12)' },
   rankBadge: {
-    position: 'absolute', bottom: 2, right: 2,
+    position: 'absolute', bottom: 2, left: 2,
     width: 28, height: 28, borderRadius: 14,
     borderWidth: 2, justifyContent: 'center', alignItems: 'center',
   },
-  rankBadgeIcon: { fontSize: 13 },
 
   // Name / rank
   userName: {
@@ -569,6 +580,7 @@ const styles = StyleSheet.create({
   rankPill: {
     borderWidth: 1, borderRadius: RADIUS.pill,
     paddingHorizontal: 12, paddingVertical: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
   },
   rankPillText: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 0.5, lineHeight: 15 },
   levelPill: {
@@ -585,6 +597,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(251, 191, 36, 0.35)',
     borderRadius: RADIUS.pill,
     paddingHorizontal: 16, paddingVertical: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
   },
   explorerTagText: {
     fontFamily: FONTS.bold, fontSize: 13,
@@ -649,7 +662,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
   },
   achievementLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  achievementEmoji: { fontSize: 28 },
   achievementTitle: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.navy, letterSpacing: 0.3, lineHeight: 18 },
   achievementSub:   { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMuted, marginTop: 2, lineHeight: 15 },
   achievementChevron: {

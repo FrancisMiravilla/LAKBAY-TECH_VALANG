@@ -36,6 +36,8 @@ import * as FileSystem from 'expo-file-system';
 import { getARTargets, ORIGIN, logActivity } from '../api/qrService';
 import { authService } from '../api/authService';
 import ARGuideCenterPopup from '../components/ARGuideCenterPopup';
+import HintCompass from '../components/HintCompass';
+import LucideIcon from '../components/LucideIcon';
 
 // Resolve a model path into an absolute https URL Viro can load.
 const resolveModelUrl = (m) => {
@@ -54,7 +56,7 @@ export const RARITY_THEME = {
     border: '#10B981',
     icon: 'sparkles',
     xp: 50,
-    emoji: '🏺',
+    emoji: 'amphora',
   },
   rare: {
     label: 'RARE',
@@ -64,7 +66,7 @@ export const RARITY_THEME = {
     border: '#3B82F6',
     icon: 'star',
     xp: 100,
-    emoji: '⚔️',
+    emoji: 'swords',
   },
   mythical: {
     label: 'MYTHICAL',
@@ -74,7 +76,7 @@ export const RARITY_THEME = {
     border: '#A855F7',
     icon: 'diamond',
     xp: 150,
-    emoji: '🐉',
+    emoji: 'gem',
   },
   legendary: {
     label: 'LEGENDARY',
@@ -84,7 +86,7 @@ export const RARITY_THEME = {
     border: '#F59E0B',
     icon: 'trophy',
     xp: 250,
-    emoji: '👑',
+    emoji: 'crown',
   },
 };
 
@@ -250,6 +252,7 @@ export default function ViroARScanner({ navigation }) {
   const [showGuideCenterPopup, setShowGuideCenterPopup] = useState(false);
   const [activeGuideTarget, setActiveGuideTarget] = useState(null);
   const [showHintModal, setShowHintModal] = useState(false);
+  const [compassTarget, setCompassTarget] = useState(null);
   const glowAnim = React.useRef(new Animated.Value(0)).current;
   const floatAnim = React.useRef(new Animated.Value(0)).current;
   const lastTargetIdRef = React.useRef(null);
@@ -395,6 +398,8 @@ export default function ViroARScanner({ navigation }) {
   // Called natively when ViroARImageMarker sees a painting
   const handleTargetFound = async (target) => {
     if (!target) return;
+    // Found the artwork the compass was guiding to: stop guiding.
+    setCompassTarget((current) => (current && current.id === target.id ? null : current));
     // Ignore duplicate events while this artwork is already detected on screen
     if (detectedSpot && detectedSpot.id === target.id) return;
     lastTargetIdRef.current = target.id;
@@ -419,7 +424,7 @@ export default function ViroARScanner({ navigation }) {
           slot_number: target.slot_number || 1,
           spot_name: target.spot_name || '',
           hint: target.hint || '',
-          emoji: rarityTheme.emoji || '🎨',
+          emoji: rarityTheme.emoji || 'palette',
           color: rarityTheme.color,
           model_3d: target.model_3d ? resolveModelUrl(target.model_3d) : null,
           source: 'ar',
@@ -473,7 +478,7 @@ export default function ViroARScanner({ navigation }) {
       slot_number: target.slot_number || 1,
       spot_name: target.spot_name || '',
       hint: target.hint || '',
-      emoji: rarityTheme.emoji || '🎨',
+      emoji: rarityTheme.emoji || 'palette',
       earnedXP: earnedXP,
       model_3d: target.model_3d ? resolveModelUrl(target.model_3d) : null,
       already_collected: wasAlreadyCollected,
@@ -669,6 +674,10 @@ export default function ViroARScanner({ navigation }) {
           setShowGuideCenterPopup(false);
           setShowHintModal(true);
         }}
+        onGuide={(target) => {
+          setShowGuideCenterPopup(false);
+          setCompassTarget(target);
+        }}
         rarityThemes={RARITY_THEME}
       />
 
@@ -753,6 +762,16 @@ export default function ViroARScanner({ navigation }) {
                         <Ionicons name="compass-outline" size={16} color={GOLD_TEXT} style={{ marginRight: 6, marginTop: 1 }} />
                         <Text style={styles.hintQuoteText}>{t.hint || 'Explore the room and point your camera at paintings and sculptures.'}</Text>
                       </View>
+                      {!!t.hint && (
+                        <TouchableOpacity
+                          style={styles.hintGuideBtn}
+                          onPress={() => { setShowHintModal(false); setCompassTarget(t); }}
+                          activeOpacity={0.85}
+                        >
+                          <Ionicons name="compass" size={15} color="#FFF" style={{ marginRight: 6 }} />
+                          <Text style={styles.hintGuideBtnText}>Guide me with compass</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   );
                 })
@@ -761,6 +780,11 @@ export default function ViroARScanner({ navigation }) {
           </VintaCard>
         </View>
       </Modal>
+
+      {/* ── Compass guide toward the side of the building named in the hint ── */}
+      {compassTarget && !detectedSpot && (
+        <HintCompass target={compassTarget} onClose={() => setCompassTarget(null)} />
+      )}
 
       {/* ── Steady Floating 3D Model (Catch Feature Architecture + Full Multi-Touch & Zoom) ── */}
       {detectedSpot && (
@@ -1003,7 +1027,7 @@ function RewardModal({ data, glowAnim, onClose, onViewDetails }) {
             <Ionicons name={rTheme.icon} size={13} color={rTheme.color} />
           </View>
           <Animated.Text style={[rwStyles.rewardTitle, { transform: [{ translateY: titleBounce }] }]}>
-            {data.already_collected ? '🎨 Art Already Collected!' : '✨ Art Discovered!'}
+            {data.already_collected ? 'Art Already Collected!' : 'Art Discovered!'}
           </Animated.Text>
           <Text style={rwStyles.slotBanner}>
             Slot #{data.slot_number || 1} of 10 · Building {data.building || 'S1'}
@@ -1031,7 +1055,7 @@ function RewardModal({ data, glowAnim, onClose, onViewDetails }) {
               />
             ) : (
               <View style={rwStyles.noModelFallback}>
-                <Text style={{ fontSize: 52 }}>{rTheme.emoji || '🎨'}</Text>
+                <LucideIcon name={rTheme.emoji} fallback="palette" size={52} color={rTheme.color} strokeWidth={1.8} />
               </View>
             )}
             {/* Shimmer sweep */}
@@ -1662,6 +1686,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#FFF',
   },
+  hintGuideBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.accent,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginTop: 10,
+  },
+  hintGuideBtnText: { fontFamily: FONTS.bold, fontSize: 13, color: '#FFF' },
   hintHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',

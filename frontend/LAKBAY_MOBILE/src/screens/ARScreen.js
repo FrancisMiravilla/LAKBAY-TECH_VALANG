@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet, Text, View, TouchableOpacity, StatusBar, ScrollView, Animated, Easing } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { COLORS, FONTS } from '../constants/theme';
+import LucideIcon from '../components/LucideIcon';
 
 export default function ARScreen({ navigation }) {
   const [scanAnim] = useState(() => new Animated.Value(0));
@@ -144,7 +145,7 @@ export default function ARScreen({ navigation }) {
 
           {/* Trigger Scan Button */}
           <TouchableOpacity style={styles.scanTriggerButton} onPress={handleSimulateScan}>
-            <Text style={styles.scanTriggerText}>📸 Tap to Simulate AR Scan</Text>
+            <Text style={styles.scanTriggerText}>Tap to Simulate AR Scan</Text>
           </TouchableOpacity>
         </View>
 
@@ -171,15 +172,15 @@ export default function ARScreen({ navigation }) {
         {/* Tips Section */}
         <View style={styles.tipsContainer}>
           <View style={styles.tipItem}>
-            <Text style={styles.tipEmoji}>🏛️</Text>
+            <LucideIcon name="landmark" size={20} color={COLORS.gold} style={styles.tipEmoji} />
             <Text style={styles.tipText}>Look for exhibits with the AR marker tag displayed nearby</Text>
           </View>
           <View style={styles.tipItem}>
-            <Text style={styles.tipEmoji}>💡</Text>
+            <LucideIcon name="lightbulb" size={20} color={COLORS.gold} style={styles.tipEmoji} />
             <Text style={styles.tipText}>Each artifact reveals a unique piece of Zamboanga's heritage</Text>
           </View>
           <View style={styles.tipItem}>
-            <Text style={styles.tipEmoji}>🎖️</Text>
+            <LucideIcon name="award" size={20} color={COLORS.gold} style={styles.tipEmoji} />
             <Text style={styles.tipText}>Scan all exhibits in a museum to earn a Collector badge</Text>
           </View>
         </View>
@@ -481,7 +482,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.06)',
   },
   tipEmoji: {
-    fontSize: 20,
     marginRight: 16,
   },
   tipText: {

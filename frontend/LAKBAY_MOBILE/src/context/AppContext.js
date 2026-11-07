@@ -3,7 +3,7 @@ import React, { createContext, useState, useContext } from 'react';
 const AppContext = createContext();
 
 const INITIAL_NOTIFS = [
-  { id: 1, type: 'scan',  icon: '📷', title: 'Welcome to Lakbay!', sub: 'Start exploring Zamboanga City today.', time: 'Just now', read: false },
+  { id: 1, type: 'scan',  icon: 'camera', title: 'Welcome to Lakbay!', sub: 'Start exploring Zamboanga City today.', time: 'Just now', read: false },
 ];
 
 export function AppProvider({ children }) {
