@@ -3,6 +3,7 @@ import {
   StyleSheet, Text, View, TouchableOpacity,
   StatusBar, ScrollView, ActivityIndicator,
   Animated, Dimensions, Modal, Platform, ImageBackground,
+  PanResponder, Easing,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +19,8 @@ import { getCatchIcons, getSpots, ORIGIN, logActivity } from '../api/qrService';
 import { authService } from '../api/authService';
 import ErrorModal from '../components/ErrorModal';
 import VintaStripe from '../components/VintaStripe';
-import { Svg, Polygon, Path, Circle, G, Defs, LinearGradient, Stop, Line } from 'react-native-svg';
+import { ARNavCards, ARGroundPath, ARRoundButtons } from '../components/ARGuidance';
+import { Svg, Polygon, Path, Circle, G, Defs, LinearGradient, Stop, Line, ClipPath } from 'react-native-svg';
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -26,6 +28,16 @@ const { width: W, height: H } = Dimensions.get('window');
 const CATCH_RADIUS_METERS = 50;      // proximity sheet unlocks within 50 m of a spot
 const ARRIVE_RADIUS_METERS = 10;     // reveal the 3D model when within 10 m
 const MAX_GPS_ACCURACY_METERS = 50;  // ignore GPS fixes less precise than this (they point the arrow randomly)
+
+// Net throw: swipe up from the net to throw it at the drifting model.
+const NET_SIZE = 96;
+const NET_TOP = H - 240 - NET_SIZE;
+const NET_CY = NET_TOP + NET_SIZE / 2;
+const MODEL_CY = H * 0.22 + W * 0.375;
+const MODEL_DRIFT = W * 0.2;          // how far the model sways left/right while you aim
+const NET_HIT_RADIUS = W * 0.17;      // horizontal tolerance for a hit
+const THROW_MIN_SPEED = 0.7;          // px/ms upward swipe speed needed to reach the model
+const NET_FLIGHT_MS = 480;
 const FALLBACK_COLORS = ['#E91E8C', '#38BDF8', '#FBBF24', '#10B981'];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -203,33 +215,6 @@ function CornerBrackets({ color }) {
   );
 }
 
-// ─── AR HUD: Radar Rings ─────────────────────────────────────────────────────
-function RadarRing({ color, delay = 0 }) {
-  const ringAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const start = () =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(ringAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
-          Animated.timing(ringAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
-        ])
-      ).start();
-    start();
-  }, []);
-  const scale = ringAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 2.2] });
-  const opacity = ringAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.9, 0.4, 0] });
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        arHudStyles.radarRing,
-        { borderColor: color, opacity, transform: [{ scale }] },
-      ]}
-    />
-  );
-}
-
 // ─── AR HUD: Floating Particles ──────────────────────────────────────────────
 function FloatingParticles({ color }) {
   const PARTICLES = [
@@ -302,281 +287,6 @@ function ARStatusBar({ color, distanceM, showArrow, accuracy }) {
       <View style={arHudStyles.statusDivider} />
       <Ionicons name={showArrow ? 'navigate-outline' : 'eye-outline'} size={11} color="rgba(255,255,255,0.6)" style={{ marginRight: 4 }} />
       <Text style={arHudStyles.statusSub}>{showArrow ? 'NAVIGATING' : 'SCANNING'}</Text>
-    </View>
-  );
-}
-
-// ─── AR Direction Arrow ───────────────────────────────────────────────────────
-/**
- * relativeBearing: angle in degrees where
- *   0  = target is straight ahead (camera facing it)
- *   90 = target is to the right
- *   180 = target is behind
- *   270 = target is to the left
- * The arrow always points UP at 0°, so rotating by relativeBearing
- * makes it point toward the target relative to where the camera is aimed.
- */
-// ─── AR Direction Arrow (Cyber-Holographic 3D) ───────────────────────────────
-function DirectionArrow({ relativeBearing, distanceM, color = '#10B981', deviceHeading, targetBearing }) {
-  const bounceAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim  = useRef(new Animated.Value(1)).current;
-  const chevronAnim = useRef(new Animated.Value(0)).current;
-  const spinAnim   = useRef(new Animated.Value(0)).current;
-  const rotAnim    = useRef(new Animated.Value(relativeBearing)).current;
-  const prevRel    = useRef(relativeBearing);
-
-  useEffect(() => {
-    // Floating bounce
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(bounceAnim, { toValue: -10, duration: 1200, useNativeDriver: true }),
-        Animated.timing(bounceAnim, { toValue: 0,   duration: 1200, useNativeDriver: true }),
-      ])
-    ).start();
-
-    // Pulse
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.12, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1,    duration: 900, useNativeDriver: true }),
-      ])
-    ).start();
-
-    // Trailing chevrons cascade
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(chevronAnim, { toValue: 1, duration: 1400, useNativeDriver: true }),
-        Animated.timing(chevronAnim, { toValue: 0, duration: 0,    useNativeDriver: true }),
-      ])
-    ).start();
-
-    // Reticle slow spin
-    Animated.loop(
-      Animated.timing(spinAnim, { toValue: 1, duration: 20000, useNativeDriver: true })
-    ).start();
-  }, []);
-
-  // Smooth shortest-arc rotation
-  useEffect(() => {
-    let delta = relativeBearing - prevRel.current;
-    if (delta > 180)  delta -= 360;
-    if (delta < -180) delta += 360;
-    const next = prevRel.current + delta;
-    prevRel.current = next;
-    Animated.timing(rotAnim, { toValue: next, duration: 140, useNativeDriver: true }).start();
-  }, [relativeBearing]);
-
-  const rotation = rotAnim.interpolate({
-    inputRange: [-360, 0, 360, 720],
-    outputRange: ['-360deg', '0deg', '360deg', '720deg'],
-    extrapolate: 'extend',
-  });
-
-  const reticleSpin = spinAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  const isAligned = relativeBearing < 22 || relativeBearing > 338;
-  const isTurnLeft = relativeBearing >= 180 && relativeBearing <= 338;
-  const turnDeg = isTurnLeft ? Math.round(360 - relativeBearing) : Math.round(relativeBearing);
-
-  // Dynamic Theme Colors
-  const mainColor  = isAligned ? '#10B981' : (color || '#1A56DB');
-  const glowColor  = isAligned ? '#34D399' : '#60A5FA';
-  const shadeColor = isAligned ? '#065F46' : '#1E3A8A';
-  const darkCore   = isAligned ? '#022C22' : '#0F172A';
-
-  const ch1Opacity = chevronAnim.interpolate({ inputRange: [0, 0.4, 0.8, 1], outputRange: [0.2, 0.9, 0.4, 0.1] });
-  const ch2Opacity = chevronAnim.interpolate({ inputRange: [0, 0.2, 0.6, 1], outputRange: [0.1, 0.3, 0.9, 0.2] });
-  const ch1Translate = chevronAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -8] });
-  const ch2Translate = chevronAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -14] });
-
-  return (
-    <View style={arrowStyles.container}>
-      {/* ── Reticle HUD Base (on ground plane) ── */}
-      <View style={arrowStyles.reticleBase}>
-        <RadarRing color={mainColor} delay={0} />
-        <RadarRing color={mainColor} delay={1000} />
-
-        <Animated.View style={[arrowStyles.reticleSvgWrap, { transform: [{ rotate: reticleSpin }] }]}>
-          <Svg width="180" height="180" viewBox="0 0 200 200">
-            {/* Outer segmented ring */}
-            <Circle
-              cx="100" cy="100" r="92"
-              fill="none"
-              stroke={mainColor}
-              strokeWidth="1.5"
-              strokeDasharray="10 8"
-              opacity="0.4"
-            />
-            {/* Secondary thin ring */}
-            <Circle
-              cx="100" cy="100" r="76"
-              fill="none"
-              stroke="#FFF"
-              strokeWidth="1"
-              strokeDasharray="4 6"
-              opacity="0.25"
-            />
-            {/* Inner target ring */}
-            <Circle
-              cx="100" cy="100" r="50"
-              fill="none"
-              stroke={mainColor}
-              strokeWidth="1.2"
-              opacity="0.35"
-            />
-            {/* Crosshair ticks */}
-            <Line x1="100" y1="4" x2="100" y2="18" stroke={mainColor} strokeWidth="3" opacity="0.8" />
-            <Line x1="100" y1="182" x2="100" y2="196" stroke={mainColor} strokeWidth="2" opacity="0.5" />
-            <Line x1="4" y1="100" x2="18" y2="100" stroke={mainColor} strokeWidth="2" opacity="0.5" />
-            <Line x1="182" y1="100" x2="196" y2="100" stroke={mainColor} strokeWidth="2" opacity="0.5" />
-          </Svg>
-        </Animated.View>
-      </View>
-
-      {/* ── 3D Isometric Hologram Arrow (Hovering above reticle) ── */}
-      <Animated.View style={[arrowStyles.arrow3DStage, { transform: [{ translateY: bounceAnim }] }]}>
-        <Animated.View style={[arrowStyles.arrowRotator, { transform: [{ rotateX: '55deg' }, { rotateZ: rotation }] }]}>
-          {/* Depth / Shadow Extrusion Layers */}
-          {[...Array(6)].map((_, i) => (
-            <View
-              key={i}
-              style={[
-                arrowStyles.depthLayer,
-                {
-                  top: (i + 1) * 3,
-                  opacity: (6 - i) * 0.15,
-                }
-              ]}
-            >
-              <Svg width="140" height="140" viewBox="0 0 140 140">
-                <Path
-                  d="M 70,12 L 20,86 L 46,74 L 70,98 L 94,74 L 120,86 Z"
-                  fill={shadeColor}
-                  stroke={darkCore}
-                  strokeWidth="1.5"
-                />
-              </Svg>
-            </View>
-          ))}
-
-          {/* Main Glowing 3D Crystal Arrow Face */}
-          <Svg width="140" height="140" viewBox="0 0 140 140" style={arrowStyles.mainArrowSvg}>
-            <Defs>
-              <LinearGradient id="leftFacetCatch" x1="0%" y1="0%" x2="100%" y2="100%">
-                <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.95" />
-                <Stop offset="30%" stopColor={glowColor} stopOpacity="0.9" />
-                <Stop offset="100%" stopColor={mainColor} stopOpacity="0.8" />
-              </LinearGradient>
-              <LinearGradient id="rightFacetCatch" x1="0%" y1="0%" x2="100%" y2="100%">
-                <Stop offset="0%" stopColor={glowColor} stopOpacity="0.8" />
-                <Stop offset="70%" stopColor={shadeColor} stopOpacity="0.9" />
-                <Stop offset="100%" stopColor={darkCore} stopOpacity="0.95" />
-              </LinearGradient>
-              <LinearGradient id="coreGlowCatch" x1="0%" y1="0%" x2="0%" y2="100%">
-                <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
-                <Stop offset="100%" stopColor={mainColor} stopOpacity="0" />
-              </LinearGradient>
-            </Defs>
-
-            {/* Left Facet */}
-            <Path
-              d="M 70,12 L 20,86 L 46,74 L 70,98 Z"
-              fill="url(#leftFacetCatch)"
-              stroke={mainColor}
-              strokeWidth="1.2"
-              strokeLinejoin="round"
-            />
-            {/* Right Facet */}
-            <Path
-              d="M 70,12 L 120,86 L 94,74 L 70,98 Z"
-              fill="url(#rightFacetCatch)"
-              stroke={mainColor}
-              strokeWidth="1.2"
-              strokeLinejoin="round"
-            />
-            {/* Glowing Spine */}
-            <Line
-              x1="70" y1="14" x2="70" y2="96"
-              stroke="url(#coreGlowCatch)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            />
-            {/* Tip Energy Beacon */}
-            <Circle cx="70" cy="14" r="4.5" fill="#FFFFFF" />
-            <Circle cx="70" cy="14" r="8" fill="none" stroke={glowColor} strokeWidth="1.5" opacity="0.8" />
-          </Svg>
-
-          {/* Trailing Speed Chevrons */}
-          <Animated.View style={[arrowStyles.chevronWrap, { opacity: ch1Opacity, transform: [{ translateY: ch1Translate }] }]}>
-            <Svg width="140" height="140" viewBox="0 0 140 140">
-              <Path
-                d="M 38,98 L 70,82 L 102,98 L 70,90 Z"
-                fill={glowColor}
-                opacity="0.85"
-              />
-            </Svg>
-          </Animated.View>
-
-          <Animated.View style={[arrowStyles.chevronWrap, { opacity: ch2Opacity, transform: [{ translateY: ch2Translate }] }]}>
-            <Svg width="140" height="140" viewBox="0 0 140 140">
-              <Path
-                d="M 46,112 L 70,98 L 94,112 L 70,105 Z"
-                fill={mainColor}
-                opacity="0.6"
-              />
-            </Svg>
-          </Animated.View>
-        </Animated.View>
-      </Animated.View>
-
-      {/* ── Status HUD Badge ── */}
-      {isAligned ? (
-        <View style={[arrowStyles.statusBadge, { backgroundColor: 'rgba(16,185,129,0.22)', borderColor: '#10B981' }]}>
-          <View style={arrowStyles.lockIcon}>
-            <Ionicons name="scan-circle" size={14} color="#10B981" />
-          </View>
-          <Text style={[arrowStyles.statusBadgeText, { color: '#10B981' }]}>TARGET LOCKED</Text>
-          <View style={arrowStyles.lockDot} />
-        </View>
-      ) : (
-        <View style={[arrowStyles.turnBadge, { backgroundColor: 'rgba(6, 14, 42, 0.85)', borderColor: 'rgba(255,255,255,0.25)' }]}>
-          <Ionicons
-            name={isTurnLeft ? 'arrow-undo' : 'arrow-redo'}
-            size={13}
-            color={mainColor}
-            style={{ marginRight: 5 }}
-          />
-          <Text style={arrowStyles.turnText}>
-            {isTurnLeft ? `TURN LEFT ${turnDeg}°` : `TURN RIGHT ${turnDeg}°`}
-          </Text>
-        </View>
-      )}
-
-      {/* ── Distance & Bearing Info Pill ── */}
-      <View style={arrowStyles.infoRow}>
-        <View style={[arrowStyles.distPill, { backgroundColor: 'rgba(6, 14, 42, 0.88)', borderColor: mainColor + '66' }]}>
-          <View style={[arrowStyles.distIconBox, { backgroundColor: mainColor + '22' }]}>
-            <Ionicons name="walk" size={13} color={mainColor} />
-          </View>
-          <Text style={[arrowStyles.distValText, { color: '#FFFFFF' }]}>
-            {distanceM !== null
-              ? (distanceM >= 1000 ? `${(distanceM / 1000).toFixed(1)} km` : `${Math.round(distanceM)}m`)
-              : '---'}
-          </Text>
-          <Text style={arrowStyles.distSubText}>REMAINING</Text>
-        </View>
-
-        {deviceHeading !== null && (
-          <View style={[arrowStyles.headingPill, { backgroundColor: 'rgba(6, 14, 42, 0.88)', borderColor: 'rgba(255,255,255,0.2)' }]}>
-            <Ionicons name="compass" size={13} color={mainColor} style={{ marginRight: 4 }} />
-            <Text style={arrowStyles.headingText}>{Math.round(targetBearing)}°</Text>
-            <Text style={arrowStyles.bearingSub}>BRG</Text>
-          </View>
-        )}
-      </View>
     </View>
   );
 }
@@ -783,8 +493,46 @@ function TreasureChest({ phase }) {
   );
 }
 
+// ─── Throwable catch net ─────────────────────────────────────────────────────
+const NET_LINES = [12, 22, 32, 42, 52, 62, 72, 82, 92];
+
+function ThrowNet({ color }) {
+  return (
+    <Svg width={NET_SIZE} height={NET_SIZE} viewBox="0 0 100 100">
+      <Defs>
+        <ClipPath id="catchNetClip">
+          <Circle cx="50" cy="50" r="44" />
+        </ClipPath>
+      </Defs>
+      <Circle cx="50" cy="50" r="44" fill="rgba(255,255,255,0.10)" />
+      <G clipPath="url(#catchNetClip)">
+        <G transform="rotate(45 50 50)" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8">
+          {NET_LINES.map((p) => (
+            <React.Fragment key={p}>
+              <Line x1={p} y1="-10" x2={p} y2="110" />
+              <Line x1="-10" y1={p} x2="110" y2={p} />
+            </React.Fragment>
+          ))}
+        </G>
+      </G>
+      <Circle cx="50" cy="50" r="44" fill="none" stroke={color} strokeWidth="5" />
+      {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => (
+        <Circle
+          key={a}
+          cx={50 + 44 * Math.cos((a * Math.PI) / 180)}
+          cy={50 + 44 * Math.sin((a * Math.PI) / 180)}
+          r="4"
+          fill="#FBBF24"
+          stroke="#92400E"
+          strokeWidth="1"
+        />
+      ))}
+    </Svg>
+  );
+}
+
 // ─── AR Camera Overlay ───────────────────────────────────────────────────────
-function ARCatchOverlay({ icon, spot, userLocation, onModelFound, onContinue, onClose }) {
+function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound, onContinue, onClose }) {
   const activeModel = (spot && spot.model_3d) 
     ? (spot.model_3d.startsWith('http') || spot.model_3d.startsWith('data:') ? spot.model_3d : `${ORIGIN}${spot.model_3d}`) 
     : icon.model_3d;
@@ -867,11 +615,7 @@ function ARCatchOverlay({ icon, spot, userLocation, onModelFound, onContinue, on
       return () => clearTimeout(t);
     }
     if (revealPhase === 'revealed') {
-      Animated.parallel([
-        Animated.spring(modelRiseAnim, { toValue: 1, tension: 50, friction: 7, useNativeDriver: true }),
-        Animated.spring(celebPopAnim, { toValue: 1, tension: 65, friction: 8, useNativeDriver: true }),
-      ]).start();
-      onModelFound?.(icon, spot);
+      Animated.spring(modelRiseAnim, { toValue: 1, tension: 50, friction: 7, useNativeDriver: true }).start();
     }
   }, [revealPhase]);
 
@@ -883,61 +627,201 @@ function ARCatchOverlay({ icon, spot, userLocation, onModelFound, onContinue, on
   const modelTitle = icon.name || spot?.name || 'Cultural Model';
   const [celebDismissed, setCelebDismissed] = useState(false);
 
+  // ── Catch mini-game: the model is only caught when a thrown net lands on it ──
+  const ownedAtOpen = useRef(!!alreadyCaught).current;
+  const [catchPhase, setCatchPhase] = useState(ownedAtOpen ? 'owned' : 'idle'); // idle | aiming | flying | capturing | caught | owned
+  const [throwMsg, setThrowMsg] = useState(null);
+  const phaseRef = useRef(catchPhase);
+  phaseRef.current = catchPhase;
+
+  const driftAnim = useRef(new Animated.Value(0)).current;
+  const driftX = useRef(0);
+  const driftLoop = useRef(null);
+  const captureAnim = useRef(new Animated.Value(0)).current;
+
+  const netPos = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const netScale = useRef(new Animated.Value(1)).current;
+  const netSpin = useRef(new Animated.Value(0)).current;
+  const netShake = useRef(new Animated.Value(0)).current;
+  const netOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const id = driftAnim.addListener(({ value }) => { driftX.current = value; });
+    return () => driftAnim.removeListener(id);
+  }, []);
+
+  useEffect(() => {
+    const moving = catchPhase === 'aiming' || catchPhase === 'flying';
+    if (moving && !driftLoop.current) {
+      const ease = Easing.inOut(Easing.sin);
+      driftLoop.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(driftAnim, { toValue: MODEL_DRIFT, duration: 1400, easing: ease, useNativeDriver: true }),
+          Animated.timing(driftAnim, { toValue: -MODEL_DRIFT, duration: 2800, easing: ease, useNativeDriver: true }),
+          Animated.timing(driftAnim, { toValue: 0, duration: 1400, easing: ease, useNativeDriver: true }),
+        ])
+      );
+      driftLoop.current.start();
+    } else if (!moving && driftLoop.current) {
+      driftLoop.current.stop();
+      driftLoop.current = null;
+      if (catchPhase === 'idle') {
+        Animated.timing(driftAnim, { toValue: 0, duration: 400, useNativeDriver: true }).start();
+      }
+    }
+  }, [catchPhase]);
+
+  useEffect(() => () => driftLoop.current?.stop(), []);
+
+  useEffect(() => {
+    if (!throwMsg) return;
+    const t = setTimeout(() => setThrowMsg(null), 1500);
+    return () => clearTimeout(t);
+  }, [throwMsg]);
+
+  const resetNet = () => {
+    netPos.setValue({ x: 0, y: 0 });
+    netScale.setValue(1);
+    netSpin.setValue(0);
+    netShake.setValue(0);
+    netOpacity.setValue(1);
+  };
+
+  const startAiming = () => {
+    resetNet();
+    setCatchPhase('aiming');
+  };
+
+  const cancelAiming = () => {
+    resetNet();
+    setCatchPhase('idle');
+  };
+
+  const captureModel = () => {
+    setCatchPhase('capturing');
+    const shake = (to) => Animated.timing(netShake, { toValue: to, duration: 110, useNativeDriver: false });
+    Animated.parallel([
+      Animated.timing(netScale, { toValue: 2.1, duration: 260, easing: Easing.out(Easing.back(1.6)), useNativeDriver: false }),
+      Animated.timing(captureAnim, { toValue: 1, duration: 420, useNativeDriver: true }),
+    ]).start(() => {
+      Animated.sequence([
+        shake(1), shake(-1), shake(1), shake(0),
+        Animated.delay(250),
+        shake(1), shake(-1), shake(0),
+      ]).start(() => {
+        setCatchPhase('caught');
+        Animated.spring(celebPopAnim, { toValue: 1, tension: 65, friction: 8, useNativeDriver: true }).start();
+        onModelFound?.(icon, spot);
+      });
+    });
+  };
+
+  const missThrow = (msg, fromY) => {
+    setThrowMsg(msg);
+    Animated.parallel([
+      Animated.timing(netPos.y, { toValue: fromY + 160, duration: 420, easing: Easing.in(Easing.quad), useNativeDriver: false }),
+      Animated.timing(netOpacity, { toValue: 0, duration: 420, useNativeDriver: false }),
+    ]).start(() => {
+      resetNet();
+      setCatchPhase('aiming');
+    });
+  };
+
+  const throwNet = (g) => {
+    const startX = g.dx;
+    const startY = Math.min(40, g.dy);
+    if (g.dy > -30 || g.vy > -0.15) {
+      Animated.spring(netPos, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+      setThrowMsg('Swipe UP to throw the net!');
+      return;
+    }
+    const speed = -g.vy;
+    const fullDy = MODEL_CY - NET_CY;
+    const reaches = speed >= THROW_MIN_SPEED;
+    const landY = reaches ? fullDy : fullDy * Math.max(0.35, (speed / THROW_MIN_SPEED) * 0.8);
+    const slope = speed > 0.05 ? g.vx / speed : g.dx / -g.dy;
+    const landX = Math.max(-W / 2, Math.min(W / 2, startX + slope * (startY - landY)));
+
+    setCatchPhase('flying');
+    Animated.parallel([
+      Animated.timing(netPos, { toValue: { x: landX, y: landY }, duration: NET_FLIGHT_MS, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+      Animated.timing(netScale, { toValue: 0.75, duration: NET_FLIGHT_MS, useNativeDriver: false }),
+      Animated.timing(netSpin, { toValue: 1, duration: NET_FLIGHT_MS, useNativeDriver: false }),
+    ]).start(() => {
+      if (reaches && Math.abs(landX - driftX.current) <= NET_HIT_RADIUS) {
+        driftLoop.current?.stop();
+        driftLoop.current = null;
+        Animated.timing(netPos.x, { toValue: driftX.current, duration: 120, useNativeDriver: false }).start(captureModel);
+      } else {
+        missThrow(reaches ? 'Missed! Aim for the model.' : 'Too weak! Swipe up faster.', landY);
+      }
+    });
+  };
+
+  const throwRef = useRef(throwNet);
+  throwRef.current = throwNet;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => phaseRef.current === 'aiming',
+      onMoveShouldSetPanResponder: () => phaseRef.current === 'aiming',
+      onPanResponderMove: (_, g) => {
+        netPos.setValue({ x: g.dx, y: Math.min(40, g.dy) });
+      },
+      onPanResponderRelease: (_, g) => throwRef.current(g),
+      onPanResponderTerminate: () => {
+        Animated.spring(netPos, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+      },
+    })
+  ).current;
+
+  const netVisible = ['aiming', 'flying', 'capturing', 'caught'].includes(catchPhase);
+  const netRotate = netSpin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '540deg'] });
+  const netShakeRotate = netShake.interpolate({ inputRange: [-1, 1], outputRange: ['-14deg', '14deg'] });
+  const capturedScale = captureAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.55] });
+
   return (
     <Animated.View style={[StyleSheet.absoluteFill, { opacity: fadeAnim }]}>
       {/* ── Live Camera feed ── */}
       <CameraView style={StyleSheet.absoluteFill} facing="back" />
 
-      {/* ── HUD: Scanning line ── */}
-      <ScanLine color={icon.color} />
+      {arrived ? (
+        <>
+          {/* ── HUD: Scanning line, brackets and particles around the found model ── */}
+          <ScanLine color={icon.color} />
+          <CornerBrackets color={icon.color} />
+          <FloatingParticles color={icon.color} />
 
-      {/* ── HUD: Corner brackets ── */}
-      <CornerBrackets color={icon.color} />
+          {/* ── Dark vignettes ── */}
+          <View style={arStyles.topGradient} />
+          <View style={arStyles.bottomVignette} />
 
-      {/* ── HUD: Floating ambient particles ── */}
-      <FloatingParticles color={icon.color} />
+          {/* ── HUD: Live status bar ── */}
+          <ARStatusBar color={icon.color} distanceM={distanceM} showArrow={false} accuracy={userLocation?.accuracy} />
 
-      {/* ── Dark vignette top ── */}
-      <View style={arStyles.topGradient} />
-      {arrived && <View style={arStyles.bottomVignette} />}
-
-      {/* ── HUD: Live status bar ── */}
-      <ARStatusBar color={icon.color} distanceM={distanceM} showArrow={!arrived} accuracy={userLocation?.accuracy} />
-
-      {/* ── Close button ── */}
-      <TouchableOpacity style={arStyles.closeBtn} onPress={onClose} activeOpacity={0.8}>
-        <View style={arStyles.closeBtnCircle}>
-          <Ionicons name="close" size={20} color="#fff" />
-        </View>
-      </TouchableOpacity>
-
-      {/* ── Top label (when guiding) ── */}
-      {!arrived && (
-        <View style={arStyles.topLabel}>
-          <View style={[arStyles.typeBadge, { backgroundColor: icon.color + '33', borderColor: icon.color + '88' }]}>
-            <Ionicons name="locate-outline" size={11} color={icon.color} style={{ marginRight: 5 }} />
-            <Text style={[arStyles.typeBadgeText, { color: icon.color }]}>CATCH ZONE ACTIVE</Text>
-          </View>
-          <Text style={arStyles.arTitle}>{icon.name}</Text>
-          <Text style={arStyles.arSubtitle}>
-            Follow the arrow to find the model!
-          </Text>
-        </View>
+          {/* ── Close button ── */}
+          <TouchableOpacity style={arStyles.closeBtn} onPress={onClose} activeOpacity={0.8}>
+            <View style={arStyles.closeBtnCircle}>
+              <Ionicons name="close" size={20} color="#fff" />
+            </View>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <>
+          {/* ── Walking guidance (> 10 m): glass cards, ground path, round buttons ── */}
+          <ARGroundPath relativeBearing={relativeBearing} />
+          <ARNavCards
+            relativeBearing={relativeBearing}
+            distanceM={distanceM}
+            destination={icon.name}
+            hasHeading={deviceHeading !== null}
+          />
+          <ARRoundButtons buttons={[{ icon: 'close', label: 'Stop catching', onPress: onClose }]} />
+        </>
       )}
 
-      {/* ── Directional Path Arrow (only when distance > 10m) ── */}
-      {!arrived && (
-        <DirectionArrow
-          relativeBearing={relativeBearing}
-          targetBearing={targetBearing}
-          deviceHeading={deviceHeading}
-          distanceM={distanceM}
-          color={icon.color}
-        />
-      )}
-
-      {/* ── Celebration Banner & Confetti (after the chest opens) ── */}
-      {revealed && (
+      {/* ── Celebration Banner & Confetti (after the net catches the model) ── */}
+      {catchPhase === 'caught' && !ownedAtOpen && (
         <>
           <ConfettiCannon />
           {!celebDismissed && (
@@ -967,12 +851,18 @@ function ARCatchOverlay({ icon, spot, userLocation, onModelFound, onContinue, on
       {/* ── Floating 3D model, mounted with the chest so it loads while hidden ── */}
       {arrived && (
         <Animated.View
-          pointerEvents={revealed ? 'auto' : 'none'}
+          pointerEvents={revealed && (catchPhase === 'idle' || catchPhase === 'owned') ? 'auto' : 'none'}
           style={[
             arStyles.modelWrap,
             {
               opacity: modelRiseAnim.interpolate({ inputRange: [0, 0.25], outputRange: [0, 1], extrapolate: 'clamp' }),
-              transform: [{ translateY: floatAnim }, { translateY: modelRiseY }, { scale: modelScale }],
+              transform: [
+                { translateX: driftAnim },
+                { translateY: floatAnim },
+                { translateY: modelRiseY },
+                { scale: modelScale },
+                { scale: capturedScale },
+              ],
             },
           ]}
         >
@@ -995,25 +885,82 @@ function ARCatchOverlay({ icon, spot, userLocation, onModelFound, onContinue, on
         </Animated.View>
       )}
 
-      {/* Bottom panel */}
+      {/* ── Swipe-up zone for throwing the net ── */}
+      {catchPhase === 'aiming' && <View style={arStyles.throwZone} {...panResponder.panHandlers} />}
+
+      {/* ── The net ── */}
+      {netVisible && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            arStyles.net,
+            {
+              opacity: netOpacity,
+              transform: [
+                { translateX: netPos.x },
+                { translateY: netPos.y },
+                { scale: netScale },
+                { rotate: netRotate },
+                { rotate: netShakeRotate },
+              ],
+            },
+          ]}
+        >
+          <ThrowNet color={icon.color} />
+        </Animated.View>
+      )}
+
+      {!!throwMsg && (
+        <View style={arStyles.throwToast} pointerEvents="none">
+          <Text style={arStyles.throwToastText}>{throwMsg}</Text>
+        </View>
+      )}
+
+      {/* Bottom panel (after arrival) */}
+      {arrived && (
       <View style={arStyles.bottomPanel}>
         <Text style={arStyles.catchName}>{icon.name}</Text>
         <Text style={arStyles.catchTagline}>{icon.tagline}</Text>
 
-        {!arrived ? (
-          /* When guiding: show a "navigate" hint */
-          <View style={[arStyles.navigateHint, { borderColor: icon.color + '55', backgroundColor: icon.color + '15' }]}>
-            <Ionicons name="compass-outline" size={18} color={icon.color} style={{ marginRight: 8 }} />
-            <Text style={[arStyles.navigateHintText, { color: icon.color }]}>
-              Walk toward the arrow · {Math.round(distanceM)}m remaining
-            </Text>
-          </View>
-        ) : !revealed ? (
+        {!revealed ? (
           <View style={[arStyles.navigateHint, { borderColor: '#FBBF2455', backgroundColor: '#FBBF2415' }]}>
             <Ionicons name="gift-outline" size={18} color="#FBBF24" style={{ marginRight: 8 }} />
             <Text style={[arStyles.navigateHintText, { color: '#FBBF24' }]}>
               {revealPhase === 'opening' ? 'Opening the treasure...' : 'You found a treasure chest!'}
             </Text>
+          </View>
+        ) : catchPhase === 'idle' ? (
+          <View style={arStyles.choiceRow}>
+            <TouchableOpacity style={arStyles.leaveBtn} onPress={onClose} activeOpacity={0.85}>
+              <Text style={arStyles.leaveBtnText}>Leave It</Text>
+            </TouchableOpacity>
+            <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
+              <TouchableOpacity
+                style={[arStyles.continueBtn, { backgroundColor: icon.color }]}
+                onPress={startAiming}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="aperture" size={18} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={arStyles.continueBtnText}>Catch It!</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        ) : catchPhase === 'aiming' || catchPhase === 'flying' ? (
+          <View style={{ alignItems: 'center', width: '100%' }}>
+            <View style={[arStyles.navigateHint, { borderColor: icon.color + '55', backgroundColor: icon.color + '15' }]}>
+              <Ionicons name="arrow-up-circle-outline" size={18} color={icon.color} style={{ marginRight: 8 }} />
+              <Text style={[arStyles.navigateHintText, { color: icon.color }]}>
+                Swipe up on the net to throw it!
+              </Text>
+            </View>
+            <TouchableOpacity onPress={cancelAiming} disabled={catchPhase !== 'aiming'} style={arStyles.cancelThrow}>
+              <Text style={arStyles.cancelThrowText}>Not now</Text>
+            </TouchableOpacity>
+          </View>
+        ) : catchPhase === 'capturing' ? (
+          <View style={[arStyles.navigateHint, { borderColor: '#FBBF2455', backgroundColor: '#FBBF2415' }]}>
+            <Ionicons name="aperture" size={18} color="#FBBF24" style={{ marginRight: 8 }} />
+            <Text style={[arStyles.navigateHintText, { color: '#FBBF24' }]}>Got it! Holding on...</Text>
           </View>
         ) : (
           <Animated.View style={{ transform: [{ scale: pulseAnim }], width: '100%' }}>
@@ -1023,11 +970,12 @@ function ARCatchOverlay({ icon, spot, userLocation, onModelFound, onContinue, on
               activeOpacity={0.85}
             >
               <Ionicons name="sparkles" size={18} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={arStyles.continueBtnText}>Catch & View Lore</Text>
+              <Text style={arStyles.continueBtnText}>View Lore</Text>
             </TouchableOpacity>
           </Animated.View>
         )}
       </View>
+      )}
     </Animated.View>
   );
 }
@@ -1643,6 +1591,11 @@ export default function CatchScreen({ navigation }) {
                 icon={arIcon}
                 spot={arSpot}
                 userLocation={userLocation}
+                alreadyCaught={
+                  collectedModelIds.has(String(arIcon.id)) ||
+                  collectedModelIds.has(String(arIcon.name)) ||
+                  (!!arSpot && (collectedModelIds.has(String(arSpot.id)) || collectedModelIds.has(String(arSpot.name))))
+                }
                 onModelFound={handleModelFound}
                 onContinue={handleARContinue}
                 onClose={() => setArVisible(false)}
@@ -2220,6 +2173,23 @@ const arStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 14, elevation: 8,
   },
   continueBtnText: { fontFamily: FONTS.bold, fontSize: 15, color: '#FFF', letterSpacing: 0.3 },
+  choiceRow: { flexDirection: 'row', alignItems: 'center', width: '100%', gap: 12 },
+  leaveBtn: {
+    paddingHorizontal: 20, paddingVertical: 16,
+    borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  leaveBtnText: { fontFamily: FONTS.bold, fontSize: 15, color: '#FFF' },
+  cancelThrow: { marginTop: 12, paddingHorizontal: 16, paddingVertical: 4 },
+  cancelThrowText: { fontFamily: FONTS.semiBold, fontSize: 13, color: 'rgba(255,255,255,0.7)', textDecorationLine: 'underline' },
+  throwZone: { position: 'absolute', left: 0, right: 0, top: H * 0.4, bottom: 0 },
+  net: { position: 'absolute', left: W / 2 - NET_SIZE / 2, top: NET_TOP, width: NET_SIZE, height: NET_SIZE },
+  throwToast: {
+    position: 'absolute', top: NET_TOP - 56, alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 14,
+    paddingHorizontal: 16, paddingVertical: 8,
+  },
+  throwToastText: { fontFamily: FONTS.bold, fontSize: 14, color: '#FFF' },
   celebrationCenter: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
@@ -2269,169 +2239,6 @@ const arStyles = StyleSheet.create({
     fontSize: 11,
     color: COLORS.textMuted,
     marginTop: 6,
-  },
-});
-
-// ─── Direction Arrow Styles ───────────────────────────────────────────────────
-const arrowStyles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: H * 0.22,
-    alignSelf: 'center',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 20,
-    width: 260,
-    height: 280,
-  },
-  reticleBase: {
-    position: 'absolute',
-    top: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 200,
-    height: 200,
-    transform: [{ rotateX: '65deg' }],
-  },
-  reticleSvgWrap: {
-    width: 180,
-    height: 180,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  arrow3DStage: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 150,
-    height: 150,
-  },
-  arrowRotator: {
-    width: 140,
-    height: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  depthLayer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mainArrowSvg: {
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.8,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  chevronWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1.5,
-    marginTop: 10,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  lockIcon: {
-    width: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lockDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
-  },
-  statusBadgeText: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    letterSpacing: 1.5,
-  },
-  turnBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    marginTop: 10,
-  },
-  turnText: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: '#E2E8F0',
-    letterSpacing: 1.2,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    gap: 8,
-  },
-  distPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    gap: 6,
-  },
-  distIconBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  distValText: {
-    fontFamily: FONTS.bold,
-    fontSize: 13,
-    letterSpacing: 0.5,
-  },
-  distSubText: {
-    fontFamily: FONTS.bold,
-    fontSize: 8,
-    color: '#94A3B8',
-    letterSpacing: 1,
-  },
-  headingPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    gap: 4,
-  },
-  headingText: {
-    fontFamily: FONTS.bold,
-    fontSize: 12,
-    color: '#FFF',
-  },
-  bearingSub: {
-    fontFamily: FONTS.bold,
-    fontSize: 8,
-    color: '#94A3B8',
-    letterSpacing: 0.5,
   },
 });
 

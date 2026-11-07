@@ -193,6 +193,7 @@ export default function MapScreen() {
   const [following, setFollowing] = useState(false);
   const [routeStart, setRouteStart] = useState<LngLat | null>(null);
   const [navMapExpanded, setNavMapExpanded] = useState(false);
+  const [navMapHidden, setNavMapHidden] = useState(false);
   const [proximitySpot, setProximitySpot] = useState<MapSpot | null>(null);
   const [resetPitchKey, setResetPitchKey] = useState(0);
   const [errorModal, setErrorModal] = useState<ErrorState>({ visible: false, type: 'error', title: '', message: '' });
@@ -385,6 +386,7 @@ export default function MapScreen() {
     }
     setRouteStart([userLocation.lng, userLocation.lat]);
     setNavMapExpanded(false);
+    setNavMapHidden(false);
     setIsNavigating(true);
     setFollowing(true);
     setTiltOn(false);
@@ -436,6 +438,8 @@ export default function MapScreen() {
   const navMapSize = navMapExpanded ? NAV_MAP_LARGE : NAV_MAP_SMALL;
   // Map floats at the bottom; the spot title and distance sit at the top of the camera view.
   const navMapBottom = insets.bottom + NAV_MAP_GAP;
+  // AR round buttons sit just above the floating map, or at the bottom when the map is hidden.
+  const navControlsBottom = navMapHidden ? insets.bottom + 28 : navMapBottom + navMapSize.height + 14;
 
   const cardOpen = !!selectedSpot && !isNavigating;
   const navColor = selectedSpot ? SPOT_TYPES[selectedSpot.primary_type].color : SPOT_TYPES.qr.color;
@@ -477,6 +481,9 @@ export default function MapScreen() {
               userLocation={userLocation}
               hideBottomPanel
               showCelebration={false}
+              controlsBottom={navControlsBottom}
+              mapHidden={navMapHidden}
+              onToggleMap={() => setNavMapHidden((v) => !v)}
               onInspectSpot={(spotToInspect: MapSpot | null) => {
                 if (spotToInspect) setSelectedId(spotToInspect.id);
               }}
@@ -508,9 +515,10 @@ export default function MapScreen() {
             <View
               style={
                 isNavigating
-                  ? [styles.navFloatingMap, navMapSize, { bottom: navMapBottom }]
+                  ? [styles.navFloatingMap, navMapSize, { bottom: navMapBottom }, navMapHidden && styles.hidden]
                   : styles.fullMap
               }
+              pointerEvents={isNavigating && navMapHidden ? 'none' : 'auto'}
             >
               {/* Same tree in both modes so the map is never re-created; only the frame changes. */}
               <VintaCard

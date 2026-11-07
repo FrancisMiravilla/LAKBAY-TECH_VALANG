@@ -4,11 +4,11 @@ import { CameraView } from 'expo-camera';
 import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
-import { Svg, Polygon, Path, Circle, G, Defs, LinearGradient, Stop, Line } from 'react-native-svg';
 import * as SecureStore from 'expo-secure-store';
 import { authService } from '../api/authService';
 import { ORIGIN } from '../api/qrService';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
+import { ARNavCards, ARGroundPath, ARRoundButtons } from './ARGuidance';
 const FALLBACK_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 
@@ -295,274 +295,6 @@ function ARStatusBar({ color, distanceM, showArrow, accuracy }) {
   );
 }
 
-// ─── AR Direction Arrow (Cyber-Holographic 3D) ───────────────────────────────
-function DirectionArrow({ relativeBearing, distanceM, color = '#10B981', deviceHeading, targetBearing }) {
-  const bounceAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim  = useRef(new Animated.Value(1)).current;
-  const chevronAnim = useRef(new Animated.Value(0)).current;
-  const spinAnim   = useRef(new Animated.Value(0)).current;
-  const rotAnim    = useRef(new Animated.Value(relativeBearing)).current;
-  const prevRel    = useRef(relativeBearing);
-
-  useEffect(() => {
-    // Floating bounce
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(bounceAnim, { toValue: -10, duration: 1200, useNativeDriver: true }),
-        Animated.timing(bounceAnim, { toValue: 0,   duration: 1200, useNativeDriver: true }),
-      ])
-    ).start();
-
-    // Pulse
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.12, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1,    duration: 900, useNativeDriver: true }),
-      ])
-    ).start();
-
-    // Trailing chevrons cascade
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(chevronAnim, { toValue: 1, duration: 1400, useNativeDriver: true }),
-        Animated.timing(chevronAnim, { toValue: 0, duration: 0,    useNativeDriver: true }),
-      ])
-    ).start();
-
-    // Reticle slow spin
-    Animated.loop(
-      Animated.timing(spinAnim, { toValue: 1, duration: 20000, useNativeDriver: true })
-    ).start();
-  }, []);
-
-  // Smooth shortest-arc rotation
-  useEffect(() => {
-    let delta = relativeBearing - prevRel.current;
-    if (delta > 180)  delta -= 360;
-    if (delta < -180) delta += 360;
-    const next = prevRel.current + delta;
-    prevRel.current = next;
-    Animated.timing(rotAnim, { toValue: next, duration: 140, useNativeDriver: true }).start();
-  }, [relativeBearing]);
-
-  const rotation = rotAnim.interpolate({
-    inputRange: [-360, 0, 360, 720],
-    outputRange: ['-360deg', '0deg', '360deg', '720deg'],
-    extrapolate: 'extend',
-  });
-
-  const reticleSpin = spinAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  const isAligned = relativeBearing < 22 || relativeBearing > 338;
-  const isTurnLeft = relativeBearing >= 180 && relativeBearing <= 338;
-  const turnDeg = isTurnLeft ? Math.round(360 - relativeBearing) : Math.round(relativeBearing);
-
-  // Dynamic Theme Colors
-  const mainColor  = isAligned ? '#10B981' : (color || '#1A56DB');
-  const glowColor  = isAligned ? '#34D399' : '#60A5FA';
-  const shadeColor = isAligned ? '#065F46' : '#1E3A8A';
-  const darkCore   = isAligned ? '#022C22' : '#0F172A';
-
-  const ch1Opacity = chevronAnim.interpolate({ inputRange: [0, 0.4, 0.8, 1], outputRange: [0.2, 0.9, 0.4, 0.1] });
-  const ch2Opacity = chevronAnim.interpolate({ inputRange: [0, 0.2, 0.6, 1], outputRange: [0.1, 0.3, 0.9, 0.2] });
-  const ch1Translate = chevronAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -8] });
-  const ch2Translate = chevronAnim.interpolate({ inputRange: [0, 1], outputRange: [0, -14] });
-
-  return (
-    <View style={arrowStyles.container}>
-      {/* ── Reticle HUD Base (on ground plane) ── */}
-      <View style={arrowStyles.reticleBase}>
-        {/* Sonar pulses */}
-        <RadarRing color={mainColor} delay={0} />
-        <RadarRing color={mainColor} delay={1000} />
-
-        <Animated.View style={[arrowStyles.reticleSvgWrap, { transform: [{ rotate: reticleSpin }] }]}>
-          <Svg width="180" height="180" viewBox="0 0 200 200">
-            {/* Outer segmented ring */}
-            <Circle
-              cx="100" cy="100" r="92"
-              fill="none"
-              stroke={mainColor}
-              strokeWidth="1.5"
-              strokeDasharray="10 8"
-              opacity="0.4"
-            />
-            {/* Secondary thin ring */}
-            <Circle
-              cx="100" cy="100" r="76"
-              fill="none"
-              stroke="#FFF"
-              strokeWidth="1"
-              strokeDasharray="4 6"
-              opacity="0.25"
-            />
-            {/* Inner target ring */}
-            <Circle
-              cx="100" cy="100" r="50"
-              fill="none"
-              stroke={mainColor}
-              strokeWidth="1.2"
-              opacity="0.35"
-            />
-            {/* Crosshair ticks */}
-            <Line x1="100" y1="4" x2="100" y2="18" stroke={mainColor} strokeWidth="3" opacity="0.8" />
-            <Line x1="100" y1="182" x2="100" y2="196" stroke={mainColor} strokeWidth="2" opacity="0.5" />
-            <Line x1="4" y1="100" x2="18" y2="100" stroke={mainColor} strokeWidth="2" opacity="0.5" />
-            <Line x1="182" y1="100" x2="196" y2="100" stroke={mainColor} strokeWidth="2" opacity="0.5" />
-          </Svg>
-        </Animated.View>
-      </View>
-
-      {/* ── 3D Isometric Hologram Arrow (Hovering above reticle) ── */}
-      <Animated.View style={[arrowStyles.arrow3DStage, { transform: [{ translateY: bounceAnim }] }]}>
-        <Animated.View style={[arrowStyles.arrowRotator, { transform: [{ rotateX: '55deg' }, { rotateZ: rotation }] }]}>
-          {/* Depth / Shadow Extrusion Layers */}
-          {[...Array(6)].map((_, i) => (
-            <View
-              key={i}
-              style={[
-                arrowStyles.depthLayer,
-                {
-                  top: (i + 1) * 3,
-                  opacity: (6 - i) * 0.15,
-                }
-              ]}
-            >
-              <Svg width="140" height="140" viewBox="0 0 140 140">
-                <Path
-                  d="M 70,12 L 20,86 L 46,74 L 70,98 L 94,74 L 120,86 Z"
-                  fill={shadeColor}
-                  stroke={darkCore}
-                  strokeWidth="1.5"
-                />
-              </Svg>
-            </View>
-          ))}
-
-          {/* Main Glowing 3D Crystal Arrow Face */}
-          <Svg width="140" height="140" viewBox="0 0 140 140" style={arrowStyles.mainArrowSvg}>
-            <Defs>
-              <LinearGradient id="leftFacet" x1="0%" y1="0%" x2="100%" y2="100%">
-                <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.95" />
-                <Stop offset="30%" stopColor={glowColor} stopOpacity="0.9" />
-                <Stop offset="100%" stopColor={mainColor} stopOpacity="0.8" />
-              </LinearGradient>
-              <LinearGradient id="rightFacet" x1="0%" y1="0%" x2="100%" y2="100%">
-                <Stop offset="0%" stopColor={glowColor} stopOpacity="0.8" />
-                <Stop offset="70%" stopColor={shadeColor} stopOpacity="0.9" />
-                <Stop offset="100%" stopColor={darkCore} stopOpacity="0.95" />
-              </LinearGradient>
-              <LinearGradient id="coreGlow" x1="0%" y1="0%" x2="0%" y2="100%">
-                <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
-                <Stop offset="100%" stopColor={mainColor} stopOpacity="0" />
-              </LinearGradient>
-            </Defs>
-
-            {/* Left Facet */}
-            <Path
-              d="M 70,12 L 20,86 L 46,74 L 70,98 Z"
-              fill="url(#leftFacet)"
-              stroke={mainColor}
-              strokeWidth="1.2"
-              strokeLinejoin="round"
-            />
-            {/* Right Facet */}
-            <Path
-              d="M 70,12 L 120,86 L 94,74 L 70,98 Z"
-              fill="url(#rightFacet)"
-              stroke={mainColor}
-              strokeWidth="1.2"
-              strokeLinejoin="round"
-            />
-            {/* Glowing Spine / Neon Center Line */}
-            <Line
-              x1="70" y1="14" x2="70" y2="96"
-              stroke="url(#coreGlow)"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-            />
-            {/* Tip Energy Beacon */}
-            <Circle cx="70" cy="14" r="4.5" fill="#FFFFFF" />
-            <Circle cx="70" cy="14" r="8" fill="none" stroke={glowColor} strokeWidth="1.5" opacity="0.8" />
-          </Svg>
-
-          {/* Trailing Speed Chevrons */}
-          <Animated.View style={[arrowStyles.chevronWrap, { opacity: ch1Opacity, transform: [{ translateY: ch1Translate }] }]}>
-            <Svg width="140" height="140" viewBox="0 0 140 140">
-              <Path
-                d="M 38,98 L 70,82 L 102,98 L 70,90 Z"
-                fill={glowColor}
-                opacity="0.85"
-              />
-            </Svg>
-          </Animated.View>
-
-          <Animated.View style={[arrowStyles.chevronWrap, { opacity: ch2Opacity, transform: [{ translateY: ch2Translate }] }]}>
-            <Svg width="140" height="140" viewBox="0 0 140 140">
-              <Path
-                d="M 46,112 L 70,98 L 94,112 L 70,105 Z"
-                fill={mainColor}
-                opacity="0.6"
-              />
-            </Svg>
-          </Animated.View>
-        </Animated.View>
-      </Animated.View>
-
-      {/* ── Status HUD Badge ── */}
-      {isAligned ? (
-        <View style={[arrowStyles.statusBadge, { backgroundColor: 'rgba(16,185,129,0.22)', borderColor: '#10B981' }]}>
-          <View style={arrowStyles.lockIcon}>
-            <Ionicons name="scan-circle" size={14} color="#10B981" />
-          </View>
-          <Text style={[arrowStyles.statusBadgeText, { color: '#10B981' }]}>TARGET LOCKED</Text>
-          <View style={arrowStyles.lockDot} />
-        </View>
-      ) : (
-        <View style={[arrowStyles.turnBadge, { backgroundColor: 'rgba(6, 14, 42, 0.85)', borderColor: 'rgba(255,255,255,0.25)' }]}>
-          <Ionicons
-            name={isTurnLeft ? 'arrow-undo' : 'arrow-redo'}
-            size={13}
-            color={mainColor}
-            style={{ marginRight: 5 }}
-          />
-          <Text style={arrowStyles.turnText}>
-            {isTurnLeft ? `TURN LEFT ${turnDeg}°` : `TURN RIGHT ${turnDeg}°`}
-          </Text>
-        </View>
-      )}
-
-      {/* ── Distance & Bearing Info Pill ── */}
-      <View style={arrowStyles.infoRow}>
-        <View style={[arrowStyles.distPill, { backgroundColor: 'rgba(6, 14, 42, 0.88)', borderColor: mainColor + '66' }]}>
-          <View style={[arrowStyles.distIconBox, { backgroundColor: mainColor + '22' }]}>
-            <Ionicons name="walk" size={10} color={mainColor} />
-          </View>
-          <Text style={[arrowStyles.distValText, { color: '#FFFFFF' }]}>
-            {distanceM !== null
-              ? (distanceM >= 1000 ? `${(distanceM / 1000).toFixed(1)} km` : `${Math.round(distanceM)}m`)
-              : '---'}
-          </Text>
-          <Text style={arrowStyles.distSubText}>REMAINING</Text>
-        </View>
-
-        {deviceHeading !== null && (
-          <View style={[arrowStyles.headingPill, { backgroundColor: 'rgba(6, 14, 42, 0.88)', borderColor: 'rgba(255,255,255,0.2)' }]}>
-            <Ionicons name="compass" size={10} color={mainColor} style={{ marginRight: 2 }} />
-            <Text style={arrowStyles.headingText}>{Math.round(targetBearing)}°</Text>
-            <Text style={arrowStyles.bearingSub}>BRG</Text>
-          </View>
-        )}
-      </View>
-    </View>
-  );
-}
-
-
-
 // ─── Celebration Confetti System ─────────────────────────────────────────────
 const CONFETTI_COLORS = ['#FBBF24', '#10B981', '#38BDF8', '#EC4899', '#A855F7', '#EF4444', '#F97316', '#FFFFFF'];
 
@@ -646,6 +378,9 @@ export default function ARNavigationOverlay({
   hideBottomPanel = false,
   bottomPanelOffset = 0,
   showCelebration = true,
+  controlsBottom = 40,
+  mapHidden = false,
+  onToggleMap,
 }) {
   // Check if we are passing by a nearby spot or at the destination spot
   const activeSpot = nearbySpot || spot;
@@ -802,11 +537,30 @@ export default function ARNavigationOverlay({
 
   const displayColor = icon?.color || '#10B981';
 
+  // Walking guidance (reference/arrow.png) whenever the arrow is up and no popup covers it.
+  const guiding = showArrow && (!show3DModel || modalDismissed);
+  const roundButtons = [{ icon: 'close', label: 'Exit navigation', onPress: onClose }];
+  if (onToggleMap) {
+    roundButtons.push({ icon: mapHidden ? 'map' : 'map-outline', label: mapHidden ? 'Show map' : 'Hide map', onPress: onToggleMap });
+  }
+
   return (
     <Animated.View style={[StyleSheet.absoluteFill, { opacity: fadeAnim }]}>
       {/* ── Live Camera feed ── */}
       <CameraView style={StyleSheet.absoluteFill} facing="back" />
 
+      {guiding ? (
+        <>
+          <ARGroundPath relativeBearing={relativeBearing} bottom={Math.max(0, controlsBottom - 40)} />
+          <ARNavCards
+            relativeBearing={relativeBearing}
+            distanceM={distanceM}
+            destination={displayTitle}
+            hasHeading={deviceHeading !== null}
+          />
+        </>
+      ) : (
+        <>
       {/* ── HUD: Scanning line ── */}
       <ScanLine color={displayColor} />
 
@@ -832,10 +586,12 @@ export default function ARNavigationOverlay({
           </Text>
         </View>
 
-        {/* Right: close X */}
-        <TouchableOpacity style={[arStyles.closeBtn, { borderColor: 'rgba(255,255,255,0.25)' }]} onPress={onClose} activeOpacity={0.8}>
-          <Ionicons name="close" size={18} color="#fff" />
-        </TouchableOpacity>
+        {/* Right: close X (the round buttons replace it in the map's navigation) */}
+        {!hideBottomPanel && (
+          <TouchableOpacity style={[arStyles.closeBtn, { borderColor: 'rgba(255,255,255,0.25)' }]} onPress={onClose} activeOpacity={0.8}>
+            <Ionicons name="close" size={18} color="#fff" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* ════════════════════════════════════════
@@ -856,6 +612,11 @@ export default function ARNavigationOverlay({
           )}
         </View>
       )}
+
+        </>
+      )}
+
+      {hideBottomPanel && <ARRoundButtons buttons={roundButtons} bottom={controlsBottom} />}
 
       {/* ── Celebration Confetti (when 3D model appears) ── */}
       {show3DModel && showCelebration && <ConfettiCannon />}
@@ -929,16 +690,6 @@ export default function ARNavigationOverlay({
         </Animated.View>
       )}
 
-      {/* ── Directional Arrow — hidden while model modal is open; resumes after "Got it" ── */}
-      {showArrow && (!show3DModel || modalDismissed) && (
-        <DirectionArrow
-          relativeBearing={relativeBearing}
-          targetBearing={targetBearing}
-          deviceHeading={deviceHeading}
-          distanceM={distanceM}
-          color={displayColor}
-        />
-      )}
 
 
       {/* ════════════════════════════════════════
@@ -1500,171 +1251,6 @@ const arStyles = StyleSheet.create({
     fontSize: 10,
     color: '#FBBF24',
     letterSpacing: 0.8,
-  },
-});
-
-
-
-// ─── Direction Arrow Styles ───────────────────────────────────────────────────
-const arrowStyles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: H * 0.22,
-    alignSelf: 'center',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 20,
-    width: 260,
-    height: 280,
-  },
-  reticleBase: {
-    position: 'absolute',
-    top: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 200,
-    height: 200,
-    transform: [{ rotateX: '65deg' }],
-  },
-  reticleSvgWrap: {
-    width: 180,
-    height: 180,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  arrow3DStage: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 150,
-    height: 150,
-  },
-  arrowRotator: {
-    width: 140,
-    height: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  depthLayer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mainArrowSvg: {
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.8,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  chevronWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1.5,
-    marginTop: 10,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  lockIcon: {
-    width: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lockDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#10B981',
-  },
-  statusBadgeText: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    letterSpacing: 1.5,
-  },
-  turnBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    marginTop: 10,
-  },
-  turnText: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: '#E2E8F0',
-    letterSpacing: 1.2,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-    gap: 6,
-  },
-  distPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    gap: 4,
-  },
-  distIconBox: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  distValText: {
-    fontFamily: FONTS.bold,
-    fontSize: 11,
-    letterSpacing: 0.5,
-  },
-  distSubText: {
-    fontFamily: FONTS.bold,
-    fontSize: 7,
-    color: '#94A3B8',
-    letterSpacing: 1,
-  },
-  headingPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    gap: 2,
-  },
-  headingText: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: '#FFF',
-  },
-  bearingSub: {
-    fontFamily: FONTS.bold,
-    fontSize: 7,
-    color: '#94A3B8',
-    letterSpacing: 0.5,
   },
 });
 
