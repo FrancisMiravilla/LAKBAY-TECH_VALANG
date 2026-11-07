@@ -5,6 +5,8 @@ import VintaCard from '../components/VintaCard';
 import VintaStripe from '../components/VintaStripe';
 import { Ionicons } from '@expo/vector-icons';
 import { authService } from '../api/authService';
+import DecoratedAvatar, { ProfileBackdrop } from '../components/DecoratedAvatar';
+import AvatarStylePicker from '../components/AvatarStylePicker';
 
 import { useAppDialog } from '../components/useAppDialog';
 const CHARACTERS = [
@@ -22,6 +24,9 @@ export default function EditProfileScreen({ navigation }) {
   const [fullName, setFullName] = useState('');
   const [inGameName, setInGameName] = useState('');
   const [character, setCharacter] = useState('mando');
+  // Avatar decorations: catalog + equipped from the server, `look` is the unsaved choice.
+  const [cosmetics, setCosmetics] = useState(null);
+  const [look, setLook] = useState({ hat: '', frame: '', pin: '', backdrop: '' });
 
   useEffect(() => {
     fetchProfile();
@@ -29,10 +34,17 @@ export default function EditProfileScreen({ navigation }) {
 
   const fetchProfile = async () => {
     try {
-      const data = await authService.getProfile();
+      const [data, cos] = await Promise.all([
+        authService.getProfile(),
+        authService.getCosmetics().catch(() => null),
+      ]);
       setFullName(data.full_name || '');
       setInGameName(data.in_game_name || '');
       setCharacter(data.chosen_character || 'mando');
+      if (cos) {
+        setCosmetics(cos);
+        setLook(cos.equipped);
+      }
     } catch (e) {
       console.log('Error fetching profile for edit', e);
     } finally {
@@ -53,6 +65,15 @@ export default function EditProfileScreen({ navigation }) {
         in_game_name: inGameName.trim(),
         chosen_character: character,
       });
+      const lookChanged = cosmetics && Object.keys(look).some((k) => look[k] !== cosmetics.equipped[k]);
+      if (lookChanged) {
+        try {
+          await authService.saveCosmetics(look);
+        } catch (err) {
+          showAlert('Avatar Not Saved', err?.response?.data?.error || 'Your details were saved, but the avatar style could not be.');
+          return;
+        }
+      }
       navigation.goBack();
     } catch (e) {
       console.log('Error updating profile', e);
@@ -92,6 +113,17 @@ export default function EditProfileScreen({ navigation }) {
       <VintaStripe height={3} />
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {/* Live preview of companion + avatar style */}
+        <View style={styles.preview}>
+          <ProfileBackdrop id={look.backdrop} style={StyleSheet.absoluteFill} />
+          <View style={styles.previewDim} />
+          <DecoratedAvatar character={character} size={100} hat={look.hat} frame={look.frame} pin={look.pin} />
+          <Text style={styles.previewName} numberOfLines={1}>{inGameName.trim() || 'Explorer'}</Text>
+          {cosmetics && (
+            <Text style={styles.previewXp}>{cosmetics.xp.toLocaleString()} XP · earn more to unlock styles</Text>
+          )}
+        </View>
+
         <VintaCard contentStyle={styles.formCard}>
         <View style={styles.formGroup}>
           <Text style={styles.label}>FULL NAME</Text>
@@ -147,6 +179,15 @@ export default function EditProfileScreen({ navigation }) {
           </View>
         </View>
 
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>AVATAR STYLE</Text>
+          {cosmetics ? (
+            <AvatarStylePicker catalog={cosmetics.catalog} value={look} onChange={setLook} character={character} />
+          ) : (
+            <Text style={styles.styleUnavailable}>Avatar styles could not load. Check your connection and reopen Edit Profile.</Text>
+          )}
+        </View>
+
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
         </TouchableOpacity>
@@ -161,6 +202,20 @@ export default function EditProfileScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  preview: {
+    height: 230, borderRadius: 28, overflow: 'hidden', borderWidth: 3, borderColor: '#FFFFFF',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+  },
+  previewDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,18,49,0.25)' },
+  previewName: {
+    fontFamily: FONTS.bold, fontSize: 20, color: '#FFFFFF', marginTop: 8, maxWidth: '85%',
+    textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6,
+  },
+  previewXp: {
+    fontFamily: FONTS.medium, fontSize: 12, color: '#FFFFFF', marginTop: 2,
+    textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6,
+  },
+  styleUnavailable: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMuted },
   bgImage: { flex: 1 },
   bgOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: BG_OVERLAY },
   container: { flex: 1, backgroundColor: 'transparent' },

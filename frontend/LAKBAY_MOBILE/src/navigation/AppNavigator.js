@@ -25,7 +25,6 @@ import CatchDetailsScreen from '../screens/CatchDetailsScreen';
 import QuizScreen from '../screens/QuizScreen';
 import MapScreen from '../screens/MapScreen'; 
 import EditProfileScreen from '../screens/EditProfileScreen';
-import CustomizeScreen from '../screens/CustomizeScreen';
 import ViroARScanner from '../screens/ViroARScanner';
 import StoreScreen from '../screens/StoreScreen';
 import PromoteScreen from '../screens/PromoteScreen';
@@ -132,7 +131,6 @@ export default function AppNavigator() {
       <Stack.Screen name="QuizScreen"    component={QuizScreen} />
       <Stack.Screen name="Map"           component={MapScreen} />
       <Stack.Screen name="EditProfile"   component={EditProfileScreen} />
-      <Stack.Screen name="Customize"     component={CustomizeScreen} />
       <Stack.Screen name="MindAR"        component={ViroARScanner} />
       <Stack.Screen name="Promote"       component={PromoteScreen} />
       <Stack.Screen name="MyPromotions"  component={MyPromotionsScreen} />

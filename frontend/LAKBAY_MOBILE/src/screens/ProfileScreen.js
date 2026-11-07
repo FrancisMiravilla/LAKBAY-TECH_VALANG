@@ -178,8 +178,7 @@ const menuStyles = StyleSheet.create({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 const MENU_OPTIONS = [
-  { id: 'customize',  icon: 'sparkles',  label: 'Customize Avatar'   },
-  { id: 'edit',       icon: 'pencil',    label: 'Edit Profile'       },
+  { id: 'edit',       icon: 'pencil',    label: 'Edit Profile & Avatar' },
   { id: 'promotions', icon: 'megaphone', label: 'My Promotions'      },
   { id: 'notif',      icon: 'bell',      label: 'Notifications'      },
   { id: 'priv',       icon: 'lock',      label: 'Privacy & Security' },
@@ -296,7 +295,6 @@ export default function ProfileScreen({ navigation }) {
 
   const handleMenuPress = (id) => {
     if (id === 'logout')          handleLogout();
-    else if (id === 'customize')  navigation.navigate('Customize');
     else if (id === 'edit')       navigation.navigate('EditProfile');
     else if (id === 'promotions') navigation.navigate('MyPromotions');
     else if (id === 'notif')      navigation.navigate('Notifications');
