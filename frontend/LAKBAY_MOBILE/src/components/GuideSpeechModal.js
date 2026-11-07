@@ -3,9 +3,10 @@ import { StyleSheet, Text, View, TouchableOpacity, Animated, Easing, Modal } fro
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, GUIDE_FONTS } from '../constants/theme';
 
-// Shown right after login: the screen dims and the LAKBAY tour guide pops up in
-// the centre, saying "Mabuhay, <IGN>!" aloud while the words type out in his
-// speech bubble.
+// The screen dims and the LAKBAY tour guide pops up in the centre and says each
+// step aloud while the words type out in his speech bubble. Used for the
+// post-login greeting (one step) and the AR scanner intro (three steps).
+// steps: [{ label?, title?, text }]
 
 const GUIDE_IMAGE = require('../assets/guide_character.png');
 const BARS = [8, 14, 20, 12, 24, 16, 10, 22, 26, 14, 10, 22, 18, 12, 24, 18, 10, 16];
@@ -50,8 +51,11 @@ function Waveform({ speaking }) {
   );
 }
 
-export default function GuideGreetingModal({ visible, name, onClose }) {
-  const message = `Mabuhay, ${name || 'Explorer'}! I'm your LAKBAY guide. Scan, catch and explore Zamboanga's heritage — I'll be with you every step.`;
+export default function GuideSpeechModal({ visible, steps = [], finalLabel = "Let's Explore!", onClose }) {
+  const [step, setStep] = useState(0);
+  const current = steps[step] || steps[0] || { text: '' };
+  const message = current.text;
+  const isLast = step >= steps.length - 1;
   const [typed, setTyped] = useState('');
   const [speaking, setSpeaking] = useState(false);
   const [voiceMissing, setVoiceMissing] = useState(false);
@@ -105,9 +109,10 @@ export default function GuideGreetingModal({ visible, name, onClose }) {
     }, voiceDone ? TYPE_MS : SPOKEN_TYPE_MS);
   }, [message, stopAll]);
 
-  // Pop in, then start talking.
+  // Pop in and float while visible; always start from the first step.
   useEffect(() => {
     if (!visible) return undefined;
+    setStep(0);
     popAnim.setValue(0);
     Animated.spring(popAnim, { toValue: 1, friction: 6, tension: 70, useNativeDriver: true }).start();
     const loop = Animated.loop(
@@ -117,13 +122,18 @@ export default function GuideGreetingModal({ visible, name, onClose }) {
       ])
     );
     loop.start();
-    const t = setTimeout(play, 450);
     return () => {
-      clearTimeout(t);
       loop.stop();
       stopAll();
     };
-  }, [visible, play, stopAll, popAnim, floatAnim]);
+  }, [visible, stopAll, popAnim, floatAnim]);
+
+  // Say the current step (on open and whenever the player moves between steps).
+  useEffect(() => {
+    if (!visible) return undefined;
+    const t = setTimeout(play, 400);
+    return () => clearTimeout(t);
+  }, [visible, step, play]);
 
   const close = () => {
     stopAll();
@@ -141,13 +151,24 @@ export default function GuideGreetingModal({ visible, name, onClose }) {
         >
           <Animated.Image
             source={GUIDE_IMAGE}
-            style={[styles.guide, { transform: [{ translateY: floatAnim }] }]}
+            style={[styles.guide, steps.length > 1 && styles.guideSmall, { transform: [{ translateY: floatAnim }] }]}
             resizeMode="contain"
             accessibilityLabel="LAKBAY tour guide"
           />
 
           <View style={styles.bubble}>
             <View style={styles.bubbleTail} />
+            {steps.length > 1 && (
+              <View style={styles.stepHead}>
+                <Text style={styles.stepLabel}>{current.label || `STEP ${step + 1} OF ${steps.length}`}</Text>
+                <View style={styles.dots}>
+                  {steps.map((_, i) => (
+                    <View key={i} style={[styles.dot, i === step && styles.dotActive]} />
+                  ))}
+                </View>
+              </View>
+            )}
+            {!!current.title && <Text style={styles.stepTitle}>{current.title}</Text>}
             <Text style={styles.bubbleText}>{typed || ' '}</Text>
             <View style={styles.bubbleFooter}>
               <Waveform speaking={speaking} />
@@ -165,9 +186,22 @@ export default function GuideGreetingModal({ visible, name, onClose }) {
             )}
           </View>
 
-          <TouchableOpacity style={styles.goBtn} onPress={close} activeOpacity={0.88}>
-            <Text style={styles.goText}>Let&apos;s Explore!</Text>
-          </TouchableOpacity>
+          <View style={styles.navRow}>
+            {step > 0 && (
+              <TouchableOpacity style={styles.backBtn} onPress={() => setStep((s) => s - 1)} activeOpacity={0.85}>
+                <Ionicons name="chevron-back" size={18} color="#FFFFFF" />
+                <Text style={styles.backText}>Back</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={styles.goBtn}
+              onPress={() => (isLast ? close() : setStep((s) => s + 1))}
+              activeOpacity={0.88}
+            >
+              <Text style={styles.goText}>{isLast ? finalLabel : 'Next'}</Text>
+              {!isLast && <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />}
+            </TouchableOpacity>
+          </View>
         </Animated.View>
       </View>
     </Modal>
@@ -181,6 +215,7 @@ const styles = StyleSheet.create({
   },
   stage: { width: '100%', alignItems: 'center' },
   guide: { width: 210, height: 240 },
+  guideSmall: { width: 160, height: 180 },
 
   bubble: {
     alignSelf: 'stretch', marginTop: 10,
@@ -202,8 +237,21 @@ const styles = StyleSheet.create({
   },
   voiceNote: { fontFamily: GUIDE_FONTS.regular, fontSize: 11, color: COLORS.textMuted, marginTop: 6 },
 
+  stepHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  stepLabel: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 11, letterSpacing: 1, color: COLORS.accent },
+  stepTitle: { fontFamily: GUIDE_FONTS.bold, fontSize: 18, lineHeight: 23, color: COLORS.navy, marginBottom: 4 },
+  dots: { flexDirection: 'row', gap: 4 },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS.border },
+  dotActive: { width: 18, backgroundColor: COLORS.accent },
+  navRow: { alignSelf: 'stretch', flexDirection: 'row', gap: 10, marginTop: 18 },
+  backBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2,
+    height: 54, paddingHorizontal: 18, borderRadius: 27,
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)',
+  },
+  backText: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 15, color: '#FFFFFF' },
   goBtn: {
-    alignSelf: 'stretch', height: 54, borderRadius: 27, marginTop: 18,
+    flex: 1, flexDirection: 'row', gap: 4, height: 54, borderRadius: 27,
     backgroundColor: COLORS.accent, borderBottomWidth: 4, borderBottomColor: COLORS.accentDark,
     alignItems: 'center', justifyContent: 'center',
   },

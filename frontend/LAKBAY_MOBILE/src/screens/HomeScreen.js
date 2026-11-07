@@ -9,7 +9,7 @@ import VintaCard from '../components/VintaCard';
 import LucideIcon from '../components/LucideIcon';
 import PlaceDeck from '../components/PlaceDeck';
 import GuideWelcome from '../components/GuideWelcome';
-import GuideGreetingModal from '../components/GuideGreetingModal';
+import GuideSpeechModal from '../components/GuideSpeechModal';
 import { SPOT_TYPES } from '../constants/mapConfig';
 import { Ionicons } from '@expo/vector-icons';
 import CustomModal from '../components/CustomModal';
@@ -682,9 +682,11 @@ export default function HomeScreen({ navigation, route }) {
           onClose={() => setStreakModalVisible(false)}
         />
 
-        <GuideGreetingModal
+        <GuideSpeechModal
           visible={greetingVisible}
-          name={profile?.in_game_name}
+          steps={[{
+            text: `Mabuhay, ${profile?.in_game_name || 'Explorer'}! I'm your LAKBAY guide. Scan, catch and explore Zamboanga's heritage — I'll be with you every step.`,
+          }]}
           onClose={closeGreeting}
         />
 

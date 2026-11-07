@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar, InteractionManager, Alert, Modal, Animated, Easing, Image, Dimensions, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar, InteractionManager, Alert, Modal, Animated, Easing, Dimensions, ScrollView } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -37,6 +37,7 @@ import { getARTargets, ORIGIN, logActivity } from '../api/qrService';
 import { authService } from '../api/authService';
 import ARGuideCenterPopup from '../components/ARGuideCenterPopup';
 import HintCompass from '../components/HintCompass';
+import GuideSpeechModal from '../components/GuideSpeechModal';
 import LucideIcon from '../components/LucideIcon';
 
 // Resolve a model path into an absolute https URL Viro can load.
@@ -217,35 +218,20 @@ export default function ViroARScanner({ navigation }) {
   // GL surface setup and shows a black camera on some devices (e.g. Samsung).
   const [sceneMountReady, setSceneMountReady] = useState(false);
   const [showInstructionModal, setShowInstructionModal] = useState(true);
-  const [modalStep, setModalStep] = useState(0);
 
-  const instructionSteps = [
+  // AR intro, spoken by the LAKBAY guide (GuideSpeechModal).
+  const guideSteps = [
     {
-      icon: 'location',
-      iconColor: COLORS.accent,
-      iconBg: 'rgba(26,86,219,0.15)',
-      stepLabel: 'STEP 1 OF 3',
       title: 'Head to the Building',
-      body: 'Start by visiting the museum building (S1, S2, or S3). Each building holds up to 10 artwork models waiting to be discovered.',
-      note: null,
+      text: 'First, head to the National Museum building: S1, S2 or S3. Each building hides up to 10 artwork models waiting for you.',
     },
     {
-      icon: 'eye',
-      iconColor: COLORS.gold,
-      iconBg: 'rgba(251,191,36,0.15)',
-      stepLabel: 'STEP 2 OF 3',
-      title: 'Scan the 10 Artwork Exhibits',
-      body: 'Inside the building, point your AR camera at paintings and exhibits. Artworks range across 4 rarities: Common, Rare, Mythical, and Legendary.',
-      note: 'If you need assistance finding a piece, tap the Exhibit Clues button on the top right.',
+      title: 'Scan the Artworks',
+      text: 'Inside, point your camera at the paintings and exhibits. Artworks come in four rarities: Common, Rare, Mythical and Legendary. Stuck? Tap the 3D Clue button at the top and I will give you a hint.',
     },
     {
-      icon: 'trophy',
-      iconColor: COLORS.teal,
-      iconBg: 'rgba(16,185,129,0.15)',
-      stepLabel: 'STEP 3 OF 3',
-      title: 'Collect & View 3D Models',
-      body: 'Every artwork you scan is saved to your permanent collection with its rarity badge and slot number. Visit your Collection in the Badges tab anytime!',
-      note: null,
+      title: 'Collect the 3D Models',
+      text: 'Every artwork you scan is saved to your collection with its rarity and slot number. See them anytime in My Journey. Good luck, explorer!',
     },
   ];
   const [rewardModalData, setRewardModalData] = useState(null);
@@ -559,89 +545,12 @@ export default function ViroARScanner({ navigation }) {
         />
       </Modal>
 
-      <Modal
+      <GuideSpeechModal
         visible={showInstructionModal}
-        transparent={true}
-        animationType="fade"
-      >
-        <View style={styles.modalOverlay}>
-          <VintaCard style={styles.modalFrame} contentStyle={styles.modalContent}>
-            <Image source={require('../assets/buildings.jpg')} style={styles.modalImage} resizeMode="cover" />
-
-            {/* Step dot indicators */}
-            <View style={styles.stepDotsRow}>
-              {instructionSteps.map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.stepDot,
-                    i === modalStep ? styles.stepDotActive : styles.stepDotInactive,
-                  ]}
-                />
-              ))}
-            </View>
-
-            <View style={styles.modalTextContainer}>
-              {/* Step label */}
-              <Text style={[styles.stepLabel, { color: onWhite(instructionSteps[modalStep].iconColor) }]}>
-                {instructionSteps[modalStep].stepLabel}
-              </Text>
-
-              {/* Icon */}
-              <View style={[styles.stepIconCircle, { backgroundColor: instructionSteps[modalStep].iconBg }]}>
-                <Ionicons name={instructionSteps[modalStep].icon} size={28} color={onWhite(instructionSteps[modalStep].iconColor)} />
-              </View>
-
-              {/* Title */}
-              <Text style={styles.modalTitle}>{instructionSteps[modalStep].title}</Text>
-
-              {/* Body */}
-              <Text style={styles.modalMessage}>{instructionSteps[modalStep].body}</Text>
-
-              {/* Optional note */}
-              {instructionSteps[modalStep].note ? (
-                <View style={styles.noteBox}>
-                  <Ionicons name="information-circle" size={16} color={GOLD_TEXT} style={{ marginRight: 6, marginTop: 1 }} />
-                  <Text style={styles.noteText}>{instructionSteps[modalStep].note}</Text>
-                </View>
-              ) : null}
-
-              {/* Navigation buttons */}
-              <View style={styles.modalNavRow}>
-                {modalStep > 0 ? (
-                  <TouchableOpacity
-                    style={styles.modalBtnSecondary}
-                    onPress={() => setModalStep(modalStep - 1)}
-                  >
-                    <Ionicons name="chevron-back" size={16} color={COLORS.textSub} />
-                    <Text style={styles.modalBtnSecondaryText}>Back</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <View style={{ flex: 1 }} />
-                )}
-
-                {modalStep < instructionSteps.length - 1 ? (
-                  <TouchableOpacity
-                    style={styles.modalBtn}
-                    onPress={() => setModalStep(modalStep + 1)}
-                  >
-                    <Text style={styles.modalBtnText}>Next</Text>
-                    <Ionicons name="chevron-forward" size={16} color="#FFF" style={{ marginLeft: 4 }} />
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.modalBtn}
-                    onPress={() => { setShowInstructionModal(false); setModalStep(0); }}
-                  >
-                    <Ionicons name="checkmark-circle" size={16} color="#FFF" style={{ marginRight: 4 }} />
-                    <Text style={styles.modalBtnText}>Proceed</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          </VintaCard>
-        </View>
-      </Modal>
+        steps={guideSteps}
+        finalLabel="Start Scanning"
+        onClose={() => setShowInstructionModal(false)}
+      />
 
       {/* Header */}
       <View style={styles.header}>
@@ -1520,172 +1429,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 12,
   },
-  testBanner: {
-    position: 'absolute',
-    top: 92,
-    left: 12,
-    right: 12,
-    zIndex: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-  },
-  testNeutral: { backgroundColor: 'rgba(0,0,0,0.6)' },
-  testOk: { backgroundColor: 'rgba(16,150,120,0.85)' },
-  testErr: { backgroundColor: 'rgba(200,60,60,0.9)' },
-  testBannerText: { color: '#fff', fontFamily: FONTS.regular, fontSize: 12 },
-  modelStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  modelStatusText: {
-    flex: 1,
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
-  },
-  btn: {
-    backgroundColor: COLORS.accent,
-    paddingVertical: 12,
-    borderRadius: RADIUS.md,
-    alignItems: 'center',
-  },
-  btnText: {
-    fontFamily: FONTS.bold,
-    color: '#FFF',
-    fontSize: 14,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(5, 10, 24, 0.70)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  modalFrame: {
-    width: '100%',
-    maxWidth: 340,
-  },
-  modalContent: {
-    alignItems: 'stretch',
-  },
-  modalImage: {
-    width: '100%',
-    height: 180,
-  },
-  stepDotsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 16,
-    paddingBottom: 4,
-    gap: 8,
-  },
-  stepDot: {
-    height: 8,
-    borderRadius: 4,
-  },
-  stepDotActive: {
-    width: 24,
-    backgroundColor: COLORS.accent,
-  },
-  stepDotInactive: {
-    width: 8,
-    backgroundColor: COLORS.border,
-  },
-  stepLabel: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    letterSpacing: 1.5,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  stepIconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  modalNavRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    gap: 12,
-    marginTop: 4,
-  },
-  modalBtnSecondary: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.bg,
-  },
-  modalBtnSecondaryText: {
-    fontFamily: FONTS.bold,
-    fontSize: 14,
-    color: COLORS.textSub,
-    marginLeft: 4,
-  },
-  modalTextContainer: {
-    padding: 24,
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 20,
-    color: COLORS.navy,
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  modalMessage: {
-    fontFamily: FONTS.regular,
-    fontSize: 14,
-    color: COLORS.textSub,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 16,
-  },
-  noteBox: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFBEB',
-    padding: 12,
-    borderRadius: RADIUS.sm,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.55)',
-    width: '100%',
-  },
-  noteText: {
-    flex: 1,
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: COLORS.textSub,
-    lineHeight: 18,
-  },
-  modalBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    backgroundColor: COLORS.accent,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: RADIUS.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalBtnText: {
-    fontFamily: FONTS.bold,
-    fontSize: 15,
-    color: '#FFF',
-  },
   hintGuideBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1713,56 +1456,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     fontSize: 12,
     color: COLORS.gold,
-  },
-  hintBanner: {
-    position: 'absolute',
-    top: 98,
-    left: 14,
-    right: 14,
-    zIndex: 50,
-    backgroundColor: 'rgba(15, 23, 42, 0.95)',
-    borderRadius: RADIUS.md,
-    borderWidth: 1.5,
-    borderColor: COLORS.gold,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: COLORS.gold,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  hintBannerIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: COLORS.gold,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  hintBannerTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 12,
-    color: COLORS.gold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  hintBannerSlot: {
-    fontFamily: FONTS.medium,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.7)',
-  },
-  hintBannerText: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
-    color: '#FFF',
-    fontStyle: 'italic',
-    lineHeight: 18,
-  },
-  hintBannerClose: {
-    padding: 4,
   },
   hintModalOverlay: {
     flex: 1,
@@ -1817,12 +1510,6 @@ const styles = StyleSheet.create({
   },
   hintModalScroll: {
     marginTop: 4,
-  },
-  noHintsText: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
-    textAlign: 'center',
   },
   hintItemCard: {
     backgroundColor: COLORS.bgCardAlt,
