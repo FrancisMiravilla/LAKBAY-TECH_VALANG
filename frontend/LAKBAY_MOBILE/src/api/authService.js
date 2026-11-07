@@ -74,6 +74,11 @@ export const authService = {
     }
   },
 
+  getLeaderboard: async (limit = 50) => {
+    const response = await apiClient.get('leaderboard/', { params: { limit } });
+    return response.data;
+  },
+
   logout: async () => {
     try {
       await SecureStore.deleteItemAsync('accessToken');

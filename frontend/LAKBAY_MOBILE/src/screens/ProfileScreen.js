@@ -15,6 +15,7 @@ import VintaStripe from '../components/VintaStripe';
 import { useTabBarSpace } from '../navigation/tabBarLayout';
 
 import { useAppDialog } from '../components/useAppDialog';
+import { getCharacterDetails } from '../constants/characters';
 // ─── Rank helpers ─────────────────────────────────────────────────────────────
 const getRank = (xp) => {
   if (xp >= 2201) return { title: 'Admiral of the Western Seas', icon: '👑', color: '#FF6B00', glow: 'rgba(255,107,0,0.35)' };
@@ -25,17 +26,6 @@ const getRank = (xp) => {
   return                 { title: 'Coastal Scout',              icon: '🧭', color: COLORS.accent, glow: 'rgba(26,86,219,0.35)' };
 };
 
-const getCharacterDetails = (charId) => {
-  const id = String(charId || '').toLowerCase().trim();
-  switch (id) {
-    case 'mando': return { name: 'Kuya Mando',    image: require('../assets/characters/lila.jpg'),  zoom: 1.15 };
-    case 'bela':  return { name: 'Ate Bela',       image: require('../assets/characters/new.jpg'),   zoom: 1.15 };
-    case 'lila':  return { name: 'Ate Lila',       image: require('../assets/characters/ricky.jpg'), zoom: 1.4  };
-    case 'dante': return { name: 'Bossing Dante',  image: require('../assets/characters/dante.jpg'), zoom: 1.4  };
-    case 'sonya': return { name: 'Ate Sonya',      image: require('../assets/characters/sonya.jpg'), zoom: 1    };
-    default:      return { name: 'Kuya Mando',     image: require('../assets/characters/lila.jpg'),  zoom: 1.15 };
-  }
-};
 
 // ─── Animated XP Arc ─────────────────────────────────────────────────────────
 function XPArc({ progressPct, size, rank }) {

@@ -160,3 +160,50 @@ class ToggleUserStatusView(APIView):
         user.is_active = not user.is_active
         user.save(update_fields=['is_active'])
         return Response({'id': user.id, 'is_active': user.is_active})
+
+class LeaderboardView(APIView):
+    """Top tourists by XP. Exposes only public game identity: IGN, character, XP, level."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        try:
+            limit = max(1, min(int(request.query_params.get('limit', 50)), 100))
+        except (TypeError, ValueError):
+            limit = 50
+
+        players = (
+            User.objects
+            .filter(role='tourist', is_active=True, is_staff=False, in_game_name__isnull=False)
+            .exclude(in_game_name='')
+            .order_by('-xp', 'date_joined', 'id')
+        )
+
+        def entry(u, rank):
+            return {
+                'rank': rank,
+                'id': u.id,
+                'in_game_name': u.in_game_name,
+                'chosen_character': u.chosen_character or '',
+                'xp': u.xp,
+                'level': u.xp // 100 + 1,
+                'is_me': u.id == request.user.id,
+            }
+
+        # Ties share a rank (1, 2, 2, 4) so equal XP is never ranked unfairly.
+        results = []
+        prev_xp, rank = None, 0
+        for i, u in enumerate(players[:limit], start=1):
+            if u.xp != prev_xp:
+                rank, prev_xp = i, u.xp
+            results.append(entry(u, rank))
+
+        me = request.user
+        me_entry = None
+        if players.filter(pk=me.pk).exists():
+            me_entry = entry(me, players.filter(xp__gt=me.xp).count() + 1)
+
+        return Response({
+            'results': results,
+            'me': me_entry,
+            'total_players': players.count(),
+        })

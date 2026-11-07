@@ -17,6 +17,7 @@ import Svg, { Circle, Defs, LinearGradient, Stop, Polygon } from 'react-native-s
 import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT, onWhite } from '../constants/theme';
 import VintaCard from '../components/VintaCard';
 import VintaStripe from '../components/VintaStripe';
+import Leaderboard from '../components/Leaderboard';
 import { useTabBarSpace } from '../navigation/tabBarLayout';
 import { authService } from '../api/authService';
 import { getMyScans, getSpots, getARTargets, getCatchIcons, getMilestones, ORIGIN } from '../api/qrService';
@@ -526,6 +527,7 @@ export default function BadgesScreen() {
             {[
               { key: 'progress',   label: '⚔️  Quests'     },
               { key: 'collection', label: '🧩  Collection' },
+              { key: 'leaderboard', label: '🏆  Leaderboard' },
             ].map(tab => (
               <TouchableOpacity
                 key={tab.key}
@@ -533,7 +535,11 @@ export default function BadgesScreen() {
                 onPress={() => setActiveTab(tab.key)}
                 activeOpacity={0.75}
               >
-                <Text style={[styles.tabBtnText, activeTab === tab.key && styles.tabBtnTextActive]}>
+                <Text
+                  style={[styles.tabBtnText, activeTab === tab.key && styles.tabBtnTextActive]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                >
                   {tab.label}
                 </Text>
               </TouchableOpacity>
@@ -602,6 +608,13 @@ export default function BadgesScreen() {
                   );
                 })}
               </VintaCard>
+            </View>
+          )}
+
+          {/* ── Leaderboard Tab (reloads every time it is opened) ── */}
+          {activeTab === 'leaderboard' && (
+            <View style={styles.section}>
+              <Leaderboard />
             </View>
           )}
 
@@ -860,6 +873,7 @@ const styles = StyleSheet.create({
   tabBtn: {
     flex: 1,
     paddingVertical: 8,
+    paddingHorizontal: 4,
     borderRadius: RADIUS.pill,
     alignItems: 'center',
   },
