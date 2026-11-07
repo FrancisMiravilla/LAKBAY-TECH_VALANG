@@ -12,6 +12,7 @@ from .serializers import (
 )
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from . import cosmetics
 
 User = get_user_model()
 
@@ -187,6 +188,7 @@ class LeaderboardView(APIView):
                 'xp': u.xp,
                 'level': u.xp // 100 + 1,
                 'is_me': u.id == request.user.id,
+                **cosmetics.equipped(u),
             }
 
         # Ties share a rank (1, 2, 2, 4) so equal XP is never ranked unfairly.
@@ -207,3 +209,41 @@ class LeaderboardView(APIView):
             'me': me_entry,
             'total_players': players.count(),
         })
+
+
+class CosmeticsView(APIView):
+    """GET: decoration catalog with unlock state + what is equipped.
+    PATCH {hat|frame|pin|backdrop: id}: equip items the player's XP has unlocked."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _payload(self, user):
+        return {
+            'xp': user.xp,
+            'equipped': cosmetics.equipped(user),
+            'catalog': cosmetics.catalog_for(user.xp),
+        }
+
+    def get(self, request):
+        return Response(self._payload(request.user))
+
+    def patch(self, request):
+        user = request.user
+        updates = {}
+        for slot, field in cosmetics.SLOT_FIELDS.items():
+            if slot not in request.data:
+                continue
+            item_id = request.data.get(slot) or ''
+            min_xp = cosmetics.min_xp_for(slot, item_id)
+            if min_xp is None:
+                return Response({'error': f'Unknown {slot}: {item_id}'}, status=status.HTTP_400_BAD_REQUEST)
+            if user.xp < min_xp:
+                return Response(
+                    {'error': f'This {slot} unlocks at {min_xp} XP.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            updates[field] = item_id
+        for field, value in updates.items():
+            setattr(user, field, value)
+        if updates:
+            user.save(update_fields=list(updates))
+        return Response(self._payload(user))

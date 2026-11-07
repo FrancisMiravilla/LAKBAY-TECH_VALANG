@@ -31,6 +31,12 @@ class CustomUser(AbstractUser):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='tourist')
     xp = models.IntegerField(default=0)
 
+    # Avatar decorations unlocked by XP (ids from accounts/cosmetics.py; '' = none/default).
+    avatar_hat = models.CharField(max_length=30, blank=True, default='')
+    avatar_frame = models.CharField(max_length=30, blank=True, default='')
+    avatar_pin = models.CharField(max_length=30, blank=True, default='')
+    profile_backdrop = models.CharField(max_length=30, blank=True, default='')
+
     # Location the user provides at sign-up, and the classification derived
     # from it: users inside Zamboanga City are "local", everyone else "tourist".
     location = models.CharField(max_length=255, null=True, blank=True)

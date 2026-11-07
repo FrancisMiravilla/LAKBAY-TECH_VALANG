@@ -31,8 +31,11 @@ class CustomUserCreateSerializer(DjoserUserCreateSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'email', 'full_name', 'in_game_name', 'chosen_character', 'profile_photo', 'auth_provider', 'date_joined', 'is_active', 'is_staff', 'xp', 'role', 'location', 'visitor_type',)
-        read_only_fields = ('id', 'email', 'auth_provider', 'date_joined', 'is_active', 'is_staff', 'xp', 'visitor_type',)
+        fields = ('id', 'email', 'full_name', 'in_game_name', 'chosen_character', 'profile_photo', 'auth_provider', 'date_joined', 'is_active', 'is_staff', 'xp', 'role', 'location', 'visitor_type',
+                  'avatar_hat', 'avatar_frame', 'avatar_pin', 'profile_backdrop',)
+        # Decorations are read-only here; they change only through cosmetics/, which checks XP.
+        read_only_fields = ('id', 'email', 'auth_provider', 'date_joined', 'is_active', 'is_staff', 'xp', 'visitor_type',
+                            'avatar_hat', 'avatar_frame', 'avatar_pin', 'profile_backdrop',)
 
 
 class AdminUserSerializer(serializers.ModelSerializer):

@@ -38,3 +38,50 @@ def test_leaderboard_orders_by_xp_and_shares_tied_ranks():
 @pytest.mark.django_db
 def test_leaderboard_requires_login():
     assert APIClient().get('/api/auth/leaderboard/').status_code == 401
+
+
+@pytest.mark.django_db
+def test_cosmetics_catalog_marks_locks_by_xp():
+    user = make_user('c1@x.com', 'Cos1', 200)
+    client = APIClient()
+    client.force_authenticate(user)
+    body = client.get('/api/auth/cosmetics/').json()
+
+    items = {(i['slot'], i['id']): i for i in body['catalog']}
+    assert items[('hat', 'salakot')]['unlocked'] is True      # tier 2, 151 XP
+    assert items[('hat', 'safari')]['unlocked'] is False      # tier 3, 401 XP
+    assert body['equipped'] == {'hat': '', 'frame': '', 'pin': '', 'backdrop': ''}
+
+
+@pytest.mark.django_db
+def test_cosmetics_equip_unlocked_and_reject_locked_or_unknown():
+    user = make_user('c2@x.com', 'Cos2', 200)
+    client = APIClient()
+    client.force_authenticate(user)
+
+    ok = client.patch('/api/auth/cosmetics/', {'hat': 'salakot', 'frame': 'teal'}, format='json')
+    assert ok.status_code == 200
+    assert ok.json()['equipped']['hat'] == 'salakot'
+
+    locked = client.patch('/api/auth/cosmetics/', {'hat': 'crown'}, format='json')
+    assert locked.status_code == 403
+
+    unknown = client.patch('/api/auth/cosmetics/', {'pin': 'laser'}, format='json')
+    assert unknown.status_code == 400
+
+    user.refresh_from_db()
+    assert (user.avatar_hat, user.avatar_frame, user.avatar_pin) == ('salakot', 'teal', '')
+
+
+@pytest.mark.django_db
+def test_profile_cannot_set_cosmetics_directly_and_leaderboard_shows_them():
+    user = make_user('c3@x.com', 'Cos3', 0)
+    client = APIClient()
+    client.force_authenticate(user)
+    client.patch('/api/auth/profile/', {'avatar_hat': 'crown'}, format='json')
+    user.refresh_from_db()
+    assert user.avatar_hat == ''
+
+    client.patch('/api/auth/cosmetics/', {'hat': 'cap'}, format='json')
+    me = client.get('/api/auth/leaderboard/').json()['me']
+    assert me['hat'] == 'cap'
