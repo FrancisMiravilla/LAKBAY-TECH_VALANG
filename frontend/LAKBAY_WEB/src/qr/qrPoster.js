@@ -11,7 +11,7 @@ const VINTA = ['#DC2626', '#FBBF24', '#16A34A', '#1A56DB', '#EA580C'];
 
 const STEPS = [
   { title: 'Get the app', text: 'Download LAKBAY and sign in or create an account.' },
-  { title: 'Open Scan & Discover', text: 'On the Explore tab, tap Scan & Discover.' },
+  { title: 'Open QR Discover', text: 'On the Explore tab, tap QR Discover under Choose Your Quest.' },
   { title: 'Scan this code', text: 'Point your camera at the QR code until it reads.' },
   { title: 'Learn & earn', text: 'Unlock the story, take the quiz, earn XP and badges.' },
 ];
