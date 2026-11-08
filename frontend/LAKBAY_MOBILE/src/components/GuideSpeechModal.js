@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { GUIDE_IMAGE, Waveform, useGuideVoice } from './guideVoice';
 import { StyleSheet, Text, View, TouchableOpacity, Animated, Easing, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, GUIDE_FONTS } from '../constants/theme';
@@ -8,106 +9,15 @@ import { COLORS, GUIDE_FONTS } from '../constants/theme';
 // post-login greeting (one step) and the AR scanner intro (three steps).
 // steps: [{ label?, title?, text }]
 
-const GUIDE_IMAGE = require('../assets/guide_character.png');
-const BARS = [8, 14, 20, 12, 24, 16, 10, 22, 26, 14, 10, 22, 18, 12, 24, 18, 10, 16];
-const TYPE_MS = 32;        // typing without voice
-const SPOKEN_TYPE_MS = 62; // roughly the pace of the spoken voice
-
-// expo-speech is a native module: an app build made before it was added has no
-// ExpoSpeech, so load it defensively and fall back to typing only.
-let Speech = null;
-try {
-  Speech = require('expo-speech');
-} catch {
-  Speech = null;
-}
-
-function Waveform({ speaking }) {
-  const anims = useRef(BARS.map(() => new Animated.Value(0.35))).current;
-
-  useEffect(() => {
-    if (!speaking) {
-      anims.forEach((a) => Animated.timing(a, { toValue: 0.35, duration: 200, useNativeDriver: true }).start());
-      return undefined;
-    }
-    const loops = anims.map((a, i) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(a, { toValue: 1, duration: 220 + (i % 5) * 60, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(a, { toValue: 0.25, duration: 220 + (i % 4) * 70, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        ])
-      )
-    );
-    loops.forEach((l) => l.start());
-    return () => loops.forEach((l) => l.stop());
-  }, [speaking, anims]);
-
-  return (
-    <View style={styles.wave}>
-      {BARS.map((h, i) => (
-        <Animated.View key={i} style={[styles.waveBar, { height: h, transform: [{ scaleY: anims[i] }] }]} />
-      ))}
-    </View>
-  );
-}
-
 export default function GuideSpeechModal({ visible, steps = [], finalLabel = "Let's Explore!", onClose }) {
   const [step, setStep] = useState(0);
   const current = steps[step] || steps[0] || { text: '' };
   const message = current.text;
   const isLast = step >= steps.length - 1;
-  const [typed, setTyped] = useState('');
-  const [speaking, setSpeaking] = useState(false);
-  const [voiceMissing, setVoiceMissing] = useState(false);
-  const timerRef = useRef(null);
   const popAnim = useRef(new Animated.Value(0)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
-
-  const stopAll = useCallback(() => {
-    clearInterval(timerRef.current);
-    try { Speech?.stop(); } catch { /* not available */ }
-    setSpeaking(false);
-  }, []);
-
-  const play = useCallback(() => {
-    stopAll();
-    let i = 0;
-    let voiceDone = true;
-    let typingDone = false;
-    const finish = () => { if (voiceDone && typingDone) setSpeaking(false); };
-
-    setTyped('');
-    setSpeaking(true);
-
-    if (Speech?.speak) {
-      try {
-        voiceDone = false;
-        Speech.speak(message, {
-          language: 'en-US',
-          rate: 0.95,
-          pitch: 1.05,
-          onDone: () => { voiceDone = true; finish(); },
-          onStopped: () => { voiceDone = true; finish(); },
-          onError: () => { voiceDone = true; finish(); },
-        });
-      } catch {
-        voiceDone = true;
-        setVoiceMissing(true);
-      }
-    } else {
-      setVoiceMissing(true);
-    }
-
-    timerRef.current = setInterval(() => {
-      i += 1;
-      setTyped(message.slice(0, i));
-      if (i >= message.length) {
-        clearInterval(timerRef.current);
-        typingDone = true;
-        finish();
-      }
-    }, voiceDone ? TYPE_MS : SPOKEN_TYPE_MS);
-  }, [message, stopAll]);
+  const { typed, speaking, voiceMissing, say, stop: stopAll } = useGuideVoice();
+  const play = useCallback(() => say(message), [say, message]);
 
   // Pop in and float while visible; always start from the first step.
   useEffect(() => {

@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import CustomModal from '../components/CustomModal';
 import DailyStreakModal from '../components/DailyStreakModal';
 import VintaStripe from '../components/VintaStripe';
-import { useTabBarSpace } from '../navigation/tabBarLayout';
+import { useTabBarSpace, TAB_BAR_HEIGHT, TAB_BAR_GAP, TAB_BAR_SIDE_MARGIN } from '../navigation/tabBarLayout';
 import OnboardingTour from '../components/OnboardingTour';
 import { WebView } from 'react-native-webview';
 import { useApp } from '../context/AppContext';
@@ -120,12 +120,27 @@ const QA_CARDS = [
   { lucide: 'trophy', badge: 'CATCH', title: 'Collect\n& Win',    color: COLORS.gold,   shadow: SHADOW.gold,   route: 'Catch',   icon: 'trophy',  message: 'This only works 4 symbols to catch which are the curacha, vinta, weave, and the lantaka.' },
 ];
 
+// Home walkthrough, spoken by the guide. Refs are attached in the component;
+// `scrollable` targets live in the Home ScrollView and are scrolled into view.
 const TOUR_STEPS = [
-  { key: 'notif', icon: 'notifications-outline', color: COLORS.gold,   title: 'Stay In The Loop',    text: 'Tap the bell anytime to see trip alerts, XP rewards, and badge unlocks.', refKey: 'bellRef' },
-  { key: 'map',   icon: 'map-outline',            color: COLORS.accent, title: 'Explore The Map',     text: 'This live map shows every heritage site in Zamboanga City. Tap it to open the full interactive map and start planning your route.', refKey: 'mapCardRef' },
-  { key: 'quick', icon: 'flash-outline',          color: COLORS.teal,   title: 'Choose Your Quest',   text: 'Pick a quest: scan QR codes at tourist spots, catch hidden cultural symbols, and unlock AR exhibits at the museum — every action earns you XP!', refKey: 'qaRowRef' },
-  { key: 'tabs',  icon: 'trophy-outline',         color: COLORS.gold,   title: 'Track Your Journey',  text: "Visit the Badges tab to see what you've unlocked, or Profile to check your level, XP bar, and explorer identity.", getRect: (insets, w, h) => { const tabBarHeight = 70 + insets.bottom; return { x: 8, y: h - tabBarHeight + 4, width: w - 16, height: tabBarHeight - 8 }; } },
-  { key: 'done',  icon: 'rocket-outline',         color: COLORS.accent, title: "You're All Set!",      text: 'Time to start exploring Zamboanga City. Good luck, explorer!', ctaLabel: "Let's Go!" },
+  { key: 'notif', title: 'Your notice board', refKey: 'bellRef', radius: 26,
+    text: "Mabuhay, explorer! This bell is your notice board. Trip alerts, XP rewards and new badges show up here." },
+  { key: 'stats', title: 'XP and coins', refKey: 'statsRef', radius: 26,
+    text: 'Here are your XP and coins. Earn XP to level up and unlock more places. Coins come from the Store.' },
+  { key: 'quests', title: 'Choose your quest', refKey: 'qaRowRef', scrollable: true,
+    text: 'Pick a quest! AR Museum for the National Museum exhibits, QR Discover to scan codes at tourist spots, and Catch & Win to hunt cultural symbols around the city.' },
+  { key: 'map', title: 'Explore Zamboanga', refKey: 'mapCardRef', scrollable: true,
+    text: 'This map shows the heritage spots of Zamboanga City. Tap it to open the full map and get directions.' },
+  { key: 'places', title: 'Places to experience', refKey: 'placesRef', scrollable: true,
+    text: 'Swipe through these places to choose your next stop. Tap one to read its story before you go.' },
+  { key: 'tabs', title: 'Your menu', radius: TAB_BAR_HEIGHT / 2 + 8,
+    text: 'Down here: Explore is home, Promote lets you feature a place, the Store sells coins, Badges shows your journey and the leaderboard, and Profile is you.',
+    getRect: (insets, w, h) => {
+      const bottom = Math.max(insets.bottom, 8) + TAB_BAR_GAP;
+      return { x: TAB_BAR_SIDE_MARGIN, y: h - bottom - TAB_BAR_HEIGHT, width: w - TAB_BAR_SIDE_MARGIN * 2, height: TAB_BAR_HEIGHT };
+    } },
+  { key: 'done', title: "You're all set!", ctaLabel: "Let's Go!",
+    text: "That's the tour! Head to a tourist spot, scan your first QR code and start earning XP. I'll be with you every step." },
 ];
 
 // ── Main Component ────────────────────────────────────────────────────────────
@@ -145,6 +160,7 @@ export default function HomeScreen({ navigation, route }) {
   const [showTour, setShowTour] = useState(false);
   // Guide greeting right after login; the streak reward waits until it closes.
   const greetingPending = useRef(!!route?.params?.justLoggedIn);
+  const tourPending = useRef(!!route?.params?.showOnboarding);
   const streakAfterGreeting = useRef(false);
   const [greetingVisible, setGreetingVisible] = useState(false);
   const [streakData, setStreakData] = useState({ streak: 1, claimedToday: false, canClaim: false });
@@ -282,9 +298,13 @@ export default function HomeScreen({ navigation, route }) {
   }, [displayedSponsored, displayedPlaces, userLevel]);
 
   const bellRef    = useRef(null);
+  const statsRef   = useRef(null);
   const mapCardRef = useRef(null);
   const qaRowRef   = useRef(null);
-  const refs = { bellRef, mapCardRef, qaRowRef };
+  const placesRef  = useRef(null);
+  const scrollRef  = useRef(null);
+  const scrollYRef = useRef(0);
+  const refs = { bellRef, statsRef, mapCardRef, qaRowRef, placesRef };
   const tourSteps = TOUR_STEPS.map((s) => (s.refKey ? { ...s, targetRef: refs[s.refKey] } : s));
 
   useEffect(() => {
@@ -340,7 +360,7 @@ export default function HomeScreen({ navigation, route }) {
         const streakInfo = await streakService.recordLoginStreak();
         setStreakData(streakInfo);
         if (streakInfo.canClaim) {
-          if (greetingPending.current) {
+          if (greetingPending.current || tourPending.current) {
             streakAfterGreeting.current = true;
           } else {
             setTimeout(() => {
@@ -408,9 +428,19 @@ export default function HomeScreen({ navigation, route }) {
     }
   };
 
+  const finishTour = () => {
+    setShowTour(false);
+    tourPending.current = false;
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    if (streakAfterGreeting.current) {
+      streakAfterGreeting.current = false;
+      setTimeout(() => setStreakModalVisible(true), 500);
+    }
+  };
+
   useEffect(() => {
     if (route?.params?.showOnboarding) {
-      const t = setTimeout(() => setShowTour(true), 400);
+      const t = setTimeout(() => setShowTour(true), 1000);
       return () => clearTimeout(t);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -439,7 +469,7 @@ export default function HomeScreen({ navigation, route }) {
             <Ionicons name="notifications-outline" size={20} color="#FFF" />
             {notifs.some(n => !n.read) && <View style={styles.unreadBadge} />}
           </TouchableOpacity>
-          <View style={styles.statsPill}>
+          <View ref={statsRef} collapsable={false} style={styles.statsPill}>
             <LucideIcon name="zap" size={15} color={COLORS.gold} />
             <Text style={styles.statsPillText}>{userXp.toLocaleString()}</Text>
             <View style={styles.statsPillDivider} />
@@ -450,8 +480,11 @@ export default function HomeScreen({ navigation, route }) {
         <VintaStripe height={4} />
 
         <ScrollView
+          ref={scrollRef}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.scroll, { paddingBottom: tabBarSpace }]}
+          onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
+          scrollEventThrottle={16}
         >
           {/* ── Guide welcome ── */}
           <Animated.View style={{ opacity: heroFade, transform: [{ translateY: heroSlide }] }}>
@@ -605,7 +638,7 @@ export default function HomeScreen({ navigation, route }) {
 
           {/* ── Places to Experience (stacked card deck) ── */}
           {(promotedPlaces.length > 0 || spots.length > 0) && (
-            <View style={styles.section}>
+            <View ref={placesRef} collapsable={false} style={styles.section}>
               <View style={styles.placesHeader}>
                 <View style={{ flex: 1 }}>
                   <View style={styles.eyebrowRow}>
@@ -693,7 +726,9 @@ export default function HomeScreen({ navigation, route }) {
         <OnboardingTour
           visible={showTour}
           steps={tourSteps}
-          onFinish={() => setShowTour(false)}
+          onFinish={finishTour}
+          scrollRef={scrollRef}
+          scrollYRef={scrollYRef}
         />
       </SafeAreaView>
     </ImageBackground>
