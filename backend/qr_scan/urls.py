@@ -1,5 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from .reports import ReportsView
 from .views import (
     ValidateQRView, UserQRScansView,
     CulturalSpotViewSet, QRMarkerViewSet, TriviaQuestionViewSet,
@@ -44,6 +45,7 @@ urlpatterns = [
 
     # Admin Dashboard Stats & Activity Logging
     path('dashboard-stats/', DashboardStatsView.as_view(), name='dashboard_stats'),
+    path('reports/', ReportsView.as_view(), name='reports'),
     path('log-activity/', LogActivityView.as_view(), name='log_activity'),
 ]
 
