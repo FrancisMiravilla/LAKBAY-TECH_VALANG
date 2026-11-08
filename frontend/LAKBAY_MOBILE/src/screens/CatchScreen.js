@@ -21,22 +21,27 @@ import ErrorModal from '../components/ErrorModal';
 import VintaStripe from '../components/VintaStripe';
 import { ARNavCards, ARGroundPath, ARRoundButtons } from '../components/ARGuidance';
 import LucideIcon from '../components/LucideIcon';
-import { Svg, Polygon, Path, Circle, G, Defs, LinearGradient, Stop, Line, ClipPath } from 'react-native-svg';
+import { Svg, Polygon, Path, Circle, G, Defs, LinearGradient, Stop, Line } from 'react-native-svg';
 
 const { width: W, height: H } = Dimensions.get('window');
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const CATCH_RADIUS_METERS = 50;      // proximity sheet unlocks within 50 m of a spot
-const ARRIVE_RADIUS_METERS = 10;     // reveal the 3D model when within 10 m
+const SIGHT_RADIUS_METERS = 15;      // the model comes into view (small) within 15 m
+const ARRIVE_RADIUS_METERS = 10;     // close enough to throw the net within 10 m
+const FULL_SIZE_METERS = 3;          // the model reaches full size this close
+const FAR_MODEL_SCALE = 0.3;         // model size at the edge of sight
+const CAMERA_HFOV_DEG = 60;          // approx. horizontal field of view of a phone camera
+const ANCHOR_FREEZE_METERS = 6;      // closer than this, GPS bearing is noise: keep the last anchor
 const MAX_GPS_ACCURACY_METERS = 50;  // ignore GPS fixes less precise than this (they point the arrow randomly)
 
 // Net throw: swipe up from the net to throw it at the drifting model.
-const NET_SIZE = 96;
-const NET_TOP = H - 240 - NET_SIZE;
+const NET_SIZE = 168;
+const NET_TOP = H - 215 - NET_SIZE;
 const NET_CY = NET_TOP + NET_SIZE / 2;
 const MODEL_CY = H * 0.22 + W * 0.375;
 const MODEL_DRIFT = W * 0.2;          // how far the model sways left/right while you aim
-const NET_HIT_RADIUS = W * 0.17;      // horizontal tolerance for a hit
+const NET_HIT_RADIUS = W * 0.2;       // horizontal tolerance for a hit
 const THROW_MIN_SPEED = 0.7;          // px/ms upward swipe speed needed to reach the model
 const NET_FLIGHT_MS = 480;
 const FALLBACK_COLORS = ['#E91E8C', '#38BDF8', '#FBBF24', '#10B981'];
@@ -410,7 +415,7 @@ function ChestBase() {
   );
 }
 
-function TreasureChest({ phase }) {
+function TreasureChest({ phase, offsetX }) {
   const popAnim = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const lidAnim = useRef(new Animated.Value(0)).current;
@@ -462,7 +467,7 @@ function TreasureChest({ phase }) {
       pointerEvents="none"
       style={[
         chestStyles.wrap,
-        { opacity: fadeAnim, transform: [{ translateY: sinkY }, { scale: popAnim }, { rotateZ: shakeRotate }] },
+        { opacity: fadeAnim, transform: [{ translateX: offsetX ?? 0 }, { translateY: sinkY }, { scale: popAnim }, { rotateZ: shakeRotate }] },
       ]}
     >
       <Animated.View style={[chestStyles.rays, { opacity: burstOpacity, transform: [{ rotateZ: raysRotate }, { scale: burstScale }] }]}>
@@ -494,43 +499,93 @@ function TreasureChest({ phase }) {
   );
 }
 
-// ─── Throwable catch net ─────────────────────────────────────────────────────
-const NET_LINES = [12, 22, 32, 42, 52, 62, 72, 82, 92];
+// ─── Throwable catch net (cartoon rope net, styled after reference/net.png) ──
+const NET_CELLS = 6;
+const NET_CORNERS = { tl: [7, 38], tr: [56, 7], br: [86, 50], bl: [37, 82] };
 
-function ThrowNet({ color }) {
+function netPoint(i, j) {
+  const u = i / NET_CELLS;
+  const v = j / NET_CELLS;
+  const { tl, tr, br, bl } = NET_CORNERS;
+  const x = (1 - u) * (1 - v) * tl[0] + u * (1 - v) * tr[0] + u * v * br[0] + (1 - u) * v * bl[0];
+  const y = (1 - u) * (1 - v) * tl[1] + u * (1 - v) * tr[1] + u * v * br[1] + (1 - u) * v * bl[1];
+  const wob = (i > 0 && i < NET_CELLS && j > 0 && j < NET_CELLS) ? 1.2 : 0;
+  return [x + wob * Math.sin(i * 2.1 + j), y + wob * Math.cos(j * 1.7 + i)];
+}
+
+function ropePath(points) {
+  let d = `M${points[0][0].toFixed(1)} ${points[0][1].toFixed(1)}`;
+  for (let k = 1; k < points.length; k++) {
+    const [ax, ay] = points[k - 1];
+    const [bx, by] = points[k];
+    const sag = k % 2 ? 1.6 : -1.6;
+    const len = Math.hypot(bx - ax, by - ay) || 1;
+    const cx = (ax + bx) / 2 + (-(by - ay) / len) * sag;
+    const cy = (ay + by) / 2 + ((bx - ax) / len) * sag;
+    d += ` Q${cx.toFixed(1)} ${cy.toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}`;
+  }
+  return d;
+}
+
+function tailPath([x, y], [dx, dy], flip) {
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const px = -uy * flip;
+  const py = ux * flip;
+  return `M${x.toFixed(1)} ${y.toFixed(1)} q${(ux * 3 + px * 2).toFixed(1)} ${(uy * 3 + py * 2).toFixed(1)} ${(ux * 6).toFixed(1)} ${(uy * 6).toFixed(1)} t${(ux * 3 - px * 2.5).toFixed(1)} ${(uy * 3 - py * 2.5).toFixed(1)}`;
+}
+
+const NET_ROPES = (() => {
+  const ropes = [];
+  for (let j = 0; j <= NET_CELLS; j++) {
+    ropes.push(ropePath(Array.from({ length: NET_CELLS + 1 }, (_, i) => netPoint(i, j))));
+  }
+  for (let i = 0; i <= NET_CELLS; i++) {
+    ropes.push(ropePath(Array.from({ length: NET_CELLS + 1 }, (_, j) => netPoint(i, j))));
+  }
+  const right = [NET_CORNERS.tr[0] - NET_CORNERS.tl[0], NET_CORNERS.tr[1] - NET_CORNERS.tl[1]];
+  const down = [NET_CORNERS.bl[0] - NET_CORNERS.tl[0], NET_CORNERS.bl[1] - NET_CORNERS.tl[1]];
+  for (let k = 1; k <= NET_CELLS; k++) {
+    ropes.push(tailPath(netPoint(NET_CELLS, k), right, k % 2 ? 1 : -1));
+    ropes.push(tailPath(netPoint(k, NET_CELLS), down, k % 2 ? -1 : 1));
+  }
+  return ropes;
+})();
+
+const NET_KNOTS = (() => {
+  const knots = [];
+  for (let i = 0; i <= NET_CELLS; i++) {
+    for (let j = 0; j <= NET_CELLS; j++) knots.push(netPoint(i, j));
+  }
+  return knots;
+})();
+
+const NET_WEIGHTS = [NET_CORNERS.tl, NET_CORNERS.tr, NET_CORNERS.br, NET_CORNERS.bl];
+
+const circlePath = ([x, y], r) =>
+  `M${(x - r).toFixed(1)} ${y.toFixed(1)}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0Z`;
+
+const NET_ROPES_D = NET_ROPES.join(' ');
+const NET_KNOTS_D = NET_KNOTS.map((p) => circlePath(p, 2.5)).join('');
+const NET_SHINES_D = NET_KNOTS.map(([x, y]) => circlePath([x - 0.7, y - 0.8], 0.8)).join('');
+const NET_WEIGHTS_D = NET_WEIGHTS.map((p) => circlePath(p, 5)).join('');
+const NET_WEIGHT_SHINES_D = NET_WEIGHTS.map(([x, y]) => circlePath([x - 1.5, y - 1.6], 1.5)).join('');
+
+const ThrowNet = React.memo(function ThrowNet({ color }) {
   return (
     <Svg width={NET_SIZE} height={NET_SIZE} viewBox="0 0 100 100">
-      <Defs>
-        <ClipPath id="catchNetClip">
-          <Circle cx="50" cy="50" r="44" />
-        </ClipPath>
-      </Defs>
-      <Circle cx="50" cy="50" r="44" fill="rgba(255,255,255,0.10)" />
-      <G clipPath="url(#catchNetClip)">
-        <G transform="rotate(45 50 50)" stroke="rgba(255,255,255,0.9)" strokeWidth="1.8">
-          {NET_LINES.map((p) => (
-            <React.Fragment key={p}>
-              <Line x1={p} y1="-10" x2={p} y2="110" />
-              <Line x1="-10" y1={p} x2="110" y2={p} />
-            </React.Fragment>
-          ))}
-        </G>
+      <G fill="none" strokeLinecap="round" strokeLinejoin="round">
+        <Path d={NET_ROPES_D} stroke="#4A2A10" strokeWidth="4.4" />
+        <Path d={NET_ROPES_D} stroke="#F4C77A" strokeWidth="2.6" />
       </G>
-      <Circle cx="50" cy="50" r="44" fill="none" stroke={color} strokeWidth="5" />
-      {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => (
-        <Circle
-          key={a}
-          cx={50 + 44 * Math.cos((a * Math.PI) / 180)}
-          cy={50 + 44 * Math.sin((a * Math.PI) / 180)}
-          r="4"
-          fill="#FBBF24"
-          stroke="#92400E"
-          strokeWidth="1"
-        />
-      ))}
+      <Path d={NET_KNOTS_D} fill="#E9A94E" stroke="#4A2A10" strokeWidth="1.1" />
+      <Path d={NET_SHINES_D} fill="#FFF3D6" />
+      <Path d={NET_WEIGHTS_D} fill={color || '#FBBF24'} stroke="#4A2A10" strokeWidth="1.6" />
+      <Path d={NET_WEIGHT_SHINES_D} fill="rgba(255,255,255,0.8)" />
     </Svg>
   );
-}
+});
 
 // ─── AR Camera Overlay ───────────────────────────────────────────────────────
 function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound, onContinue, onClose }) {
@@ -554,7 +609,11 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
         headingSub.current = await Location.watchHeadingAsync((hdg) => {
           if (!active) return;
           const h = hdg.trueHeading >= 0 ? hdg.trueHeading : hdg.magHeading;
-          setDeviceHeading(h);
+          setDeviceHeading((prev) => {
+            if (prev === null) return h;
+            const diff = Math.abs(((h - prev + 540) % 360) - 180);
+            return diff >= 2 ? h : prev;
+          });
         });
       } catch (_) {
         // Heading not available on this device
@@ -578,8 +637,8 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
     ? ((targetBearing - deviceHeading) + 360) % 360
     : targetBearing;
 
-  const arriveThreshold = ARRIVE_RADIUS_METERS; // 10m
-  const showArrow = distanceM !== null && distanceM > arriveThreshold;
+  const showArrow = distanceM !== null && distanceM > SIGHT_RADIUS_METERS;
+  const inCatchRange = distanceM !== null && distanceM <= ARRIVE_RADIUS_METERS;
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
@@ -597,7 +656,7 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
     ).start();
   }, []);
 
-  // Reveal sequence once inside 10 m: closed chest → lid opens → model rises out.
+  // Reveal sequence once inside 15 m: closed chest → lid opens → model rises out.
   // Latched so GPS jitter around the edge doesn't replay or hide it.
   const [revealPhase, setRevealPhase] = useState('none'); // none | chest | opening | revealed
   const modelRiseAnim = useRef(new Animated.Value(0)).current;
@@ -625,6 +684,53 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
   const modelScale = modelRiseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.15, 1] });
   const modelRiseY = modelRiseAnim.interpolate({ inputRange: [0, 1], outputRange: [W * 0.3, 0] });
 
+  // Distance sizing: small at 15 m, growing to full size as the player walks in.
+  const distanceScale = useRef(new Animated.Value(FAR_MODEL_SCALE)).current;
+  const [canCatch, setCanCatch] = useState(false);
+
+  useEffect(() => {
+    if (inCatchRange && !canCatch) setCanCatch(true);
+  }, [inCatchRange, canCatch]);
+
+  useEffect(() => {
+    if (distanceM === null) return;
+    const t = Math.max(0, Math.min(1, (SIGHT_RADIUS_METERS - distanceM) / (SIGHT_RADIUS_METERS - FULL_SIZE_METERS)));
+    Animated.timing(distanceScale, {
+      toValue: FAR_MODEL_SCALE + (1 - FAR_MODEL_SCALE) * t,
+      duration: 700,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  }, [distanceM]);
+
+  // World anchoring: the model sits in the spot's real direction, so turning the
+  // phone moves it across the screen. The GPS bearing is smoothed, and frozen when
+  // very close, so it doesn't jump around with location noise.
+  const [anchorBearing, setAnchorBearing] = useState(null);
+  useEffect(() => {
+    if (!userLocation || !spot || distanceM === null) return;
+    setAnchorBearing((prev) => {
+      if (prev === null) return targetBearing;
+      if (distanceM < ANCHOR_FREEZE_METERS) return prev;
+      const diff = ((targetBearing - prev + 540) % 360) - 180;
+      return (prev + diff * 0.3 + 360) % 360;
+    });
+  }, [userLocation?.lat, userLocation?.lng]);
+
+  const modelRel = deviceHeading !== null && anchorBearing !== null
+    ? ((anchorBearing - deviceHeading + 540) % 360) - 180
+    : 0;
+  const halfFov = CAMERA_HFOV_DEG / 2;
+  const modelInView = Math.abs(modelRel) <= halfFov;
+  const bearingTarget = Math.max(-1.6, Math.min(1.6, modelRel / halfFov)) * (W / 2);
+
+  const bearingAnim = useRef(new Animated.Value(0)).current;
+  const bearingX = useRef(0);
+  useEffect(() => {
+    const id = bearingAnim.addListener(({ value }) => { bearingX.current = value; });
+    return () => bearingAnim.removeListener(id);
+  }, []);
+
   const modelTitle = icon.name || spot?.name || 'Cultural Model';
   const [celebDismissed, setCelebDismissed] = useState(false);
 
@@ -634,6 +740,13 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
   const [throwMsg, setThrowMsg] = useState(null);
   const phaseRef = useRef(catchPhase);
   phaseRef.current = catchPhase;
+
+  // Freeze the anchor while the net holds the model so the two stay together.
+  const anchorLocked = catchPhase === 'capturing' || catchPhase === 'caught';
+  useEffect(() => {
+    if (anchorLocked) return;
+    Animated.timing(bearingAnim, { toValue: bearingTarget, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+  }, [bearingTarget, anchorLocked]);
 
   const driftAnim = useRef(new Animated.Value(0)).current;
   const driftX = useRef(0);
@@ -700,9 +813,9 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
 
   const captureModel = () => {
     setCatchPhase('capturing');
-    const shake = (to) => Animated.timing(netShake, { toValue: to, duration: 110, useNativeDriver: false });
+    const shake = (to) => Animated.timing(netShake, { toValue: to, duration: 110, useNativeDriver: true });
     Animated.parallel([
-      Animated.timing(netScale, { toValue: 2.1, duration: 260, easing: Easing.out(Easing.back(1.6)), useNativeDriver: false }),
+      Animated.timing(netScale, { toValue: 2.1, duration: 260, easing: Easing.out(Easing.back(1.6)), useNativeDriver: true }),
       Animated.timing(captureAnim, { toValue: 1, duration: 420, useNativeDriver: true }),
     ]).start(() => {
       Animated.sequence([
@@ -720,8 +833,8 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
   const missThrow = (msg, fromY) => {
     setThrowMsg(msg);
     Animated.parallel([
-      Animated.timing(netPos.y, { toValue: fromY + 160, duration: 420, easing: Easing.in(Easing.quad), useNativeDriver: false }),
-      Animated.timing(netOpacity, { toValue: 0, duration: 420, useNativeDriver: false }),
+      Animated.timing(netPos.y, { toValue: fromY + 160, duration: 420, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      Animated.timing(netOpacity, { toValue: 0, duration: 420, useNativeDriver: true }),
     ]).start(() => {
       resetNet();
       setCatchPhase('aiming');
@@ -732,7 +845,7 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
     const startX = g.dx;
     const startY = Math.min(40, g.dy);
     if (g.dy > -30 || g.vy > -0.15) {
-      Animated.spring(netPos, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+      Animated.spring(netPos, { toValue: { x: 0, y: 0 }, useNativeDriver: true }).start();
       setThrowMsg('Swipe UP to throw the net!');
       return;
     }
@@ -745,14 +858,16 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
 
     setCatchPhase('flying');
     Animated.parallel([
-      Animated.timing(netPos, { toValue: { x: landX, y: landY }, duration: NET_FLIGHT_MS, easing: Easing.out(Easing.quad), useNativeDriver: false }),
-      Animated.timing(netScale, { toValue: 0.75, duration: NET_FLIGHT_MS, useNativeDriver: false }),
-      Animated.timing(netSpin, { toValue: 1, duration: NET_FLIGHT_MS, useNativeDriver: false }),
+      Animated.timing(netPos, { toValue: { x: landX, y: landY }, duration: NET_FLIGHT_MS, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(netScale, { toValue: 0.75, duration: NET_FLIGHT_MS, useNativeDriver: true }),
+      Animated.timing(netSpin, { toValue: 1, duration: NET_FLIGHT_MS, useNativeDriver: true }),
     ]).start(() => {
-      if (reaches && Math.abs(landX - driftX.current) <= NET_HIT_RADIUS) {
+      const modelX = driftX.current + bearingX.current;
+      if (reaches && Math.abs(landX - modelX) <= NET_HIT_RADIUS) {
         driftLoop.current?.stop();
         driftLoop.current = null;
-        Animated.timing(netPos.x, { toValue: driftX.current, duration: 120, useNativeDriver: false }).start(captureModel);
+        bearingAnim.stopAnimation();
+        Animated.timing(netPos.x, { toValue: modelX, duration: 120, useNativeDriver: true }).start(captureModel);
       } else {
         missThrow(reaches ? 'Missed! Aim for the model.' : 'Too weak! Swipe up faster.', landY);
       }
@@ -771,7 +886,7 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
       },
       onPanResponderRelease: (_, g) => throwRef.current(g),
       onPanResponderTerminate: () => {
-        Animated.spring(netPos, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+        Animated.spring(netPos, { toValue: { x: 0, y: 0 }, useNativeDriver: true }).start();
       },
     })
   ).current;
@@ -809,7 +924,7 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
         </>
       ) : (
         <>
-          {/* ── Walking guidance (> 10 m): glass cards, ground path, round buttons ── */}
+          {/* ── Walking guidance (> 15 m): glass cards, ground path, round buttons ── */}
           <ARGroundPath relativeBearing={relativeBearing} />
           <ARNavCards
             relativeBearing={relativeBearing}
@@ -846,8 +961,19 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
         </>
       )}
 
-      {/* ── Treasure chest (≤ 10m): shakes, opens, then the model rises out ── */}
-      {arrived && <TreasureChest phase={revealPhase} />}
+      {/* ── Treasure chest (≤ 15m): shakes, opens, then the model rises out ── */}
+      {arrived && <TreasureChest phase={revealPhase} offsetX={bearingAnim} />}
+
+      {/* ── Edge pointer when the model is outside the camera view ── */}
+      {arrived && !modelInView && catchPhase !== 'caught' && catchPhase !== 'capturing' && (
+        <View
+          pointerEvents="none"
+          style={[arStyles.edgePointer, modelRel < 0 ? { left: 12 } : { right: 12 }]}
+        >
+          <Ionicons name={modelRel < 0 ? 'chevron-back' : 'chevron-forward'} size={30} color="#fff" />
+          <Text style={arStyles.edgePointerText}>{modelRel < 0 ? 'Turn left' : 'Turn right'}</Text>
+        </View>
+      )}
 
       {/* ── Floating 3D model, mounted with the chest so it loads while hidden ── */}
       {arrived && (
@@ -858,10 +984,12 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
             {
               opacity: modelRiseAnim.interpolate({ inputRange: [0, 0.25], outputRange: [0, 1], extrapolate: 'clamp' }),
               transform: [
+                { translateX: bearingAnim },
                 { translateX: driftAnim },
                 { translateY: floatAnim },
                 { translateY: modelRiseY },
                 { scale: modelScale },
+                { scale: distanceScale },
                 { scale: capturedScale },
               ],
             },
@@ -893,6 +1021,8 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
       {netVisible && (
         <Animated.View
           pointerEvents="none"
+          renderToHardwareTextureAndroid
+          shouldRasterizeIOS
           style={[
             arStyles.net,
             {
@@ -930,6 +1060,20 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
               {revealPhase === 'opening' ? 'Opening the treasure...' : 'You found a treasure chest!'}
             </Text>
           </View>
+        ) : catchPhase === 'idle' && !canCatch ? (
+          <View style={{ alignItems: 'center', width: '100%' }}>
+            <View style={[arStyles.navigateHint, { borderColor: icon.color + '55', backgroundColor: icon.color + '15' }]}>
+              <Ionicons name="walk-outline" size={18} color={icon.color} style={{ marginRight: 8 }} />
+              <Text style={[arStyles.navigateHintText, { color: icon.color }]}>
+                {distanceM !== null
+                  ? `Walk closer to catch it (${Math.max(0, Math.round(distanceM - ARRIVE_RADIUS_METERS))}m more)`
+                  : 'Walk closer to catch it'}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={onClose} style={arStyles.cancelThrow}>
+              <Text style={arStyles.cancelThrowText}>Leave It</Text>
+            </TouchableOpacity>
+          </View>
         ) : catchPhase === 'idle' ? (
           <View style={arStyles.choiceRow}>
             <TouchableOpacity style={arStyles.leaveBtn} onPress={onClose} activeOpacity={0.85}>
@@ -937,12 +1081,13 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
             </TouchableOpacity>
             <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
               <TouchableOpacity
-                style={[arStyles.continueBtn, { backgroundColor: icon.color }]}
+                style={[arStyles.continueBtn, { backgroundColor: icon.color, opacity: modelInView ? 1 : 0.5 }]}
                 onPress={startAiming}
+                disabled={!modelInView}
                 activeOpacity={0.85}
               >
                 <Ionicons name="aperture" size={18} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={arStyles.continueBtnText}>Catch It!</Text>
+                <Text style={arStyles.continueBtnText}>{modelInView ? 'Catch It!' : 'Face the model'}</Text>
               </TouchableOpacity>
             </Animated.View>
           </View>
@@ -2123,6 +2268,18 @@ const arStyles = StyleSheet.create({
   arTitle: { fontFamily: FONTS.bold, fontSize: 22, color: '#FFF', marginBottom: 4 },
   arSubtitle: { fontFamily: FONTS.regular, fontSize: 13, color: 'rgba(255,255,255,0.75)' },
 
+  edgePointer: {
+    position: 'absolute',
+    top: H * 0.22 + W * 0.3,
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 16,
+    backgroundColor: 'rgba(15,23,42,0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  edgePointerText: { fontFamily: FONTS.bold, fontSize: 11, color: '#fff', marginTop: 2 },
   modelWrap: {
     position: 'absolute',
     top: H * 0.22,
