@@ -68,6 +68,7 @@ const qrService = {
   reviewQuizAction: (id, actionData) => adminClient.put(`/api/qr/trivia-review/${id}/`, actionData),
 
   getDashboardStats: () => adminClient.get('/api/qr/dashboard-stats/'),
+  getLeaderboard: (limit = 10) => adminClient.get('/api/auth/leaderboard/', { params: { limit } }),
 
   getMediaUrl: (path) => {
     if (!path) return null;

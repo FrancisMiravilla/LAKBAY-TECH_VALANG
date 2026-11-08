@@ -62,6 +62,7 @@ import { barangayAt } from './map/barangays';
 import PromotionSettings from './PromotionSettings';
 import CoinBundleManagement from './CoinBundleManagement';
 import LandingPage from './LandingPage';
+import DashboardLeaderboard from './DashboardLeaderboard';
 
 const generateNotificationId = () => Date.now();
 
@@ -1706,6 +1707,7 @@ function App() {
 
               {/* Chart & Recent Activity Grid */}
               <section className="dashboard-grid">
+                <div className="dashboard-col">
                 {/* Bar Chart: Most Visited Feature Places */}
                 <div className="content-card">
                   <div className="content-card-header">
@@ -1744,6 +1746,10 @@ function App() {
                     <span>Visits counted via app check-ins</span>
                     <span>Magenta Pink accents represent high-traffic spots</span>
                   </div>
+                </div>
+
+                {/* Leaderboard: top tourists by XP */}
+                <DashboardLeaderboard />
                 </div>
 
                 {/* Recent Activity Feed */}
