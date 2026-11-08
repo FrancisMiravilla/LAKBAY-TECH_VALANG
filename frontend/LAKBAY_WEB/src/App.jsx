@@ -63,6 +63,7 @@ import PromotionSettings from './PromotionSettings';
 import CoinBundleManagement from './CoinBundleManagement';
 import LandingPage from './LandingPage';
 import DashboardLeaderboard from './DashboardLeaderboard';
+import ReportsPage from './reports/ReportsPage';
 
 const generateNotificationId = () => Date.now();
 
@@ -2242,28 +2243,7 @@ function App() {
           )}
 
           {/* TAB CONTENT: 9. REPORTS */}
-          {activeTab === 'reports' && (
-            <section className="content-card" style={{gap: '24px'}}>
-              <h3 className="card-title">
-                <FileText className="card-title-icon" size={18} />
-                Preservation & Tourism System Reports
-              </h3>
-
-              <div style={{display: 'flex', gap: '16px', flexWrap: 'wrap'}}>
-                <div style={{flex: 1, minWidth: '240px', backgroundColor: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--card-border)', borderRadius: '12px', padding: '20px'}}>
-                  <h4 style={{fontSize: '15px', color: 'var(--text-title)', marginBottom: '10px'}}>Total Tourism Check-ins</h4>
-                  <p style={{fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px'}}>Generate a full list of all spots visited and active user durations in CSV format.</p>
-                  <button className="btn btn-primary" onClick={() => alert('CSV check-ins compiled!')}>Compile Check-ins</button>
-                </div>
-
-                <div style={{flex: 1, minWidth: '240px', backgroundColor: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--card-border)', borderRadius: '12px', padding: '20px'}}>
-                  <h4 style={{fontSize: '15px', color: 'var(--text-title)', marginBottom: '10px'}}>Preservation Metrics (Catches)</h4>
-                  <p style={{fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px'}}>Export data on Yakan symbols captured, Chavacano trivia unlocked, and badge distribution.</p>
-                  <button className="btn btn-primary" onClick={() => alert('PDF report exported!')}>Export PDF Report</button>
-                </div>
-              </div>
-            </section>
-          )}
+          {activeTab === 'reports' && <ReportsPage appTheme={theme} />}
 
           {/* TAB CONTENT: 10. INTERACTIVE MAP */}
           {activeTab === 'map' && (
