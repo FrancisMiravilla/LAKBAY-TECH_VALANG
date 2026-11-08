@@ -64,6 +64,7 @@ import CoinBundleManagement from './CoinBundleManagement';
 import LandingPage from './LandingPage';
 import DashboardLeaderboard from './DashboardLeaderboard';
 import ReportsPage from './reports/ReportsPage';
+import { downloadQrPoster } from './qr/qrPoster';
 
 const generateNotificationId = () => Date.now();
 
@@ -1126,13 +1127,11 @@ function App() {
   const downloadQR = async (qrCodeString, spotName) => {
     if (!qrCodeString) return;
     try {
-      const dataUrl = await QRCodeLib.toDataURL(qrCodeString, { width: 512, margin: 3 });
-      const link = document.createElement('a');
-      link.download = `LAKBAY_${spotName.replace(/\s+/g, '_')}_QR.png`;
-      link.href = dataUrl;
-      link.click();
+      const spot = spots.find(s => s.name === spotName);
+      await downloadQrPoster(qrCodeString, { ...spot, name: spotName });
     } catch (err) {
       console.error(err);
+      alert("Couldn't create the QR poster. Please try again.");
     }
   };
 
@@ -1960,7 +1959,7 @@ function App() {
                           onClick={() => downloadQR(qr.qr_code_string, qr.exhibitName)}
                         >
                           <Download size={12} style={{marginRight: '4px'}} />
-                          Download
+                          Download PDF
                         </button>
                         
                         <button 
