@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,23 +7,23 @@ import {
   TouchableOpacity,
   StatusBar,
   ActivityIndicator,
-  Animated,
-  Easing,
-  ImageBackground,
+  Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import Svg, { Circle, Defs, LinearGradient, Stop, Polygon } from 'react-native-svg';
-import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT, onWhite } from '../constants/theme';
-import VintaCard from '../components/VintaCard';
-import VintaStripe from '../components/VintaStripe';
+import Svg, { Defs, LinearGradient, Stop, Polygon } from 'react-native-svg';
+import { COLORS, FONTS, RADIUS, GOLD_TEXT, onWhite } from '../constants/theme';
 import Leaderboard from '../components/Leaderboard';
+import { useVintaRefresh, VintaRefreshIndicator } from '../components/VintaRefresh';
 import LucideIcon from '../components/LucideIcon';
 import { useTabBarSpace } from '../navigation/tabBarLayout';
 import { authService } from '../api/authService';
 import { getMyScans, getSpots, getARTargets, getCatchIcons, getMilestones, ORIGIN } from '../api/qrService';
 import * as SecureStore from 'expo-secure-store';
 import { WebView } from 'react-native-webview';
+
+const APP_GLYPH = require('../assets/lakbay_icon_glyph.png');
+const SAIL_COLORS = ['#2B3990', '#E8559A', '#F6C431', '#E2412B', '#1F7A3D', '#F39A3D', '#2B3990'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const resolveModelUrl = (m) => {
@@ -126,179 +126,77 @@ function HexBadge({ size = 80, borderColor, glowColor, children }) {
   );
 }
 
-// ─── Animated XP Ring ─────────────────────────────────────────────────────────
-function XPRing({ size, progressPct, level, rank, currentLevelXp }) {
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+// ─── Building blocks (clean white cards, reference: LevelUp dashboard) ───────
+function Card({ style, children }) {
+  return <View style={[styles.card, style]}>{children}</View>;
+}
 
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.06, duration: 1800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1.00, duration: 1800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
-
-  const strokeWidth = 14;
-  const center = size / 2;
-  const radius = center - strokeWidth / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (progressPct * circumference);
-
+function CardHeader({ icon, iconColor = COLORS.accent, title, right }) {
   return (
-    // marginTop/halo space keeps the pulsing glow (size + 24, scaled 1.06) inside the card.
-    <View style={{ alignItems: 'center', marginTop: 20, marginBottom: 8 }}>
-      <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
-        <Animated.View style={{
-          transform: [{ scale: pulseAnim }],
-          width: size + 24,
-          height: size + 24,
-          borderRadius: (size + 24) / 2,
-          backgroundColor: rank.glow,
-          position: 'absolute',
-          top: -12,
-          left: -12,
-          opacity: 0.35,
-        }} />
-        <Svg width={size} height={size}>
-          <Defs>
-            <LinearGradient id="xpGrad" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor={COLORS.gold} stopOpacity="1" />
-              <Stop offset="0.5" stopColor="#FF8C00" stopOpacity="1" />
-              <Stop offset="1" stopColor="#FBBF24" stopOpacity="1" />
-            </LinearGradient>
-            <LinearGradient id="trackGrad" x1="0" y1="0" x2="1" y2="1">
-              <Stop offset="0" stopColor="rgba(99,179,237,0.35)" stopOpacity="0.3" />
-              <Stop offset="1" stopColor="rgba(99,179,237,0.15)" stopOpacity="0.15" />
-            </LinearGradient>
-          </Defs>
-          <Circle cx={center} cy={center} r={radius} stroke="url(#trackGrad)" strokeWidth={strokeWidth} fill="transparent" />
-          <Circle
-            cx={center} cy={center} r={radius}
-            stroke="url(#xpGrad)"
-            strokeWidth={strokeWidth}
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
-            strokeLinecap="round"
-            fill="transparent"
-            rotation="-90"
-            originX={center}
-            originY={center}
-          />
-        </Svg>
-        <View style={styles.ringInner}>
-          <LucideIcon name={rank.icon} size={28} color={onWhite(rank.color)} style={styles.rankIcon} />
-          <Text style={[styles.levelLabel, { color: COLORS.textMuted }]}>LEVEL</Text>
-          <Text style={[styles.levelNumber, { color: onWhite(rank.color) }]}>{level}</Text>
-          <Text
-            style={[styles.rankTitle, { color: onWhite(rank.color), maxWidth: size - strokeWidth * 2 - 36 }]}
-            numberOfLines={2}
-            adjustsFontSizeToFit
-            minimumFontScale={0.8}
-          >
-            {rank.title}
-          </Text>
-        </View>
-      </View>
-
-      <Text style={[styles.xpSubtext, { marginTop: 24 }]}>{currentLevelXp} / 100 XP to next level</Text>
+    <View style={styles.cardHeader}>
+      <LucideIcon name={icon} size={20} color={iconColor} />
+      <Text style={styles.cardTitle} numberOfLines={1}>{title}</Text>
+      {right}
     </View>
   );
 }
 
-// ─── Milestoned Progress Bar ──────────────────────────────────────────────────
-function MilestonedBar({ pct, color }) {
-  const milestones = [0.25, 0.5, 0.75, 1.0];
+function CountBubble({ value, color = COLORS.accent }) {
   return (
-    <View style={{ position: 'relative' }}>
-      <View style={styles.progressBarBg}>
-        <View style={[styles.progressBarFill, { width: `${Math.min(100, Math.round(pct * 100))}%`, backgroundColor: color }]} />
-      </View>
-      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center' }}>
-        {milestones.map((m, i) => {
-          const achieved = pct >= m;
-          return (
-            <View key={i} style={{
-              position: 'absolute',
-              left: `${m * 100}%`,
-              width: 10, height: 10,
-              borderRadius: 5,
-              backgroundColor: achieved ? color : '#FFFFFF',
-              borderWidth: 2,
-              borderColor: achieved ? color : COLORS.border,
-              marginLeft: -5,
-            }} />
-          );
-        })}
-      </View>
+    <View style={[styles.countBubble, { backgroundColor: color }]}>
+      <Text style={styles.countBubbleText}>{value}</Text>
     </View>
   );
 }
 
-// ─── Stat Card ────────────────────────────────────────────────────────────────
-function StatCard({ icon, value, label, color }) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const onPress = () => {
-    Animated.sequence([
-      Animated.timing(scaleAnim, { toValue: 0.93, duration: 100, useNativeDriver: true }),
-      Animated.timing(scaleAnim, { toValue: 1.0,  duration: 150, useNativeDriver: true }),
-    ]).start();
-  };
+function Chip({ text, color }) {
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ flex: 1 }}>
-      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-        <VintaCard style={styles.statFrame} contentStyle={styles.statCardBody}>
-          <LucideIcon name={icon} size={18} color={onWhite(color)} style={styles.statIcon} />
-          <Text style={[styles.statValue, { color: onWhite(color) }]}>{value}</Text>
-          <Text style={styles.statLabel}>{label}</Text>
-        </VintaCard>
-      </Animated.View>
-    </TouchableOpacity>
+    <View style={[styles.chip, color && { backgroundColor: color + '1A' }]}>
+      <Text style={[styles.chipText, color && { color: onWhite(color) }]}>{text}</Text>
+    </View>
   );
 }
 
-// ─── Quest Card ───────────────────────────────────────────────────────────────
-function QuestCard({ icon, title, sub, pct, color, questLabel }) {
-  const isComplete = pct >= 1.0;
+// One row of a list card: status circle · title + meta · chip on the right.
+function ListRow({ done, doneIcon = 'check', color, title, badge, meta, metaColor, extra, chip, last }) {
   return (
-    <VintaCard contentStyle={[styles.questCard, isComplete && styles.questCardComplete]}>
-      {isComplete && (
-        <View style={styles.completedBadge}>
-          <LucideIcon name="check" size={11} color="#059669" strokeWidth={3} />
-          <Text style={styles.completedBadgeText}>COMPLETED</Text>
-        </View>
-      )}
-      <View style={styles.questHeader}>
-        <View style={[styles.questIconWrap, { backgroundColor: color + '20', borderColor: color + '55' }]}>
-          <LucideIcon name={icon} size={20} color={onWhite(color)} />
-        </View>
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <Text style={styles.questTitle}>{title}</Text>
-            {questLabel && (
-              <View style={[styles.questTypePill, { backgroundColor: color + '22', borderColor: color + '55' }]}>
-                <Text style={[styles.questTypeText, { color: onWhite(color) }]}>{questLabel}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.questSub}>{sub}</Text>
-        </View>
-        {isComplete ? (
-          <LucideIcon name="medal" size={22} color={onWhite(COLORS.teal)} />
-        ) : (
-          <Text style={[styles.questPct, { color: onWhite(color) }]}>{`${Math.round(pct * 100)}%`}</Text>
-        )}
+    <View style={[styles.listRow, !last && styles.listRowDivider]}>
+      <View style={[styles.statusCircle, done && { backgroundColor: color, borderColor: color }]}>
+        {done ? <LucideIcon name={doneIcon} size={13} color="#FFFFFF" strokeWidth={3} /> : null}
       </View>
-      <View style={{ marginTop: 12 }}>
-        <MilestonedBar pct={pct} color={color} />
+      <View style={{ flex: 1 }}>
+        <View style={styles.listTitleRow}>
+          <Text style={styles.listTitle}>{title}</Text>
+          {badge}
+        </View>
+        {extra}
+        <Text style={styles.listMeta}>
+          <Text style={{ color: metaColor ? onWhite(metaColor) : COLORS.textMuted }}>{meta[0]}</Text>
+          {meta[1] ? <Text>{`  •  ${meta[1]}`}</Text> : null}
+        </Text>
       </View>
-    </VintaCard>
+      {chip}
+    </View>
   );
 }
+
+function LevelProgressBar({ pct, color }) {
+  const w = `${Math.max(0, Math.min(100, Math.round(pct * 100)))}%`;
+  return (
+    <View style={styles.levelTrack}>
+      <View style={[styles.levelTrackBg, { backgroundColor: color + '22' }]} />
+      <View style={[styles.levelFill, { width: w, backgroundColor: color }]} />
+      <View style={[styles.levelThumb, { left: w, borderColor: color }]} />
+    </View>
+  );
+}
+
+const compact = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n));
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function BadgesScreen() {
   const tabBarSpace = useTabBarSpace();
+  const insets = useSafeAreaInsets();
   const [profile, setProfile]                   = useState(null);
   const [scans, setScans]                       = useState([]);
   const [totalSpots, setTotalSpots]             = useState(12);
@@ -308,106 +206,113 @@ export default function BadgesScreen() {
   const [milestones, setMilestones]             = useState(DEFAULT_MILESTONES);
   const [activeTab, setActiveTab]               = useState('progress');
 
+  const aliveRef = useRef(true);
+  const fetchData = useCallback(async () => {
+    try {
+      const [p, s, spotsData, collectedModelsStr, arTargetsData, caughtIconsStr, storedUid, storedCatchUid, milestonesData, catchIconsData] = await Promise.all([
+        authService.getProfile().catch(() => null),
+        getMyScans().catch(() => ({ scans: [] })),
+        getSpots().catch(() => []),
+        SecureStore.getItemAsync('collected_models').catch(() => null),
+        getARTargets().catch(() => []),
+        SecureStore.getItemAsync('caught_icons').catch(() => null),
+        SecureStore.getItemAsync('collected_models_uid').catch(() => null),
+        SecureStore.getItemAsync('caught_icons_uid').catch(() => null),
+        getMilestones().catch(() => DEFAULT_MILESTONES),
+        getCatchIcons().catch(() => []),
+      ]);
+      if (aliveRef.current) {
+        setProfile(p);
+        setScans(s?.scans || []);
+        if (spotsData?.length > 0) setTotalSpots(spotsData.length);
+        if (Array.isArray(milestonesData) && milestonesData.length > 0) {
+          setMilestones(milestonesData.sort((a, b) => (a.tier || 0) - (b.tier || 0)));
+        } else if (milestonesData?.results && Array.isArray(milestonesData.results)) {
+          setMilestones(milestonesData.results.sort((a, b) => (a.tier || 0) - (b.tier || 0)));
+        }
+
+        const currentUid = String(p?.id || '');
+
+        // ── AR collected models ──
+        if (storedUid && currentUid && storedUid !== currentUid) {
+          await SecureStore.deleteItemAsync('collected_models');
+          await SecureStore.deleteItemAsync('collected_models_uid');
+          setCollectedModels([]);
+        } else if (collectedModelsStr) {
+          try {
+            let storedModels = JSON.parse(collectedModelsStr);
+            const targets = Array.isArray(arTargetsData) ? arTargetsData : (arTargetsData?.results || []);
+            storedModels = storedModels.map(m => {
+              const t = targets.find(t => t.id === m.id || t.name === m.name);
+              if (t && t.model_3d) m.model_3d = resolveModelUrl(t.model_3d);
+              else if (m.model_3d) m.model_3d = resolveModelUrl(m.model_3d);
+              return m;
+            });
+            setCollectedModels(storedModels);
+            if (!storedUid && currentUid) {
+              SecureStore.setItemAsync('collected_models_uid', currentUid).catch(() => {});
+            }
+          } catch {
+            setCollectedModels([]);
+          }
+        } else {
+          setCollectedModels([]);
+        }
+
+        // ── Caught icons (Catch & Win) ──
+        if (storedCatchUid && currentUid && storedCatchUid !== currentUid) {
+          await SecureStore.deleteItemAsync('caught_icons');
+          await SecureStore.deleteItemAsync('caught_icons_uid');
+          setCaughtIcons([]);
+        } else if (caughtIconsStr) {
+          try {
+            let parsedCaught = JSON.parse(caughtIconsStr);
+            const allCatchIcons = Array.isArray(catchIconsData) ? catchIconsData : (catchIconsData?.results || []);
+            const allSpots = Array.isArray(spotsData) ? spotsData : (spotsData?.results || []);
+
+            parsedCaught = parsedCaught.map(c => {
+              let model = c.model_3d;
+              if (!model) {
+                const matchIcon = allCatchIcons.find(i => i.id === c.id || (i.name && c.name && i.name.toLowerCase() === c.name.toLowerCase()));
+                if (matchIcon && matchIcon.model_3d) model = matchIcon.model_3d;
+                const matchSpot = allSpots.find(s => s.id === c.id || (s.name && c.name && s.name.toLowerCase() === c.name.toLowerCase()));
+                if (matchSpot && matchSpot.model_3d) model = matchSpot.model_3d;
+              }
+              return {
+                ...c,
+                model_3d: resolveModelUrl(model),
+              };
+            });
+            setCaughtIcons(parsedCaught);
+            if (!storedCatchUid && currentUid) {
+              SecureStore.setItemAsync('caught_icons_uid', currentUid).catch(() => {});
+            }
+          } catch {
+            setCaughtIcons([]);
+          }
+        } else {
+          setCaughtIcons([]);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching badges data:', err);
+    } finally {
+      if (aliveRef.current) setLoading(false);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      let isActive = true;
-      const fetchData = async () => {
-        try {
-          const [p, s, spotsData, collectedModelsStr, arTargetsData, caughtIconsStr, storedUid, storedCatchUid, milestonesData, catchIconsData] = await Promise.all([
-            authService.getProfile().catch(() => null),
-            getMyScans().catch(() => ({ scans: [] })),
-            getSpots().catch(() => []),
-            SecureStore.getItemAsync('collected_models').catch(() => null),
-            getARTargets().catch(() => []),
-            SecureStore.getItemAsync('caught_icons').catch(() => null),
-            SecureStore.getItemAsync('collected_models_uid').catch(() => null),
-            SecureStore.getItemAsync('caught_icons_uid').catch(() => null),
-            getMilestones().catch(() => DEFAULT_MILESTONES),
-            getCatchIcons().catch(() => []),
-          ]);
-          if (isActive) {
-            setProfile(p);
-            setScans(s?.scans || []);
-            if (spotsData?.length > 0) setTotalSpots(spotsData.length);
-            if (Array.isArray(milestonesData) && milestonesData.length > 0) {
-              setMilestones(milestonesData.sort((a, b) => (a.tier || 0) - (b.tier || 0)));
-            } else if (milestonesData?.results && Array.isArray(milestonesData.results)) {
-              setMilestones(milestonesData.results.sort((a, b) => (a.tier || 0) - (b.tier || 0)));
-            }
-
-            const currentUid = String(p?.id || '');
-
-            // ── AR collected models ──
-            if (storedUid && currentUid && storedUid !== currentUid) {
-              await SecureStore.deleteItemAsync('collected_models');
-              await SecureStore.deleteItemAsync('collected_models_uid');
-              setCollectedModels([]);
-            } else if (collectedModelsStr) {
-              try {
-                let storedModels = JSON.parse(collectedModelsStr);
-                const targets = Array.isArray(arTargetsData) ? arTargetsData : (arTargetsData?.results || []);
-                storedModels = storedModels.map(m => {
-                  const t = targets.find(t => t.id === m.id || t.name === m.name);
-                  if (t && t.model_3d) m.model_3d = resolveModelUrl(t.model_3d);
-                  else if (m.model_3d) m.model_3d = resolveModelUrl(m.model_3d);
-                  return m;
-                });
-                setCollectedModels(storedModels);
-                if (!storedUid && currentUid) {
-                  SecureStore.setItemAsync('collected_models_uid', currentUid).catch(() => {});
-                }
-              } catch {
-                setCollectedModels([]);
-              }
-            } else {
-              setCollectedModels([]);
-            }
-
-            // ── Caught icons (Catch & Win) ──
-            if (storedCatchUid && currentUid && storedCatchUid !== currentUid) {
-              await SecureStore.deleteItemAsync('caught_icons');
-              await SecureStore.deleteItemAsync('caught_icons_uid');
-              setCaughtIcons([]);
-            } else if (caughtIconsStr) {
-              try {
-                let parsedCaught = JSON.parse(caughtIconsStr);
-                const allCatchIcons = Array.isArray(catchIconsData) ? catchIconsData : (catchIconsData?.results || []);
-                const allSpots = Array.isArray(spotsData) ? spotsData : (spotsData?.results || []);
-
-                parsedCaught = parsedCaught.map(c => {
-                  let model = c.model_3d;
-                  if (!model) {
-                    const matchIcon = allCatchIcons.find(i => i.id === c.id || (i.name && c.name && i.name.toLowerCase() === c.name.toLowerCase()));
-                    if (matchIcon && matchIcon.model_3d) model = matchIcon.model_3d;
-                    const matchSpot = allSpots.find(s => s.id === c.id || (s.name && c.name && s.name.toLowerCase() === c.name.toLowerCase()));
-                    if (matchSpot && matchSpot.model_3d) model = matchSpot.model_3d;
-                  }
-                  return {
-                    ...c,
-                    model_3d: resolveModelUrl(model),
-                  };
-                });
-                setCaughtIcons(parsedCaught);
-                if (!storedCatchUid && currentUid) {
-                  SecureStore.setItemAsync('caught_icons_uid', currentUid).catch(() => {});
-                }
-              } catch {
-                setCaughtIcons([]);
-              }
-            } else {
-              setCaughtIcons([]);
-            }
-          }
-        } catch (err) {
-          console.error('Error fetching badges data:', err);
-        } finally {
-          if (isActive) setLoading(false);
-        }
-      };
+      aliveRef.current = true;
       fetchData();
-      return () => { isActive = false; };
-    }, [])
+      return () => { aliveRef.current = false; };
+    }, [fetchData])
   );
+  const [boardKey, setBoardKey] = useState(0);
+  const { refreshing, refreshControl } = useVintaRefresh(() => {
+    setBoardKey((k) => k + 1);
+    return fetchData();
+  });
 
   const xp             = profile?.xp || 0;
   const level          = Math.floor(xp / 100) + 1;
@@ -457,204 +362,222 @@ export default function BadgesScreen() {
 
   if (loading) {
     return (
-      <ImageBackground
-        source={require('../../reference/VINTA.jpeg')}
-        style={styles.bgImage}
-        resizeMode="cover"
-      >
-        <View style={styles.bgOverlay} />
-        <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-          <ActivityIndicator size="large" color={COLORS.gold} />
-          <Text style={{ fontFamily: FONTS.medium, color: 'rgba(191,215,255,0.85)', marginTop: 12 }}>Syncing your journey...</Text>
-        </SafeAreaView>
-      </ImageBackground>
+      <View style={[styles.root, styles.center]}>
+        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+        <ActivityIndicator size="large" color={COLORS.accent} />
+        <Text style={styles.loadingText}>Syncing your journey...</Text>
+      </View>
     );
   }
 
+  const name = profile?.in_game_name || profile?.first_name || 'Explorer';
+  const nextColor = nextMilestone ? (nextMilestone.color || '#1A56DB') : COLORS.gold;
+  const xpToNext = nextMilestone
+    ? (nextMilestone.min_xp > xp ? nextMilestone.min_xp - xp : (nextMilestone.max_xp ? nextMilestone.max_xp - xp : 0))
+    : 0;
+  const activeQuests = QUESTS.filter((q) => q.pct < 1).length;
+
   return (
-    <ImageBackground
-      source={require('../../reference/VINTA.jpeg')}
-      style={styles.bgImage}
-      resizeMode="cover"
-    >
-      <View style={styles.bgOverlay} />
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      {/* ── App bar: navy with a thin vinta strip (same as Home / Promote) ── */}
+      <View style={[styles.appBar, { paddingTop: insets.top, height: insets.top + 56 }]}>
+        <Image source={APP_GLYPH} style={styles.appGlyph} resizeMode="contain" />
+        <Text style={styles.appTitle}>My Journey</Text>
+        <View style={styles.sailStripes}>
+          {SAIL_COLORS.map((c, i) => <View key={i} style={[styles.sailStripe, { backgroundColor: c }]} />)}
+        </View>
+      </View>
 
-        {/* ── Header ── */}
-        <View style={styles.header}>
+      <View style={{ flex: 1 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scroll, { paddingBottom: tabBarSpace }]}
+        refreshControl={refreshControl}
+      >
+
+        {/* ── Greeting ── */}
+        <View style={styles.greetRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>MY JOURNEY</Text>
-            <Text style={styles.headerSub}>EXPEDITION RANKS &amp; TROPHIES</Text>
+            <Text style={styles.greetTitle} numberOfLines={1}>Hello, {name}</Text>
+            <Text style={styles.greetSub}>Here&apos;s your expedition so far.</Text>
           </View>
-          <View style={[styles.rankPill, { borderColor: rank.color + '88', backgroundColor: rank.color + '22' }]}>
-            <LucideIcon name={rank.icon} size={14} color={rank.color} />
-            <Text style={[styles.rankPillText, { color: rank.color }]}>{rank.title}</Text>
+          <View style={styles.xpPill}>
+            <View style={styles.xpPillIcon}>
+              <LucideIcon name="zap" size={14} color="#FFFFFF" />
+            </View>
+            <Text style={styles.xpPillText}>{compact(xp)}</Text>
           </View>
         </View>
-        <VintaStripe height={3} />
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scroll, { paddingBottom: tabBarSpace }]}>
-
-          {/* ── XP Hero Glass Section ── */}
-          <View style={styles.heroSection}>
-            <VintaCard style={styles.heroFrame} contentStyle={styles.heroGlassCard}>
-              <XPRing size={220} progressPct={progressPct} level={level} rank={rank} currentLevelXp={currentLevelXp} />
-              <View style={[styles.milestoneRibbon, { borderColor: (nextMilestone ? (nextMilestone.color || '#1A56DB') : milestoneColor) + '55', backgroundColor: (nextMilestone ? (nextMilestone.color || '#1A56DB') : milestoneColor) + '18' }]}>
-                <LucideIcon
-                  name={nextMilestone ? getMilestoneIcon(nextMilestone.icon) : 'crown'}
-                  size={15}
-                  color={onWhite(nextMilestone ? (nextMilestone.color || '#38BDF8') : COLORS.gold)}
-                />
-                <Text style={[styles.milestoneRibbonText, { color: onWhite(nextMilestone ? (nextMilestone.color || '#38BDF8') : COLORS.gold) }]}>
-                  {nextMilestone
-                    ? `${(nextMilestone.min_xp > xp ? nextMilestone.min_xp - xp : (nextMilestone.max_xp ? nextMilestone.max_xp - xp : 0))} XP until Tier ${nextMilestone.tier}: ${nextMilestone.name}`
-                    : 'Max Expedition Rank Achieved!'}
-                </Text>
+        {/* ── Current level ── */}
+        <View style={[styles.levelCard, { borderColor: rank.color + '66', shadowColor: rank.color }]}>
+          <View style={styles.levelTop}>
+            <View style={{ flex: 1 }}>
+              <View style={styles.levelChipRow}>
+                <View style={[styles.rankChip, { backgroundColor: onWhite(rank.color) }]}>
+                  <Text style={styles.rankChipText}>TIER {rank.tier}</Text>
+                </View>
+                <Text style={styles.levelSmall}>Lvl. {level}</Text>
               </View>
-
-              {currentMilestone.tagline ? (
-                <Text style={{ fontSize: 12, fontFamily: FONTS.regular, fontStyle: 'italic', color: COLORS.textSub, textAlign: 'center', marginTop: 8, paddingHorizontal: 16 }}>
-                  {`"${currentMilestone.tagline}"`}
-                </Text>
-              ) : null}
-            </VintaCard>
+              <Text style={styles.levelTitle} numberOfLines={2}>{rank.title}</Text>
+              {rank.tagline ? <Text style={styles.levelTagline} numberOfLines={2}>{rank.tagline}</Text> : null}
+            </View>
+            <HexBadge size={76} borderColor={rank.color} glowColor={rank.color + '22'}>
+              <LucideIcon name={rank.icon} size={30} color={onWhite(rank.color)} />
+            </HexBadge>
           </View>
 
-          {/* ── Stats ── */}
-          <View style={styles.statsSection}>
-            <View style={styles.statsGrid}>
-              {STATS.map(s => (
-                <StatCard key={s.label} icon={s.icon} value={s.value} label={s.label} color={s.color} />
-              ))}
+          <View style={styles.levelLabels}>
+            <Text style={styles.levelLabel}>Level Progress</Text>
+            <Text style={[styles.levelXp, { color: onWhite(rank.color) }]}>{currentLevelXp} / 100 XP</Text>
+          </View>
+          <LevelProgressBar pct={progressPct} color={rank.color} />
+          <View style={styles.levelLabels}>
+            <Text style={styles.levelEnd}>Level {level}</Text>
+            <Text style={styles.levelEnd}>Level {level + 1}</Text>
+          </View>
+        </View>
+
+        {/* ── Next rank ── */}
+        <Card>
+          <View style={styles.nextTop}>
+            <LucideIcon name={nextMilestone ? getMilestoneIcon(nextMilestone.icon) : 'crown'} size={22} color={onWhite(nextColor)} />
+            <Text style={styles.nextLabel}>Next Rank</Text>
+            <View style={styles.nextValueBox}>
+              <Text style={styles.nextValue}>{nextMilestone ? `${xpToNext.toLocaleString()} XP` : 'MAX'}</Text>
             </View>
           </View>
-
-          {/* ── Tab Switcher ── */}
-          <View style={styles.tabBar}>
-            {[
-              { key: 'progress',    label: 'Quests',      icon: 'swords' },
-              { key: 'collection',  label: 'Collection',  icon: 'puzzle' },
-              { key: 'leaderboard', label: 'Leaderboard', icon: 'trophy' },
-            ].map(tab => (
-              <TouchableOpacity
-                key={tab.key}
-                style={[styles.tabBtn, activeTab === tab.key && styles.tabBtnActive]}
-                onPress={() => setActiveTab(tab.key)}
-                activeOpacity={0.75}
-              >
-                <LucideIcon name={tab.icon} size={14} color={activeTab === tab.key ? '#FFFFFF' : COLORS.textMuted} />
-                <Text
-                  style={[styles.tabBtnText, activeTab === tab.key && styles.tabBtnTextActive]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                >
-                  {tab.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.nextBody}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.nextTitle}>
+                {nextMilestone ? `Tier ${nextMilestone.tier}: ${nextMilestone.name}` : 'Max Expedition Rank Achieved!'}
+              </Text>
+              <Text style={styles.nextSub}>
+                {nextMilestone ? `${xpToNext.toLocaleString()} XP to go. Keep exploring!` : 'You hold the highest rank in LAKBAY.'}
+              </Text>
+            </View>
           </View>
+          <View style={styles.tierSegments}>
+            {activeMilestones.map((m, i) => {
+              const earned = xp >= m.min_xp;
+              const c = m.color || '#1A56DB';
+              return <View key={m.id || i} style={[styles.tierSegment, { backgroundColor: earned ? c : c + '26' }]} />;
+            })}
+          </View>
+        </Card>
 
-          {/* ── Quests Tab ── */}
-          {activeTab === 'progress' && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Active Quests</Text>
-                <View style={styles.sectionBadge}>
-                  <Text style={styles.sectionBadgeText}>{QUESTS.filter(q => q.pct < 1).length} active</Text>
-                </View>
-              </View>
-              {QUESTS.map(q => (
-                <QuestCard key={q.title} {...q} />
-              ))}
-
-              {/* XP Milestones */}
-              <VintaCard style={styles.milestoneFrame} contentStyle={styles.milestoneSection}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <Text style={[styles.sectionTitle, styles.sectionTitleOnCard]}>XP Milestone Tiers</Text>
-                  <View style={[styles.sectionBadge, { backgroundColor: milestoneColor + '22', borderColor: milestoneColor + '66' }]}>
-                    <Text style={[styles.sectionBadgeText, { color: onWhite(milestoneColor) }]}>Tier {currentMilestone.tier}</Text>
-                  </View>
-                </View>
-                {activeMilestones.map((m, i) => {
-                  const isCurrent = m.id ? m.id === currentMilestone.id : m.tier === currentMilestone.tier;
-                  const isEarned = xp >= m.min_xp;
-                  const itemColor = m.color || '#1A56DB';
-                  const itemIcon = getMilestoneIcon(m.icon);
-                  return (
-                    <View key={m.id || i} style={[styles.milestoneRow, i === activeMilestones.length - 1 && { borderBottomWidth: 0 }, isCurrent && { backgroundColor: itemColor + '12', borderRadius: 12, paddingHorizontal: 8, marginHorizontal: -8 }]}>
-                      <View style={[styles.milestoneDot, { backgroundColor: isEarned ? itemColor : COLORS.bg, borderColor: isEarned ? itemColor : COLORS.border }]}>
-                        <LucideIcon name={isEarned ? itemIcon : 'lock'} size={14} color={isEarned ? '#FFFFFF' : COLORS.textMuted} />
-                      </View>
-                      <View style={{ flex: 1, marginHorizontal: 12 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                          <Text style={[styles.milestoneReward, { color: isEarned ? onWhite(itemColor) : COLORS.textMuted }]}>
-                            Tier {m.tier}: {m.name}
-                          </Text>
-                          {isCurrent && (
-                            <View style={{ backgroundColor: itemColor + '33', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, borderWidth: 1, borderColor: itemColor + '77' }}>
-                              <Text style={{ fontSize: 10, fontFamily: FONTS.bold, color: onWhite(itemColor) }}>CURRENT</Text>
-                            </View>
-                          )}
-                        </View>
-                        {m.tagline ? (
-                          <Text style={{ fontSize: 11, fontFamily: FONTS.regular, fontStyle: 'italic', color: COLORS.textMuted, marginTop: 2 }}>
-                            {`"${m.tagline}"`}
-                          </Text>
-                        ) : null}
-                        <Text style={styles.milestoneXp}>
-                          {m.min_xp} – {m.max_xp !== null && m.max_xp !== undefined ? `${m.max_xp} XP` : '∞ XP'}
-                        </Text>
-                      </View>
-                      {isEarned ? (
-                        <View style={[styles.achievedPill, { backgroundColor: itemColor + '22', borderColor: itemColor + '66' }]}>
-                          <Text style={[styles.achievedText, { color: onWhite(itemColor) }]}>Earned!</Text>
-                        </View>
-                      ) : (
-                        <Text style={styles.milestoneGap}>-{(m.min_xp - xp).toLocaleString()} XP</Text>
-                      )}
-                    </View>
-                  );
-                })}
-              </VintaCard>
+        {/* ── Stats ── */}
+        <Card style={styles.statsCard}>
+          {STATS.map((st, i) => (
+            <View key={st.label} style={[styles.statCell, i > 0 && styles.statCellDivider]}>
+              <LucideIcon name={st.icon} size={18} color={onWhite(st.color)} />
+              <Text style={[styles.statValue, { color: onWhite(st.color) }]}>{st.value}</Text>
+              <Text style={styles.statLabel} numberOfLines={1}>{st.label}</Text>
             </View>
-          )}
+          ))}
+        </Card>
 
-          {/* ── Leaderboard Tab (reloads every time it is opened) ── */}
-          {activeTab === 'leaderboard' && (
-            <View style={styles.section}>
-              <Leaderboard />
+        {/* ── Tabs and their content share one card ── */}
+        <Card style={styles.tabCard}>
+        <View style={styles.tabBar}>
+          {[
+            { key: 'progress',    label: 'Quests',      icon: 'swords' },
+            { key: 'collection',  label: 'Collection',  icon: 'puzzle' },
+            { key: 'leaderboard', label: 'Leaderboard', icon: 'trophy' },
+          ].map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tabBtn, activeTab === tab.key && styles.tabBtnActive]}
+              onPress={() => setActiveTab(tab.key)}
+              activeOpacity={0.75}
+            >
+              <LucideIcon name={tab.icon} size={14} color={activeTab === tab.key ? '#FFFFFF' : COLORS.textMuted} />
+              <Text style={[styles.tabBtnText, activeTab === tab.key && styles.tabBtnTextActive]} numberOfLines={1} adjustsFontSizeToFit>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* ── Quests tab ── */}
+        {activeTab === 'progress' && (
+          <>
+            <View style={styles.tabSection}>
+              <CardHeader icon="circle-check" title="Active Quests" right={<CountBubble value={activeQuests} />} />
+              {QUESTS.map((q, i) => {
+                const done = q.pct >= 1;
+                return (
+                  <ListRow
+                    key={q.title}
+                    done={done}
+                    color={COLORS.teal}
+                    title={q.title}
+                    meta={[q.questLabel, q.sub]}
+                    metaColor={q.color}
+                    chip={<Chip text={done ? 'Done' : `${Math.round(q.pct * 100)}%`} color={done ? COLORS.teal : null} />}
+                    last={i === QUESTS.length - 1}
+                  />
+                );
+              })}
             </View>
-          )}
 
-          {/* ── Collection Tab ── */}
-          {activeTab === 'collection' && (
-            <View style={styles.section}>
+            <View style={[styles.tabSection, styles.tabSectionDivided]}>
+              <CardHeader
+                icon="medal"
+                iconColor={onWhite(milestoneColor)}
+                title="XP Milestone Tiers"
+                right={<Chip text={`Tier ${currentMilestone.tier}`} color={milestoneColor} />}
+              />
+              {activeMilestones.map((m, i) => {
+                const isCurrent = m.id ? m.id === currentMilestone.id : m.tier === currentMilestone.tier;
+                const isEarned = xp >= m.min_xp;
+                const c = m.color || '#1A56DB';
+                const range = `${m.min_xp} – ${m.max_xp !== null && m.max_xp !== undefined ? `${m.max_xp} XP` : '∞ XP'}`;
+                return (
+                  <ListRow
+                    key={m.id || i}
+                    done={isEarned}
+                    doneIcon={getMilestoneIcon(m.icon)}
+                    color={c}
+                    title={`Tier ${m.tier}: ${m.name}`}
+                    badge={isCurrent ? <Chip text="CURRENT" color={c} /> : null}
+                    extra={m.tagline ? <Text style={styles.listTagline}>{`"${m.tagline}"`}</Text> : null}
+                    meta={[range]}
+                    chip={isEarned ? <Chip text="Earned!" color={c} /> : <Chip text={`-${(m.min_xp - xp).toLocaleString()} XP`} />}
+                    last={i === activeMilestones.length - 1}
+                  />
+                );
+              })}
+            </View>
+          </>
+        )}
 
-              {/* ── Catch & Win Collection ── */}
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleRow}>
-                  <LucideIcon name="trophy" size={18} color="#FFFFFF" />
-                  <Text style={styles.sectionTitle}>Catch &amp; Win</Text>
-                </View>
-                <View style={[styles.sectionBadge, { backgroundColor: 'rgba(251,191,36,0.18)', borderColor: 'rgba(251,191,36,0.45)' }]}>
-                  <Text style={[styles.sectionBadgeText, { color: COLORS.gold }]}>{caughtIcons.length} / 4</Text>
-                </View>
-              </View>
+        {/* ── Leaderboard tab (reloads every time it is opened) ── */}
+        {activeTab === 'leaderboard' && (
+          <View style={styles.tabSection}>
+            <Leaderboard refreshKey={boardKey} />
+          </View>
+        )}
 
+        {/* ── Collection tab ── */}
+        {activeTab === 'collection' && (
+          <>
+            <View style={styles.tabSection}>
+              <CardHeader icon="trophy" iconColor={GOLD_TEXT} title="Catch & Win" right={<Chip text={`${caughtIcons.length} / 4`} color={COLORS.gold} />} />
               {caughtIcons.length > 0 ? (
-                <VintaCard contentStyle={styles.badgesGrid}>
+                <View style={styles.badgesGrid}>
                   {caughtIcons.map((b, idx) => {
                     const iconColor = b.color || '#A855F7';
                     return (
                       <View key={String(b.id) + idx} style={styles.badgeItem}>
                         <HexBadge size={84} borderColor={iconColor} glowColor={iconColor + '33'}>
                           {b.model_3d ? (
-                            <View pointerEvents="none" style={{ width: 58, height: 58, borderRadius: 29, overflow: 'hidden' }}>
+                            <View pointerEvents="none" style={styles.modelWrap}>
                               <WebView
                                 source={{ html: build3DViewerHTML(b.model_3d) }}
-                                style={{ flex: 1, backgroundColor: 'transparent' }}
+                                style={styles.modelView}
                                 javaScriptEnabled
                                 originWhitelist={['*']}
                                 scrollEnabled={false}
@@ -673,10 +596,10 @@ export default function BadgesScreen() {
                       </View>
                     );
                   })}
-                </VintaCard>
+                </View>
               ) : (
-                <VintaCard contentStyle={styles.emptyState}>
-                  <LucideIcon name="target" size={44} color={COLORS.textMuted} style={styles.emptyStateEmoji} />
+                <View style={styles.emptyState}>
+                  <LucideIcon name="target" size={40} color={COLORS.textMuted} style={styles.emptyStateIcon} />
                   <Text style={styles.emptyStateTitle}>No icons caught yet</Text>
                   <Text style={styles.emptyStateSub}>
                     Visit the 4 cultural icon spots around Zamboanga City to catch them!
@@ -685,25 +608,14 @@ export default function BadgesScreen() {
                     <LucideIcon name="lightbulb" size={14} color={GOLD_TEXT} />
                     <Text style={styles.emptyHintText}>Go to Catch &amp; Win to start collecting</Text>
                   </View>
-                </VintaCard>
+                </View>
               )}
+            </View>
 
-              {/* Divider */}
-              <View style={{ height: 1, backgroundColor: 'rgba(99,179,237,0.15)', marginVertical: 20 }} />
-
-              {/* ── AR Exhibit Collection ── */}
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleRow}>
-                  <LucideIcon name="camera" size={18} color="#FFFFFF" />
-                  <Text style={styles.sectionTitle}>AR Exhibit</Text>
-                </View>
-                <View style={[styles.sectionBadge, { backgroundColor: 'rgba(26,86,219,0.22)', borderColor: 'rgba(99,179,237,0.45)' }]}>
-                  <Text style={[styles.sectionBadgeText, { color: COLORS.accent }]}>{collectedModels.length} Scanned</Text>
-                </View>
-              </View>
-
+            <View style={[styles.tabSection, styles.tabSectionDivided]}>
+              <CardHeader icon="camera" title="AR Exhibit" right={<Chip text={`${collectedModels.length} Scanned`} color={COLORS.accent} />} />
               {collectedModels.length > 0 ? (
-                <VintaCard contentStyle={styles.badgesGrid}>
+                <View style={styles.badgesGrid}>
                   {collectedModels.map((b, idx) => {
                     const rarityStr = (b.rarity || 'common').toUpperCase();
                     const rarityColor = b.color || (rarityStr === 'LEGENDARY' ? '#F59E0B' : rarityStr === 'MYTHICAL' ? '#A855F7' : rarityStr === 'RARE' ? '#3B82F6' : '#10B981');
@@ -711,10 +623,10 @@ export default function BadgesScreen() {
                       <View key={b.id || b.name || idx} style={styles.badgeItem}>
                         <HexBadge size={84} borderColor={rarityColor} glowColor={rarityColor + '33'}>
                           {b.model_3d ? (
-                            <View pointerEvents="none" style={{ width: 58, height: 58, borderRadius: 29, overflow: 'hidden' }}>
+                            <View pointerEvents="none" style={styles.modelWrap}>
                               <WebView
                                 source={{ html: build3DViewerHTML(b.model_3d) }}
-                                style={{ flex: 1, backgroundColor: 'transparent' }}
+                                style={styles.modelView}
                                 javaScriptEnabled
                                 originWhitelist={['*']}
                                 scrollEnabled={false}
@@ -730,16 +642,16 @@ export default function BadgesScreen() {
                           <LucideIcon name="sparkle" size={10} color={onWhite(rarityColor)} />
                           <Text style={[styles.badgeRarity, { color: onWhite(rarityColor) }]}>{rarityStr}</Text>
                         </View>
-                        <Text style={{ fontSize: 10, fontFamily: FONTS.medium, color: COLORS.textMuted, marginTop: 1 }}>
+                        <Text style={styles.badgeSlot}>
                           Building {b.building || 'S1'} · Slot #{b.slot_number || 1}/10
                         </Text>
                       </View>
                     );
                   })}
-                </VintaCard>
+                </View>
               ) : (
-                <VintaCard contentStyle={styles.emptyState}>
-                  <LucideIcon name="map" size={44} color={COLORS.textMuted} style={styles.emptyStateEmoji} />
+                <View style={styles.emptyState}>
+                  <LucideIcon name="map" size={40} color={COLORS.textMuted} style={styles.emptyStateIcon} />
                   <Text style={styles.emptyStateTitle}>No AR models yet</Text>
                   <Text style={styles.emptyStateSub}>
                     Scan AR markers at the National Museum exhibits to collect 3D models!
@@ -748,363 +660,173 @@ export default function BadgesScreen() {
                     <LucideIcon name="lightbulb" size={14} color={GOLD_TEXT} />
                     <Text style={styles.emptyHintText}>Scan AR markers at museums to unlock models</Text>
                   </View>
-                </VintaCard>
+                </View>
               )}
             </View>
-          )}
-
-        </ScrollView>
-      </SafeAreaView>
-    </ImageBackground>
+          </>
+        )}
+        </Card>
+      </ScrollView>
+      </View>
+      <VintaRefreshIndicator visible={refreshing} />
+    </View>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
+const PAGE_BG = '#FFFFFF';
+const LINE = '#E6ECF5';
+
 const styles = StyleSheet.create({
-  bgImage: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  bgOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: BG_OVERLAY,
-  },
-  container: { flex: 1, backgroundColor: 'transparent' },
+  root: { flex: 1, backgroundColor: PAGE_BG },
+  center: { justifyContent: 'center', alignItems: 'center' },
+  loadingText: { fontFamily: FONTS.medium, color: COLORS.textSub, marginTop: 12 },
 
-  // Header
-  header: {
-    height: 64,
-    backgroundColor: 'rgba(8, 20, 60, 0.70)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(99, 179, 237, 0.20)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
+  // App bar
+  appBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: COLORS.navy,
   },
-  headerTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 20,
-    color: '#FFFFFF',
-    letterSpacing: 2,
-    lineHeight: 22,
-  },
-  headerSub: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 11,
-    color: 'rgba(191,215,255,0.70)',
-    letterSpacing: 1.5,
-    marginTop: 2,
-    lineHeight: 14,
-  },
-  rankPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    gap: 5,
-  },
-  rankPillText: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 0.5, lineHeight: 15 },
+  appGlyph: { width: 30, height: 30 },
+  appTitle: { fontFamily: FONTS.bold, fontSize: 22, color: '#FFFFFF' },
+  sailStripes: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, flexDirection: 'row' },
+  sailStripe: { flex: 1 },
 
-  scroll: { paddingBottom: 20 },
+  scroll: { paddingHorizontal: 20, paddingTop: 18, gap: 18 },
 
-  // Hero
-  heroSection: {
-    alignItems: 'center',
-    paddingTop: 20,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
+  // Greeting
+  greetRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  greetTitle: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.navy, lineHeight: 28 },
+  greetSub: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textSub, marginTop: 2 },
+  xpPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderWidth: 2, borderColor: '#FCD34D', backgroundColor: '#FFFBEB',
+    borderRadius: 24, paddingLeft: 6, paddingRight: 14, paddingVertical: 5,
   },
-  heroFrame: {
-    width: '100%',
+  xpPillIcon: {
+    width: 24, height: 24, borderRadius: 12, backgroundColor: '#F59E0B',
+    alignItems: 'center', justifyContent: 'center',
   },
-  heroGlassCard: {
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    alignItems: 'center',
+  xpPillText: { fontFamily: FONTS.semiBold, fontSize: 15, color: GOLD_TEXT },
+
+  // Generic card
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24, borderWidth: 1, borderColor: LINE,
+    padding: 18,
+    shadowColor: '#0C2461', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 2,
   },
-  ringInner: {
-    position: 'absolute',
-    justifyContent: 'center',
-    alignItems: 'center',
-    top: 0, bottom: 0, left: 0, right: 0,
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
+  cardTitle: { flex: 1, fontFamily: FONTS.semiBold, fontSize: 17, color: COLORS.navy },
+  countBubble: {
+    minWidth: 36, height: 36, borderRadius: 18, paddingHorizontal: 8,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 3,
   },
-  rankIcon: { marginBottom: 2 },
-  levelLabel: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 12,
-    letterSpacing: 2,
-    lineHeight: 14,
+  countBubbleText: { fontFamily: FONTS.bold, fontSize: 15, color: '#FFFFFF' },
+  chip: { backgroundColor: '#F1F5F9', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start' },
+  chipText: { fontFamily: FONTS.semiBold, fontSize: 11, color: COLORS.textMuted },
+
+  // List rows
+  listRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 14 },
+  listRowDivider: { borderBottomWidth: 1, borderBottomColor: LINE },
+  statusCircle: {
+    width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#94A3B8',
+    alignItems: 'center', justifyContent: 'center', marginTop: 1,
   },
-  levelNumber: {
-    fontFamily: FONTS.bold,
-    fontSize: 56,
-    lineHeight: 60,
+  listTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  listTitle: { fontFamily: FONTS.medium, fontSize: 15, color: COLORS.navy, lineHeight: 20 },
+  listTagline: { fontFamily: FONTS.regular, fontStyle: 'italic', fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
+  listMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
+
+  // Level card
+  levelCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 24, borderWidth: 1.5, padding: 18,
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 14, elevation: 4,
   },
-  rankTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 15,
-    letterSpacing: 0.6,
-    marginTop: 0,
-    lineHeight: 18,
-    textAlign: 'center',
+  levelTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  levelChipRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  rankChip: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
+  rankChipText: { fontFamily: FONTS.semiBold, fontSize: 12, color: '#FFFFFF', letterSpacing: 1.2 },
+  levelSmall: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textSub },
+  levelTitle: { fontFamily: FONTS.semiBold, fontSize: 19, color: COLORS.navy, marginTop: 10, lineHeight: 24 },
+  levelTagline: { fontFamily: FONTS.regular, fontStyle: 'italic', fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
+  levelLabels: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 },
+  levelLabel: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textSub },
+  levelXp: { fontFamily: FONTS.semiBold, fontSize: 13 },
+  levelEnd: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textSub, marginTop: -4 },
+  levelTrack: { height: 18, justifyContent: 'center', marginTop: 8 },
+  levelTrackBg: { position: 'absolute', left: 0, right: 0, height: 8, borderRadius: 4 },
+  levelFill: { position: 'absolute', left: 0, height: 8, borderRadius: 4 },
+  levelThumb: {
+    position: 'absolute', width: 18, height: 18, borderRadius: 9, marginLeft: -9,
+    backgroundColor: '#FFFFFF', borderWidth: 3,
   },
-  xpSubtext: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 13,
-    color: COLORS.textSub,
-    marginTop: 12,
-    letterSpacing: 0.4,
-    lineHeight: 16,
+
+  // Next rank card
+  nextTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  nextLabel: { flex: 1, fontFamily: FONTS.semiBold, fontSize: 16, color: COLORS.navy },
+  nextValueBox: {
+    backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8,
   },
-  milestoneRibbon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    gap: 8,
-    marginTop: 14,
-  },
-  milestoneRibbonText: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 0.3, lineHeight: 15, flexShrink: 1 },
+  nextValue: { fontFamily: FONTS.bold, fontSize: 17, color: GOLD_TEXT, letterSpacing: 0.5 },
+  nextBody: { flexDirection: 'row', alignItems: 'center', marginTop: 14 },
+  nextTitle: { fontFamily: FONTS.semiBold, fontSize: 15, color: COLORS.navy },
+  nextSub: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMuted, marginTop: 3 },
+  tierSegments: { flexDirection: 'row', gap: 6, marginTop: 16 },
+  tierSegment: { flex: 1, height: 8, borderRadius: 4 },
 
   // Stats
-  statsSection: { paddingHorizontal: 16, marginBottom: 16 },
-  statsGrid: { flexDirection: 'row', gap: 8 },
-  statFrame: { borderRadius: RADIUS.md },
-  statCardBody: { paddingVertical: 10, paddingHorizontal: 6, alignItems: 'center' },
-  statIcon: { marginBottom: 4 },
-  statValue: { fontFamily: FONTS.bold, fontSize: 19, lineHeight: 22 },
-  statLabel: { fontFamily: FONTS.semiBold, fontSize: 11, color: COLORS.textMuted, textAlign: 'center', marginTop: 2, letterSpacing: 0.3, lineHeight: 13 },
+  statsCard: { flexDirection: 'row', paddingVertical: 14, paddingHorizontal: 6 },
+  statCell: { flex: 1, alignItems: 'center', gap: 3 },
+  statCellDivider: { borderLeftWidth: 1, borderLeftColor: LINE },
+  statValue: { fontFamily: FONTS.bold, fontSize: 18, lineHeight: 22 },
+  statLabel: { fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textMuted },
 
-  // Tabs
+  // Tabs (sit at the top of the card that holds their content)
+  tabCard: { paddingTop: 12 },
+  tabSection: { paddingTop: 16 },
+  tabSectionDivided: { marginTop: 16, borderTopWidth: 1, borderTopColor: LINE },
   tabBar: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    backgroundColor: 'rgba(255,255,255,0.94)',
-    borderRadius: RADIUS.pill,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    flexDirection: 'row', backgroundColor: '#F1F5F9',
+    borderRadius: RADIUS.pill, padding: 4,
   },
   tabBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    borderRadius: RADIUS.pill,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
+    flex: 1, paddingVertical: 9, paddingHorizontal: 4, borderRadius: RADIUS.pill,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
   },
   tabBtnActive: {
     backgroundColor: COLORS.accent,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2,
   },
-  tabBtnText: {
-    fontFamily: FONTS.bold,
-    fontSize: 13,
-    color: COLORS.textMuted,
-    letterSpacing: 0.3,
-    lineHeight: 16,
-  },
+  tabBtnText: { fontFamily: FONTS.semiBold, fontSize: 13, color: COLORS.textMuted, lineHeight: 16 },
   tabBtnTextActive: { color: '#FFFFFF', fontFamily: FONTS.bold },
 
-  // Section
-  section: { paddingHorizontal: 16, gap: 12 },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  badgeRarityRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
-  sectionTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 18,
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-    lineHeight: 22,
-  },
-  sectionTitleOnCard: {
-    color: COLORS.navy,
-  },
-  sectionBadge: {
-    backgroundColor: 'rgba(26,86,219,0.20)',
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-  },
-  sectionBadgeText: {
-    fontFamily: FONTS.bold,
-    fontSize: 11,
-    color: COLORS.accent,
-    letterSpacing: 0.3,
-    lineHeight: 14,
-  },
-
-  // Quest Card
-  questCard: {
-    padding: 16,
-  },
-  questCardComplete: {
-    backgroundColor: '#ECFDF5',
-  },
-  completedBadge: {
-    position: 'absolute',
-    top: 10, right: 10,
-    backgroundColor: 'rgba(16,185,129,0.20)',
-    borderWidth: 1,
-    borderColor: 'rgba(16,185,129,0.50)',
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  completedBadgeText: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: '#059669',
-    letterSpacing: 1,
-    lineHeight: 13,
-  },
-  questHeader: { flexDirection: 'row', alignItems: 'center' },
-  questIconWrap: {
-    width: 42, height: 42,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  questTitle: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.navy, lineHeight: 18 },
-  questTypePill: {
-    borderWidth: 1,
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  questTypeText: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1, lineHeight: 13 },
-  questSub: { fontFamily: FONTS.semiBold, fontSize: 12, color: COLORS.textMuted, marginTop: 2, lineHeight: 15 },
-  questPct: { fontFamily: FONTS.bold, fontSize: 16, lineHeight: 19 },
-
-  // Progress bar
-  progressBarBg: {
-    height: 8,
-    backgroundColor: 'rgba(15,23,42,0.08)',
-    borderRadius: 4,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  progressBarFill: { height: '100%', borderRadius: 4 },
-
-  // Milestone track
-  milestoneFrame: {
-    marginTop: 4,
-  },
-  milestoneSection: {
-    padding: 16,
-  },
-  milestoneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-  },
-  milestoneDot: {
-    width: 22, height: 22,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  milestoneReward: { fontFamily: FONTS.bold, fontSize: 13, lineHeight: 16 },
-  milestoneXp: { fontFamily: FONTS.semiBold, fontSize: 11, color: COLORS.textMuted, marginTop: 2, lineHeight: 14 },
-  achievedPill: {
-    borderWidth: 1,
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-  },
-  achievedText: { fontFamily: FONTS.bold, fontSize: 11, lineHeight: 14 },
-  milestoneGap: { fontFamily: FONTS.semiBold, fontSize: 11, color: COLORS.textFaint, lineHeight: 14 },
-
-  // Badges grid
+  // Collection grid
   badgesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
-    paddingHorizontal: 8,
+    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center',
+    gap: 16, paddingTop: 12,
   },
   badgeItem: { alignItems: 'center', width: 92 },
+  modelWrap: { width: 58, height: 58, borderRadius: 29, overflow: 'hidden' },
+  modelView: { flex: 1, backgroundColor: 'transparent' },
   rarityStrip: { height: 3, width: 44, borderRadius: 2, marginTop: 6, marginBottom: 4 },
-  badgeLabel: {
-    fontFamily: FONTS.bold,
-    fontSize: 12,
-    color: COLORS.navy,
-    textAlign: 'center',
-    lineHeight: 15,
-  },
-  badgeRarity: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    letterSpacing: 1,
-    marginTop: 2,
-    lineHeight: 13,
-  },
+  badgeLabel: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.navy, textAlign: 'center', lineHeight: 15 },
+  badgeRarityRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
+  badgeRarity: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1, marginTop: 2, lineHeight: 13 },
+  badgeSlot: { fontSize: 10, fontFamily: FONTS.medium, color: COLORS.textMuted, marginTop: 1 },
 
   // Empty state
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 32,
-    paddingHorizontal: 20,
-  },
-  emptyStateEmoji: { marginBottom: 12 },
-  emptyStateTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 16,
-    color: COLORS.navy,
-    marginBottom: 6,
-    lineHeight: 20,
-  },
-  emptyStateSub: {
-    fontFamily: FONTS.regular,
-    fontSize: 13,
-    color: COLORS.textSub,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
+  emptyState: { alignItems: 'center', paddingVertical: 20, paddingHorizontal: 8 },
+  emptyStateIcon: { marginBottom: 10 },
+  emptyStateTitle: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.navy, marginBottom: 6, lineHeight: 20 },
+  emptyStateSub: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textSub, textAlign: 'center', lineHeight: 18 },
   emptyHint: {
-    marginTop: 16,
-    backgroundColor: 'rgba(251,191,36,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(251,191,36,0.35)',
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    marginTop: 14, backgroundColor: 'rgba(251,191,36,0.12)',
+    borderWidth: 1, borderColor: 'rgba(251,191,36,0.35)', borderRadius: RADIUS.pill,
+    paddingHorizontal: 14, paddingVertical: 7,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
   },
-  emptyHintText: {
-    fontFamily: FONTS.bold,
-    fontSize: 12,
-    color: GOLD_TEXT,
-    textAlign: 'center',
-    lineHeight: 15,
-  },
+  emptyHintText: { fontFamily: FONTS.bold, fontSize: 12, color: GOLD_TEXT, textAlign: 'center', lineHeight: 15 },
 });

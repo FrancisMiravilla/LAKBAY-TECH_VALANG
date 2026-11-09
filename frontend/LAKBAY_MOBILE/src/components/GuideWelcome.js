@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GUIDE_FONTS } from '../constants/theme';
 
-// Home top: a short welcome floating over the Vinta backdrop. The guide's spoken
+// Home top: a short welcome floating over the hero photo. The guide's spoken
 // greeting lives in GuideGreetingModal, shown right after login.
 
 export default function GuideWelcome() {

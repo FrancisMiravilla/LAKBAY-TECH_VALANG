@@ -17,6 +17,7 @@ import {
 } from '../api/promotionService';
 import VintaStripe from '../components/VintaStripe';
 import LucideIcon from '../components/LucideIcon';
+import { useVintaRefresh, VintaRefreshIndicator } from '../components/VintaRefresh';
 
 import { useAppDialog } from '../components/useAppDialog';
 const getCuratorRank = (publishedCount) => {
@@ -49,8 +50,11 @@ export default function MyPromotionsScreen({ navigation }) {
     }, [])
   );
 
-  const fetchData = async () => {
-    setLoading(true);
+  const { refreshing, refreshControl } = useVintaRefresh(() => fetchData(true));
+
+  // silent: pull-to-refresh reloads in place instead of swapping in the loader.
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const [promoData, cost, walletData] = await Promise.all([
         getPromotions(),
@@ -494,7 +498,16 @@ export default function MyPromotionsScreen({ navigation }) {
             <ActivityIndicator size="large" color={COLORS.gold} />
             <Text style={styles.loadingText}>Syncing Curator Logbook...</Text>
           </View>
-        ) : promotions.length === 0 ? (
+        ) : (
+          <View style={{ flex: 1 }}>
+          <FlatList
+            data={promotions}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={renderItem}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={refreshControl}
+            ListEmptyComponent={(
           <VintaCard style={styles.emptyFrame} contentStyle={styles.emptyContainer}>
             <View style={styles.emptyIconWrap}>
               <Ionicons name="compass-outline" size={50} color={GOLD_TEXT} />
@@ -512,14 +525,9 @@ export default function MyPromotionsScreen({ navigation }) {
               <Text style={styles.emptySubmitBtnText}>Submit Your First Landmark</Text>
             </TouchableOpacity>
           </VintaCard>
-        ) : (
-          <FlatList
-            data={promotions}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={renderItem}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
+            )}
           />
+          </View>
         )}
 
         {/* ── Insufficient Coins Modal ── */}
@@ -668,6 +676,7 @@ export default function MyPromotionsScreen({ navigation }) {
             </VintaCard>
           </View>
         </Modal>
+        <VintaRefreshIndicator visible={refreshing} />
         {dialog}
       </SafeAreaView>
     </ImageBackground>
@@ -1194,8 +1203,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   emptyFrame: {
-    marginHorizontal: 16,
-    marginTop: 40,
+    marginTop: 30,
   },
   emptyContainer: {
     alignItems: 'center',

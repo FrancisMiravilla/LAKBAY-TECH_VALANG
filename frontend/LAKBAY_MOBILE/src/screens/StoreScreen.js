@@ -17,6 +17,7 @@ import {
 import { ORIGIN } from '../api/qrService';
 import VintaStripe from '../components/VintaStripe';
 import { useTabBarSpace } from '../navigation/tabBarLayout';
+import { useVintaRefresh, VintaRefreshIndicator } from '../components/VintaRefresh';
 
 import { useAppDialog } from '../components/useAppDialog';
 const { width } = Dimensions.get('window');
@@ -60,6 +61,8 @@ export default function StoreScreen({ navigation }) {
       fetchData();
     }, [])
   );
+
+  const { refreshing, refreshControl } = useVintaRefresh(() => fetchData());
 
   const fetchData = async () => {
     try {
@@ -240,8 +243,10 @@ export default function StoreScreen({ navigation }) {
         </View>
         <VintaStripe height={3} />
 
+        <View style={{ flex: 1 }}>
         <FlatList
           key="2col"
+          refreshControl={refreshControl}
           data={bundles}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={[styles.list, { paddingBottom: tabBarSpace }]}
@@ -273,6 +278,8 @@ export default function StoreScreen({ navigation }) {
           }
           ListEmptyComponent={<Text style={styles.emptyText}>No treasure bundles available right now.</Text>}
         />
+        <VintaRefreshIndicator visible={refreshing} />
+        </View>
 
         {/* ── QR Ph Payment Modal for Coin Bundle ── */}
         <Modal

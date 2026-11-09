@@ -13,6 +13,7 @@ import { authService } from '../api/authService';
 import { getMyScans, getSpots, getARTargets } from '../api/qrService';
 import VintaStripe from '../components/VintaStripe';
 import { useTabBarSpace } from '../navigation/tabBarLayout';
+import { useVintaRefresh, VintaRefreshIndicator } from '../components/VintaRefresh';
 
 import { useAppDialog } from '../components/useAppDialog';
 import { getCharacterDetails } from '../constants/characters';
@@ -104,16 +105,22 @@ function StatPill({ icon, value, label, color }) {
       <View style={[statStyles.iconWrap, { backgroundColor: color + '18', borderColor: color + '40' }]}>
         <LucideIcon name={icon} size={17} color={onWhite(color)} />
       </View>
-      <Text style={[statStyles.value, { color: onWhite(color) }]}>{value}</Text>
-      <Text style={statStyles.label}>{label}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={[statStyles.value, { color: onWhite(color) }]} numberOfLines={1}>{value}</Text>
+        <Text style={statStyles.label} numberOfLines={1}>{label}</Text>
+      </View>
     </View>
   );
 }
 const statStyles = StyleSheet.create({
-  pill:     { flex: 1, alignItems: 'center', gap: 5 },
+  pill:     {
+    width: '48%', flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: COLORS.bgCardAlt, borderRadius: 14, borderWidth: 1, borderColor: COLORS.borderLight,
+    paddingHorizontal: 10, paddingVertical: 10,
+  },
   iconWrap: { width: 34, height: 34, borderRadius: 10, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
   value:    { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.navy, lineHeight: 19 },
-  label:    { fontFamily: FONTS.semiBold, fontSize: 11, color: COLORS.textMuted, letterSpacing: 0.2, textAlign: 'center', lineHeight: 13, minHeight: 26 },
+  label:    { fontFamily: FONTS.semiBold, fontSize: 11, color: COLORS.textMuted, letterSpacing: 0.2, lineHeight: 14 },
 });
 
 // ─── Menu Item ────────────────────────────────────────────────────────────────
@@ -195,6 +202,7 @@ export default function ProfileScreen({ navigation }) {
   const [caughtIcons,     setCaughtIcons]     = useState([]);
   const [loading,         setLoading]        = useState(true);
 
+  const { refreshing, refreshControl } = useVintaRefresh(() => fetchData(true));
   const slideAnim = useRef(new Animated.Value(40)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
 
@@ -204,8 +212,9 @@ export default function ProfileScreen({ navigation }) {
     }, [])
   );
 
-  const fetchData = async () => {
-    setLoading(true);
+  // silent: reload in place (pull-to-refresh) without swapping in the loader.
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const [data, scansData, spotsData, collectedModelsStr, caughtIconsStr, storedUid, storedCatchUid] = await Promise.all([
         authService.getProfile(),
@@ -338,7 +347,12 @@ export default function ProfileScreen({ navigation }) {
         </View>
         <VintaStripe height={3} />
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scroll, { paddingBottom: tabBarSpace }]}>
+        <View style={{ flex: 1 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.scroll, { paddingBottom: tabBarSpace }]}
+          refreshControl={refreshControl}
+        >
 
           {loading ? (
             <View style={{ paddingTop: 60, alignItems: 'center', gap: 12 }}>
@@ -355,52 +369,55 @@ export default function ProfileScreen({ navigation }) {
                   <View style={styles.heroBackdropFade} />
                 </ProfileBackdrop>
 
-                {/* Avatar + XP Ring */}
-                <View style={styles.avatarWrapper}>
-                  <XPArc size={160} progressPct={progressPct} rank={rank} />
-                  {/* Decorated avatar sits inside the arc; the hat may rise above it */}
-                  <View style={styles.avatarInner}>
-                    <DecoratedAvatar
-                      character={profile?.chosen_character || profile?.character}
-                      size={96}
-                      hat={profile?.avatar_hat}
-                      frame={profile?.avatar_frame}
-                      pin={profile?.avatar_pin}
-                      reserveHatSpace={false}
-                    />
-                    {/* Rank badge on avatar */}
-                    <View style={[styles.rankBadge, { backgroundColor: rank.color, borderColor: rank.color + 'AA' }]}>
-                      <LucideIcon name={rank.icon} size={14} color="#FFFFFF" />
-                    </View>
-                  </View>
-                </View>
-
-                {/* Name & rank info */}
-                <Text style={styles.userName}>{profile?.full_name || '—'}</Text>
-
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                  <View style={[styles.rankPill, { borderColor: rank.color + '66', backgroundColor: rank.color + '22' }]}>
-                    <LucideIcon name={rank.icon} size={13} color={onWhite(rank.color)} />
-                    <Text style={[styles.rankPillText, { color: onWhite(rank.color) }]}>{rank.title}</Text>
-                  </View>
-                  <View style={styles.levelPill}>
-                    <Text style={styles.levelPillText}>LVL {level}</Text>
-                  </View>
-                </View>
-
-                {/* Explorer tag */}
-                <View style={styles.explorerTag}>
-                  <LucideIcon name="sparkle" size={11} color={GOLD_TEXT} />
-                  <Text style={styles.explorerTagText}>{profile?.in_game_name || 'Zamboanga Explorer'}</Text>
-                  <LucideIcon name="sparkle" size={11} color={GOLD_TEXT} />
-                </View>
-
-                {/* Companion chip */}
+                {/* Banner strip with the avatar centred on it; identity below, left-aligned */}
+                <View style={styles.heroBanner} />
+                {/* Companion: upper-right corner of the banner */}
                 <View style={styles.companionChip}>
                   <View style={styles.companionImgClip}>
                     <Image source={charDetails.image} style={{ width: '100%', height: '100%', transform: [{ scale: charDetails.zoom || 1 }] }} resizeMode="cover" />
                   </View>
-                  <Text style={styles.companionText}>Companion: <Text style={{ color: COLORS.accent, fontFamily: FONTS.bold }}>{charDetails.name}</Text></Text>
+                  <Text style={styles.companionText} numberOfLines={1}>{charDetails.name}</Text>
+                </View>
+                <View style={styles.identityRow}>
+                  <View style={styles.avatarWrapper}>
+                    <XPArc size={150} progressPct={progressPct} rank={rank} />
+                    {/* Decorated avatar sits inside the arc; the hat may rise above it */}
+                    <View style={styles.avatarInner}>
+                      <DecoratedAvatar
+                        character={profile?.chosen_character || profile?.character}
+                        size={92}
+                        hat={profile?.avatar_hat}
+                        frame={profile?.avatar_frame}
+                        pin={profile?.avatar_pin}
+                        reserveHatSpace={false}
+                      />
+                      <View style={[styles.rankBadge, { backgroundColor: rank.color, borderColor: rank.color + 'AA' }]}>
+                        <LucideIcon name={rank.icon} size={14} color="#FFFFFF" />
+                      </View>
+                    </View>
+                  </View>
+
+                  <View style={styles.identityText}>
+                    <Text style={styles.userName} numberOfLines={2}>{profile?.full_name || '—'}</Text>
+                    <View style={styles.explorerTag}>
+                      <LucideIcon name="sparkle" size={11} color={GOLD_TEXT} />
+                      <Text style={styles.explorerTagText} numberOfLines={1}>{profile?.in_game_name || 'Zamboanga Explorer'}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.heroBody}>
+                {/* Rank + level */}
+                <View style={styles.metaRow}>
+                  <View style={styles.metaLeft}>
+                    <View style={[styles.rankPill, { borderColor: rank.color + '66', backgroundColor: rank.color + '22' }]}>
+                      <LucideIcon name={rank.icon} size={13} color={onWhite(rank.color)} />
+                      <Text style={[styles.rankPillText, { color: onWhite(rank.color) }]} numberOfLines={1}>{rank.title}</Text>
+                    </View>
+                    <View style={styles.levelPill}>
+                      <Text style={styles.levelPillText}>LVL {level}</Text>
+                    </View>
+                  </View>
                 </View>
 
                 {/* XP progress bar */}
@@ -418,15 +435,13 @@ export default function ProfileScreen({ navigation }) {
                   </View>
                 </View>
 
-                {/* Stats row */}
+                {/* Stats: 2 × 2 grid, read left to right */}
                 <View style={styles.statsRow}>
                   <StatPill icon="search" value={scansCount.toString()}  label="QR Scanned"    color={COLORS.teal}   />
-                  <View style={styles.statDivider} />
                   <StatPill icon="camera" value={arDone.toString()}       label="AR Explored"   color={COLORS.accent} />
-                  <View style={styles.statDivider} />
                   <StatPill icon="target" value={caughtCount.toString()}  label="Models Caught" color="#E05A47"       />
-                  <View style={styles.statDivider} />
                   <StatPill icon="zap" value={xp.toLocaleString()}     label="Total XP"      color={COLORS.gold}   />
+                </View>
                 </View>
               </VintaCard>
 
@@ -460,10 +475,7 @@ export default function ProfileScreen({ navigation }) {
                       {i < MENU_OPTIONS.length - 1 && <View style={styles.menuSpacer} />}
                     </React.Fragment>
                   ))}
-                </VintaCard>
-
-                {/* Log out */}
-                <VintaCard style={{ marginTop: 12 }}>
+                  <View style={styles.menuSpacer} />
                   <MenuItem
                     item={{ id: 'logout', icon: 'door', label: 'Log Out', color: '#EF4444' }}
                     onPress={handleLogout}
@@ -484,6 +496,8 @@ export default function ProfileScreen({ navigation }) {
           )}
 
         </ScrollView>
+        <VintaRefreshIndicator visible={refreshing} />
+        </View>
         {dialog}
       </SafeAreaView>
     </ImageBackground>
@@ -544,24 +558,26 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   heroCard: {
-    paddingBottom: 22,
-    paddingTop: 24,
-    alignItems: 'center',
+    paddingBottom: 18,
   },
+  heroBanner: { height: 100 },
+  heroBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, height: 100, overflow: 'hidden' },
+  heroBackdropFade: { flex: 1, backgroundColor: 'rgba(255,255,255,0.12)' },
 
-  // Avatar
+  // Identity: avatar (left, overlapping the banner) + name (right)
+  identityRow: { alignItems: 'stretch', marginTop: -70 },
   avatarWrapper: {
-    width: 160, height: 160,
+    alignSelf: 'center',
+    width: 150, height: 150,
     justifyContent: 'center', alignItems: 'center',
-    marginBottom: 14,
   },
   avatarInner: {
     position: 'absolute',
-    width: 120, height: 120,
+    width: 114, height: 114,
     justifyContent: 'center', alignItems: 'center',
   },
-  heroBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, height: 150, overflow: 'hidden' },
-  heroBackdropFade: { flex: 1, backgroundColor: 'rgba(255,255,255,0.12)' },
+  identityText: { paddingHorizontal: 16, marginTop: 10, gap: 6 },
+  heroBody: { paddingHorizontal: 16 },
   rankBadge: {
     position: 'absolute', bottom: 2, left: 2,
     width: 28, height: 28, borderRadius: 14,
@@ -570,11 +586,11 @@ const styles = StyleSheet.create({
 
   // Name / rank
   userName: {
-    fontFamily: FONTS.bold, fontSize: 22,
-    color: COLORS.navy, letterSpacing: 0.5,
-    marginBottom: 8, lineHeight: 26,
-    textAlign: 'center',
+    fontFamily: FONTS.bold, fontSize: 20,
+    color: COLORS.navy, lineHeight: 24,
   },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14 },
+  metaLeft: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, flexShrink: 1 },
   rankPill: {
     borderWidth: 1, borderRadius: RADIUS.pill,
     paddingHorizontal: 12, paddingVertical: 4,
@@ -590,12 +606,12 @@ const styles = StyleSheet.create({
 
   // Explorer tag
   explorerTag: {
-    marginTop: 10,
+    alignSelf: 'flex-start',
     backgroundColor: 'rgba(251, 191, 36, 0.15)',
     borderWidth: 1, borderColor: 'rgba(251, 191, 36, 0.35)',
     borderRadius: RADIUS.pill,
-    paddingHorizontal: 16, paddingVertical: 6,
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 10, paddingVertical: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
   },
   explorerTagText: {
     fontFamily: FONTS.bold, fontSize: 13,
@@ -604,21 +620,21 @@ const styles = StyleSheet.create({
 
   // Companion chip
   companionChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    marginTop: 12,
+    position: 'absolute', top: 8, right: 8, maxWidth: '40%', zIndex: 2, elevation: 3,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: COLORS.bg,
     borderRadius: RADIUS.pill,
     borderWidth: 1, borderColor: COLORS.border,
-    paddingHorizontal: 12, paddingVertical: 6,
+    paddingHorizontal: 8, paddingVertical: 4,
   },
   companionImgClip: {
     width: 22, height: 22, borderRadius: 11,
     overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border,
   },
-  companionText: { fontFamily: FONTS.semiBold, fontSize: 12, color: COLORS.textSub, lineHeight: 15 },
+  companionText: { fontFamily: FONTS.semiBold, fontSize: 12, color: COLORS.textSub, lineHeight: 15, flexShrink: 1 },
 
   // XP bar
-  xpBarSection: { width: '88%', marginTop: 16, gap: 6 },
+  xpBarSection: { marginTop: 16, gap: 6 },
   xpBarRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
@@ -640,15 +656,8 @@ const styles = StyleSheet.create({
 
   // Stats row
   statsRow: {
-    flexDirection: 'row', width: '96%',
-    marginTop: 18, paddingTop: 16,
-    borderTopWidth: 1, borderTopColor: COLORS.borderLight,
-    alignItems: 'center',
-  },
-  statDivider: {
-    width: 1, height: 30,
-    backgroundColor: COLORS.borderLight,
-    marginHorizontal: 3,
+    flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10,
+    marginTop: 16,
   },
 
   // Achievement teaser
@@ -680,7 +689,10 @@ const styles = StyleSheet.create({
   menuSpacer: { height: 1, backgroundColor: COLORS.borderLight, marginHorizontal: 16 },
 
   // Footer
-  footer: { alignItems: 'center', marginTop: 24, gap: 3 },
+  footer: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: 24, marginHorizontal: 20,
+  },
   footerLogo: { fontFamily: FONTS.bold, fontSize: 15, color: 'rgba(255,255,255,0.85)', letterSpacing: 2 },
   footerVersion: { fontFamily: FONTS.semiBold, fontSize: 11, color: 'rgba(255,255,255,0.65)', lineHeight: 14 },
 });

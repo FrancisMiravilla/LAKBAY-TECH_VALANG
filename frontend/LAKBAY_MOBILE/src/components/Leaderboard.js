@@ -80,7 +80,7 @@ function PlayerRow({ player, last }) {
   );
 }
 
-export default function Leaderboard() {
+export default function Leaderboard({ refreshKey = 0 }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -97,7 +97,7 @@ export default function Leaderboard() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, refreshKey]);
 
   if (loading && !data) {
     return (

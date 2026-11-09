@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView, Dimensions, Animated, ImageBackground, StatusBar, ActivityIndicator,
+  View, Text, StyleSheet, TextInput, TouchableOpacity, Image, Animated, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LocationPickerMap } from '../components/map/LocationPickerMap';
@@ -8,14 +8,36 @@ import { Ionicons } from '@expo/vector-icons';
 import LucideIcon from '../components/LucideIcon';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, GOLD_TEXT, GUIDE_FONTS } from '../constants/theme';
 import VintaCard from '../components/VintaCard';
 import { submitPromotion, updatePromotion } from '../api/promotionService';
-import VintaStripe from '../components/VintaStripe';
+import ParallaxHeroLayout from '../components/ParallaxHeroLayout';
 import { useTabBarSpace } from '../navigation/tabBarLayout';
 
 import { useAppDialog } from '../components/useAppDialog';
-const { width: SCREEN_W } = Dimensions.get('window');
+
+// ─── Welcome message over the hero photo ─────────────────────────────────────
+function PromoteWelcome({ isEditing }) {
+  return (
+    <View style={welcomeStyles.wrap}>
+      <Text style={welcomeStyles.kicker}>{isEditing ? 'Edit Promotion' : 'Promote on LAKBAY'}</Text>
+      <Text style={welcomeStyles.title}>{isEditing ? 'Update Your Listing' : 'Promote Your Business'}</Text>
+      <Text style={welcomeStyles.line}>
+        {isEditing
+          ? 'Change the details, location or media of your promotion.'
+          : 'Put your business or favorite spot on the LAKBAY map so explorers across Zamboanga can find it.'}
+      </Text>
+    </View>
+  );
+}
+
+const TEXT_SHADOW = { textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 };
+const welcomeStyles = StyleSheet.create({
+  wrap: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 28, paddingBottom: 18 },
+  kicker: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 16, color: '#FFFFFF', textAlign: 'center', ...TEXT_SHADOW },
+  title: { fontFamily: GUIDE_FONTS.display, fontSize: 36, lineHeight: 44, color: '#FFFFFF', textAlign: 'center', marginTop: 4, ...TEXT_SHADOW },
+  line: { fontFamily: GUIDE_FONTS.medium, fontSize: 16, lineHeight: 24, color: '#FFFFFF', textAlign: 'center', marginTop: 8, ...TEXT_SHADOW },
+});
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
 const STEPS = [
@@ -59,15 +81,15 @@ function StepIndicator({ current }) {
 const stepStyles = StyleSheet.create({
   row:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 20 },
   item:         { alignItems: 'center', gap: 5 },
-  circle:       { width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, borderColor: 'rgba(99, 179, 237, 0.3)', justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(8, 20, 60, 0.60)' },
-  circleActive: { borderColor: COLORS.accent, backgroundColor: 'rgba(26, 86, 219, 0.35)', shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 8, elevation: 4 },
+  circle:       { width: 32, height: 32, borderRadius: 16, borderWidth: 1.5, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' },
+  circleActive: { borderColor: COLORS.accent, backgroundColor: COLORS.accent },
   circleDone:   { borderColor: COLORS.teal, backgroundColor: COLORS.teal },
-  num:          { fontFamily: FONTS.bold, fontSize: 13, color: 'rgba(191,215,255,0.7)' },
+  num:          { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.textMuted },
   numActive:    { color: '#FFFFFF' },
-  line:         { flex: 1, height: 2, backgroundColor: 'rgba(99, 179, 237, 0.20)', marginHorizontal: 8, marginBottom: 18 },
+  line:         { flex: 1, height: 2, backgroundColor: COLORS.border, marginHorizontal: 8, marginBottom: 18 },
   lineDone:     { backgroundColor: COLORS.teal },
-  label:        { fontFamily: FONTS.medium, fontSize: 10, color: 'rgba(191,215,255,0.60)', letterSpacing: 0.5 },
-  labelActive:  { color: '#FFFFFF', fontFamily: FONTS.bold },
+  label:        { fontFamily: FONTS.medium, fontSize: 10, color: COLORS.textMuted, letterSpacing: 0.5 },
+  labelActive:  { color: COLORS.navy, fontFamily: FONTS.bold },
 });
 
 // ─── Field label ─────────────────────────────────────────────────────────────
@@ -300,40 +322,48 @@ export default function PromoteScreen({ route, navigation }) {
   const locationPinned = !!location;
 
   return (
-    <ImageBackground
-      source={require('../../reference/VINTA.jpeg')}
-      style={styles.bgImage}
-      resizeMode="cover"
+    <ParallaxHeroLayout
+      hero={<PromoteWelcome isEditing={isEditing} />}
+      headerTitle={isEditing ? 'Edit Promotion' : 'Promote'}
+      header={isEditing && navigation.canGoBack() ? (
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+          <Ionicons name="arrow-back" size={20} color="#fff" />
+        </TouchableOpacity>
+      ) : null}
+      bottomSpace={tabBarSpace}
+      scrollProps={{ keyboardShouldPersistTaps: 'handled' }}
+      overlay={(
+        <>
+          {mapModalVisible && (
+            <View style={[StyleSheet.absoluteFill, { zIndex: 999, elevation: 10, backgroundColor: 'rgba(0,0,0,0.15)' }]}>
+              <SafeAreaView style={{ flex: 1 }}>
+                <View style={styles.modalHeader}>
+                  <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setMapModalVisible(false)}>
+                    <Ionicons name="close" size={20} color="#475569" />
+                  </TouchableOpacity>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={styles.modalTitle}>Set Target Coordinates</Text>
+                    <Text style={styles.modalSub}>Tap the map or search to pin your spot</Text>
+                  </View>
+                  <TouchableOpacity style={styles.modalConfirmBtn} onPress={confirmLocation}>
+                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                    <Text style={styles.modalConfirmText}>Lock In</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <LocationPickerMap value={tempLocation} onChange={setTempLocation} />
+                </View>
+              </SafeAreaView>
+            </View>
+          )}
+          {dialog}
+        </>
+      )}
     >
-      <View style={styles.bgOverlay} />
-
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          {isEditing && navigation.canGoBack() ? (
-            <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-              <Ionicons name="arrow-back" size={20} color="#fff" />
-            </TouchableOpacity>
-          ) : null}
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>{isEditing ? 'EDIT PROMOTION' : 'PROMOTE A SPOT'}</Text>
-            <Text style={styles.headerSub}>{isEditing ? 'UPDATE LANDMARK & 3D MODEL' : "SHARE ZAMBOANGA'S GEMS"}</Text>
-          </View>
-        </View>
-        <VintaStripe height={3} />
-
         {/* ── Step Indicator ── */}
-        <View style={styles.stepWrapper}>
-          <StepIndicator current={currentStep} />
-        </View>
+        <StepIndicator current={currentStep} />
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace }]}
-          keyboardShouldPersistTaps="handled"
-        >
+        <View style={styles.content}>
 
           {/* ── Info Banner ── */}
           <VintaCard style={styles.infoFrame} contentStyle={styles.infoBanner}>
@@ -551,91 +581,25 @@ export default function PromoteScreen({ route, navigation }) {
           </VintaCard>
 
           <View style={styles.footerNote}>
-            <Ionicons name="information-circle-outline" size={14} color="rgba(191,215,255,0.6)" />
+            <Ionicons name="information-circle-outline" size={14} color={COLORS.textMuted} />
             <Text style={styles.footerNoteText}>Coins are only deducted after your promotion has been approved.</Text>
           </View>
 
-        </ScrollView>
-
-        {/* ── Map Picker Overlay ── */}
-        {mapModalVisible && (
-          <View style={[StyleSheet.absoluteFill, { zIndex: 999, elevation: 10, backgroundColor: 'rgba(0,0,0,0.15)' }]}>
-            <SafeAreaView style={{ flex: 1 }}>
-              <View style={styles.modalHeader}>
-                <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setMapModalVisible(false)}>
-                  <Ionicons name="close" size={20} color="#475569" />
-                </TouchableOpacity>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.modalTitle}>Set Target Coordinates</Text>
-                  <Text style={styles.modalSub}>Tap the map or search to pin your spot</Text>
-                </View>
-                <TouchableOpacity style={styles.modalConfirmBtn} onPress={confirmLocation}>
-                  <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                  <Text style={styles.modalConfirmText}>Lock In</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={{ flex: 1 }}>
-                <LocationPickerMap value={tempLocation} onChange={setTempLocation} />
-              </View>
-            </SafeAreaView>
-          </View>
-        )}
-
-        {dialog}
-      </SafeAreaView>
-    </ImageBackground>
+        </View>
+    </ParallaxHeroLayout>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  bgImage: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  bgOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: BG_OVERLAY,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-
-  // Header
-  header: {
-    height: 64,
-    backgroundColor: 'rgba(8, 20, 60, 0.70)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(99, 179, 237, 0.20)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
   backBtn: {
-    width: 38, height: 38, borderRadius: 19, marginRight: 12,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: 'rgba(12,36,97,0.72)',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center', alignItems: 'center',
   },
-  headerTitle: {
-    fontFamily: FONTS.bold, fontSize: 20,
-    color: '#FFFFFF', letterSpacing: 2, lineHeight: 22,
-  },
-  headerSub: {
-    fontFamily: FONTS.semiBold, fontSize: 11,
-    color: 'rgba(191,215,255,0.70)', letterSpacing: 1.5, marginTop: 2, lineHeight: 14,
-  },
 
-  // Step
-  stepWrapper: {
-    backgroundColor: 'rgba(8, 20, 60, 0.40)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(99, 179, 237, 0.15)',
-  },
-
-  content: { padding: 16 },
+  content: { paddingHorizontal: 16, paddingTop: 4 },
 
   // Info banner
   infoFrame: {
@@ -835,7 +799,7 @@ const styles = StyleSheet.create({
     gap: 6, marginTop: 12,
   },
   footerNoteText: {
-    fontFamily: FONTS.regular, fontSize: 11, color: 'rgba(191,215,255,0.60)',
+    fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textMuted,
   },
 
   // Map modal

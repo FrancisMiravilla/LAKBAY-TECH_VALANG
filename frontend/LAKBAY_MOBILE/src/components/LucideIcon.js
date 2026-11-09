@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Amphora, Anchor, Award, Bell, Box, Brain, Camera, Check, CircleHelp, Compass, Crown,
+  Amphora, Anchor, Award, Bell, Box, Brain, Camera, Check, CircleCheck, CircleHelp, Compass, Crown,
   Dices, DoorOpen, Fish, Flame, Gamepad2, Gem, Globe, GraduationCap, HeartCrack, Landmark,
   Lightbulb, Lock, Map as MapIcon, MapPin, Medal, Megaphone, Palette, PartyPopper, Pencil,
   Puzzle, Rocket, Sailboat, Scroll, Search, Shield, Sparkle, Sparkles, Star, Swords, Target,
@@ -18,6 +18,7 @@ export const ICONS = {
   brain: Brain,
   camera: Camera,
   check: Check,
+  'circle-check': CircleCheck,
   help: CircleHelp,
   compass: Compass,
   crown: Crown,

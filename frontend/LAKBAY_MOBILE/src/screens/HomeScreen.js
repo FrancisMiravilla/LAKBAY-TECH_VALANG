@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   StyleSheet, Text, View, ScrollView, TouchableOpacity,
-  StatusBar, Animated, Image, ImageBackground, Dimensions,
+  Animated, Image,
 } from 'react-native';
-import { COLORS, FONTS, SHADOW, BG_OVERLAY, GOLD_TEXT, GUIDE_FONTS, onWhite } from '../constants/theme';
+import { COLORS, FONTS, SHADOW, GOLD_TEXT, GUIDE_FONTS, onWhite } from '../constants/theme';
 import VintaCard from '../components/VintaCard';
 import LucideIcon from '../components/LucideIcon';
 import PlaceDeck from '../components/PlaceDeck';
@@ -14,9 +13,9 @@ import { SPOT_TYPES } from '../constants/mapConfig';
 import { Ionicons } from '@expo/vector-icons';
 import CustomModal from '../components/CustomModal';
 import DailyStreakModal from '../components/DailyStreakModal';
-import VintaStripe from '../components/VintaStripe';
 import { useTabBarSpace, TAB_BAR_HEIGHT, TAB_BAR_GAP, TAB_BAR_SIDE_MARGIN } from '../navigation/tabBarLayout';
 import OnboardingTour from '../components/OnboardingTour';
+import ParallaxHeroLayout from '../components/ParallaxHeroLayout';
 import { WebView } from 'react-native-webview';
 import { useApp } from '../context/AppContext';
 import { getSpots, ORIGIN } from '../api/qrService';
@@ -24,7 +23,6 @@ import { getPublishedPromotions, getPromotions, getWallet } from '../api/promoti
 import { authService } from '../api/authService';
 import { streakService } from '../api/streakService';
 
-const { width: SW, height: SH } = Dimensions.get('window');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const formatImageUrl = (img) => {
@@ -146,8 +144,6 @@ const TOUR_STEPS = [
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function HomeScreen({ navigation, route }) {
   const tabBarSpace = useTabBarSpace();
-  const [heroFade]  = useState(() => new Animated.Value(0));
-  const [heroSlide] = useState(() => new Animated.Value(24));
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedQa, setSelectedQa] = useState(null);
   const [spots, setSpots] = useState([]);
@@ -191,6 +187,10 @@ export default function HomeScreen({ navigation, route }) {
     () => (selectedCategory === 'all' || selectedCategory === 'sponsored' ? promotedPlaces : []),
     [selectedCategory, promotedPlaces]
   );
+
+  // Rebuilt only when the pins change, so the 15 s refresh doesn't reload the map.
+  const miniMapHtml = useMemo(() => buildMiniMapHTML(spots, userLevel), [spots, userLevel]);
+  const miniMapSource = useMemo(() => ({ html: miniMapHtml, baseUrl: 'https://localhost' }), [miniMapHtml]);
 
   const openPlace = useCallback(
     (place) => navigation.navigate('Details', { destination: place.destination, userLevel }),
@@ -239,11 +239,10 @@ export default function HomeScreen({ navigation, route }) {
         typeIcon: 'megaphone',
         color: COLORS.gold,
         locked: false,
-        tiles: [
-          { icon: 'megaphone', label: 'Listing', value: 'Sponsored' },
-          { icon: 'pin', label: 'Location', value: p.is_place ? 'Place' : 'Business' },
-          { icon: 'compass', label: 'Activity', value: 'Visit & Discover' },
-          { icon: 'star', label: 'Status', value: 'Featured' },
+        subtitle: 'Promoted Place',
+        chips: [
+          { icon: 'megaphone', label: 'Sponsored' },
+          { icon: 'star', label: p.is_place ? 'Place' : 'Business' },
         ],
         destination: {
           title: p.spot_name,
@@ -269,11 +268,11 @@ export default function HomeScreen({ navigation, route }) {
         typeIcon: t.icon,
         color: t.color,
         locked: isLocked,
-        tiles: [
-          { icon: t.icon, label: 'Quest', value: (d.feature_types || [primaryType]).map((f) => f.toUpperCase()).join(' · ') },
-          { icon: 'zap', label: 'Reward', value: `+${d.xp_reward || 50} XP` },
-          { icon: isLocked ? 'lock' : 'shield', label: 'Level', value: isLocked ? `Locked · Lv ${d.required_level}` : `Lv ${d.required_level || 1}` },
-          { icon: 'pin', label: 'Location', value: d.location_name || 'Zamboanga City' },
+        subtitle: d.location_name || 'Zamboanga City',
+        chips: [
+          { icon: t.icon, label: (d.feature_types || [primaryType]).map((f) => f.toUpperCase()).join(' · ') },
+          { icon: 'zap', label: `+${d.xp_reward || 50} XP` },
+          ...(isLocked ? [{ icon: 'lock', label: `Lv ${d.required_level}` }] : []),
         ],
         destination: {
           id: d.id,
@@ -306,6 +305,7 @@ export default function HomeScreen({ navigation, route }) {
   const scrollYRef = useRef(0);
   const refs = { bellRef, statsRef, mapCardRef, qaRowRef, placesRef };
   const tourSteps = TOUR_STEPS.map((s) => (s.refKey ? { ...s, targetRef: refs[s.refKey] } : s));
+  const reloadRef = useRef(null);
 
   useEffect(() => {
     const fetchSpotsAndPromotions = async () => {
@@ -351,6 +351,7 @@ export default function HomeScreen({ navigation, route }) {
         console.log('Home fetch error', e);
       }
     };
+    reloadRef.current = fetchSpotsAndPromotions;
     fetchSpotsAndPromotions();
     const interval = setInterval(fetchSpotsAndPromotions, 15000);
 
@@ -397,13 +398,6 @@ export default function HomeScreen({ navigation, route }) {
     }
   };
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(heroFade,  { toValue: 1, duration: 800, useNativeDriver: true }),
-      Animated.timing(heroSlide, { toValue: 0, duration: 800, useNativeDriver: true }),
-    ]).start();
-  }, []);
-
   // Show the guide once the profile (IGN) is in, or after 3 s if it is slow.
   useEffect(() => {
     if (!greetingPending.current) return undefined;
@@ -446,64 +440,82 @@ export default function HomeScreen({ navigation, route }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const headerButtons = (
+    <>
+      <TouchableOpacity
+        ref={bellRef}
+        style={styles.headerBtn}
+        onPress={() => navigation.navigate('Notifications')}
+        accessibilityLabel="Notifications"
+      >
+        <Ionicons name="notifications-outline" size={20} color="#FFF" />
+        {notifs.some(n => !n.read) && <View style={styles.unreadBadge} />}
+      </TouchableOpacity>
+      <View ref={statsRef} collapsable={false} style={styles.statsPill}>
+        <LucideIcon name="zap" size={15} color={COLORS.gold} />
+        <Text style={styles.statsPillText}>{userXp.toLocaleString()}</Text>
+        <View style={styles.statsPillDivider} />
+        <Ionicons name="logo-bitcoin" size={15} color={COLORS.gold} />
+        <Text style={styles.statsPillText}>{(coins ?? 0).toLocaleString()}</Text>
+      </View>
+    </>
+  );
+
   return (
-    <ImageBackground
-      source={require('../../reference/VINTA.jpeg')}
-      style={styles.bgImage}
-      resizeMode="cover"
+    <ParallaxHeroLayout
+      hero={<GuideWelcome />}
+      header={headerButtons}
+      bottomSpace={tabBarSpace}
+      scrollRef={scrollRef}
+      onScrollY={(y) => { scrollYRef.current = y; }}
+      onRefresh={() => reloadRef.current?.()}
+      overlay={(
+        <>
+        <CustomModal
+          visible={modalVisible}
+          title={selectedQa ? selectedQa.title.replace('\n', ' ') : 'Feature Notice'}
+          message={selectedQa?.message}
+          icon={selectedQa?.icon}
+          color={selectedQa?.color}
+          onClose={() => setModalVisible(false)}
+          onProceed={() => {
+            setModalVisible(false);
+            if (selectedQa) navigation.navigate(selectedQa.route);
+          }}
+        />
+
+        <DailyStreakModal
+          visible={streakModalVisible}
+          streak={streakData.streak}
+          claimed={streakData.claimedToday}
+          loading={claimingStreak}
+          onClaim={handleClaimStreak}
+          onClose={() => setStreakModalVisible(false)}
+        />
+
+        <GuideSpeechModal
+          visible={greetingVisible}
+          steps={[{
+            text: `Mabuhay, ${profile?.in_game_name || 'Explorer'}! I'm your LAKBAY guide. Scan, catch and explore Zamboanga's heritage — I'll be with you every step.`,
+          }]}
+          onClose={closeGreeting}
+        />
+
+        <OnboardingTour
+          visible={showTour}
+          steps={tourSteps}
+          onFinish={finishTour}
+          scrollRef={scrollRef}
+          scrollYRef={scrollYRef}
+        />
+        </>
+      )}
     >
-      {/* Dark overlay for readability */}
-      <View style={styles.bgOverlay} />
-
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-
-        {/* ── Top bar: notifications + XP / coins ── */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            ref={bellRef}
-            style={styles.headerBtn}
-            onPress={() => navigation.navigate('Notifications')}
-            accessibilityLabel="Notifications"
-          >
-            <Ionicons name="notifications-outline" size={20} color="#FFF" />
-            {notifs.some(n => !n.read) && <View style={styles.unreadBadge} />}
-          </TouchableOpacity>
-          <View ref={statsRef} collapsable={false} style={styles.statsPill}>
-            <LucideIcon name="zap" size={15} color={COLORS.gold} />
-            <Text style={styles.statsPillText}>{userXp.toLocaleString()}</Text>
-            <View style={styles.statsPillDivider} />
-            <Ionicons name="logo-bitcoin" size={15} color={COLORS.gold} />
-            <Text style={styles.statsPillText}>{(coins ?? 0).toLocaleString()}</Text>
-          </View>
-        </View>
-        <VintaStripe height={4} />
-
-        <ScrollView
-          ref={scrollRef}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.scroll, { paddingBottom: tabBarSpace }]}
-          onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
-          scrollEventThrottle={16}
-        >
-          {/* ── Guide welcome ── */}
-          <Animated.View style={{ opacity: heroFade, transform: [{ translateY: heroSlide }] }}>
-            <GuideWelcome />
-          </Animated.View>
 
           {/* ── Choose Your Quest (category tiles) ── */}
           <View style={styles.section}>
             <View style={styles.placesHeader}>
-              <View style={styles.categoryTitleRow}>
-                <Text style={styles.guideSectionTitle}>Choose Your Quest</Text>
-                <View style={styles.countBadge}>
-                  <Text style={styles.countBadgeText}>{spots.length}</Text>
-                </View>
-              </View>
-              <TouchableOpacity onPress={() => navigation.navigate('Map')} hitSlop={8} style={styles.viewAllRow}>
-                <Text style={[styles.seeAllText, { fontFamily: GUIDE_FONTS.semiBold, fontSize: 13 }]}>View all</Text>
-                <Ionicons name="chevron-forward" size={14} color={COLORS.gold} />
-              </TouchableOpacity>
+              <Text style={styles.guideSectionTitle}>Choose Your Quest</Text>
             </View>
 
             <View ref={qaRowRef} collapsable={false} style={styles.catRow}>
@@ -548,18 +560,12 @@ export default function HomeScreen({ navigation, route }) {
                       <LucideIcon name="shield" size={13} color={COLORS.teal} />
                       <Text style={styles.featureChipText}>Lv {featuredSpot.required_level || 1}</Text>
                     </View>
-                    <View style={styles.flameBtn}>
-                      <LucideIcon name="flame" size={20} color="#F97316" />
-                    </View>
                   </View>
                   <View style={styles.featureBody}>
                     <Image source={GUIDE_IMAGE} style={styles.featureGuide} resizeMode="contain" />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.featureKicker}>{featuredSpot.is_featured ? 'Featured Quest' : 'Quest Unlocked'}</Text>
                       <Text style={styles.featureTitle} numberOfLines={2}>{featuredSpot.name}</Text>
-                      <Text style={styles.featureDesc} numberOfLines={3}>
-                        {featuredSpot.description || 'Visit this spot to discover its story and earn XP.'}
-                      </Text>
                     </View>
                   </View>
                   </Animated.View>
@@ -581,11 +587,7 @@ export default function HomeScreen({ navigation, route }) {
           {/* ── Explore Zamboanga (map preview) ── */}
           <View style={styles.section}>
             <View style={styles.placesHeader}>
-              <Text style={[styles.guideSectionTitle, { flex: 1 }]}>Explore Zamboanga</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Map')} hitSlop={8} style={styles.viewAllRow}>
-                <Text style={[styles.seeAllText, { fontFamily: GUIDE_FONTS.semiBold, fontSize: 13 }]}>Open map</Text>
-                <Ionicons name="chevron-forward" size={14} color={COLORS.gold} />
-              </TouchableOpacity>
+              <Text style={styles.guideSectionTitle}>Explore Zamboanga</Text>
             </View>
 
             <TouchableOpacity
@@ -595,7 +597,7 @@ export default function HomeScreen({ navigation, route }) {
               style={styles.mapCard}
             >
               <WebView
-                source={{ html: buildMiniMapHTML(spots, userLevel), baseUrl: 'https://localhost' }}
+                source={miniMapSource}
                 style={styles.map}
                 javaScriptEnabled
                 domStorageEnabled
@@ -605,19 +607,9 @@ export default function HomeScreen({ navigation, route }) {
                 pointerEvents="none"
               />
 
-              <View style={styles.mapTopRow} pointerEvents="none">
-                <View style={styles.mapGlassChip}>
-                  <LucideIcon name="pin" size={14} color="#FFFFFF" />
-                  <Text style={styles.mapGlassText}>Zamboanga City</Text>
-                </View>
-                <View style={styles.mapGlassRound}>
-                  <LucideIcon name="compass" size={18} color="#FFFFFF" />
-                </View>
-              </View>
-
               <View style={styles.mapPanel} pointerEvents="none">
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.mapPanelTitle}>{spots.length} heritage spots near you</Text>
+                  <Text style={styles.mapPanelTitle}>{spots.length} heritage spots</Text>
                   <View style={styles.mapLegend}>
                     {MAP_LEGEND.map((t) => (
                       <View key={t.key} style={styles.mapLegendItem}>
@@ -640,16 +632,7 @@ export default function HomeScreen({ navigation, route }) {
           {(promotedPlaces.length > 0 || spots.length > 0) && (
             <View ref={placesRef} collapsable={false} style={styles.section}>
               <View style={styles.placesHeader}>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.eyebrowRow}>
-                    <LucideIcon name="swords" size={11} color={COLORS.teal} />
-                    <Text style={styles.sectionEyebrow}>ACTIVE QUESTS</Text>
-                  </View>
-                  <Text style={styles.sectionTitle}>Places to Experience</Text>
-                </View>
-                <TouchableOpacity onPress={() => navigation.navigate('Map')} hitSlop={8}>
-                  <Text style={styles.seeAllText}>See All</Text>
-                </TouchableOpacity>
+                <Text style={styles.guideSectionTitle}>Places to Experience</Text>
               </View>
 
               <ScrollView
@@ -667,7 +650,7 @@ export default function HomeScreen({ navigation, route }) {
                       onPress={() => setSelectedCategory(tab.id)}
                     >
                       <Text style={[styles.placeChipText, isActive && styles.placeChipTextActive]}>
-                        {tab.label} · {tab.count}
+                        {tab.label}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -678,9 +661,7 @@ export default function HomeScreen({ navigation, route }) {
                 <VintaCard style={styles.categoryEmptyFrame} contentStyle={styles.categoryEmptyCard}>
                   <Ionicons name="compass-outline" size={38} color={COLORS.textFaint} />
                   <Text style={styles.categoryEmptyTitle}>No Quests Found</Text>
-                  <Text style={styles.categoryEmptySub}>
-                    There are currently no active spots in this category. Check back soon for new expeditions!
-                  </Text>
+                  <Text style={styles.categoryEmptySub}>Check back soon.</Text>
                 </VintaCard>
               ) : (
                 <PlaceDeck
@@ -690,85 +671,18 @@ export default function HomeScreen({ navigation, route }) {
               )}
             </View>
           )}
-
-        </ScrollView>
-
-        <CustomModal
-          visible={modalVisible}
-          title={selectedQa ? selectedQa.title.replace('\n', ' ') : 'Feature Notice'}
-          message={selectedQa?.message}
-          icon={selectedQa?.icon}
-          color={selectedQa?.color}
-          onClose={() => setModalVisible(false)}
-          onProceed={() => {
-            setModalVisible(false);
-            if (selectedQa) navigation.navigate(selectedQa.route);
-          }}
-        />
-
-        <DailyStreakModal
-          visible={streakModalVisible}
-          streak={streakData.streak}
-          claimed={streakData.claimedToday}
-          loading={claimingStreak}
-          onClaim={handleClaimStreak}
-          onClose={() => setStreakModalVisible(false)}
-        />
-
-        <GuideSpeechModal
-          visible={greetingVisible}
-          steps={[{
-            text: `Mabuhay, ${profile?.in_game_name || 'Explorer'}! I'm your LAKBAY guide. Scan, catch and explore Zamboanga's heritage — I'll be with you every step.`,
-          }]}
-          onClose={closeGreeting}
-        />
-
-        <OnboardingTour
-          visible={showTour}
-          steps={tourSteps}
-          onFinish={finishTour}
-          scrollRef={scrollRef}
-          scrollYRef={scrollYRef}
-        />
-      </SafeAreaView>
-    </ImageBackground>
+    </ParallaxHeroLayout>
   );
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
 
-  // Background
-  bgImage: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  bgOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: BG_OVERLAY,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-
-  // ── Header ──────────────────────────────────────────────────────────
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    height: 64,
-    backgroundColor: 'rgba(8, 20, 60, 0.70)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(99, 179, 237, 0.20)',
-  },
   headerBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(12,36,97,0.72)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
@@ -793,20 +707,13 @@ const styles = StyleSheet.create({
   },
   statsPill: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 22,
+    backgroundColor: 'rgba(12,36,97,0.72)', borderRadius: 22,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
-    paddingHorizontal: 14, paddingVertical: 8,
+    paddingHorizontal: 12, paddingVertical: 6,
   },
   statsPillText: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 14, color: '#FFFFFF' },
   statsPillDivider: { width: 1, height: 16, backgroundColor: 'rgba(255,255,255,0.3)', marginHorizontal: 4 },
-  guideSectionTitle: { fontFamily: GUIDE_FONTS.bold, fontSize: 19, color: '#FFFFFF' },
-  categoryTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  countBadge: {
-    minWidth: 30, height: 26, borderRadius: 13, paddingHorizontal: 8,
-    backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center',
-  },
-  countBadgeText: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 13, color: '#FFFFFF' },
-  viewAllRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  guideSectionTitle: { fontFamily: GUIDE_FONTS.bold, fontSize: 19, color: COLORS.navy },
   catRow: { flexDirection: 'row', gap: 10 },
   catTile: {
     flex: 1, height: 108, borderRadius: 20, borderWidth: 1,
@@ -822,11 +729,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5,
   },
   featureChipText: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 12, color: COLORS.navy },
-  flameBtn: {
-    marginLeft: 'auto', width: 42, height: 42, borderRadius: 21,
-    backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: COLORS.border,
-  },
   featureBody: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 4 },
   featureGuide: { width: 112, height: 140, marginLeft: -8, marginBottom: -14 },
   featureDots: { flexDirection: 'row', justifyContent: 'flex-end', gap: 5, marginTop: 10 },
@@ -834,25 +736,10 @@ const styles = StyleSheet.create({
   featureDotActive: { width: 18, backgroundColor: '#D97706' },
   featureKicker: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 12, color: '#D97706' },
   featureTitle: { fontFamily: GUIDE_FONTS.bold, fontSize: 22, lineHeight: 27, color: COLORS.navy, marginTop: 2 },
-  featureDesc: { fontFamily: GUIDE_FONTS.regular, fontSize: 12, lineHeight: 18, color: COLORS.textSub, marginTop: 4 },
   mapCard: {
     height: 250, borderRadius: 28, overflow: 'hidden',
     borderWidth: 3, borderColor: '#FFFFFF', backgroundColor: '#DDE7F5',
     ...SHADOW.card,
-  },
-  mapTopRow: {
-    position: 'absolute', top: 12, left: 12, right: 12,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-  },
-  mapGlassChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(12,36,97,0.72)', borderRadius: 18,
-    paddingHorizontal: 12, paddingVertical: 7,
-  },
-  mapGlassText: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 12, color: '#FFFFFF' },
-  mapGlassRound: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'rgba(12,36,97,0.72)', alignItems: 'center', justifyContent: 'center',
   },
   mapPanel: {
     position: 'absolute', left: 10, right: 10, bottom: 10,
@@ -872,7 +759,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 3, borderBottomColor: COLORS.accentDark,
   },
   placesHeader: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12 },
-  seeAllText: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.gold, marginBottom: 2 },
   placeChips: { gap: 8, paddingBottom: 6, paddingRight: 8 },
   placeChip: {
     paddingHorizontal: 18, paddingVertical: 10, borderRadius: 22,
@@ -881,20 +767,6 @@ const styles = StyleSheet.create({
   placeChipActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
   placeChipText: { fontFamily: FONTS.semiBold, fontSize: 13, color: COLORS.textSub },
   placeChipTextActive: { color: '#FFFFFF', fontFamily: FONTS.bold },
-  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  sectionEyebrow: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 9,
-    color: COLORS.teal,
-    letterSpacing: 2.5,
-    textTransform: 'uppercase',
-    marginBottom: 1,
-  },
-  sectionTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 16,
-    color: '#FFFFFF',
-  },
 
   map: {
     flex: 1,
