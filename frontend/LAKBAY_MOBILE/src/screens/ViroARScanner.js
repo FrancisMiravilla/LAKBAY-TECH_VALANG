@@ -37,6 +37,7 @@ import { getARTargets, ORIGIN, logActivity } from '../api/qrService';
 import { authService } from '../api/authService';
 import ARGuideCenterPopup from '../components/ARGuideCenterPopup';
 import HintCompass from '../components/HintCompass';
+import MiniCompass from '../components/MiniCompass';
 import GuideSpeechModal from '../components/GuideSpeechModal';
 import LucideIcon from '../components/LucideIcon';
 
@@ -274,23 +275,26 @@ export default function ViroARScanner({ navigation }) {
     }
   }, [rewardModalData]);
 
-  // Hint auto-popup: If tourist hasn't found art in 12s, popup the 3D Character Guide in the center
+  // Clue auto-popup: once the player has finished the intro steps, if no artwork
+  // is found within 10 s the guide pops up with a clue (once per visit).
+  const autoClueShownRef = React.useRef(false);
   React.useEffect(() => {
+    if (showInstructionModal || autoClueShownRef.current) return;
     if (!sceneMountReady || arStatus !== 'ready' || loading || arTargets.length === 0) return;
-    
+    if (detectedSpot || rewardModalData || showGuideCenterPopup || showHintModal) return;
+
     const targetsWithHints = arTargets.filter(t => t.hint && t.hint.trim().length > 0);
     if (targetsWithHints.length === 0) return;
 
     const timer = setTimeout(() => {
-      if (!detectedSpot && !rewardModalData) {
-        const chosen = targetsWithHints[Math.floor(Math.random() * targetsWithHints.length)];
-        setActiveGuideTarget(chosen);
-        setShowGuideCenterPopup(true);
-      }
-    }, 12000);
+      autoClueShownRef.current = true;
+      const chosen = targetsWithHints[Math.floor(Math.random() * targetsWithHints.length)];
+      setActiveGuideTarget(chosen);
+      setShowGuideCenterPopup(true);
+    }, 10000);
 
     return () => clearTimeout(timer);
-  }, [sceneMountReady, arStatus, loading, arTargets, detectedSpot, rewardModalData]);
+  }, [showInstructionModal, sceneMountReady, arStatus, loading, arTargets, detectedSpot, rewardModalData, showGuideCenterPopup, showHintModal]);
 
   React.useEffect(() => {
     (async () => {
@@ -689,6 +693,9 @@ export default function ViroARScanner({ navigation }) {
           </VintaCard>
         </View>
       </Modal>
+
+      {/* ── Small always-on compass (upper left) so N/E/S/W in clues make sense ── */}
+      {arStatus === 'ready' && !compassTarget && <MiniCompass style={styles.miniCompass} />}
 
       {/* ── Compass guide toward the side of the building named in the hint ── */}
       {compassTarget && !detectedSpot && (
@@ -1441,6 +1448,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   hintGuideBtnText: { fontFamily: FONTS.bold, fontSize: 13, color: '#FFF' },
+  miniCompass: { position: 'absolute', top: 108, left: 16, zIndex: 9 },
   hintHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
