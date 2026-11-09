@@ -20,20 +20,21 @@ import { authService } from '../api/authService';
 import ErrorModal from '../components/ErrorModal';
 import VintaStripe from '../components/VintaStripe';
 import { ARNavCards, ARGroundPath, ARRoundButtons } from '../components/ARGuidance';
-import LucideIcon from '../components/LucideIcon';
-import { Svg, Polygon, Path, Circle, G, Defs, LinearGradient, Stop, Line } from 'react-native-svg';
+import GuideBubble from '../components/GuideBubble';
+import { Svg, Polygon, Path, Circle, G, Defs, LinearGradient, Stop, Line, Rect, ClipPath } from 'react-native-svg';
 
 const { width: W, height: H } = Dimensions.get('window');
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const CATCH_RADIUS_METERS = 50;      // proximity sheet unlocks within 50 m of a spot
-const SIGHT_RADIUS_METERS = 15;      // the model comes into view (small) within 15 m
-const ARRIVE_RADIUS_METERS = 10;     // close enough to throw the net within 10 m
-const FULL_SIZE_METERS = 3;          // the model reaches full size this close
+const SIGHT_RADIUS_METERS = 10;      // the treasure chest comes into view (small) within 10 m
+const OPEN_RADIUS_METERS = 5;        // close enough to open the chest (and catch) within 5 m
+const FULL_SIZE_METERS = 2;          // the chest reaches full size this close
 const FAR_MODEL_SCALE = 0.3;         // model size at the edge of sight
 const CAMERA_HFOV_DEG = 60;          // approx. horizontal field of view of a phone camera
 const ANCHOR_FREEZE_METERS = 6;      // closer than this, GPS bearing is noise: keep the last anchor
 const MAX_GPS_ACCURACY_METERS = 50;  // ignore GPS fixes less precise than this (they point the arrow randomly)
+const PANEL_CLEARANCE = 210;         // keep the ground path above the bottom panel
 
 // Net throw: swipe up from the net to throw it at the drifting model.
 const NET_SIZE = 168;
@@ -134,92 +135,6 @@ function buildARViewerHTML(modelUrl) {
 </html>`;
 }
 
-// ─── Mini 3D model HTML for ProximitySheet ────────────────────────────────────
-function buildMiniViewerHTML(modelUrl, color) {
-  const safe = String(modelUrl).replace(/"/g, '&quot;');
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box;}
-    html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
-    model-viewer{
-      width:100%;height:100%;
-      --progress-bar-color:transparent;
-      background:transparent;
-    }
-  </style>
-</head>
-<body>
-  <model-viewer
-    src="${safe}"
-    auto-rotate
-    auto-rotate-delay="0"
-    rotation-per-second="30deg"
-    camera-orbit="0deg 80deg auto"
-    exposure="1.2"
-    shadow-intensity="0"
-    style="width:100%;height:100%;background:transparent;"
-    camera-controls="false"
-    interaction-prompt="none"
-  ></model-viewer>
-</body>
-</html>`;
-}
-
-// ─── AR HUD: Scanning Line ────────────────────────────────────────────────────
-function ScanLine({ color }) {
-  const scanAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(scanAnim, { toValue: 1, duration: 2200, useNativeDriver: true }),
-        Animated.timing(scanAnim, { toValue: 0, duration: 0, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
-  const translateY = scanAnim.interpolate({ inputRange: [0, 1], outputRange: [0, H * 0.72] });
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        arHudStyles.scanLine,
-        { borderColor: color, shadowColor: color, transform: [{ translateY }] },
-      ]}
-    />
-  );
-}
-
-// ─── AR HUD: Corner Brackets ──────────────────────────────────────────────────
-function CornerBrackets({ color }) {
-  const scaleAnim = useRef(new Animated.Value(0.88)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(scaleAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
-        Animated.timing(scaleAnim, { toValue: 0.88, duration: 1200, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
-  const c = color;
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[StyleSheet.absoluteFill, arHudStyles.bracketsWrap, { transform: [{ scale: scaleAnim }] }]}
-    >
-      {/* Top-left */}
-      <View style={[arHudStyles.corner, arHudStyles.cornerTL, { borderColor: c }]} />
-      {/* Top-right */}
-      <View style={[arHudStyles.corner, arHudStyles.cornerTR, { borderColor: c }]} />
-      {/* Bottom-left */}
-      <View style={[arHudStyles.corner, arHudStyles.cornerBL, { borderColor: c }]} />
-      {/* Bottom-right */}
-      <View style={[arHudStyles.corner, arHudStyles.cornerBR, { borderColor: c }]} />
-    </Animated.View>
-  );
-}
 
 // ─── AR HUD: Floating Particles ──────────────────────────────────────────────
 function FloatingParticles({ color }) {
@@ -233,37 +148,39 @@ function FloatingParticles({ color }) {
   ];
   return (
     <>
-      {PARTICLES.map((p, i) => {
-        const anim = useRef(new Animated.Value(0)).current;
-        useEffect(() => {
-          Animated.loop(
-            Animated.sequence([
-              Animated.delay(p.delay),
-              Animated.timing(anim, { toValue: 1, duration: p.dur, useNativeDriver: true }),
-              Animated.timing(anim, { toValue: 0, duration: p.dur, useNativeDriver: true }),
-            ])
-          ).start();
-        }, []);
-        const opacity = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.1, 0.8, 0.1] });
-        const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [0, -18] });
-        return (
-          <Animated.View
-            key={i}
-            pointerEvents="none"
-            style={[
-              arHudStyles.particle,
-              {
-                left: p.x, top: p.y,
-                width: p.size, height: p.size, borderRadius: p.size / 2,
-                backgroundColor: color,
-                opacity,
-                transform: [{ translateY }],
-              },
-            ]}
-          />
-        );
-      })}
+      {PARTICLES.map((p, i) => <Particle key={i} p={p} color={color} />)}
     </>
+  );
+}
+
+// One particle per component so its animation hooks run at the top level.
+function Particle({ p, color }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.delay(p.delay),
+        Animated.timing(anim, { toValue: 1, duration: p.dur, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0, duration: p.dur, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+  const opacity = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.1, 0.8, 0.1] });
+  const translateY = anim.interpolate({ inputRange: [0, 1], outputRange: [0, -18] });
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        arHudStyles.particle,
+        {
+          left: p.x, top: p.y,
+          width: p.size, height: p.size, borderRadius: p.size / 2,
+          backgroundColor: color,
+          opacity,
+          transform: [{ translateY }],
+        },
+      ]}
+    />
   );
 }
 
@@ -368,109 +285,174 @@ function ConfettiCannon() {
   );
 }
 
-// ─── Treasure Chest Reveal ───────────────────────────────────────────────────
-const CHEST_W = W * 0.52;
-const CHEST_LID_H = CHEST_W * 0.36;
-const CHEST_BASE_H = CHEST_W * 0.52;
-const CHEST_WAIT_MS = 2000;
-const CHEST_OPEN_MS = 650;
+// ─── Treasure Chest (cartoon chest: red-brown planks, gold trim, big padlock) ─
+const CHEST_W = W * 0.46;
+const CHEST_LID_H = CHEST_W * 0.40;
+const CHEST_BASE_H = CHEST_W * 0.50;
+const CHEST_OPEN_MS = 700;
+const LOCK_W = CHEST_W * 0.2;
+const LOCK_H = LOCK_W * 1.45;
+// The chest sits just under where the model floats, so the model rises out of it.
+const CHEST_TOP = H * 0.22 + W * 0.75 - CHEST_LID_H * 0.5;
+const BEAM_H = W * 0.62;
+
+const GOLD = '#F6B820';
+const GOLD_DARK = '#B9770E';
+const OUTLINE = '#3B1A0A';
 
 function ChestLid() {
+  const dome = 'M6 80 L6 42 Q6 6 42 6 L158 6 Q194 6 194 42 L194 80 Z';
   return (
-    <Svg width={CHEST_W} height={CHEST_LID_H} viewBox="0 0 200 72">
+    <Svg width={CHEST_W} height={CHEST_LID_H} viewBox="0 0 200 80">
       <Defs>
         <LinearGradient id="lidWood" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#B8692E" />
-          <Stop offset="1" stopColor="#7A3E14" />
+          <Stop offset="0" stopColor="#D2602E" />
+          <Stop offset="1" stopColor="#93361A" />
         </LinearGradient>
+        <ClipPath id="lidClip"><Path d={dome} /></ClipPath>
       </Defs>
-      <Path d="M2 72 L2 36 Q2 2 36 2 L164 2 Q198 2 198 36 L198 72 Z" fill="url(#lidWood)" stroke="#4A230A" strokeWidth="3" />
-      <Path d="M30 72 L30 4 L46 3 L46 72 Z" fill="#F4C542" stroke="#9A6B12" strokeWidth="2" />
-      <Path d="M154 72 L154 3 L170 4 L170 72 Z" fill="#F4C542" stroke="#9A6B12" strokeWidth="2" />
-      <Path d="M2 60 L198 60 L198 72 L2 72 Z" fill="#F4C542" stroke="#9A6B12" strokeWidth="2" />
-      <Path d="M20 20 Q60 8 100 10" stroke="rgba(255,255,255,0.35)" strokeWidth="4" fill="none" strokeLinecap="round" />
+      <Path d={dome} fill="url(#lidWood)" />
+      <G clipPath="url(#lidClip)">
+        {/* planks */}
+        <Line x1="0" y1="30" x2="200" y2="30" stroke="#7A2A10" strokeWidth="3" />
+        <Line x1="0" y1="54" x2="200" y2="54" stroke="#7A2A10" strokeWidth="3" />
+        <Path d="M30 20 Q70 12 110 14" stroke="rgba(255,255,255,0.28)" strokeWidth="5" fill="none" strokeLinecap="round" />
+        {/* gold side frames, centre band and bottom rim */}
+        <Rect x="0" y="0" width="26" height="80" fill={GOLD} />
+        <Rect x="174" y="0" width="26" height="80" fill={GOLD} />
+        <Rect x="91" y="0" width="18" height="80" fill={GOLD} />
+        <Rect x="0" y="68" width="200" height="12" fill={GOLD} />
+        <Rect x="10" y="0" width="5" height="68" fill="rgba(255,255,255,0.45)" />
+        <Rect x="95" y="0" width="4" height="68" fill="rgba(255,255,255,0.45)" />
+        <Line x1="26" y1="0" x2="26" y2="68" stroke={GOLD_DARK} strokeWidth="2" />
+        <Line x1="174" y1="0" x2="174" y2="68" stroke={GOLD_DARK} strokeWidth="2" />
+      </G>
+      <Path d={dome} fill="none" stroke={OUTLINE} strokeWidth="4" strokeLinejoin="round" />
     </Svg>
   );
 }
 
 function ChestBase() {
+  const body = 'M6 0 L194 0 L194 86 L6 86 Z';
   return (
-    <Svg width={CHEST_W} height={CHEST_BASE_H} viewBox="0 0 200 104">
+    <Svg width={CHEST_W} height={CHEST_BASE_H} viewBox="0 0 200 100">
       <Defs>
         <LinearGradient id="baseWood" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#9C5523" />
-          <Stop offset="1" stopColor="#5E2E0E" />
+          <Stop offset="0" stopColor="#A9542A" />
+          <Stop offset="1" stopColor="#6E2D12" />
         </LinearGradient>
+        <ClipPath id="baseClip"><Path d={body} /></ClipPath>
       </Defs>
-      <Path d="M2 0 L198 0 L198 98 Q198 102 194 102 L6 102 Q2 102 2 98 Z" fill="url(#baseWood)" stroke="#4A230A" strokeWidth="3" />
-      <Line x1="2" y1="40" x2="198" y2="40" stroke="#4A230A" strokeWidth="2" opacity="0.5" />
-      <Line x1="2" y1="72" x2="198" y2="72" stroke="#4A230A" strokeWidth="2" opacity="0.5" />
-      <Path d="M30 0 L46 0 L46 102 L30 102 Z" fill="#F4C542" stroke="#9A6B12" strokeWidth="2" />
-      <Path d="M154 0 L170 0 L170 102 L154 102 Z" fill="#F4C542" stroke="#9A6B12" strokeWidth="2" />
-      <Path d="M2 0 L198 0 L198 10 L2 10 Z" fill="#F4C542" stroke="#9A6B12" strokeWidth="2" />
-      <Path d="M86 4 L114 4 L114 34 Q100 44 86 34 Z" fill="#FCD34D" stroke="#9A6B12" strokeWidth="2.5" />
-      <Circle cx="100" cy="18" r="4.5" fill="#3B1A06" />
-      <Path d="M98 20 L102 20 L103 30 L97 30 Z" fill="#3B1A06" />
+      <Path d={body} fill="url(#baseWood)" />
+      <G clipPath="url(#baseClip)">
+        <Line x1="0" y1="34" x2="200" y2="34" stroke="#5A230C" strokeWidth="3" />
+        <Line x1="0" y1="60" x2="200" y2="60" stroke="#5A230C" strokeWidth="3" />
+        <Rect x="0" y="0" width="26" height="86" fill={GOLD} />
+        <Rect x="174" y="0" width="26" height="86" fill={GOLD} />
+        <Rect x="0" y="0" width="200" height="10" fill={GOLD} />
+        <Rect x="10" y="10" width="5" height="76" fill="rgba(255,255,255,0.45)" />
+        <Line x1="26" y1="10" x2="26" y2="86" stroke={GOLD_DARK} strokeWidth="2" />
+        <Line x1="174" y1="10" x2="174" y2="86" stroke={GOLD_DARK} strokeWidth="2" />
+      </G>
+      <Path d={body} fill="none" stroke={OUTLINE} strokeWidth="4" strokeLinejoin="round" />
+      {/* gold plinth */}
+      <Path d="M2 84 L198 84 Q198 98 190 98 L10 98 Q2 98 2 84 Z" fill={GOLD} stroke={OUTLINE} strokeWidth="4" strokeLinejoin="round" />
+      <Line x1="10" y1="89" x2="190" y2="89" stroke="rgba(255,255,255,0.5)" strokeWidth="3" strokeLinecap="round" />
     </Svg>
   );
 }
 
-function TreasureChest({ phase, offsetX }) {
+function ChestLock() {
+  return (
+    <Svg width={LOCK_W} height={LOCK_H} viewBox="0 0 40 58">
+      <Path d="M4 6 Q4 2 8 2 L32 2 Q36 2 36 6 L36 34 Q36 40 30 40 L10 40 Q4 40 4 34 Z" fill={GOLD} stroke={OUTLINE} strokeWidth="3" />
+      <Path d="M9 6 L9 30" stroke="rgba(255,255,255,0.55)" strokeWidth="3" strokeLinecap="round" />
+      <Circle cx="20" cy="16" r="6" fill="#1E0C03" />
+      <Path d="M17 19 L23 19 L24 30 L16 30 Z" fill="#1E0C03" />
+      <Path d="M12 40 L28 40 L28 48 L20 56 L12 48 Z" fill={GOLD} stroke={OUTLINE} strokeWidth="3" strokeLinejoin="round" />
+      <Circle cx="20" cy="47" r="3.2" fill="#FFE08A" stroke={GOLD_DARK} strokeWidth="1.2" />
+    </Svg>
+  );
+}
+
+// phase: chest (closed) | opening | revealed. `ready` = close enough to open.
+function TreasureChest({ phase, ready, offsetX, sizeScale, onOpen }) {
   const popAnim = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const lidAnim = useRef(new Animated.Value(0)).current;
   const burstAnim = useRef(new Animated.Value(0)).current;
   const raysAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const glowPulse = useRef(new Animated.Value(0)).current;
+  const shakeLoop = useRef(null);
 
   useEffect(() => {
-    Animated.spring(popAnim, { toValue: 1, tension: 70, friction: 6, useNativeDriver: true }).start();
-    const shake = Animated.loop(
-      Animated.sequence([
-        Animated.timing(shakeAnim, { toValue: 1, duration: 70, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: -1, duration: 70, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: 1, duration: 70, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: 0, duration: 70, useNativeDriver: true }),
-        Animated.delay(380),
-      ])
-    );
-    shake.start();
-    return () => shake.stop();
+    Animated.spring(popAnim, { toValue: 1, tension: 60, friction: 7, useNativeDriver: true }).start();
   }, []);
+
+  // Closed: an occasional wobble; once in range it rattles more eagerly.
+  useEffect(() => {
+    shakeLoop.current?.stop();
+    if (phase !== 'chest') return undefined;
+    const hit = (to, d) => Animated.timing(shakeAnim, { toValue: to, duration: d, useNativeDriver: true });
+    shakeLoop.current = Animated.loop(
+      Animated.sequence(ready
+        ? [hit(1, 60), hit(-1, 60), hit(1, 60), hit(-1, 60), hit(0, 60), Animated.delay(700)]
+        : [hit(0.5, 120), hit(-0.5, 120), hit(0, 120), Animated.delay(1800)]),
+    );
+    shakeLoop.current.start();
+    return () => shakeLoop.current?.stop();
+  }, [phase, ready]);
 
   useEffect(() => {
     if (phase === 'opening') {
       shakeAnim.stopAnimation();
       shakeAnim.setValue(0);
       Animated.parallel([
-        Animated.timing(lidAnim, { toValue: 1, duration: CHEST_OPEN_MS, useNativeDriver: true }),
+        Animated.timing(lidAnim, { toValue: 1, duration: CHEST_OPEN_MS, easing: Easing.out(Easing.back(1.4)), useNativeDriver: true }),
         Animated.timing(burstAnim, { toValue: 1, duration: CHEST_OPEN_MS + 300, useNativeDriver: true }),
       ]).start();
+      Animated.loop(Animated.timing(raysAnim, { toValue: 1, duration: 7000, easing: Easing.linear, useNativeDriver: true })).start();
       Animated.loop(
-        Animated.timing(raysAnim, { toValue: 1, duration: 6000, useNativeDriver: true })
+        Animated.sequence([
+          Animated.timing(glowPulse, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(glowPulse, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
       ).start();
-    }
-    if (phase === 'revealed') {
-      Animated.timing(fadeAnim, { toValue: 0, duration: 500, useNativeDriver: true }).start();
     }
   }, [phase]);
 
-  const shakeRotate = shakeAnim.interpolate({ inputRange: [-1, 1], outputRange: ['-6deg', '6deg'] });
-  const lidRotate = lidAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-115deg'] });
-  const burstScale = burstAnim.interpolate({ inputRange: [0, 1], outputRange: [0.2, 2.4] });
-  const burstOpacity = burstAnim.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 1, 0.55] });
+  const open = phase !== 'chest';
+  const shakeRotate = shakeAnim.interpolate({ inputRange: [-1, 1], outputRange: ['-7deg', '7deg'] });
+  const lidRotate = lidAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-118deg'] });
+  const burstScale = burstAnim.interpolate({ inputRange: [0, 1], outputRange: [0.2, 2.2] });
+  const burstOpacity = burstAnim.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 1, 0.6] });
   const raysRotate = raysAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-  const sinkY = fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] });
+  const beamOpacity = Animated.multiply(burstAnim, glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0.95] }));
 
   return (
     <Animated.View
-      pointerEvents="none"
+      pointerEvents="box-none"
       style={[
         chestStyles.wrap,
-        { opacity: fadeAnim, transform: [{ translateX: offsetX ?? 0 }, { translateY: sinkY }, { scale: popAnim }, { rotateZ: shakeRotate }] },
+        { transform: [{ translateX: offsetX ?? 0 }, { scale: Animated.multiply(popAnim, sizeScale ?? 1) }, { rotateZ: shakeRotate }] },
       ]}
     >
-      <Animated.View style={[chestStyles.rays, { opacity: burstOpacity, transform: [{ rotateZ: raysRotate }, { scale: burstScale }] }]}>
+      {/* Light pouring up out of the open chest (behind the model) */}
+      {open && (
+        <Animated.View pointerEvents="none" style={[chestStyles.beam, { opacity: beamOpacity }]}>
+          <Svg width={CHEST_W * 0.7} height={BEAM_H}>
+            <Defs>
+              <LinearGradient id="beamGrad" x1="0" y1="1" x2="0" y2="0">
+                <Stop offset="0" stopColor="#FFF4C2" stopOpacity="0.95" />
+                <Stop offset="0.5" stopColor="#FDE68A" stopOpacity="0.45" />
+                <Stop offset="1" stopColor="#FDE68A" stopOpacity="0" />
+              </LinearGradient>
+            </Defs>
+            <Path d={`M${CHEST_W * 0.2} ${BEAM_H} L0 0 L${CHEST_W * 0.7} 0 L${CHEST_W * 0.5} ${BEAM_H} Z`} fill="url(#beamGrad)" />
+          </Svg>
+        </Animated.View>
+      )}
+      <Animated.View pointerEvents="none" style={[chestStyles.rays, { opacity: burstOpacity, transform: [{ rotateZ: raysRotate }, { scale: burstScale }] }]}>
         <Svg width={CHEST_W} height={CHEST_W} viewBox="0 0 200 200">
           {[...Array(12)].map((_, i) => (
             <Polygon
@@ -483,19 +465,43 @@ function TreasureChest({ phase, offsetX }) {
           ))}
         </Svg>
       </Animated.View>
-      <Animated.View style={[chestStyles.glow, { opacity: burstOpacity, transform: [{ scale: burstScale }] }]} />
+      <Animated.View pointerEvents="none" style={[chestStyles.glow, { opacity: burstOpacity, transform: [{ scale: burstScale }] }]} />
 
-      <View style={chestStyles.interior} />
-      <Animated.View
-        style={[
-          chestStyles.lid,
-          { transform: [{ perspective: 600 }, { rotateX: lidRotate }] },
-        ]}
-      >
-        <ChestLid />
-      </Animated.View>
-      <ChestBase />
+      <TouchableOpacity activeOpacity={0.9} disabled={!onOpen} onPress={onOpen} style={chestStyles.body}>
+        <View style={chestStyles.interior} />
+        <Animated.View style={[chestStyles.lid, { transform: [{ perspective: 600 }, { rotateX: lidRotate }] }]}>
+          <ChestLid />
+        </Animated.View>
+        <ChestBase />
+        <View style={chestStyles.lock} pointerEvents="none">
+          <ChestLock />
+        </View>
+      </TouchableOpacity>
+
+      {/* "Tap me" ring while it is ready to open */}
+      {phase === 'chest' && ready && <TapHalo />}
     </Animated.View>
+  );
+}
+
+function TapHalo() {
+  const ring = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.timing(ring, { toValue: 1, duration: 1400, easing: Easing.out(Easing.quad), useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
+  }, []);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        chestStyles.halo,
+        {
+          opacity: ring.interpolate({ inputRange: [0, 1], outputRange: [0.9, 0] }),
+          transform: [{ scale: ring.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.5] }) }],
+        },
+      ]}
+    />
   );
 }
 
@@ -638,7 +644,7 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
     : targetBearing;
 
   const showArrow = distanceM !== null && distanceM > SIGHT_RADIUS_METERS;
-  const inCatchRange = distanceM !== null && distanceM <= ARRIVE_RADIUS_METERS;
+  const inOpenRange = distanceM !== null && distanceM <= OPEN_RADIUS_METERS;
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
@@ -656,9 +662,12 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
     ).start();
   }, []);
 
-  // Reveal sequence once inside 15 m: closed chest → lid opens → model rises out.
-  // Latched so GPS jitter around the edge doesn't replay or hide it.
+  // Reveal sequence: the closed chest appears within 10 m and grows as the player
+  // approaches; within 5 m the player
+  // may tap it to open (or turn away and leave it); the model then rises out.
+  // Phases are latched so GPS jitter around the edges doesn't replay or hide them.
   const [revealPhase, setRevealPhase] = useState('none'); // none | chest | opening | revealed
+  const [canOpen, setCanOpen] = useState(false);
   const modelRiseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -666,10 +675,14 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
   }, [showArrow, revealPhase]);
 
   useEffect(() => {
-    if (revealPhase === 'chest') {
-      const t = setTimeout(() => setRevealPhase('opening'), CHEST_WAIT_MS);
-      return () => clearTimeout(t);
-    }
+    if (inOpenRange && !canOpen) setCanOpen(true);
+  }, [inOpenRange, canOpen]);
+
+  const openChest = () => {
+    if (revealPhase === 'chest' && canOpen) setRevealPhase('opening');
+  };
+
+  useEffect(() => {
     if (revealPhase === 'opening') {
       const t = setTimeout(() => setRevealPhase('revealed'), CHEST_OPEN_MS);
       return () => clearTimeout(t);
@@ -681,20 +694,18 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
 
   const arrived = revealPhase !== 'none';
   const revealed = revealPhase === 'revealed';
-  const modelScale = modelRiseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.15, 1] });
-  const modelRiseY = modelRiseAnim.interpolate({ inputRange: [0, 1], outputRange: [W * 0.3, 0] });
+  // The model starts inside the chest and rises to float above it.
+  const modelScale = modelRiseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.1, 1] });
+  const modelRiseY = modelRiseAnim.interpolate({ inputRange: [0, 1], outputRange: [CHEST_TOP + CHEST_LID_H - MODEL_CY, 0] });
 
-  // Distance sizing: small at 15 m, growing to full size as the player walks in.
+  // Distance sizing: small at 10 m, growing to full size as the player walks in.
   const distanceScale = useRef(new Animated.Value(FAR_MODEL_SCALE)).current;
-  const [canCatch, setCanCatch] = useState(false);
-
-  useEffect(() => {
-    if (inCatchRange && !canCatch) setCanCatch(true);
-  }, [inCatchRange, canCatch]);
 
   useEffect(() => {
     if (distanceM === null) return;
-    const t = Math.max(0, Math.min(1, (SIGHT_RADIUS_METERS - distanceM) / (SIGHT_RADIUS_METERS - FULL_SIZE_METERS)));
+    const lin = Math.max(0, Math.min(1, (SIGHT_RADIUS_METERS - distanceM) / (SIGHT_RADIUS_METERS - FULL_SIZE_METERS)));
+    // Eased: stays small from afar, then grows quickly over the last few metres.
+    const t = Math.pow(lin, 1.6);
     Animated.timing(distanceScale, {
       toValue: FAR_MODEL_SCALE + (1 - FAR_MODEL_SCALE) * t,
       duration: 700,
@@ -736,7 +747,8 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
 
   // ── Catch mini-game: the model is only caught when a thrown net lands on it ──
   const ownedAtOpen = useRef(!!alreadyCaught).current;
-  const [catchPhase, setCatchPhase] = useState(ownedAtOpen ? 'owned' : 'idle'); // idle | aiming | flying | capturing | caught | owned
+  // Already-caught models can be caught again with the net (no extra XP).
+  const [catchPhase, setCatchPhase] = useState('idle'); // idle | aiming | flying | capturing | caught
   const [throwMsg, setThrowMsg] = useState(null);
   const phaseRef = useRef(catchPhase);
   phaseRef.current = catchPhase;
@@ -825,7 +837,7 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
       ]).start(() => {
         setCatchPhase('caught');
         Animated.spring(celebPopAnim, { toValue: 1, tension: 65, friction: 8, useNativeDriver: true }).start();
-        onModelFound?.(icon, spot);
+        if (!ownedAtOpen) onModelFound?.(icon, spot);
       });
     });
   };
@@ -903,20 +915,33 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
 
       {arrived ? (
         <>
-          {/* ── HUD: Scanning line, brackets and particles around the found model ── */}
-          <ScanLine color={icon.color} />
-          <CornerBrackets color={icon.color} />
           <FloatingParticles color={icon.color} />
-
-          {/* ── Dark vignettes ── */}
-          <View style={arStyles.topGradient} />
           <View style={arStyles.bottomVignette} />
 
-          {/* ── HUD: Live status bar ── */}
-          <ARStatusBar color={icon.color} distanceM={distanceM} showArrow={false} accuracy={userLocation?.accuracy} />
+          {revealPhase === 'chest' ? (
+            <>
+              {/* ── Same walking guidance as far away: lime path + turn/distance cards ── */}
+              <ARGroundPath relativeBearing={relativeBearing} bottom={PANEL_CLEARANCE} />
+              <ARNavCards
+                relativeBearing={relativeBearing}
+                distanceM={distanceM}
+                destination={icon.name}
+                hasHeading={deviceHeading !== null}
+              />
+            </>
+          ) : (
+            <>
+              <View style={arStyles.topGradient} />
+              <ARStatusBar color={icon.color} distanceM={distanceM} showArrow={false} accuracy={userLocation?.accuracy} />
+            </>
+          )}
 
-          {/* ── Close button ── */}
-          <TouchableOpacity style={arStyles.closeBtn} onPress={onClose} activeOpacity={0.8}>
+          {/* ── Close button (below the guidance cards while they show) ── */}
+          <TouchableOpacity
+            style={[arStyles.closeBtn, revealPhase === 'chest' && { top: 150 }]}
+            onPress={onClose}
+            activeOpacity={0.8}
+          >
             <View style={arStyles.closeBtnCircle}>
               <Ionicons name="close" size={20} color="#fff" />
             </View>
@@ -924,7 +949,7 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
         </>
       ) : (
         <>
-          {/* ── Walking guidance (> 15 m): glass cards, ground path, round buttons ── */}
+          {/* ── Walking guidance (> 10 m): glass cards, ground path, round buttons ── */}
           <ARGroundPath relativeBearing={relativeBearing} />
           <ARNavCards
             relativeBearing={relativeBearing}
@@ -937,7 +962,7 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
       )}
 
       {/* ── Celebration Banner & Confetti (after the net catches the model) ── */}
-      {catchPhase === 'caught' && !ownedAtOpen && (
+      {catchPhase === 'caught' && (
         <>
           <ConfettiCannon />
           {!celebDismissed && (
@@ -945,13 +970,13 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
               <Animated.View style={{ transform: [{ scale: celebPopAnim }] }}>
                 <TouchableOpacity activeOpacity={0.9} onPress={() => setCelebDismissed(true)}>
                   <VintaCard style={arStyles.celebrationCard} contentStyle={arStyles.celebrationInner}>
-                    <Text style={arStyles.celebrationKicker}>You caught</Text>
+                    <Text style={arStyles.celebrationKicker}>{ownedAtOpen ? 'You caught it again!' : 'You caught'}</Text>
                     <Text style={arStyles.celebrationName} numberOfLines={2}>{modelTitle}</Text>
                     {!!spot?.location_name && (
                       <Text style={arStyles.celebrationPlace} numberOfLines={1}>{spot.location_name}</Text>
                     )}
                     <View style={arStyles.celebrationDivider} />
-                    <Text style={arStyles.celebrationXp}>+150 XP</Text>
+                    <Text style={arStyles.celebrationXp}>{ownedAtOpen ? 'Already in your collection' : '+150 XP'}</Text>
                     <Text style={arStyles.celebrationHint}>Tap to close</Text>
                   </VintaCard>
                 </TouchableOpacity>
@@ -961,8 +986,16 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
         </>
       )}
 
-      {/* ── Treasure chest (≤ 15m): shakes, opens, then the model rises out ── */}
-      {arrived && <TreasureChest phase={revealPhase} offsetX={bearingAnim} />}
+      {/* ── Treasure chest (≤ 10m): seen small from afar; tap it within 5m to open ── */}
+      {arrived && (
+        <TreasureChest
+          phase={revealPhase}
+          ready={canOpen && modelInView}
+          offsetX={bearingAnim}
+          sizeScale={distanceScale}
+          onOpen={revealPhase === 'chest' && canOpen ? openChest : null}
+        />
+      )}
 
       {/* ── Edge pointer when the model is outside the camera view ── */}
       {arrived && !modelInView && catchPhase !== 'caught' && catchPhase !== 'capturing' && (
@@ -978,7 +1011,7 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
       {/* ── Floating 3D model, mounted with the chest so it loads while hidden ── */}
       {arrived && (
         <Animated.View
-          pointerEvents={revealed && (catchPhase === 'idle' || catchPhase === 'owned') ? 'auto' : 'none'}
+          pointerEvents={revealed && catchPhase === 'idle' ? 'auto' : 'none'}
           style={[
             arStyles.modelWrap,
             {
@@ -995,6 +1028,15 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
             },
           ]}
         >
+          {/* Glow around the model as it comes out of the treasure */}
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              arStyles.modelAura,
+              { backgroundColor: icon.color + '55', shadowColor: icon.color, transform: [{ scale: pulseAnim }] },
+            ]}
+          />
+          <Animated.View pointerEvents="none" style={[arStyles.modelAuraCore, { transform: [{ scale: pulseAnim }] }]} />
           {activeModel ? (
             <WebView
               source={{ html: buildARViewerHTML(activeModel) }}
@@ -1014,10 +1056,9 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
         </Animated.View>
       )}
 
-      {/* ── Swipe-up zone for throwing the net ── */}
-      {catchPhase === 'aiming' && <View style={arStyles.throwZone} {...panResponder.panHandlers} />}
 
-      {/* ── The net ── */}
+      {/* ── Swipe-up zone and the net, above everything but the guide panel (whose buttons must stay tappable) ── */}
+      {catchPhase === 'aiming' && <View style={arStyles.throwZone} {...panResponder.panHandlers} />}
       {netVisible && (
         <Animated.View
           pointerEvents="none"
@@ -1040,114 +1081,110 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
           <ThrowNet color={icon.color} />
         </Animated.View>
       )}
-
       {!!throwMsg && (
         <View style={arStyles.throwToast} pointerEvents="none">
           <Text style={arStyles.throwToastText}>{throwMsg}</Text>
         </View>
       )}
 
-      {/* Bottom panel (after arrival) */}
-      {arrived && (
-      <View style={arStyles.bottomPanel}>
-        <Text style={arStyles.catchName}>{icon.name}</Text>
-        <Text style={arStyles.catchTagline}>{icon.tagline}</Text>
+      {/* Bottom panel (after arrival): the guide talks the player through each step */}
+      {arrived && (() => {
+        const leave = (
+          <TouchableOpacity onPress={onClose} style={arStyles.guideLink} activeOpacity={0.8}>
+            <Text style={arStyles.guideLinkText}>Leave It</Text>
+          </TouchableOpacity>
+        );
+        let guide = null; // { key, text, actions }
+        if (revealPhase === 'opening') {
+          guide = { key: 'opening', text: 'Here it comes... the treasure is opening!' };
+        } else if (!revealed && !canOpen) {
+          const more = distanceM !== null ? Math.max(1, Math.round(distanceM - OPEN_RADIUS_METERS)) : null;
+          guide = {
+            key: 'walk',
+            text: more !== null
+              ? `A treasure chest! Follow the arrow and walk about ${more}m closer so you can open it.`
+              : 'A treasure chest! Follow the arrow and walk closer so you can open it.',
+            actions: leave,
+          };
+        } else if (!revealed) {
+          guide = {
+            key: 'ready',
+            text: "You're close enough! Tap the treasure to open it, or turn your camera away if you're not interested.",
+            actions: leave,
+          };
+        } else if (catchPhase === 'aiming' || catchPhase === 'flying') {
+          guide = {
+            key: 'aim',
+            text: `${icon.name} came out! Swipe up on the net to throw it and catch it.`,
+            actions: (
+              <TouchableOpacity onPress={cancelAiming} disabled={catchPhase !== 'aiming'} style={arStyles.guideLink} activeOpacity={0.8}>
+                <Text style={arStyles.guideLinkText}>Not now</Text>
+              </TouchableOpacity>
+            ),
+          };
+        } else if (catchPhase === 'idle') {
+          guide = {
+            key: 'idle',
+            text: ownedAtOpen
+              ? `You already have ${icon.name}, but you can try catching it again using the net!`
+              : `Try catching ${icon.name} using the net!`,
+            actions: (
+              <View style={arStyles.catchCard}>
+                <Text style={arStyles.catchCardTitle} numberOfLines={1}>Catch {icon.name}</Text>
+                <View style={arStyles.choiceRow}>
+                  <TouchableOpacity style={arStyles.catchCardLeave} onPress={onClose} activeOpacity={0.85}>
+                    <Text style={arStyles.catchCardLeaveText}>Leave It</Text>
+                  </TouchableOpacity>
+                  <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
+                    <TouchableOpacity style={[arStyles.continueBtn, { backgroundColor: icon.color }]} onPress={startAiming} activeOpacity={0.85}>
+                      <Ionicons name="aperture" size={18} color="#fff" style={{ marginRight: 8 }} />
+                      <Text style={arStyles.continueBtnText}>Catch It!</Text>
+                    </TouchableOpacity>
+                  </Animated.View>
+                </View>
+              </View>
+            ),
+          };
+        } else if (catchPhase === 'capturing') {
+          guide = { key: 'capturing', text: 'Got it! Hold on, the net is closing...' };
+        }
 
-        {!revealed ? (
-          <View style={[arStyles.navigateHint, { borderColor: '#FBBF2455', backgroundColor: '#FBBF2415' }]}>
-            <Ionicons name="gift-outline" size={18} color="#FBBF24" style={{ marginRight: 8 }} />
-            <Text style={[arStyles.navigateHintText, { color: '#FBBF24' }]}>
-              {revealPhase === 'opening' ? 'Opening the treasure...' : 'You found a treasure chest!'}
-            </Text>
-          </View>
-        ) : catchPhase === 'idle' && !canCatch ? (
-          <View style={{ alignItems: 'center', width: '100%' }}>
-            <View style={[arStyles.navigateHint, { borderColor: icon.color + '55', backgroundColor: icon.color + '15' }]}>
-              <Ionicons name="walk-outline" size={18} color={icon.color} style={{ marginRight: 8 }} />
-              <Text style={[arStyles.navigateHintText, { color: icon.color }]}>
-                {distanceM !== null
-                  ? `Walk closer to catch it (${Math.max(0, Math.round(distanceM - ARRIVE_RADIUS_METERS))}m more)`
-                  : 'Walk closer to catch it'}
-              </Text>
+        if (guide) {
+          return (
+            <View style={arStyles.guidePanel} pointerEvents="box-none">
+              <GuideBubble key={guide.key} size={70} text={guide.text} />
+              {guide.actions ? <View style={arStyles.guideActions}>{guide.actions}</View> : null}
             </View>
-            <TouchableOpacity onPress={onClose} style={arStyles.cancelThrow}>
-              <Text style={arStyles.cancelThrowText}>Leave It</Text>
-            </TouchableOpacity>
-          </View>
-        ) : catchPhase === 'idle' ? (
-          <View style={arStyles.choiceRow}>
-            <TouchableOpacity style={arStyles.leaveBtn} onPress={onClose} activeOpacity={0.85}>
-              <Text style={arStyles.leaveBtnText}>Leave It</Text>
-            </TouchableOpacity>
-            <Animated.View style={{ flex: 1, transform: [{ scale: pulseAnim }] }}>
+          );
+        }
+        return (
+          <View style={arStyles.bottomPanel}>
+            <Text style={arStyles.catchName}>{icon.name}</Text>
+            <Text style={arStyles.catchTagline}>{icon.tagline}</Text>
+            <Animated.View style={{ transform: [{ scale: pulseAnim }], width: '100%' }}>
               <TouchableOpacity
-                style={[arStyles.continueBtn, { backgroundColor: icon.color, opacity: modelInView ? 1 : 0.5 }]}
-                onPress={startAiming}
-                disabled={!modelInView}
+                style={[arStyles.continueBtn, { backgroundColor: icon.color }]}
+                onPress={onContinue}
                 activeOpacity={0.85}
               >
-                <Ionicons name="aperture" size={18} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={arStyles.continueBtnText}>{modelInView ? 'Catch It!' : 'Face the model'}</Text>
+                <Ionicons name="sparkles" size={18} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={arStyles.continueBtnText}>View Lore</Text>
               </TouchableOpacity>
             </Animated.View>
           </View>
-        ) : catchPhase === 'aiming' || catchPhase === 'flying' ? (
-          <View style={{ alignItems: 'center', width: '100%' }}>
-            <View style={[arStyles.navigateHint, { borderColor: icon.color + '55', backgroundColor: icon.color + '15' }]}>
-              <Ionicons name="arrow-up-circle-outline" size={18} color={icon.color} style={{ marginRight: 8 }} />
-              <Text style={[arStyles.navigateHintText, { color: icon.color }]}>
-                Swipe up on the net to throw it!
-              </Text>
-            </View>
-            <TouchableOpacity onPress={cancelAiming} disabled={catchPhase !== 'aiming'} style={arStyles.cancelThrow}>
-              <Text style={arStyles.cancelThrowText}>Not now</Text>
-            </TouchableOpacity>
-          </View>
-        ) : catchPhase === 'capturing' ? (
-          <View style={[arStyles.navigateHint, { borderColor: '#FBBF2455', backgroundColor: '#FBBF2415' }]}>
-            <Ionicons name="aperture" size={18} color="#FBBF24" style={{ marginRight: 8 }} />
-            <Text style={[arStyles.navigateHintText, { color: '#FBBF24' }]}>Got it! Holding on...</Text>
-          </View>
-        ) : (
-          <Animated.View style={{ transform: [{ scale: pulseAnim }], width: '100%' }}>
-            <TouchableOpacity
-              style={[arStyles.continueBtn, { backgroundColor: icon.color }]}
-              onPress={onContinue}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="sparkles" size={18} color="#fff" style={{ marginRight: 8 }} />
-              <Text style={arStyles.continueBtnText}>View Lore</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-      </View>
-      )}
+        );
+      })()}
+
     </Animated.View>
   );
 }
 
 // ─── Proximity Alert Sheet ────────────────────────────────────────────────────
-function ProximitySheet({ spot, icon, distanceM, isAlreadyCaught, onCatch, onDismiss }) {
-  const activeModel = (spot && spot.model_3d) 
-    ? (spot.model_3d.startsWith('http') || spot.model_3d.startsWith('data:') ? spot.model_3d : `${ORIGIN}${spot.model_3d}`) 
-    : icon.model_3d;
-
+function ProximitySheet({ icon, distanceM, isAlreadyCaught, onCatch, onDismiss }) {
   const insets = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(300)).current;
-  const shakeAnim = useRef(new Animated.Value(0)).current;
-
   useEffect(() => {
     Animated.spring(slideAnim, { toValue: 0, tension: 60, friction: 11, useNativeDriver: true }).start();
-    // Gentle shake on icon
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(shakeAnim, { toValue: 6, duration: 120, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: -6, duration: 120, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: 3, duration: 100, useNativeDriver: true }),
-        Animated.timing(shakeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
-        Animated.delay(2000),
-      ])
-    ).start();
   }, []);
 
   const dismiss = () => {
@@ -1169,62 +1206,13 @@ function ProximitySheet({ spot, icon, distanceM, isAlreadyCaught, onCatch, onDis
         {/* Drag handle */}
         <View style={proximityStyles.handle} />
 
-        {/* ── Model Preview Ring (replaces generic fish icon) ── */}
-        <Animated.View
-          style={[
-            proximityStyles.iconRing,
-            {
-              borderColor: icon.color + '99',
-              backgroundColor: icon.color + '18',
-              transform: [{ translateX: shakeAnim }],
-            },
-          ]}
-        >
-          {activeModel ? (
-            /* Show mini spinning 3D model */
-            <WebView
-              source={{ html: buildMiniViewerHTML(activeModel, icon.color) }}
-              style={proximityStyles.miniWebview}
-              javaScriptEnabled
-              originWhitelist={['*']}
-              scrollEnabled={false}
-              backgroundColor="transparent"
-              allowsTransparency
-              pointerEvents="none"
-            />
-          ) : (
-            <View style={proximityStyles.fallbackIconWrap}>
-              <LucideIcon name="fish" size={52} color={onWhite(icon.color)} strokeWidth={1.8} />
-            </View>
-          )}
-        </Animated.View>
-
-        {/* Glowing label under the model preview */}
-        <View style={[proximityStyles.modelLabel, { backgroundColor: isAlreadyCaught ? 'rgba(16,185,129,0.15)' : icon.color + '20', borderColor: isAlreadyCaught ? '#10B981' : icon.color + '44' }]}>
-          <Ionicons name={isAlreadyCaught ? 'checkmark-circle' : 'cube-outline'} size={10} color={isAlreadyCaught ? '#059669' : onWhite(icon.color)} style={{ marginRight: 4 }} />
-          <Text style={[proximityStyles.modelLabelText, { color: isAlreadyCaught ? '#059669' : onWhite(icon.color) }]}>
-            {isAlreadyCaught ? 'ALREADY CAUGHT' : `${icon.name} · 3D Model`}
-          </Text>
-        </View>
-
-        {/* Distance badge */}
-        <View style={[proximityStyles.distanceBadge, { backgroundColor: '#22C55E22', borderColor: '#22C55E88' }]}>
-          <Ionicons name="location" size={12} color="#16A34A" style={{ marginRight: 4 }} />
-          <Text style={proximityStyles.distanceText}>{Math.round(distanceM)}m away</Text>
-        </View>
-
-        <Text style={proximityStyles.sheetTitle}>
-          {isAlreadyCaught ? `${icon.name}\nAlready Caught!` : `${icon.name} is\nnearby!`}
-        </Text>
-        <View style={proximityStyles.sheetLocationRow}>
-          <LucideIcon name="pin" size={13} color={COLORS.textMuted} />
-          <Text style={[proximityStyles.sheetLocation, { marginBottom: 0 }]}>{spot.location_name || spot.name}</Text>
-        </View>
-        <Text style={proximityStyles.sheetDesc}>
-          {isAlreadyCaught
-            ? 'You have already caught and mastered this cultural model in your Journey collection. You can still inspect it in AR anytime.'
-            : "You're close enough to catch this cultural icon. Open your camera and experience it in AR!"}
-        </Text>
+        {/* The guide tells the player what is nearby */}
+        <GuideBubble
+          style={proximityStyles.guide}
+          text={isAlreadyCaught
+            ? `You already caught ${icon.name}! It's about ${Math.round(distanceM)}m away. Want to see it again in AR?`
+            : `${icon.name} is nearby and ready to catch! It's about ${Math.round(distanceM)}m from you. Let's go get it!`}
+        />
 
         <TouchableOpacity
           style={[proximityStyles.catchBtn, { backgroundColor: isAlreadyCaught ? '#059669' : COLORS.accent }]}
@@ -2142,6 +2130,7 @@ const styles = StyleSheet.create({
 
 // ─── Proximity Sheet Styles ───────────────────────────────────────────────────
 const proximityStyles = StyleSheet.create({
+  guide: { width: '100%', marginTop: 6, marginBottom: 6 },
   scrim: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -2199,10 +2188,17 @@ const proximityStyles = StyleSheet.create({
 const chestStyles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    top: H * 0.22 + W * 0.375 - (CHEST_LID_H + CHEST_BASE_H) / 2,
+    top: CHEST_TOP,
     alignSelf: 'center',
     width: CHEST_W,
     alignItems: 'center',
+  },
+  body: { width: CHEST_W, alignItems: 'center' },
+  beam: {
+    position: 'absolute',
+    top: CHEST_LID_H - BEAM_H + 8,
+    width: CHEST_W * 0.7,
+    height: BEAM_H,
   },
   rays: {
     position: 'absolute',
@@ -2225,12 +2221,12 @@ const chestStyles = StyleSheet.create({
   },
   interior: {
     position: 'absolute',
-    top: CHEST_LID_H - 10,
-    left: 6,
-    right: 6,
-    height: 18,
+    top: CHEST_LID_H - 12,
+    left: 8,
+    right: 8,
+    height: 20,
     borderRadius: 6,
-    backgroundColor: '#2A1203',
+    backgroundColor: '#FFE7A3',
   },
   lid: {
     width: CHEST_W,
@@ -2238,6 +2234,21 @@ const chestStyles = StyleSheet.create({
     marginBottom: -2,
     transformOrigin: 'bottom',
     zIndex: 2,
+  },
+  lock: {
+    position: 'absolute',
+    top: CHEST_LID_H - LOCK_H * 0.42,
+    left: CHEST_W / 2 - LOCK_W / 2,
+    zIndex: 3,
+  },
+  halo: {
+    position: 'absolute',
+    top: -CHEST_W * 0.1,
+    width: CHEST_W * 1.2,
+    height: CHEST_W * 1.2,
+    borderRadius: CHEST_W * 0.6,
+    borderWidth: 3,
+    borderColor: '#FDE68A',
   },
 });
 
@@ -2303,6 +2314,56 @@ const arStyles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
+  modelAura: {
+    position: 'absolute',
+    width: W * 0.55,
+    height: W * 0.55,
+    borderRadius: W * 0.275,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 40,
+    elevation: 10,
+  },
+  modelAuraCore: {
+    position: 'absolute',
+    width: W * 0.3,
+    height: W * 0.3,
+    borderRadius: W * 0.15,
+    backgroundColor: 'rgba(255,244,194,0.55)',
+  },
+  guidePanel: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 30,
+  },
+  guideActions: { alignItems: 'center', marginTop: 6 },
+  catchCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 14,
+    gap: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 6,
+  },
+  catchCardTitle: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.navy, textAlign: 'center' },
+  catchCardLeave: {
+    paddingHorizontal: 18, height: 52, borderRadius: 26,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+  },
+  catchCardLeaveText: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.navy },
+  guideLink: {
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  guideLinkText: { fontFamily: FONTS.semiBold, fontSize: 13, color: '#FFFFFF' },
+  promptTitle: { fontFamily: FONTS.bold, fontSize: 18, color: '#FDE68A', textAlign: 'center' },
+  promptSub: { fontFamily: FONTS.regular, fontSize: 13, color: 'rgba(255,255,255,0.8)', textAlign: 'center', marginTop: 6, lineHeight: 19 },
   modelGlow: {
     position: 'absolute',
     bottom: -20,

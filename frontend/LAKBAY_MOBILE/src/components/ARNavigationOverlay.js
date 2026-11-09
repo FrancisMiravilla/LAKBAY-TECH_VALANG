@@ -9,11 +9,14 @@ import { authService } from '../api/authService';
 import { ORIGIN } from '../api/qrService';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
 import { ARNavCards, ARGroundPath, ARRoundButtons } from './ARGuidance';
+import GuideBubble from './GuideBubble';
 const FALLBACK_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 
 const { width: W, height: H } = Dimensions.get('window');
 const ARRIVE_RADIUS_METERS = 10;
+const PASS_HIDE_METERS = 10;   // a passed-by model disappears once you are this close
+const PASS_RESHOW_METERS = 13; // ...and only comes back after stepping out past this
 
 function haversineDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000; // Earth radius in metres
@@ -405,9 +408,6 @@ export default function ARNavigationOverlay({
 
   // Dismiss state for the model popup modal — resets each time a new model appears
   const [modalDismissed, setModalDismissed] = useState(false);
-  useEffect(() => {
-    if (show3DModel) setModalDismissed(false);
-  }, [show3DModel]);
 
   // ── Live compass heading ──────────────────────────────────────────────────
   const [deviceHeading, setDeviceHeading] = useState(null);
@@ -452,10 +452,34 @@ export default function ARNavigationOverlay({
   const arriveThreshold = ARRIVE_RADIUS_METERS; // 10m
   const hasArrived = distanceM !== null && distanceM <= arriveThreshold;
 
+  // Passing by: the model pops up while the spot is within range, and disappears
+  // once the player is within 10 m of it (with a little slack against GPS jitter).
+  const [passVisible, setPassVisible] = useState(false);
+  const passHiddenRef = useRef(null); // id of the spot hidden for being too close
+  useEffect(() => {
+    if (!isEncounteringNearby || nearbyDistanceM === null) {
+      passHiddenRef.current = null;
+      setPassVisible(false);
+      return;
+    }
+    if (nearbyDistanceM <= PASS_HIDE_METERS) {
+      passHiddenRef.current = nearbySpot.id;
+      setPassVisible(false);
+    } else if (passHiddenRef.current !== nearbySpot.id || nearbyDistanceM > PASS_RESHOW_METERS) {
+      passHiddenRef.current = null;
+      setPassVisible(true);
+    }
+  }, [isEncounteringNearby, nearbyDistanceM, nearbySpot?.id]);
+
   // Show the popup (3D model, or photo for model-less nearby spots) when passing by a
   // nearby spot or within 10 m of the destination.
-  const show3DModel = !!(activeModel || activeImage) && (isEncounteringNearby || hasArrived);
+  const show3DModel = !!(activeModel || activeImage) && (isEncounteringNearby ? passVisible : hasArrived);
   const showArrow = !hasArrived;
+
+  // Each new popup (a different spot passed, or arriving) shows its message again.
+  useEffect(() => {
+    if (show3DModel) setModalDismissed(false);
+  }, [show3DModel, isEncounteringNearby ? nearbySpot?.id : 'arrived']);
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
@@ -474,6 +498,10 @@ export default function ARNavigationOverlay({
   }, []);
 
   useEffect(() => {
+    if (!show3DModel) {
+      celebPopAnim.setValue(0); // so the next popup pops in again
+      return;
+    }
     if (show3DModel) {
       Animated.spring(celebPopAnim, {
         toValue: 1,
@@ -624,7 +652,46 @@ export default function ARNavigationOverlay({
       {/* ════════════════════════════════════════
           COMPACT MODEL POPUP — centered on screen
       ════════════════════════════════════════ */}
-      {show3DModel && !modalDismissed && (
+      {/* ── Passing by: the model floats in the camera view, the guide says what it is ── */}
+      {show3DModel && isEncounteringNearby && (
+        <>
+          <Animated.View
+            pointerEvents="none"
+            style={[arStyles.passModel, { transform: [{ translateY: floatAnim }, { scale: celebPopAnim }] }]}
+          >
+            <Animated.View
+              style={[arStyles.passGlow, { backgroundColor: displayColor + '40', shadowColor: displayColor, transform: [{ scale: pulseAnim }] }]}
+            />
+            {activeModel ? (
+              <WebView
+                source={{ html: buildARViewerHTML(activeModel) }}
+                style={arStyles.passWebview}
+                javaScriptEnabled
+                originWhitelist={['*']}
+                scrollEnabled={false}
+                backgroundColor="transparent"
+                allowsTransparency
+              />
+            ) : (
+              <Image source={{ uri: activeImage }} style={arStyles.passPhoto} resizeMode="cover" />
+            )}
+          </Animated.View>
+
+          {!modalDismissed && (
+            <Animated.View style={[arStyles.passGuide, { transform: [{ scale: celebPopAnim }] }]}>
+              <GuideBubble
+                size={72}
+                text={`You're passing by ${displayTitle}! Look, it's right here, about ${Math.round(nearbyDistanceM || 0)}m from you.`}
+              />
+              <TouchableOpacity style={arStyles.passGotIt} onPress={() => setModalDismissed(true)} activeOpacity={0.85}>
+                <Text style={arStyles.passGotItText}>Got it</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+        </>
+      )}
+
+      {show3DModel && !isEncounteringNearby && !modalDismissed && (
         <Animated.View style={[arStyles.modelModal, { transform: [{ scale: celebPopAnim }] }]}>
           {/* Accent top bar */}
           <View style={[arStyles.modelModalAccent, { backgroundColor: displayColor }]} />
@@ -880,6 +947,42 @@ const arStyles = StyleSheet.create({
   },
 
   // ── Unified model modal (pops up when 3D model is in range) ──
+  passModel: {
+    position: 'absolute',
+    top: H * 0.3,
+    alignSelf: 'center',
+    width: W * 0.7,
+    height: W * 0.7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  passGlow: {
+    position: 'absolute',
+    width: W * 0.5,
+    height: W * 0.5,
+    borderRadius: W * 0.25,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 36,
+    elevation: 8,
+  },
+  passWebview: { width: W * 0.7, height: W * 0.7, backgroundColor: 'transparent' },
+  passPhoto: { width: W * 0.5, height: W * 0.5, borderRadius: 24, borderWidth: 3, borderColor: '#FFFFFF' },
+  passGuide: {
+    position: 'absolute',
+    top: 96,
+    left: 14,
+    right: 14,
+    alignItems: 'flex-end',
+  },
+  passGotIt: {
+    marginTop: -8,
+    backgroundColor: COLORS.accent,
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+  },
+  passGotItText: { fontFamily: FONTS.bold, fontSize: 13, color: '#FFFFFF' },
   modelModal: {
     position: 'absolute',
     alignSelf: 'center',
