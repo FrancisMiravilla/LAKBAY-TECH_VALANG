@@ -131,10 +131,10 @@ const PIN_TYPE_CONFIG = {
 };
 
 const RARITY_CONFIG = {
-  common:    { label: 'Common',    color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.4)', icon: '✦', desc: 'Standard cultural artifact' },
-  rare:      { label: 'Rare',      color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.15)',  border: 'rgba(59, 130, 246, 0.4)',  icon: '★', desc: 'Precious regional treasure' },
-  mythical:  { label: 'Mythical',  color: '#A855F7', bg: 'rgba(168, 85, 247, 0.15)', border: 'rgba(168, 85, 247, 0.4)', icon: '◆', desc: 'Ancient folklore & spirit relic' },
-  legendary: { label: 'Legendary', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.18)', border: 'rgba(245, 158, 11, 0.5)',  icon: '👑', desc: 'Pinnacle landmark centerpiece' },
+  common:    { label: 'Common', xp: 40,    color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.4)', icon: '✦', desc: 'Standard cultural artifact' },
+  rare:      { label: 'Rare', xp: 70,      color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.15)',  border: 'rgba(59, 130, 246, 0.4)',  icon: '★', desc: 'Precious regional treasure' },
+  mythical:  { label: 'Mythical', xp: 100,  color: '#A855F7', bg: 'rgba(168, 85, 247, 0.15)', border: 'rgba(168, 85, 247, 0.4)', icon: '◆', desc: 'Ancient folklore & spirit relic' },
+  legendary: { label: 'Legendary', xp: 150, color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.18)', border: 'rgba(245, 158, 11, 0.5)',  icon: '👑', desc: 'Pinnacle landmark centerpiece' },
 };
 
 const BUILDING_CONFIG = {
@@ -224,6 +224,7 @@ const normalizeSpot = (s) => ({
   model_3d: s.model_3d || null,
   required_level: s.required_level || 1,
   xp_reward: s.xp_reward || 50,
+  catch_xp_reward: s.catch_xp_reward ?? 150,
   images: [s.image, s.image2, s.image3].filter(img => img).map(img => {
     if (img.startsWith('/media')) return `http://localhost:8000${img}`;
     return img;
@@ -293,6 +294,7 @@ function App() {
     model_3d: null,
     required_level: 1,
     xp_reward: 50,
+    catch_xp_reward: 150,
     is_featured: false,
   });
 
@@ -784,6 +786,7 @@ function App() {
       model_3d: newSpot.model_3d || null,
       required_level: parseInt(newSpot.required_level) || 1,
       xp_reward: parseInt(newSpot.xp_reward) || 50,
+      catch_xp_reward: parseInt(newSpot.catch_xp_reward) || 150,
       is_featured: newSpot.is_featured,
     };
     const draft = newSpot;
@@ -791,7 +794,7 @@ function App() {
 
     setSpots(prev => [...prev, { ...normalizeSpot({ ...payload, id: tempId }), saving: true }]);
     setIsAddSpotModalOpen(false);
-    setNewSpot({ name: '', location_name: '', latitude: '', longitude: '', description: '', historical_background: '', cultural_significance: '', fun_fact: '', hook: '', featureTypes: ['qr'], images: ['', '', ''], model_3d: null, required_level: 1, xp_reward: 50, is_featured: false });
+    setNewSpot({ name: '', location_name: '', latitude: '', longitude: '', description: '', historical_background: '', cultural_significance: '', fun_fact: '', hook: '', featureTypes: ['qr'], images: ['', '', ''], model_3d: null, required_level: 1, xp_reward: 50, catch_xp_reward: 150, is_featured: false });
 
     qrService.createSpot(payload)
       .then(({ data }) => {
@@ -825,6 +828,7 @@ function App() {
       feature_types: draft.feature_types || [],
       required_level: parseInt(draft.required_level) || 1,
       xp_reward: parseInt(draft.xp_reward) || 50,
+      catch_xp_reward: parseInt(draft.catch_xp_reward) || 150,
       ...(draft.images?.[0]?.startsWith('data:') && { image: draft.images[0] }),
       ...(draft.images?.[1]?.startsWith('data:') && { image2: draft.images[1] }),
       ...(draft.images?.[2]?.startsWith('data:') && { image3: draft.images[2] }),
@@ -3221,6 +3225,7 @@ function App() {
                               }}>
                               <span style={{ fontSize: '13px' }}>{cfg.icon}</span>
                               <span>{cfg.label}</span>
+                              <span style={{ fontSize: '10px', fontWeight: 600, opacity: 0.8 }}>+{cfg.xp} XP</span>
                             </button>
                           );
                         })}
@@ -3378,6 +3383,7 @@ function App() {
                               }}>
                               <span style={{ fontSize: '13px' }}>{cfg.icon}</span>
                               <span>{cfg.label}</span>
+                              <span style={{ fontSize: '10px', fontWeight: 600, opacity: 0.8 }}>+{cfg.xp} XP</span>
                             </button>
                           );
                         })}
@@ -3773,6 +3779,17 @@ function App() {
                     </div>
                   )}
 
+                  {newSpot.featureTypes?.includes('catch') && (
+                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                      <label className="form-label" style={{ color: '#D97706' }}>Catch XP Reward <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(Awarded when the model is caught)</span></label>
+                      <input type="number" min="10" max="500" step="5" className="form-input" placeholder="e.g. 150 XP"
+                        value={newSpot.catch_xp_reward ?? 150} onChange={(e) => setNewSpot({...newSpot, catch_xp_reward: e.target.value === '' ? '' : parseInt(e.target.value)})} required />
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        Experience points (XP) credited the first time an explorer catches this place's model (10–500 XP). Catching it again gives no extra XP.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gridColumn: '1 / -1' }}>
                     <label className="form-label">Visibility Options</label>
                     <div style={{ marginTop: '8px', padding: '16px', border: '1px solid var(--card-border)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -3996,6 +4013,17 @@ function App() {
                           Experience points (XP) credited to explorer profile upon first successful QR scan.
                         </p>
                       </div>
+                    </div>
+                  )}
+
+                  {editingSpot.feature_types?.includes('catch') && (
+                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                      <label className="form-label" style={{ color: '#D97706' }}>Catch XP Reward <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(Awarded when the model is caught)</span></label>
+                      <input type="number" min="10" max="500" step="5" className="form-input" placeholder="e.g. 150 XP"
+                        value={editingSpot.catch_xp_reward ?? 150} onChange={(e) => setEditingSpot({...editingSpot, catch_xp_reward: e.target.value === '' ? '' : parseInt(e.target.value)})} required />
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        Experience points (XP) credited the first time an explorer catches this place's model (10–500 XP). Catching it again gives no extra XP.
+                      </p>
                     </div>
                   )}
 

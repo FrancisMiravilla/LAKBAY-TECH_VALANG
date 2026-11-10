@@ -1,3 +1,4 @@
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from .cloudinary_storage import CloudinaryRawStorage
 
@@ -26,6 +27,11 @@ class CulturalSpot(models.Model):
     is_featured = models.BooleanField(default=False)
     required_level = models.PositiveIntegerField(default=1, help_text="Minimum explorer level required to unlock/scan this spot")
     xp_reward = models.PositiveIntegerField(default=50, help_text="XP awarded to user upon scanning this spot")
+    catch_xp_reward = models.PositiveIntegerField(
+        default=150,
+        validators=[MinValueValidator(10), MaxValueValidator(500)],
+        help_text="XP awarded the first time a user catches this spot's model (10-500)",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

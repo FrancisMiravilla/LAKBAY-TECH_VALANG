@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { COLORS, FONTS, RADIUS, BG_OVERLAY, GOLD_TEXT, onWhite } from '../constants/theme';
 import VintaCard from '../components/VintaCard';
+import { catchXpFor, rarityXp } from '../constants/rewards';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -119,6 +120,7 @@ export default function CatchDetailsScreen({ route, navigation }) {
   // ── Derive rarity dynamically from the icon/AR target's rarity field ──────
   const rarityKey = ((icon?.rarity || spot?.rarity || 'common')).toLowerCase();
   const RARITY = RARITY_CONFIG[rarityKey] || RARITY_CONFIG.common;
+  const earnedXp = isAR ? rarityXp(rarityKey) : catchXpFor(spot);
 
   const activeModel = spot?.model_3d || icon?.model_3d;
   const viewerHTML  = useMemo(() => activeModel ? build3DViewerHTML(activeModel) : null, [activeModel]);
@@ -267,7 +269,7 @@ export default function CatchDetailsScreen({ route, navigation }) {
             <VintaCard contentStyle={styles.xpBanner}>
             <View style={styles.xpLeft}>
               <Ionicons name="flash" size={16} color={GOLD_TEXT} />
-              <Text style={styles.xpText}>+150 XP Earned</Text>
+              <Text style={styles.xpText}>+{earnedXp} XP Earned</Text>
             </View>
             <View style={styles.xpDivider} />
             <View style={styles.xpRight}>

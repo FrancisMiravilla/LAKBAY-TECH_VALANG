@@ -21,6 +21,7 @@ import ErrorModal from '../components/ErrorModal';
 import VintaStripe from '../components/VintaStripe';
 import { ARNavCards, ARGroundPath, ARRoundButtons } from '../components/ARGuidance';
 import GuideBubble from '../components/GuideBubble';
+import { catchXpFor } from '../constants/rewards';
 import { Svg, Polygon, Path, Circle, G, Defs, LinearGradient, Stop, Line, Rect, ClipPath } from 'react-native-svg';
 
 const { width: W, height: H } = Dimensions.get('window');
@@ -976,7 +977,7 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
                       <Text style={arStyles.celebrationPlace} numberOfLines={1}>{spot.location_name}</Text>
                     )}
                     <View style={arStyles.celebrationDivider} />
-                    <Text style={arStyles.celebrationXp}>{ownedAtOpen ? 'Already in your collection' : '+150 XP'}</Text>
+                    <Text style={arStyles.celebrationXp}>{ownedAtOpen ? 'Already in your collection' : `+${catchXpFor(spot)} XP`}</Text>
                     <Text style={arStyles.celebrationHint}>Tap to close</Text>
                   </VintaCard>
                 </TouchableOpacity>
@@ -1422,6 +1423,7 @@ export default function CatchScreen({ navigation }) {
       );
       if (!alreadyCaught) {
         const rawModel = targetIcon.model_3d || targetSpot?.model_3d || null;
+        const catchXp = catchXpFor(targetSpot);
         const newEntry = {
           id: targetIcon.id || (targetSpot ? 'spot-icon-' + targetSpot.id : Date.now()),
           name: targetIcon.name || targetSpot?.name || 'Cultural Model',
@@ -1444,7 +1446,7 @@ export default function CatchScreen({ navigation }) {
         } catch (_) {}
 
         try {
-          await authService.adjustXP(150);
+          await authService.adjustXP(catchXp);
         } catch (_) {}
 
         // Log to backend for admin recent activity feed
@@ -1454,7 +1456,7 @@ export default function CatchScreen({ navigation }) {
           type: 'catch',
           icon: 'sparkles',
           title: 'Model Caught!',
-          sub: `${newEntry.name} caught and added to your Badges collection! +150 XP`,
+          sub: `${newEntry.name} caught and added to your Badges collection! +${catchXp} XP`,
         });
       }
     } catch (e) {

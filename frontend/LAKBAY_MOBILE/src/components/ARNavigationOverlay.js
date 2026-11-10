@@ -10,6 +10,7 @@ import { ORIGIN } from '../api/qrService';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
 import { ARNavCards, ARGroundPath, ARRoundButtons } from './ARGuidance';
 import GuideBubble from './GuideBubble';
+import { catchXpFor } from '../constants/rewards';
 const FALLBACK_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 
@@ -787,7 +788,7 @@ export default function ARNavigationOverlay({
             {/* XP chip */}
             <View style={arStyles.xpChip}>
               <Ionicons name="flash" size={11} color="#FBBF24" />
-              <Text style={arStyles.xpText}>+150 XP</Text>
+              <Text style={arStyles.xpText}>+{catchXpFor(activeSpot)} XP</Text>
             </View>
           </View>
 

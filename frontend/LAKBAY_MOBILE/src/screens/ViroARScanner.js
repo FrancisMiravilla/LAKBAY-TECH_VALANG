@@ -38,6 +38,7 @@ import { authService } from '../api/authService';
 import ARGuideCenterPopup from '../components/ARGuideCenterPopup';
 import HintCompass from '../components/HintCompass';
 import MiniCompass from '../components/MiniCompass';
+import { RARITY_XP, rarityXp } from '../constants/rewards';
 import UnrecognizedArtNotice from '../components/UnrecognizedArtNotice';
 import GuideSpeechModal from '../components/GuideSpeechModal';
 import BuildingPickerModal from '../components/BuildingPickerModal';
@@ -60,7 +61,7 @@ export const RARITY_THEME = {
     bg: 'rgba(16, 185, 129, 0.18)',
     border: '#10B981',
     icon: 'sparkles',
-    xp: 50,
+    xp: RARITY_XP.common,
     emoji: 'amphora',
   },
   rare: {
@@ -70,7 +71,7 @@ export const RARITY_THEME = {
     bg: 'rgba(59, 130, 246, 0.18)',
     border: '#3B82F6',
     icon: 'star',
-    xp: 100,
+    xp: RARITY_XP.rare,
     emoji: 'swords',
   },
   mythical: {
@@ -80,7 +81,7 @@ export const RARITY_THEME = {
     bg: 'rgba(168, 85, 247, 0.18)',
     border: '#A855F7',
     icon: 'diamond',
-    xp: 150,
+    xp: RARITY_XP.mythical,
     emoji: 'gem',
   },
   legendary: {
@@ -90,7 +91,7 @@ export const RARITY_THEME = {
     bg: 'rgba(245, 158, 11, 0.22)',
     border: '#F59E0B',
     icon: 'trophy',
-    xp: 250,
+    xp: RARITY_XP.legendary,
     emoji: 'crown',
   },
 };
@@ -409,7 +410,7 @@ export default function ViroARScanner({ navigation }) {
 
     const rarityKey = (target.rarity || 'common').toLowerCase();
     const rarityTheme = RARITY_THEME[rarityKey] || RARITY_THEME.common;
-    const earnedXP = rarityTheme.xp || 150;
+    const earnedXP = rarityXp(rarityKey);
 
     // Save to SecureStore for the Badges tab and award XP
     let wasAlreadyCollected = false;
