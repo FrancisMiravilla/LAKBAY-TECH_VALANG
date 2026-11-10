@@ -9,7 +9,7 @@ from .views import (
     IconTriviaView, SubmitIconTriviaView,
     TriviaReviewListView, TriviaReviewActionView,
     ARTargetViewSet, MilestoneBadgeViewSet,
-    DashboardStatsView, LogActivityView,
+    DashboardStatsView, LogActivityView, MyCollectionView,
 )
 
 router = DefaultRouter()
@@ -24,6 +24,7 @@ urlpatterns = [
     path('', include(router.urls)),
     path('validate/', ValidateQRView.as_view(), name='qr_validate'),
     path('my-scans/', UserQRScansView.as_view(), name='qr_my_scans'),
+    path('my-collection/', MyCollectionView.as_view(), name='qr_my_collection'),
     
     # Spot Trivia (QR/AR)
     path('spots/<int:spot_id>/trivia/', SpotTriviaView.as_view(), name='spot_trivia'),

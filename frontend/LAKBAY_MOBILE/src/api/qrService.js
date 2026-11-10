@@ -48,3 +48,59 @@ export const getMilestones = () =>
 export const logActivity = (activityType, title) =>
   qrClient.post('/api/qr/log-activity/', { activity_type: activityType, title }).then((r) => r.data).catch(() => null);
 
+
+// ── AR / Catch collections ──────────────────────────────────────────────────
+// The phone keeps a copy in SecureStore ('collected_models', 'caught_icons'),
+// which is wiped on logout, session expiry and reinstall. The server rebuilds
+// each user's collection from their activity log, so merge it back in.
+export const getMyCollection = () =>
+  qrClient.get('/api/qr/my-collection/').then((r) => r.data);
+
+const sameItem = (a, b) =>
+  String(a.id) === String(b.id) ||
+  (!!a.name && !!b.name && a.name.toLowerCase() === b.name.toLowerCase());
+
+const mergeItems = (local, remote) => {
+  const merged = [...local];
+  remote.forEach((r) => { if (!merged.some((l) => sameItem(l, r))) merged.push(r); });
+  return merged;
+};
+
+const readList = async (key, uidKey, uid) => {
+  try {
+    const [str, storedUid] = await Promise.all([SecureStore.getItemAsync(key), SecureStore.getItemAsync(uidKey)]);
+    if (storedUid && storedUid !== uid) return [];
+    const arr = str ? JSON.parse(str) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+};
+
+let syncPromise = null;
+export const syncCollections = () => {
+  if (syncPromise) return syncPromise;
+  syncPromise = (async () => {
+    try {
+      const [profile, remote] = await Promise.all([
+        qrClient.get('/api/auth/profile/').then((r) => r.data),
+        getMyCollection(),
+      ]);
+      const uid = String(profile?.id || '');
+      if (!uid) return;
+      const localAr = await readList('collected_models', 'collected_models_uid', uid);
+      const localCatch = await readList('caught_icons', 'caught_icons_uid', uid);
+      const ar = mergeItems(localAr, remote?.ar || []);
+      const caught = mergeItems(localCatch, remote?.catch || []);
+      await SecureStore.setItemAsync('collected_models', JSON.stringify(ar));
+      await SecureStore.setItemAsync('collected_models_uid', uid);
+      await SecureStore.setItemAsync('caught_icons', JSON.stringify(caught));
+      await SecureStore.setItemAsync('caught_icons_uid', uid);
+    } catch {
+      // Offline or server error: keep whatever the phone already has.
+    } finally {
+      syncPromise = null;
+    }
+  })();
+  return syncPromise;
+};

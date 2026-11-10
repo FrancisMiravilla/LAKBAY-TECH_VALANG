@@ -10,7 +10,7 @@ import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import * as SecureStore from 'expo-secure-store';
 import { useFocusEffect } from '@react-navigation/native';
 import { authService } from '../api/authService';
-import { getMyScans, getSpots, getARTargets } from '../api/qrService';
+import { getMyScans, getSpots, getARTargets, syncCollections } from '../api/qrService';
 import VintaStripe from '../components/VintaStripe';
 import { useTabBarSpace } from '../navigation/tabBarLayout';
 import { useVintaRefresh, VintaRefreshIndicator } from '../components/VintaRefresh';
@@ -217,6 +217,7 @@ export default function ProfileScreen({ navigation }) {
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
+      await syncCollections();
       const [data, scansData, spotsData, collectedModelsStr, caughtIconsStr, storedUid, storedCatchUid] = await Promise.all([
         authService.getProfile(),
         (async () => { try { const s = await (await import('../api/qrService')).getMyScans(); return s; } catch { return null; } })(),

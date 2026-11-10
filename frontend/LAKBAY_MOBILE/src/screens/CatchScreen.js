@@ -15,7 +15,7 @@ import * as Location from 'expo-location';
 import { WebView } from 'react-native-webview';
 import * as SecureStore from 'expo-secure-store';
 import { useApp } from '../context/AppContext';
-import { getCatchIcons, getSpots, ORIGIN, logActivity } from '../api/qrService';
+import { getCatchIcons, getSpots, ORIGIN, logActivity, syncCollections } from '../api/qrService';
 import { authService } from '../api/authService';
 import ErrorModal from '../components/ErrorModal';
 import VintaStripe from '../components/VintaStripe';
@@ -1263,7 +1263,8 @@ export default function CatchScreen({ navigation }) {
   // ── Load caught icons & sync with SecureStore ─────────────────────────────
   useFocusEffect(
     useCallback(() => {
-      SecureStore.getItemAsync('caught_icons')
+      syncCollections()
+        .then(() => SecureStore.getItemAsync('caught_icons'))
         .then(str => {
           if (str) {
             try {

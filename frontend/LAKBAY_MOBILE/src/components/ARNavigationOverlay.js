@@ -6,7 +6,7 @@ import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { authService } from '../api/authService';
-import { ORIGIN } from '../api/qrService';
+import { ORIGIN, logActivity } from '../api/qrService';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
 import { ARNavCards, ARGroundPath, ARRoundButtons } from './ARGuidance';
 import GuideBubble from './GuideBubble';
@@ -546,8 +546,11 @@ export default function ARNavigationOverlay({
             } catch (_) {}
 
             try {
-              await authService.adjustXP(150);
+              await authService.adjustXP(catchXpFor(activeSpot));
             } catch (_) {}
+
+            // Server copy of the collection (survives logout and reinstall)
+            logActivity('catch', `caught "${newEntry.name}" in AR`);
           }
         } catch (e) {
           console.warn('[ARNavigationOverlay] Failed to auto-save caught model:', e);

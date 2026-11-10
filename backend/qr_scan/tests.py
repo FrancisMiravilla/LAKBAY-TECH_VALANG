@@ -80,3 +80,34 @@ class ReportsViewTests(TestCase):
         )
         data = self.client.get(self.url, {'start': '2020-01-01', 'end': '2026-03-01'}).json()
         self.assertEqual(data['range']['days'], 366)
+
+
+class MyCollectionTests(TestCase):
+    def setUp(self):
+        from .models import ARTarget, CulturalIcon
+        self.user = CustomUser.objects.create_user(email='col@x.com', password='pass12345', in_game_name='Col')
+        other = CustomUser.objects.create_user(email='other@x.com', password='pass12345', in_game_name='Oth')
+        self.target = ARTarget.objects.create(name='Sea Spirit', building='S3', rarity='rare', slot_number=2)
+        self.icon = CulturalIcon.objects.create(name='Curacha', emoji='x', tagline='Crab', type_name='t', about='a', significance='s')
+        self.spot = CulturalSpot.objects.create(name='Paseo Vinta', description='d', historical_background='h',
+                                                cultural_significance='c', fun_fact='f', location_name='Paseo del Mar',
+                                                latitude=6.9, longitude=122.07)
+        for t, title in [('ar', 'discovered "Sea Spirit" in AR Exhibit'),
+                         ('ar', 'discovered "Sea Spirit" in AR Exhibit'),
+                         ('ar', 'discovered "Deleted Art" in AR Exhibit'),
+                         ('catch', 'caught "Curacha" in AR'),
+                         ('catch', 'caught "paseo vinta" in AR'),
+                         ('scan', 'scanned "Fort Pilar"')]:
+            UserActivityLog.objects.create(user=self.user, activity_type=t, title=title)
+        UserActivityLog.objects.create(user=other, activity_type='catch', title='caught "Curacha" in AR')
+
+    def test_rebuilds_collection_from_activity_log(self):
+        client = APIClient()
+        client.force_authenticate(self.user)
+        body = client.get('/api/qr/my-collection/').json()
+        self.assertEqual([a['id'] for a in body['ar']], [self.target.id])
+        self.assertEqual(body['ar'][0]['rarity'], 'rare')
+        self.assertEqual(sorted(str(c['id']) for c in body['catch']), sorted([str(self.icon.id), f'spot-icon-{self.spot.id}']))
+
+    def test_requires_login(self):
+        self.assertEqual(APIClient().get('/api/qr/my-collection/').status_code, 401)

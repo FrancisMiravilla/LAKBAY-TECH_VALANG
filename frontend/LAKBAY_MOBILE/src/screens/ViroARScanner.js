@@ -33,7 +33,7 @@ import VintaCard from '../components/VintaCard';
 
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
-import { getARTargets, ORIGIN, logActivity } from '../api/qrService';
+import { getARTargets, ORIGIN, logActivity, syncCollections } from '../api/qrService';
 import { authService } from '../api/authService';
 import ARGuideCenterPopup from '../components/ARGuideCenterPopup';
 import HintCompass from '../components/HintCompass';
@@ -341,6 +341,9 @@ export default function ViroARScanner({ navigation }) {
       if (timer) clearTimeout(timer);
     };
   }, [arStatus, loading]);
+
+  // Restore this account's AR collection first so re-found artworks give no repeat XP.
+  React.useEffect(() => { syncCollections(); }, []);
 
   React.useEffect(() => {
     (async () => {

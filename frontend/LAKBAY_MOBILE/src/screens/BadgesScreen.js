@@ -18,7 +18,7 @@ import { useVintaRefresh, VintaRefreshIndicator } from '../components/VintaRefre
 import LucideIcon from '../components/LucideIcon';
 import { useTabBarSpace } from '../navigation/tabBarLayout';
 import { authService } from '../api/authService';
-import { getMyScans, getSpots, getARTargets, getCatchIcons, getMilestones, ORIGIN } from '../api/qrService';
+import { getMyScans, getSpots, getARTargets, getCatchIcons, getMilestones, ORIGIN, syncCollections } from '../api/qrService';
 import * as SecureStore from 'expo-secure-store';
 import { WebView } from 'react-native-webview';
 import { getLevelInfo } from '../utils/levels';
@@ -210,6 +210,7 @@ export default function BadgesScreen() {
   const aliveRef = useRef(true);
   const fetchData = useCallback(async () => {
     try {
+      await syncCollections();
       const [p, s, spotsData, collectedModelsStr, arTargetsData, caughtIconsStr, storedUid, storedCatchUid, milestonesData, catchIconsData] = await Promise.all([
         authService.getProfile().catch(() => null),
         getMyScans().catch(() => ({ scans: [] })),

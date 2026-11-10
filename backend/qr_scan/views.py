@@ -1,5 +1,6 @@
 import json
 import random
+import re
 import datetime
 from accounts.levels import level_for_xp
 from html import escape
@@ -935,6 +936,83 @@ class LogActivityView(APIView):
             )
 
         return Response({'status': 'ok'})
+
+
+COLLECTION_TITLE_NAME = re.compile(r'"(.+)"')
+
+
+def _file_url(request, f):
+    if not f:
+        return None
+    try:
+        url = f.url
+    except ValueError:
+        return None
+    return request.build_absolute_uri(url) if url.startswith('/') else url
+
+
+class MyCollectionView(APIView):
+    """
+    The user's AR discoveries and caught models, rebuilt from their activity
+    log so a collection survives logout, session expiry and reinstalls.
+    Items are matched by the name quoted in the log title, e.g.
+    'discovered "Name" in AR Exhibit' / 'caught "Name" in AR'.
+    GET /api/qr/my-collection/ -> {"ar": [...], "catch": [...]}
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        logs = (UserActivityLog.objects
+                .filter(user=request.user, activity_type__in=['ar', 'catch'])
+                .order_by('created_at'))
+        first_seen = {'ar': {}, 'catch': {}}
+        for log in logs:
+            m = COLLECTION_TITLE_NAME.search(log.title or '')
+            if not m:
+                continue
+            name = m.group(1).strip()
+            key = name.lower()
+            if name and key not in first_seen[log.activity_type]:
+                first_seen[log.activity_type][key] = (name, log.created_at)
+
+        ar_by_name = {t.name.lower(): t for t in ARTarget.objects.select_related('spot')}
+        icon_by_name = {i.name.lower(): i for i in CulturalIcon.objects.all()}
+        spot_by_name = {s.name.lower(): s for s in CulturalSpot.objects.all()}
+
+        ar_items = []
+        for key, (name, when) in first_seen['ar'].items():
+            t = ar_by_name.get(key)
+            if t is None:
+                continue
+            ar_items.append({
+                'id': t.id,
+                'name': t.name,
+                'building': t.building,
+                'rarity': t.rarity,
+                'slot_number': t.slot_number,
+                'spot_name': t.spot.name if t.spot else '',
+                'hint': t.hint or '',
+                'model_3d': _file_url(request, t.model_3d),
+                'source': 'ar',
+                'date_collected': when.isoformat(),
+            })
+
+        catch_items = []
+        for key, (name, when) in first_seen['catch'].items():
+            icon = icon_by_name.get(key)
+            spot = spot_by_name.get(key)
+            if icon is None and spot is None:
+                continue
+            catch_items.append({
+                'id': icon.id if icon else f'spot-icon-{spot.id}',
+                'name': icon.name if icon else spot.name,
+                'model_3d': _file_url(request, (icon.model_3d if icon and icon.model_3d else None) or (spot.model_3d if spot else None)),
+                'color': icon.color if icon else '#10B981',
+                'tagline': (icon.tagline if icon else '') or (spot.location_name if spot else ''),
+                'date_caught': when.isoformat(),
+            })
+
+        return Response({'ar': ar_items, 'catch': catch_items})
 
 
 class DashboardStatsView(APIView):
