@@ -1,6 +1,6 @@
 <mxfile host="Electron">
   <diagram id="lakbay-erd" name="Entity Relationship Diagram">
-    <mxGraphModel dx="1996" dy="979" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+    <mxGraphModel dx="1896" dy="868" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -310,13 +310,15 @@
         <mxCell id="r-user-badge" edge="1" parent="1" source="e-customuser" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=2;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=10;labelBackgroundColor=#FFFFFF;" target="e-spotbadge">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="r-spot-marker" edge="1" parent="1" source="e-culturalspot" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=2;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=10;labelBackgroundColor=#FFFFFF;" target="e-qrmarker">
+        <mxCell id="r-spot-marker" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#6c8ebf;strokeWidth=2;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=10;labelBackgroundColor=#FFFFFF;">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="540" y="450" />
-              <mxPoint x="300" y="450" />
-              <mxPoint x="300" y="540" />
+              <mxPoint x="550" y="483.47" />
+              <mxPoint x="310" y="483.47" />
+              <mxPoint x="310" y="573.47" />
             </Array>
+            <mxPoint x="430" y="503.47" as="sourcePoint" />
+            <mxPoint x="310" y="638.47" as="targetPoint" />
           </mxGeometry>
         </mxCell>
         <mxCell id="r-spot-trivia" edge="1" parent="1" source="e-culturalspot" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#82b366;strokeWidth=2;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;fontSize=10;labelBackgroundColor=#FFFFFF;" target="e-triviaquestion">
