@@ -8,6 +8,7 @@ import { COLORS, FONTS, RADIUS, SIZES, SPACING, GOLD_TEXT, onWhite } from '../..
 import VintaCard from '../VintaCard';
 import { SPOT_TYPES } from '../../constants/mapConfig';
 import type { MapSpot } from '../../hooks/useMapSpots';
+import { getLevelInfo } from '../../utils/levels';
 
 const HTML_ESCAPE: Record<string, string> = { '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;', '&': '&amp;' };
 const escapeAttr = (s: string) => s.replace(/["'<>&]/g, (c) => HTML_ESCAPE[c]);
@@ -150,7 +151,7 @@ function SpotDetailCardBase({
             by collecting XP in other quests and activities.
           </Text>
           <Text style={styles.lockedAlertXpHint}>
-            Your Current Rank: <Text style={styles.lockedAlertUserLvl}>Level {userLevel}</Text> ({userXp % 100}/100 XP)
+            Your Current Rank: <Text style={styles.lockedAlertUserLvl}>Level {userLevel}</Text> ({getLevelInfo(userXp).levelXp}/{getLevelInfo(userXp).levelCost} XP)
           </Text>
         </View>
       )}

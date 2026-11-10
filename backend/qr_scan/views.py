@@ -1,6 +1,7 @@
 import json
 import random
 import datetime
+from accounts.levels import level_for_xp
 from html import escape
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseBadRequest
@@ -121,7 +122,7 @@ class ValidateQRView(APIView):
 
         spot = marker.spot
         user_xp = request.user.xp or 0
-        user_level = (user_xp // 100) + 1
+        user_level = level_for_xp(user_xp)
         req_level = getattr(spot, 'required_level', 1) or 1
         xp_reward = getattr(spot, 'xp_reward', 50) or 50
 

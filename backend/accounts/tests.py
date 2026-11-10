@@ -85,3 +85,14 @@ def test_profile_cannot_set_cosmetics_directly_and_leaderboard_shows_them():
     client.patch('/api/auth/cosmetics/', {'hat': 'cap'}, format='json')
     me = client.get('/api/auth/leaderboard/').json()['me']
     assert me['hat'] == 'cap'
+
+
+def test_level_curve():
+    from accounts.levels import level_info, xp_for_level
+    assert [xp_for_level(n) for n in range(1, 10)] == [100, 150, 175, 200, 250, 275, 300, 350, 375]
+    assert level_info(0) == (1, 0, 100)
+    assert level_info(99)[0] == 1
+    assert level_info(100) == (2, 0, 150)
+    assert level_info(249)[0] == 2
+    assert level_info(250) == (3, 0, 175)
+    assert level_info(625) == (5, 0, 250)

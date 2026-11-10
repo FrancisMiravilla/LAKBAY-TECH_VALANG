@@ -11,6 +11,7 @@ import { MapMarker, MapUserLocation } from './MapLayers';
 import { FeatureButton, ZoomControls } from './MapControls';
 import { MapSearchBar, type SearchResult } from './MapSearchBar';
 import { SpotsLayer, buildSpotFeatures } from './SpotsLayer';
+import { levelForXp } from '../../utils/levels';
 
 export interface PickedLocation {
   lat: number;
@@ -42,7 +43,7 @@ function FlyTo({ target }: { target: { coordinate: LngLat; zoom: number; key: nu
  */
 export function LocationPickerMap({ value, onChange }: LocationPickerMapProps) {
   const { spots, profile } = useMapSpots();
-  const userLevel = Math.floor((profile?.xp ?? 0) / 100) + 1;
+  const userLevel = levelForXp(profile?.xp ?? 0);
   const spotShape = useMemo(() => buildSpotFeatures(spots, userLevel), [spots, userLevel]);
 
   const [theme, setTheme] = useState<MapTheme>('system');

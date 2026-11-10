@@ -1,4 +1,5 @@
 from datetime import date, datetime, time, timedelta
+from accounts.levels import level_for_xp
 from zoneinfo import ZoneInfo
 
 from django.db.models import Count, Sum
@@ -116,7 +117,7 @@ class ReportsView(APIView):
                 'in_game_name': u.in_game_name,
                 'visitor_type': u.visitor_type,
                 'xp': u.xp,
-                'level': u.xp // 100 + 1,
+                'level': level_for_xp(u.xp),
             }
             for i, u in enumerate(
                 tourists.filter(is_active=True, in_game_name__isnull=False)

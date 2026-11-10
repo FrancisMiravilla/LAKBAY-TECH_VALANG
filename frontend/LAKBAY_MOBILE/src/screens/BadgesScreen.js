@@ -21,6 +21,7 @@ import { authService } from '../api/authService';
 import { getMyScans, getSpots, getARTargets, getCatchIcons, getMilestones, ORIGIN } from '../api/qrService';
 import * as SecureStore from 'expo-secure-store';
 import { WebView } from 'react-native-webview';
+import { getLevelInfo } from '../utils/levels';
 
 const APP_GLYPH = require('../assets/lakbay_icon_glyph.png');
 const SAIL_COLORS = ['#2B3990', '#E8559A', '#F6C431', '#E2412B', '#1F7A3D', '#F39A3D', '#2B3990'];
@@ -315,9 +316,7 @@ export default function BadgesScreen() {
   });
 
   const xp             = profile?.xp || 0;
-  const level          = Math.floor(xp / 100) + 1;
-  const currentLevelXp = xp % 100;
-  const progressPct    = currentLevelXp / 100;
+  const { level, levelXp: currentLevelXp, levelCost, progressPct } = getLevelInfo(xp);
 
   const activeMilestones = milestones && milestones.length > 0 ? milestones : DEFAULT_MILESTONES;
 
@@ -431,7 +430,7 @@ export default function BadgesScreen() {
 
           <View style={styles.levelLabels}>
             <Text style={styles.levelLabel}>Level Progress</Text>
-            <Text style={[styles.levelXp, { color: onWhite(rank.color) }]}>{currentLevelXp} / 100 XP</Text>
+            <Text style={[styles.levelXp, { color: onWhite(rank.color) }]}>{currentLevelXp} / {levelCost} XP</Text>
           </View>
           <LevelProgressBar pct={progressPct} color={rank.color} />
           <View style={styles.levelLabels}>

@@ -19,6 +19,7 @@ import { useAppDialog } from '../components/useAppDialog';
 import { getCharacterDetails } from '../constants/characters';
 import LucideIcon from '../components/LucideIcon';
 import DecoratedAvatar, { ProfileBackdrop } from '../components/DecoratedAvatar';
+import { getLevelInfo } from '../utils/levels';
 // ─── Rank helpers ─────────────────────────────────────────────────────────────
 const getRank = (xp) => {
   if (xp >= 2201) return { title: 'Admiral of the Western Seas', icon: 'crown', color: '#FF6B00', glow: 'rgba(255,107,0,0.35)' };
@@ -311,9 +312,7 @@ export default function ProfileScreen({ navigation }) {
 
   // Derived stats
   const xp           = profile?.xp || 0;
-  const level        = Math.floor(xp / 100) + 1;
-  const levelXp      = xp % 100;
-  const progressPct  = levelXp / 100;
+  const { level, levelXp, levelCost, progressPct } = getLevelInfo(xp);
   const rank         = getRank(xp);
   const scansCount   = scans.length;
   const arDone       = collectedModels.length;
@@ -427,7 +426,7 @@ export default function ProfileScreen({ navigation }) {
                       <LucideIcon name="zap" size={13} color={GOLD_TEXT} />
                       <Text style={styles.xpBarLabel}>{xp.toLocaleString()} XP</Text>
                     </View>
-                    <Text style={styles.xpBarLabel}>{levelXp} / 100 to LVL {level + 1}</Text>
+                    <Text style={styles.xpBarLabel}>{levelXp} / {levelCost} to LVL {level + 1}</Text>
                   </View>
                   <View style={styles.xpBarBg}>
                     <View style={[styles.xpBarFill, { width: `${Math.round(progressPct * 100)}%` }]} />

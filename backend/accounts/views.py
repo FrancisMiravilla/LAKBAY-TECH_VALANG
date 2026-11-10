@@ -1,4 +1,5 @@
 from rest_framework import generics, status, permissions
+from .levels import level_for_xp
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -186,7 +187,7 @@ class LeaderboardView(APIView):
                 'in_game_name': u.in_game_name,
                 'chosen_character': u.chosen_character or '',
                 'xp': u.xp,
-                'level': u.xp // 100 + 1,
+                'level': level_for_xp(u.xp),
                 'is_me': u.id == request.user.id,
                 **cosmetics.equipped(u),
             }

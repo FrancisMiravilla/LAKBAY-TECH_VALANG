@@ -22,6 +22,7 @@ import { getSpots, ORIGIN } from '../api/qrService';
 import { getPublishedPromotions, getPromotions, getWallet } from '../api/promotionService';
 import { authService } from '../api/authService';
 import { streakService } from '../api/streakService';
+import { levelForXp } from '../utils/levels';
 
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -149,7 +150,7 @@ export default function HomeScreen({ navigation, route }) {
   const [spots, setSpots] = useState([]);
   const [profile, setProfile] = useState(null);
   const userXp = profile?.xp || 0;
-  const userLevel = Math.floor(userXp / 100) + 1;
+  const userLevel = levelForXp(userXp);
   const [featuredPlaces, setFeaturedPlaces] = useState([]);
   const [promotedPlaces, setPromotedPlaces] = useState([]);
   const [coins, setCoins] = useState(null);

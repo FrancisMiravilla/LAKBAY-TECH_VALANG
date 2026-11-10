@@ -27,6 +27,7 @@ import { CategoryChips } from '../components/map/CategoryChips';
 import { SpotDetailCard, type RouteInfo } from '../components/map/SpotDetailCard';
 import { useMapSpots, type MapSpot } from '../hooks/useMapSpots';
 import { haversineMetres, isInsideBounds, type VisibleBounds } from '../utils/geo';
+import { levelForXp } from '../utils/levels';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const CARD_OFFSCREEN = 640;
@@ -172,7 +173,7 @@ export default function MapScreen({ route }: MapScreenProps) {
   const insets = useSafeAreaInsets();
   const { spots, profile, loading, error } = useMapSpots();
   const userXp = profile?.xp ?? 0;
-  const userLevel = Math.floor(userXp / 100) + 1;
+  const userLevel = levelForXp(userXp);
 
   const [theme, setTheme] = useState<MapTheme>('system');
   const [barangaysOn, setBarangaysOn] = useState(false);
