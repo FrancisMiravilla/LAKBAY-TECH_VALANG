@@ -20,13 +20,44 @@ try {
   Speech = null;
 }
 
+// The guide is male. Android does not report a voice's gender, so we look for
+// Google TTS voices known to be male (offline "-local" first, then online),
+// and fall back to the default voice at a lower pitch.
+const MALE_VOICE_IDS = [
+  'en-us-x-iom-local', 'en-us-x-iol-local', 'en-us-x-tpd-local',
+  'en-gb-x-gbd-local', 'en-gb-x-rjs-local', 'en-gb-x-gbb-local',
+  'en-us-x-iom-network', 'en-us-x-iol-network', 'en-us-x-tpd-network',
+  'en-gb-x-gbd-network', 'en-gb-x-rjs-network', 'en-gb-x-gbb-network',
+];
+const MALE_PITCH = 0.95;
+const FALLBACK_PITCH = 0.8;
+
+let voicePromise = null;
+function pickMaleVoice() {
+  if (!voicePromise) {
+    voicePromise = (async () => {
+      try {
+        const voices = await Speech.getAvailableVoicesAsync();
+        const ids = new Set((voices || []).map((v) => v.identifier));
+        return MALE_VOICE_IDS.find((id) => ids.has(id)) || null;
+      } catch {
+        return null;
+      }
+    })();
+  }
+  return voicePromise;
+}
+if (Speech?.getAvailableVoicesAsync) pickMaleVoice();
+
 export function useGuideVoice() {
   const [typed, setTyped] = useState('');
   const [speaking, setSpeaking] = useState(false);
   const [voiceMissing, setVoiceMissing] = useState(false);
   const timerRef = useRef(null);
+  const speakTokenRef = useRef(null);
 
   const stop = useCallback(() => {
+    speakTokenRef.current = null;
     clearInterval(timerRef.current);
     try { Speech?.stop(); } catch { /* not available */ }
     setSpeaking(false);
@@ -43,20 +74,28 @@ export function useGuideVoice() {
     setSpeaking(true);
 
     if (Speech?.speak) {
-      try {
-        voiceDone = false;
-        Speech.speak(message, {
-          language: 'en-US',
-          rate: 0.95,
-          pitch: 1.05,
-          onDone: () => { voiceDone = true; finish(); },
-          onStopped: () => { voiceDone = true; finish(); },
-          onError: () => { voiceDone = true; finish(); },
-        });
-      } catch {
-        voiceDone = true;
-        setVoiceMissing(true);
-      }
+      voiceDone = false;
+      const token = {};
+      speakTokenRef.current = token;
+      const speakWith = (voiceId) => {
+        if (speakTokenRef.current !== token) return;
+        try {
+          Speech.speak(message, {
+            language: 'en-US',
+            ...(voiceId ? { voice: voiceId } : {}),
+            rate: 0.95,
+            pitch: voiceId ? MALE_PITCH : FALLBACK_PITCH,
+            onDone: () => { voiceDone = true; finish(); },
+            onStopped: () => { voiceDone = true; finish(); },
+            onError: () => { voiceDone = true; finish(); },
+          });
+        } catch {
+          voiceDone = true;
+          setVoiceMissing(true);
+          finish();
+        }
+      };
+      (Speech.getAvailableVoicesAsync ? pickMaleVoice() : Promise.resolve(null)).then(speakWith);
     } else {
       setVoiceMissing(true);
     }
