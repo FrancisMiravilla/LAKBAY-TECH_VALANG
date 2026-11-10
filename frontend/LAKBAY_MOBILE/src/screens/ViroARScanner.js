@@ -38,7 +38,10 @@ import { authService } from '../api/authService';
 import ARGuideCenterPopup from '../components/ARGuideCenterPopup';
 import HintCompass from '../components/HintCompass';
 import MiniCompass from '../components/MiniCompass';
+import UnrecognizedArtNotice from '../components/UnrecognizedArtNotice';
 import GuideSpeechModal from '../components/GuideSpeechModal';
+import BuildingPickerModal from '../components/BuildingPickerModal';
+import { galleryTourSteps } from '../constants/museumGalleries';
 import LucideIcon from '../components/LucideIcon';
 
 // Resolve a model path into an absolute https URL Viro can load.
@@ -224,7 +227,7 @@ export default function ViroARScanner({ navigation }) {
   const guideSteps = [
     {
       title: 'Head to the Building',
-      text: 'First, head to the National Museum building: S1, S2 or S3. Each building hides up to 10 artwork models waiting for you.',
+      text: 'First, head to the National Museum building: S2, S3 or S4. Each building hides up to 10 artwork models waiting for you.',
     },
     {
       title: 'Scan the Artworks',
@@ -235,6 +238,16 @@ export default function ViroARScanner({ navigation }) {
       text: 'Every artwork you scan is saved to your collection with its rarity and slot number. See them anytime in My Journey. Good luck, explorer!',
     },
   ];
+  // After the intro: pick a building, then the guide narrates its galleries.
+  const [showBuildingPicker, setShowBuildingPicker] = useState(false);
+  const [galleryBuilding, setGalleryBuilding] = useState(null);
+  const [selectedBuilding, setSelectedBuilding] = useState(null);
+  const galleryInProgress = showInstructionModal || showBuildingPicker || !!galleryBuilding;
+  const hintedTargets = () => {
+    const withHints = arTargets.filter(t => t.hint && t.hint.trim().length > 0);
+    const inBuilding = withHints.filter(t => t.building === selectedBuilding);
+    return inBuilding.length > 0 ? inBuilding : withHints;
+  };
   const [rewardModalData, setRewardModalData] = useState(null);
   const [showGuideCenterPopup, setShowGuideCenterPopup] = useState(false);
   const [activeGuideTarget, setActiveGuideTarget] = useState(null);
@@ -279,11 +292,11 @@ export default function ViroARScanner({ navigation }) {
   // is found within 10 s the guide pops up with a clue (once per visit).
   const autoClueShownRef = React.useRef(false);
   React.useEffect(() => {
-    if (showInstructionModal || autoClueShownRef.current) return;
+    if (galleryInProgress || autoClueShownRef.current) return;
     if (!sceneMountReady || arStatus !== 'ready' || loading || arTargets.length === 0) return;
     if (detectedSpot || rewardModalData || showGuideCenterPopup || showHintModal) return;
 
-    const targetsWithHints = arTargets.filter(t => t.hint && t.hint.trim().length > 0);
+    const targetsWithHints = hintedTargets();
     if (targetsWithHints.length === 0) return;
 
     const timer = setTimeout(() => {
@@ -294,7 +307,7 @@ export default function ViroARScanner({ navigation }) {
     }, 10000);
 
     return () => clearTimeout(timer);
-  }, [showInstructionModal, sceneMountReady, arStatus, loading, arTargets, detectedSpot, rewardModalData, showGuideCenterPopup, showHintModal]);
+  }, [galleryInProgress, selectedBuilding, sceneMountReady, arStatus, loading, arTargets, detectedSpot, rewardModalData, showGuideCenterPopup, showHintModal]);
 
   React.useEffect(() => {
     (async () => {
@@ -409,7 +422,7 @@ export default function ViroARScanner({ navigation }) {
         models.push({
           id: target.id,
           name: target.name,
-          building: target.building || 'S1',
+          building: target.building || 'S2',
           rarity: target.rarity || 'common',
           slot_number: target.slot_number || 1,
           spot_name: target.spot_name || '',
@@ -463,7 +476,7 @@ export default function ViroARScanner({ navigation }) {
     setRewardModalData({
       id: target.id,
       name: target.name,
-      building: target.building || 'S1',
+      building: target.building || 'S2',
       rarity: target.rarity || 'common',
       slot_number: target.slot_number || 1,
       spot_name: target.spot_name || '',
@@ -477,7 +490,7 @@ export default function ViroARScanner({ navigation }) {
     setDetectedSpot({
       id: target.id,
       name: target.name,
-      building: target.building || 'S1',
+      building: target.building || 'S2',
       rarity: target.rarity || 'common',
       slot_number: target.slot_number || 1,
       spot_name: target.spot_name || '',
@@ -538,7 +551,7 @@ export default function ViroARScanner({ navigation }) {
                   about: detectedSpot.description,
                   model_3d: detectedSpot.model_3d,
                   rarity: detectedSpot.rarity || 'common',
-                  building: detectedSpot.building || 'S1',
+                  building: detectedSpot.building || 'S2',
                   slot_number: detectedSpot.slot_number || 1,
                   spot_name: detectedSpot.spot_name || '',
                 },
@@ -552,8 +565,22 @@ export default function ViroARScanner({ navigation }) {
       <GuideSpeechModal
         visible={showInstructionModal}
         steps={guideSteps}
+        finalLabel="Next"
+        onClose={() => { setShowInstructionModal(false); setShowBuildingPicker(true); }}
+      />
+
+      <BuildingPickerModal
+        visible={showBuildingPicker}
+        onPick={(id) => { setShowBuildingPicker(false); setSelectedBuilding(id); setGalleryBuilding(id); }}
+        onSkip={() => setShowBuildingPicker(false)}
+      />
+
+      <GuideSpeechModal
+        visible={!!galleryBuilding}
+        steps={galleryBuilding ? galleryTourSteps(galleryBuilding) : []}
         finalLabel="Start Scanning"
-        onClose={() => setShowInstructionModal(false)}
+        onClose={() => setGalleryBuilding(null)}
+        onSkip={() => setGalleryBuilding(null)}
       />
 
       {/* Header */}
@@ -562,19 +589,28 @@ export default function ViroARScanner({ navigation }) {
           <Ionicons name="chevron-back" size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>AR Scanner</Text>
-        <TouchableOpacity
-          onPress={() => {
-            const targetsWithHints = arTargets.filter(t => t.hint && t.hint.trim().length > 0);
-            if (targetsWithHints.length > 0) {
-              setActiveGuideTarget(targetsWithHints[0]);
-            }
-            setShowGuideCenterPopup(true);
-          }}
-          style={styles.hintHeaderBtn}
-        >
-          <Ionicons name="bulb" size={18} color={COLORS.gold} />
-          <Text style={styles.hintHeaderBtnText}>3D Clue</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => setShowBuildingPicker(true)}
+            style={styles.galleryHeaderBtn}
+            accessibilityLabel="Hear the gallery overviews"
+          >
+            <Ionicons name="library" size={18} color={COLORS.gold} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              const targetsWithHints = hintedTargets();
+              if (targetsWithHints.length > 0) {
+                setActiveGuideTarget(targetsWithHints[0]);
+              }
+              setShowGuideCenterPopup(true);
+            }}
+            style={styles.hintHeaderBtn}
+          >
+            <Ionicons name="bulb" size={18} color={COLORS.gold} />
+            <Text style={styles.hintHeaderBtnText}>3D Clue</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 3D Guide Character Hologram Pop-out (Center of Screen) */}
@@ -644,7 +680,7 @@ export default function ViroARScanner({ navigation }) {
                 </View>
                 <View>
                   <Text style={styles.hintModalTitle}>Exhibit Location Clues</Text>
-                  <Text style={styles.hintModalSub}>Find all 10 artwork models per building (S1, S2, S3)</Text>
+                  <Text style={styles.hintModalSub}>Find all 10 artwork models per building (S2, S3, S4)</Text>
                 </View>
               </View>
               <TouchableOpacity onPress={() => setShowHintModal(false)} style={styles.hintModalCloseBtn}>
@@ -664,7 +700,7 @@ export default function ViroARScanner({ navigation }) {
                     <View key={t.id || idx} style={[styles.hintItemCard, { borderColor: rTheme.color + '44' }]}>
                       <View style={styles.hintItemHeader}>
                         <View style={[styles.hintSlotBadge, { backgroundColor: rTheme.bg, borderColor: rTheme.color }]}>
-                          <Text style={[styles.hintSlotText, { color: onWhite(rTheme.color) }]}>Building {t.building || 'S1'} · Slot #{t.slot_number || (idx + 1)}</Text>
+                          <Text style={[styles.hintSlotText, { color: onWhite(rTheme.color) }]}>Building {t.building || 'S2'} · Slot #{t.slot_number || (idx + 1)}</Text>
                         </View>
                         <View style={[styles.hintRarityPill, { backgroundColor: rTheme.color + '22', borderColor: rTheme.color + '66' }]}>
                           <Text style={[styles.hintRarityText, { color: onWhite(rTheme.color) }]}>{rTheme.label}</Text>
@@ -696,6 +732,16 @@ export default function ViroARScanner({ navigation }) {
 
       {/* ── Small always-on compass (upper left) so N/E/S/W in clues make sense ── */}
       {arStatus === 'ready' && !compassTarget && <MiniCompass style={styles.miniCompass} />}
+
+      {/* ── Guide notice when the camera rests on something that isn't one of the 10 ── */}
+      <UnrecognizedArtNotice
+        building={selectedBuilding}
+        active={
+          arStatus === 'ready' && sceneMountReady && !loading && arTargets.length > 0 &&
+          !galleryInProgress && !detectedSpot && !rewardModalData &&
+          !showGuideCenterPopup && !showHintModal
+        }
+      />
 
       {/* ── Compass guide toward the side of the building named in the hint ── */}
       {compassTarget && !detectedSpot && (
@@ -792,7 +838,7 @@ export default function ViroARScanner({ navigation }) {
                 const rTheme = RARITY_THEME[(detectedSpot.rarity || 'common').toLowerCase()] || RARITY_THEME.common;
                 return (
                   <View style={[styles.detectedRarityBadge, { backgroundColor: rTheme.bg, borderColor: rTheme.color }]}>
-                    <Text style={[styles.detectedRarityText, { color: rTheme.color }]}>{rTheme.label} · Building {detectedSpot.building || 'S1'} · Slot #{detectedSpot.slot_number || 1}</Text>
+                    <Text style={[styles.detectedRarityText, { color: rTheme.color }]}>{rTheme.label} · Building {detectedSpot.building || 'S2'} · Slot #{detectedSpot.slot_number || 1}</Text>
                   </View>
                 );
               })()}
@@ -822,7 +868,7 @@ export default function ViroARScanner({ navigation }) {
                     about: detectedSpot.description,
                     model_3d: detectedSpot.model_3d,
                     rarity: detectedSpot.rarity || 'common',
-                    building: detectedSpot.building || 'S1',
+                    building: detectedSpot.building || 'S2',
                     slot_number: detectedSpot.slot_number || 1,
                     spot_name: detectedSpot.spot_name || '',
                   },
@@ -946,7 +992,7 @@ function RewardModal({ data, glowAnim, onClose, onViewDetails }) {
             {data.already_collected ? 'Art Already Collected!' : 'Art Discovered!'}
           </Animated.Text>
           <Text style={rwStyles.slotBanner}>
-            Slot #{data.slot_number || 1} of 10 · Building {data.building || 'S1'}
+            Slot #{data.slot_number || 1} of 10 · Building {data.building || 'S2'}
           </Text>
         </View>
 
@@ -1449,6 +1495,13 @@ const styles = StyleSheet.create({
   },
   hintGuideBtnText: { fontFamily: FONTS.bold, fontSize: 13, color: '#FFF' },
   miniCompass: { position: 'absolute', top: 108, left: 16, zIndex: 9 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  galleryHeaderBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderWidth: 1, borderColor: 'rgba(251, 191, 36, 0.4)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   hintHeaderBtn: {
     flexDirection: 'row',
     alignItems: 'center',

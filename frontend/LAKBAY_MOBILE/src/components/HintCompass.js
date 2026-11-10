@@ -71,7 +71,7 @@ export default function HintCompass({ target, onClose }) {
 
   let instruction;
   if (!direction) instruction = 'This clue has no compass direction. Follow the hint and scan the artworks around you.';
-  else if (heading === null) instruction = `Head to the ${direction.label.toLowerCase()} side of Building ${target.building || 'S1'}.`;
+  else if (heading === null) instruction = `Head to the ${direction.label.toLowerCase()} side of Building ${target.building || 'S2'}.`;
   else if (onTarget) instruction = `You're facing ${direction.label}. Walk this way and scan the artworks here.`;
   else if (Math.abs(rel) > 150) instruction = `Turn around to face ${direction.label}.`;
   else instruction = `Turn ${rel > 0 ? 'right' : 'left'} ${Math.round(Math.abs(rel))}° to face ${direction.label}.`;
@@ -90,7 +90,7 @@ export default function HintCompass({ target, onClose }) {
       <View style={styles.headerRow}>
         <Ionicons name="compass" size={14} color={AR_LIME} />
         <Text style={styles.kicker} numberOfLines={1}>
-          COMPASS GUIDE · BUILDING {target.building || 'S1'} · SLOT #{target.slot_number || 1}
+          COMPASS GUIDE · BUILDING {target.building || 'S2'} · SLOT #{target.slot_number || 1}
         </Text>
         <TouchableOpacity onPress={() => setCollapsed(true)} hitSlop={8} accessibilityLabel="Minimise compass">
           <Ionicons name="chevron-down" size={18} color="#FFFFFF" />

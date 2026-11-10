@@ -643,7 +643,7 @@ export default function BadgesScreen() {
                           <Text style={[styles.badgeRarity, { color: onWhite(rarityColor) }]}>{rarityStr}</Text>
                         </View>
                         <Text style={styles.badgeSlot}>
-                          Building {b.building || 'S1'} · Slot #{b.slot_number || 1}/10
+                          Building {b.building || 'S2'} · Slot #{b.slot_number || 1}/10
                         </Text>
                       </View>
                     );

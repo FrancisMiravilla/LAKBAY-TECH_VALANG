@@ -138,9 +138,9 @@ const RARITY_CONFIG = {
 };
 
 const BUILDING_CONFIG = {
-  S1: { id: 'S1', label: 'Building S1', full: 'Building S1 (Structure 1)', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.4)' },
   S2: { id: 'S2', label: 'Building S2', full: 'Building S2 (Structure 2)', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.15)', border: 'rgba(139, 92, 246, 0.4)' },
   S3: { id: 'S3', label: 'Building S3', full: 'Building S3 (Structure 3)', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.15)', border: 'rgba(236, 72, 153, 0.4)' },
+  S4: { id: 'S4', label: 'Building S4', full: 'Building S4 (Structure 4)', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.15)', border: 'rgba(59, 130, 246, 0.4)' },
 };
 
 // Inline SVG glyphs for map marker pins (mirrors the mobile app's markers)
@@ -615,7 +615,7 @@ function App() {
     description: '',
     image: null,
     model_3d: null,
-    building: 'S1',
+    building: 'S2',
     slot_number: 1,
     rarity: 'common',
     hint: '',
@@ -998,7 +998,7 @@ function App() {
     const payload = {
       name: newARTarget.name,
       description: newARTarget.description || '',
-      building: newARTarget.building || 'S1',
+      building: newARTarget.building || 'S2',
       slot_number: Number(newARTarget.slot_number) || 1,
       rarity: newARTarget.rarity || 'common',
       hint: newARTarget.hint || '',
@@ -1009,7 +1009,7 @@ function App() {
     const tempId = `saving-${Date.now()}`;
 
     setArTargets(prev => [...prev, { ...payload, id: tempId, saving: true }]);
-    setNewARTarget({ name: '', description: '', image: null, model_3d: null, model_3d_preview: null, building: 'S1', slot_number: 1, rarity: 'common', hint: '' });
+    setNewARTarget({ name: '', description: '', image: null, model_3d: null, model_3d_preview: null, building: 'S2', slot_number: 1, rarity: 'common', hint: '' });
     setIsAddARTargetModalOpen(false);
 
     qrService.createARTarget(payload)
@@ -1054,7 +1054,7 @@ function App() {
     const payload = {
       name: draft.name,
       description: draft.description || '',
-      building: draft.building || 'S1',
+      building: draft.building || 'S2',
       slot_number: Number(draft.slot_number) || 1,
       rarity: draft.rarity || 'common',
       hint: draft.hint || '',
@@ -2581,7 +2581,7 @@ function App() {
                         ? qrService.getMediaUrl(target.image)
                         : (target.image ? URL.createObjectURL(target.image) : null);
                       const rarityCfg = RARITY_CONFIG[target.rarity] || RARITY_CONFIG.common;
-                      const bldCfg = BUILDING_CONFIG[target.building] || BUILDING_CONFIG.S1;
+                      const bldCfg = BUILDING_CONFIG[target.building] || BUILDING_CONFIG.S2;
                       return (
                       <div key={target.id} onClick={() => { if (!arTargetIsSaving(target)) setSelectedARTarget(target); }}
                         title="Click to view details"
@@ -3029,7 +3029,7 @@ function App() {
           ? qrService.getMediaUrl(selectedARTarget.image)
           : (selectedARTarget.image ? URL.createObjectURL(selectedARTarget.image) : null);
         const selRarityCfg = RARITY_CONFIG[selectedARTarget.rarity] || RARITY_CONFIG.common;
-        const selBldCfg = BUILDING_CONFIG[selectedARTarget.building] || BUILDING_CONFIG.S1;
+        const selBldCfg = BUILDING_CONFIG[selectedARTarget.building] || BUILDING_CONFIG.S2;
         return (
         <div className="modal-overlay" onClick={() => setSelectedARTarget(null)}>
           <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '1000px', width: '95vw', minHeight: '600px' }}>
@@ -3175,10 +3175,10 @@ function App() {
                     {/* Building & Slot Row */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label className="form-label">Museum Building (S1, S2, S3)</label>
+                        <label className="form-label">Museum Building (S2, S3, S4)</label>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                           {Object.values(BUILDING_CONFIG).map(b => {
-                            const isSel = (newARTarget.building || 'S1') === b.id;
+                            const isSel = (newARTarget.building || 'S2') === b.id;
                             return (
                               <button key={b.id} type="button" onClick={() => setNewARTarget({...newARTarget, building: b.id})}
                                 style={{
@@ -3332,10 +3332,10 @@ function App() {
                     {/* Building & Slot Row */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label className="form-label">Museum Building (S1, S2, S3)</label>
+                        <label className="form-label">Museum Building (S2, S3, S4)</label>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                           {Object.values(BUILDING_CONFIG).map(b => {
-                            const isSel = (editingARTarget.building || 'S1') === b.id;
+                            const isSel = (editingARTarget.building || 'S2') === b.id;
                             return (
                               <button key={b.id} type="button" onClick={() => setEditingARTarget({...editingARTarget, building: b.id})}
                                 style={{

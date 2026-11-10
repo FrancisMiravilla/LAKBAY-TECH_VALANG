@@ -42,16 +42,16 @@ class ARTarget(models.Model):
     ]
 
     BUILDING_CHOICES = [
-        ('S1', 'Building S1'),
         ('S2', 'Building S2'),
         ('S3', 'Building S3'),
+        ('S4', 'Building S4'),
     ]
 
     building = models.CharField(
         max_length=10,
         choices=BUILDING_CHOICES,
-        default='S1',
-        help_text="Designated Building / Structure (S1, S2, or S3)"
+        default='S2',
+        help_text="Designated Building / Structure (S2, S3, or S4)"
     )
     spot = models.ForeignKey(
         CulturalSpot,

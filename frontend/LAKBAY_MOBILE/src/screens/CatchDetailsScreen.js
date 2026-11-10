@@ -354,7 +354,7 @@ export default function CatchDetailsScreen({ route, navigation }) {
             <VintaCard style={styles.statFrame} contentStyle={styles.statCard}>
               <Ionicons name="business" size={18} color={COLORS.accent} />
               <Text style={styles.statValue}>
-                {icon?.building || 'S1'} · #{icon?.slot_number || 1}
+                {icon?.building || 'S2'} · #{icon?.slot_number || 1}
               </Text>
               <Text style={styles.statLabel}>Building · Slot</Text>
             </VintaCard>

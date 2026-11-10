@@ -228,7 +228,7 @@ export default function ARGuideCompanion({
                 <Text style={styles.guideTagText}>3D SCOUT</Text>
               </View>
               <Text style={styles.bubbleTitle} numberOfLines={1}>
-                {currentTarget ? `Building ${currentTarget.building || 'S1'} · Slot #${currentTarget.slot_number || 1}` : 'Museum Clues'}
+                {currentTarget ? `Building ${currentTarget.building || 'S2'} · Slot #${currentTarget.slot_number || 1}` : 'Museum Clues'}
               </Text>
             </View>
 

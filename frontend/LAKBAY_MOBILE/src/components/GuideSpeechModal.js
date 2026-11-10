@@ -1,20 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { GUIDE_IMAGE, Waveform, useGuideVoice } from './guideVoice';
-import { StyleSheet, Text, View, TouchableOpacity, Animated, Easing, Modal } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Animated, Easing, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, GUIDE_FONTS } from '../constants/theme';
 
 // The screen dims and the LAKBAY tour guide pops up in the centre and says each
 // step aloud while the words type out in his speech bubble. Used for the
 // post-login greeting (one step) and the AR scanner intro (three steps).
-// steps: [{ label?, title?, text }]
+// steps: [{ label?, title?, text }]. Pass onSkip to show a Skip link.
 
-export default function GuideSpeechModal({ visible, steps = [], finalLabel = "Let's Explore!", onClose }) {
+export default function GuideSpeechModal({ visible, steps = [], finalLabel = "Let's Explore!", onClose, onSkip }) {
   const [step, setStep] = useState(0);
   const current = steps[step] || steps[0] || { text: '' };
   const message = current.text;
   const isLast = step >= steps.length - 1;
   const popAnim = useRef(new Animated.Value(0)).current;
+  const textScrollRef = useRef(null);
   const floatAnim = useRef(new Animated.Value(0)).current;
   const { typed, speaking, voiceMissing, say, stop: stopAll } = useGuideVoice();
   const play = useCallback(() => say(message), [say, message]);
@@ -79,7 +80,13 @@ export default function GuideSpeechModal({ visible, steps = [], finalLabel = "Le
               </View>
             )}
             {!!current.title && <Text style={styles.stepTitle}>{current.title}</Text>}
-            <Text style={styles.bubbleText}>{typed || ' '}</Text>
+            <ScrollView
+              ref={textScrollRef}
+              style={styles.bubbleScroll}
+              onContentSizeChange={() => textScrollRef.current?.scrollToEnd({ animated: true })}
+            >
+              <Text style={styles.bubbleText}>{typed || ' '}</Text>
+            </ScrollView>
             <View style={styles.bubbleFooter}>
               <Waveform speaking={speaking} />
               <TouchableOpacity
@@ -112,6 +119,16 @@ export default function GuideSpeechModal({ visible, steps = [], finalLabel = "Le
               {!isLast && <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />}
             </TouchableOpacity>
           </View>
+          {!!onSkip && !isLast && (
+            <TouchableOpacity
+              style={styles.skipBtn}
+              onPress={() => { stopAll(); onSkip(); }}
+              activeOpacity={0.7}
+              accessibilityLabel="Skip the guide"
+            >
+              <Text style={styles.skipText}>Skip</Text>
+            </TouchableOpacity>
+          )}
         </Animated.View>
       </View>
     </Modal>
@@ -137,6 +154,7 @@ const styles = StyleSheet.create({
     width: 22, height: 22, backgroundColor: '#FFFFFF',
     transform: [{ rotate: '45deg' }], borderRadius: 4,
   },
+  bubbleScroll: { maxHeight: 300 },
   bubbleText: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 16, lineHeight: 23, color: COLORS.navy, minHeight: 92 },
   bubbleFooter: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   wave: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 3, height: 28, overflow: 'hidden' },
@@ -148,7 +166,7 @@ const styles = StyleSheet.create({
   voiceNote: { fontFamily: GUIDE_FONTS.regular, fontSize: 11, color: COLORS.textMuted, marginTop: 6 },
 
   stepHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  stepLabel: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 11, letterSpacing: 1, color: COLORS.accent },
+  stepLabel: { flex: 1, marginRight: 8, fontFamily: GUIDE_FONTS.semiBold, fontSize: 11, letterSpacing: 1, color: COLORS.accent },
   stepTitle: { fontFamily: GUIDE_FONTS.bold, fontSize: 18, lineHeight: 23, color: COLORS.navy, marginBottom: 4 },
   dots: { flexDirection: 'row', gap: 4 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: COLORS.border },
@@ -166,4 +184,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   goText: { fontFamily: GUIDE_FONTS.bold, fontSize: 17, color: '#FFFFFF' },
+  skipBtn: { marginTop: 12, paddingVertical: 6, paddingHorizontal: 16 },
+  skipText: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 14, color: 'rgba(255,255,255,0.75)', textDecorationLine: 'underline' },
 });

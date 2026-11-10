@@ -48,7 +48,7 @@ export default function ARGuideCenterPopup({
   };
 
   const line = target
-    ? `Need a clue? Look for ${target.name} in Building ${target.building || 'S1'}. ${target.hint || 'Explore the gallery and aim your camera at the paintings and artifacts.'}`
+    ? `Need a clue? Look for ${target.name} in Building ${target.building || 'S2'}. ${target.hint || 'Explore the gallery and aim your camera at the paintings and artifacts.'}`
     : "I don't have any clues for this building yet. Try pointing your camera at the paintings and exhibits!";
 
   return (
@@ -76,7 +76,7 @@ export default function ARGuideCenterPopup({
                   <Text style={[styles.rarityText, { color: onWhite(rTheme.color) }]}>{rTheme.label}</Text>
                 </View>
                 <Text style={styles.slotText} numberOfLines={1}>
-                  Building {target.building || 'S1'} · Slot #{target.slot_number || 1}
+                  Building {target.building || 'S2'} · Slot #{target.slot_number || 1}
                 </Text>
               </View>
 
