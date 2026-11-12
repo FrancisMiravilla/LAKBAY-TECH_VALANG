@@ -3,7 +3,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 // Reads only the JSON header of a local .glb and returns the model's bounding
 // box in model space ({ min:[x,y,z], max:[x,y,z] }), with node transforms and
 // an optional extra rotation (degrees, X then Y then Z) applied. Null if the
-// file can't be read or has no POSITION bounds.
+// file can't be read or has no POSITION bounds. `problems` lists anything
+// Viro can't load.
 
 const base64ToBytes = (b64) => {
   const bin = atob(b64);
@@ -50,6 +51,24 @@ const rotZ = (d) => { const a = d * Math.PI / 180, c = Math.cos(a), s = Math.sin
 
 export const eulerMatrix = ([x, y, z] = [0, 0, 0]) => mul(rotZ(z), mul(rotY(y), rotX(x)));
 
+// Encodings Viro's glTF loader can't read (compressed geometry, quantized
+// vertices, WebP/AVIF/KTX2 textures). The web admin converts these on upload.
+const FLOAT = 5126;
+const UNREADABLE_EXTS = [
+  'KHR_draco_mesh_compression', 'EXT_meshopt_compression', 'KHR_mesh_quantization',
+  'EXT_texture_webp', 'EXT_texture_avif', 'KHR_texture_basisu',
+];
+const viroProblems = (gltf) => {
+  const problems = (gltf.extensionsUsed || []).filter((e) => UNREADABLE_EXTS.includes(e));
+  const quantized = (gltf.meshes || []).some((m) => (m.primitives || []).some((p) =>
+    ['POSITION', 'NORMAL', 'TEXCOORD_0'].some((a) => {
+      const acc = gltf.accessors?.[p.attributes?.[a]];
+      return acc && acc.componentType !== FLOAT;
+    })));
+  if (quantized) problems.push('quantized vertices');
+  return problems;
+};
+
 const apply = (m, [x, y, z]) => [
   m[0] * x + m[4] * y + m[8] * z + m[12],
   m[1] * x + m[5] * y + m[9] * z + m[13],
@@ -94,7 +113,8 @@ export async function getGlbBounds(uri, extraRotation) {
 
     const root = extraRotation ? eulerMatrix(extraRotation) : IDENTITY;
     roots.forEach((i) => visit(i, root, 0));
-    return Number.isFinite(min[0]) ? { min, max } : null;
+    if (!Number.isFinite(min[0])) return null;
+    return { min, max, problems: viroProblems(gltf) };
   } catch (e) {
     console.log('[AR] could not read GLB bounds:', String(e));
     return null;

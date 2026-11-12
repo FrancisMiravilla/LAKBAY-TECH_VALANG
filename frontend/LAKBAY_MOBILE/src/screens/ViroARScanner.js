@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar, InteractionManager, Alert, Modal, Animated, Easing, Dimensions, ScrollView, Image } from 'react-native';
-import { WebView } from 'react-native-webview';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar, InteractionManager, Alert, Modal, Dimensions, ScrollView, Image } from 'react-native';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -74,6 +73,16 @@ ViroMaterials.createMaterials({
   artworkCover: { diffuseColor: ARTWORK_FIT.coverColor, lightingModel: 'Constant' },
 });
 
+// Cover + model stay invisible until the model has loaded, then fade and
+// settle onto the painting together.
+ViroAnimations.registerAnimations({
+  artworkIn: {
+    properties: { opacity: 1, scaleX: 1, scaleY: 1, scaleZ: 1 },
+    duration: 450,
+    easing: 'EaseOut',
+  },
+});
+
 const getImageAspect = (uri) => new Promise((resolve) => {
   Image.getSize(uri, (w, h) => resolve(w > 0 && h > 0 ? h / w : null), () => resolve(null));
 });
@@ -86,6 +95,10 @@ const computeArtworkFit = async (target, localModel) => {
     getGlbBounds(localModel, ARTWORK_FIT.modelRotation),
   ]);
   if (!aspect || !bounds) return null;
+  if (bounds.problems.length) {
+    console.log('[AR] model needs re-uploading from the web admin:', target.name, bounds.problems);
+    return { unreadable: true };
+  }
   const sizeX = bounds.max[0] - bounds.min[0];
   const sizeY = bounds.max[1] - bounds.min[1];
   if (!(sizeX > 0 && sizeY > 0)) return null;
@@ -146,81 +159,6 @@ export const RARITY_THEME = {
 };
 
 // =========================================================================
-// 1. STEADY 3D MODEL VIEWER (MATCHING CATCH FEATURE ARCHITECTURE)
-// =========================================================================
-const buildSteadyViewerHTML = (modelUrl) => {
-  if (!modelUrl) return null;
-  const safe = String(modelUrl).replace(/["'<>&]/g, c => ({ '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js" crossorigin="anonymous"></script>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
-    html, body {
-      width: 100%;
-      height: 100%;
-      background: transparent;
-      overflow: hidden;
-      touch-action: none !important;
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      user-select: none;
-    }
-    model-viewer {
-      width: 100%;
-      height: 100%;
-      background: transparent;
-      touch-action: none !important;
-      --progress-bar-color: transparent;
-    }
-  </style>
-</head>
-<body>
-  <model-viewer
-    id="steadyViewer"
-    src="${safe}"
-    auto-rotate
-    auto-rotate-delay="0"
-    rotation-per-second="25deg"
-    camera-controls
-    touch-action="none"
-    interpolation-decay="150"
-    interaction-prompt="none"
-    min-camera-orbit="auto auto 15%"
-    max-camera-orbit="auto auto 400%"
-    camera-orbit="0deg 75deg 105%"
-    exposure="1.2"
-    shadow-intensity="1.5"
-    style="width: 100%; height: 100%; background: transparent; touch-action: none;"
-  ></model-viewer>
-  <script>
-    window.addEventListener('message', function(event) {
-      try {
-        var data = JSON.parse(event.data);
-        var mv = document.getElementById('steadyViewer');
-        if (!mv) return;
-        if (data.type === 'ZOOM_IN') {
-          mv.zoom(1.3);
-        } else if (data.type === 'ZOOM_OUT') {
-          mv.zoom(0.75);
-        } else if (data.type === 'RESET_VIEW') {
-          mv.cameraOrbit = '0deg 75deg 105%';
-        }
-      } catch (err) {}
-    });
-  </script>
-</body>
-</html>`;
-};
-
-// =========================================================================
 // 2. DEFINE THE 3D AR SCENE (IMAGE MARKER DETECTION)
 // =========================================================================
 const MuseumARScene = (props) => {
@@ -241,8 +179,13 @@ const MuseumARScene = (props) => {
             onAnchorFound={() => app.onTargetFound(target)}
             onAnchorRemoved={() => app.onTargetLost()}
           >
-            {fit && (
-              <ViroNode rotation={ARTWORK_FIT.planeRotation}>
+            {fit && !fit.unreadable && app.modelState !== 'error' && (
+              <ViroNode
+                rotation={ARTWORK_FIT.planeRotation}
+                opacity={0}
+                scale={[0.9, 0.9, 0.9]}
+                animation={{ name: 'artworkIn', run: app.modelState === 'loaded', loop: false }}
+              >
                 <ViroQuad
                   width={fit.width * ARTWORK_FIT.coverMargin}
                   height={fit.height * ARTWORK_FIT.coverMargin}
@@ -289,7 +232,6 @@ export default function ViroARScanner({ navigation }) {
   // On-screen 3D model status so we can see load progress/errors without the
   // native console: 'none' | 'loading' | 'loaded' | 'error'
   const [modelStatus, setModelStatus] = useState({ state: 'none', message: '' });
-  const loadedModelsRef = React.useRef(new Set());
   const [arTargets, setArTargets] = useState([]);
   const [loading, setLoading] = useState(true);
   // 'checking' | 'ready' | 'unsupported' | 'permission-denied'
@@ -329,19 +271,8 @@ export default function ViroARScanner({ navigation }) {
   const [activeGuideTarget, setActiveGuideTarget] = useState(null);
   const [showHintModal, setShowHintModal] = useState(false);
   const [compassTarget, setCompassTarget] = useState(null);
-  const floatAnim = React.useRef(new Animated.Value(0)).current;
   const lastTargetIdRef = React.useRef(null);
   const handlingTargetRef = React.useRef(null);
-  const steadyWebViewRef = React.useRef(null);
-
-  React.useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatAnim, { toValue: -14, duration: 1400, useNativeDriver: true }),
-        Animated.timing(floatAnim, { toValue: 0,   duration: 1400, useNativeDriver: true }),
-      ])
-    ).start();
-  }, []);
 
   // Clue auto-popup: once the player has finished the intro steps, if no artwork
   // is found within 10 s the guide pops up with a clue (once per visit).
@@ -565,19 +496,14 @@ export default function ViroARScanner({ navigation }) {
     setModelScale(0.25);
     setModelPosition([0, -0.05, -1.2]);
 
-    if (target.model_3d) {
-      if (loadedModelsRef.current.has(target.id)) {
-        setModelStatus({ state: 'loaded', message: '' });
-      } else {
-        setModelStatus({ state: 'loading', message: '' });
-      }
+    if (fit && !fit.unreadable) {
+      setModelStatus({ state: 'loading', message: '' });
     } else {
-      setModelStatus({ state: 'none', message: '' });
+      setModelStatus({ state: target.model_3d ? 'error' : 'none', message: fit?.unreadable ? 'unreadable' : '' });
     }
   };
 
-  const handleModelLoadEnd = (targetId) => {
-    loadedModelsRef.current.add(targetId);
+  const handleModelLoadEnd = () => {
     setModelStatus({ state: 'loaded', message: '' });
   };
   const handleModelError = (message) => setModelStatus({ state: 'error', message: String(message || 'unknown error') });
@@ -672,7 +598,7 @@ export default function ViroARScanner({ navigation }) {
         ) : arStatus === 'unsupported' ? (
           <View style={styles.fallbackContainer}>
             <Ionicons name="alert-circle-outline" size={40} color="rgba(255,255,255,0.6)" />
-            <Text style={styles.fallbackText}>AR scanning isn't supported on this device. Try updating Google Play Services for AR, or use the QR scan feature instead.</Text>
+            <Text style={styles.fallbackText}>{"AR scanning isn't supported on this device. Try updating Google Play Services for AR, or use the QR scan feature instead."}</Text>
           </View>
         ) : (
           <ViroARSceneNavigator
@@ -683,6 +609,7 @@ export default function ViroARScanner({ navigation }) {
               onTargetLost: handleTargetLost,
               onModelLoadEnd: handleModelLoadEnd,
               onModelError: handleModelError,
+              modelState: modelStatus.state,
               detectedSpot: detectedSpot,
               modelScale: modelScale,
               onModelScaleChange: setModelScale,
@@ -778,87 +705,11 @@ export default function ViroARScanner({ navigation }) {
         <HintCompass target={compassTarget} onClose={() => setCompassTarget(null)} />
       )}
 
-      {/* ── Steady Floating 3D Model (Catch Feature Architecture + Full Multi-Touch & Zoom) ── */}
-      {detectedSpot && (!detectedSpot.fit || modelStatus.state === 'error') && (
-        <Animated.View style={[styles.steadyModelWrap, { transform: [{ translateY: floatAnim }] }]}>
-          {/* Ambient Glow (Placed BEHIND WebView with pointerEvents="none" so it NEVER blocks touches) */}
-          <View
-            pointerEvents="none"
-            style={[
-              styles.steadyModelGlow,
-              {
-                backgroundColor: (RARITY_THEME[detectedSpot.rarity?.toLowerCase()] || RARITY_THEME.common).color + '30',
-                shadowColor: (RARITY_THEME[detectedSpot.rarity?.toLowerCase()] || RARITY_THEME.common).color,
-              }
-            ]}
-          />
-
-          {detectedSpot.model_3d ? (
-            <WebView
-              ref={steadyWebViewRef}
-              source={{ html: buildSteadyViewerHTML(detectedSpot.model_3d) }}
-              style={styles.steadyModelWebview}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              originWhitelist={['*']}
-              scrollEnabled={false}
-              showsHorizontalScrollIndicator={false}
-              showsVerticalScrollIndicator={false}
-              overScrollMode="never"
-              backgroundColor="transparent"
-              allowsTransparency={true}
-            />
-          ) : (
-            <View style={[styles.steadyModelFallback, { borderColor: (RARITY_THEME[detectedSpot.rarity?.toLowerCase()] || RARITY_THEME.common).color }]}>
-              <Ionicons name="cube-outline" size={64} color="#FFF" />
-            </View>
-          )}
-
-          {/* Quick Floating Zoom Buttons on the right edge */}
-          {detectedSpot.model_3d && (
-            <View style={styles.floatingZoomRow}>
-              <TouchableOpacity
-                style={styles.floatingZoomBtn}
-                activeOpacity={0.7}
-                onPress={() => {
-                  steadyWebViewRef.current?.postMessage(JSON.stringify({ type: 'ZOOM_IN' }));
-                }}
-              >
-                <Ionicons name="add" size={18} color="#FFF" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.floatingZoomBtn}
-                activeOpacity={0.7}
-                onPress={() => {
-                  steadyWebViewRef.current?.postMessage(JSON.stringify({ type: 'ZOOM_OUT' }));
-                }}
-              >
-                <Ionicons name="remove" size={18} color="#FFF" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.floatingZoomBtn, { backgroundColor: 'rgba(0,0,0,0.65)' }]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  steadyWebViewRef.current?.postMessage(JSON.stringify({ type: 'RESET_VIEW' }));
-                }}
-              >
-                <Ionicons name="refresh" size={14} color={COLORS.gold} />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Interactive Touch Hint Badge */}
-          <View pointerEvents="none" style={styles.touchHintBadge}>
-            <Ionicons name="hand-left-outline" size={11} color="rgba(255,255,255,0.85)" style={{ marginRight: 4 }} />
-            <Text style={styles.touchHintText}>Drag to rotate 360° · Pinch to zoom</Text>
-          </View>
-        </Animated.View>
-      )}
-
       {/* Guide reads out the recognized artwork over the camera */}
       {detectedSpot && (
         <ARArtworkGuide
           art={detectedSpot}
+          modelMissing={!!detectedSpot.model_3d && modelStatus.state === 'error'}
           rarityTheme={RARITY_THEME[(detectedSpot.rarity || 'common').toLowerCase()] || RARITY_THEME.common}
           onScanAnother={() => setDetectedSpot(null)}
         />
@@ -914,81 +765,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
     lineHeight: 20,
-  },
-  steadyModelWrap: {
-    position: 'absolute',
-    top: SCREEN_H * 0.16,
-    alignSelf: 'center',
-    width: Math.min(SCREEN_W * 0.8, 320),
-    height: Math.min(SCREEN_W * 0.8, 320),
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 15,
-  },
-  steadyModelWebview: {
-    width: Math.min(SCREEN_W * 0.8, 320),
-    height: Math.min(SCREEN_W * 0.8, 320),
-    backgroundColor: 'transparent',
-  },
-  steadyModelGlow: {
-    position: 'absolute',
-    width: Math.min(SCREEN_W * 0.8, 320) * 0.65,
-    height: Math.min(SCREEN_W * 0.8, 320) * 0.65,
-    borderRadius: (Math.min(SCREEN_W * 0.8, 320) * 0.65) / 2,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.85,
-    shadowRadius: 28,
-    elevation: 12,
-    zIndex: -1,
-  },
-  steadyModelFallback: {
-    width: Math.min(SCREEN_W * 0.8, 320) * 0.65,
-    height: Math.min(SCREEN_W * 0.8, 320) * 0.65,
-    borderRadius: (Math.min(SCREEN_W * 0.8, 320) * 0.65) / 2,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
-  },
-  floatingZoomRow: {
-    position: 'absolute',
-    right: 4,
-    top: 10,
-    flexDirection: 'column',
-    gap: 8,
-    zIndex: 25,
-  },
-  floatingZoomBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 4,
-    elevation: 6,
-  },
-  touchHintBadge: {
-    position: 'absolute',
-    bottom: -10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  touchHintText: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: 'rgba(255, 255, 255, 0.85)',
   },
   cardActionsRow: {
     flexDirection: 'row',

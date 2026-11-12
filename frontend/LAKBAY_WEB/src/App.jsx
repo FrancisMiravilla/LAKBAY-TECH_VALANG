@@ -64,6 +64,7 @@ import CoinBundleManagement from './CoinBundleManagement';
 import LandingPage from './LandingPage';
 import DashboardLeaderboard from './DashboardLeaderboard';
 import ReportsPage from './reports/ReportsPage';
+import { makeArSafeGlb } from './utils/arSafeGlb';
 import { downloadQrPoster } from './qr/qrPoster';
 
 const generateNotificationId = () => Date.now();
@@ -208,13 +209,35 @@ const INITIAL_ACTIVITIES = [
 ];
 
 // 3D models are capped at 10 MB so they load quickly on phones (and in Viro AR).
+// Compressed GLBs (Draco, meshopt, WebP) are turned back into a format the
+// phone's AR renderer can read before the size check.
 const MAX_MODEL_MB = 10;
-const isModelTooLarge = (e) => {
-  const file = e.target.files?.[0];
-  if (!file || file.size <= MAX_MODEL_MB * 1024 * 1024) return false;
-  alert(`This 3D model is ${(file.size / 1024 / 1024).toFixed(1)} MB. Please upload a .glb that is ${MAX_MODEL_MB} MB or smaller (reduce its polygons or texture size first).`);
-  e.target.value = '';
-  return true;
+const readModelUpload = async (e) => {
+  const input = e.target;
+  const picked = input.files?.[0];
+  if (!picked) return null;
+  let file = picked;
+  try {
+    const result = await makeArSafeGlb(picked);
+    file = result.file;
+    if (result.converted) console.info('[3D] converted for phone AR:', result.problems.join(', '));
+  } catch (err) {
+    alert(err.message || 'This 3D model could not be prepared for phone AR.');
+    input.value = '';
+    return null;
+  }
+  if (file.size > MAX_MODEL_MB * 1024 * 1024) {
+    alert(`This 3D model is ${(file.size / 1024 / 1024).toFixed(1)} MB${file !== picked ? ' once made readable by the phone AR' : ''}. Please upload a .glb that is ${MAX_MODEL_MB} MB or smaller (reduce its polygons or texture size first).`);
+    input.value = '';
+    return null;
+  }
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  return { dataUrl, blobUrl: URL.createObjectURL(file) };
 };
 
 const normalizeSpot = (s) => ({
@@ -735,21 +758,12 @@ function App() {
     reader.readAsDataURL(file);
   };
 
-  const handleModelFileChange = (e, isEdit) => {
-    if (isModelTooLarge(e)) return;
-    const file = e.target.files[0];
-    if (!file) return;
-    const blobUrl = URL.createObjectURL(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result;
-      if (isEdit) {
-        setEditingSpot(prev => ({ ...prev, model_3d: base64String, model_3d_preview: blobUrl }));
-      } else {
-        setNewSpot(prev => ({ ...prev, model_3d: base64String, model_3d_preview: blobUrl }));
-      }
-    };
-    reader.readAsDataURL(file);
+  const handleModelFileChange = async (e, isEdit) => {
+    const model = await readModelUpload(e);
+    if (!model) return;
+    const update = prev => ({ ...prev, model_3d: model.dataUrl, model_3d_preview: model.blobUrl });
+    if (isEdit) setEditingSpot(update);
+    else setNewSpot(update);
   };
 
   const handleARTargetImageChange = (e) => {
@@ -762,16 +776,10 @@ function App() {
     reader.readAsDataURL(file);
   };
 
-  const handleARTargetModelChange = (e) => {
-    if (isModelTooLarge(e)) return;
-    const file = e.target.files[0];
-    if (!file) return;
-    const blobUrl = URL.createObjectURL(file);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setNewARTarget(prev => ({ ...prev, model_3d: reader.result, model_3d_preview: blobUrl }));
-    };
-    reader.readAsDataURL(file);
+  const handleARTargetModelChange = async (e) => {
+    const model = await readModelUpload(e);
+    if (!model) return;
+    setNewARTarget(prev => ({ ...prev, model_3d: model.dataUrl, model_3d_preview: model.blobUrl }));
   };
 
 
@@ -962,20 +970,12 @@ function App() {
   };
 
   // ─── Catch Handlers ──────────────────────────────────────────────────────────
-  const handleCatchFileChange = (e, isEditing) => {
-    if (isModelTooLarge(e)) return;
-    const file = e.target.files[0];
-    if (!file) return;
-    const blobUrl = URL.createObjectURL(file);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (isEditing) {
-        setEditingCatchIcon({ ...editingCatchIcon, model_3d: event.target.result, model_3d_preview: blobUrl });
-      } else {
-        setNewCatchIcon({ ...newCatchIcon, model_3d: event.target.result, model_3d_preview: blobUrl });
-      }
-    };
-    reader.readAsDataURL(file);
+  const handleCatchFileChange = async (e, isEditing) => {
+    const model = await readModelUpload(e);
+    if (!model) return;
+    const update = prev => ({ ...prev, model_3d: model.dataUrl, model_3d_preview: model.blobUrl });
+    if (isEditing) setEditingCatchIcon(update);
+    else setNewCatchIcon(update);
   };
 
   const handleCatchSubmit = async (e) => {
@@ -1054,14 +1054,10 @@ function App() {
     reader.readAsDataURL(file);
   };
 
-  const handleEditARTargetModelChange = (e) => {
-    if (isModelTooLarge(e)) return;
-    const file = e.target.files[0];
-    if (!file) return;
-    const blobUrl = URL.createObjectURL(file);
-    const reader = new FileReader();
-    reader.onloadend = () => setEditingARTarget(prev => ({ ...prev, model_3d: reader.result, model_3d_preview: blobUrl }));
-    reader.readAsDataURL(file);
+  const handleEditARTargetModelChange = async (e) => {
+    const model = await readModelUpload(e);
+    if (!model) return;
+    setEditingARTarget(prev => ({ ...prev, model_3d: model.dataUrl, model_3d_preview: model.blobUrl }));
   };
 
   const handleEditARTargetSubmit = (e) => {
