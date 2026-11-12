@@ -217,6 +217,14 @@ const readModelUpload = async (e) => {
   const picked = input.files?.[0];
   if (!picked) return null;
   let file = picked;
+  const notice = document.createElement('div');
+  notice.textContent = 'Preparing 3D model for phone AR… please wait before saving.';
+  Object.assign(notice.style, {
+    position: 'fixed', left: '50%', bottom: '24px', transform: 'translateX(-50%)', zIndex: 100000,
+    background: '#0B1A3C', color: '#fff', padding: '12px 18px', borderRadius: '10px',
+    font: '600 14px system-ui, sans-serif', boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
+  });
+  document.body.appendChild(notice);
   try {
     const result = await makeArSafeGlb(picked);
     file = result.file;
@@ -225,6 +233,8 @@ const readModelUpload = async (e) => {
     alert(err.message || 'This 3D model could not be prepared for phone AR.');
     input.value = '';
     return null;
+  } finally {
+    notice.remove();
   }
   if (file.size > MAX_MODEL_MB * 1024 * 1024) {
     alert(`This 3D model is ${(file.size / 1024 / 1024).toFixed(1)} MB${file !== picked ? ' once made readable by the phone AR' : ''}. Please upload a .glb that is ${MAX_MODEL_MB} MB or smaller (reduce its polygons or texture size first).`);

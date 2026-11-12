@@ -6,11 +6,16 @@
 // model shows up in the browser yet never appears on the scanned artwork.
 // This undoes those encodings in the browser before upload: geometry becomes
 // plain float data and textures become JPEG/PNG (max 2048 px).
+//
+// AI-generated models (e.g. Meshy) can hold 1-2+ million triangles; Draco
+// only hides that. Phones can't draw that many, so heavy models are reduced
+// to MAX_TRIANGLES with meshoptimizer's simplifier.
 
 const GEOMETRY_EXTS = ['KHR_draco_mesh_compression', 'EXT_meshopt_compression', 'KHR_mesh_quantization'];
 const IMAGE_EXTS = ['EXT_texture_webp', 'EXT_texture_avif'];
 const FLOAT = 5126;
 const MAX_TEXTURE = 2048;
+const MAX_TRIANGLES = 150000;
 const DRACO_URL = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/draco_decoder_gltf.js';
 
 const readJson = (bytes) => {
@@ -20,7 +25,12 @@ const readJson = (bytes) => {
   return JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + length)));
 };
 
-// What in this file Viro can't read (empty list = already fine).
+const triangleCount = (gltf) => (gltf.meshes || []).reduce((sum, m) => sum + (m.primitives || []).reduce((n, p) => {
+  const acc = gltf.accessors?.[p.indices ?? p.attributes?.POSITION];
+  return n + (acc ? acc.count / 3 : 0);
+}, 0), 0);
+
+// What in this file Viro can't read or a phone can't draw (empty list = already fine).
 export const viroProblems = (gltf) => {
   const used = gltf.extensionsUsed || [];
   const problems = used.filter((e) => GEOMETRY_EXTS.includes(e) || IMAGE_EXTS.includes(e) || e === 'KHR_texture_basisu');
@@ -32,6 +42,8 @@ export const viroProblems = (gltf) => {
   if (attrsQuantized && !problems.includes('KHR_mesh_quantization')) problems.push('quantized vertices');
   const oddImages = (gltf.images || []).some((i) => i.mimeType && !['image/png', 'image/jpeg'].includes(i.mimeType));
   if (oddImages && !problems.some((p) => IMAGE_EXTS.includes(p))) problems.push('WebP/AVIF textures');
+  const triangles = Math.round(triangleCount(gltf));
+  if (triangles > MAX_TRIANGLES) problems.push(`${triangles.toLocaleString()} triangles`);
   return problems;
 };
 
@@ -77,19 +89,28 @@ export async function makeArSafeGlb(file) {
     throw new Error('This model uses KTX2/Basis textures, which the phone AR cannot read. Export it again with JPEG or PNG textures.');
   }
 
-  const [{ WebIO }, { ALL_EXTENSIONS }, { dequantize, unpartition }, { MeshoptDecoder }] = await Promise.all([
+  const [{ WebIO }, { ALL_EXTENSIONS }, { dequantize, unpartition, weld, simplify, dedup, prune }, { MeshoptDecoder, MeshoptSimplifier }] = await Promise.all([
     import('@gltf-transform/core'),
     import('@gltf-transform/extensions'),
     import('@gltf-transform/functions'),
     import('meshoptimizer'),
   ]);
-  await MeshoptDecoder.ready;
+  await Promise.all([MeshoptDecoder.ready, MeshoptSimplifier.ready]);
   const deps = { 'meshopt.decoder': MeshoptDecoder };
   if ((gltf.extensionsUsed || []).includes('KHR_draco_mesh_compression')) deps['draco3d.decoder'] = await loadDraco();
 
   const io = new WebIO().registerExtensions(ALL_EXTENSIONS).registerDependencies(deps);
   const doc = await io.readBinary(bytes);
   await doc.transform(dequantize(), unpartition());
+  const triangles = triangleCount(gltf);
+  if (triangles > MAX_TRIANGLES) {
+    await doc.transform(
+      weld(),
+      simplify({ simplifier: MeshoptSimplifier, ratio: MAX_TRIANGLES / triangles, error: 0.01 }),
+      dedup(),
+      prune(),
+    );
+  }
 
   for (const texture of doc.getRoot().listTextures()) {
     const mime = texture.getMimeType();
