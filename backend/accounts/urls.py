@@ -7,6 +7,7 @@ from .views import (
     CharacterSetupView, test_auth,
     UserListView, ToggleUserStatusView,
     AdjustUserXPView, LeaderboardView, CosmeticsView,
+    VerifyEmailView, ResendVerificationCodeView,
 )
 
 urlpatterns = [
@@ -20,6 +21,8 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
     path('google/', GoogleLoginView.as_view(), name='google_login'),
+    path('verify-email/', VerifyEmailView.as_view(), name='verify_email'),
+    path('resend-code/', ResendVerificationCodeView.as_view(), name='resend_code'),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('character-setup/', CharacterSetupView.as_view(), name='character_setup'),
     path("test-auth/", test_auth),

@@ -1,4 +1,4 @@
-from rest_framework import serializers
+from rest_framework import exceptions, serializers
 from django.contrib.auth import get_user_model
 from djoser.serializers import UserCreateSerializer as DjoserUserCreateSerializer
 from djoser.serializers import UserSerializer as DjoserUserSerializer
@@ -13,7 +13,7 @@ class CustomUserCreateSerializer(DjoserUserCreateSerializer):
 
     class Meta(DjoserUserCreateSerializer.Meta):
         model = User
-        fields = ('id', 'email', 'password', 'first_name', 'last_name', 'middle_initial', 'in_game_name', 'chosen_character', 'location', 'is_staff','is_superuser',)
+        fields = ('id', 'email', 'password', 'first_name', 'last_name', 'middle_initial', 'in_game_name', 'chosen_character', 'location',)
 
     def create(self, validated_data):
         # Compose the display name from the individual parts supplied at sign-up.
@@ -26,7 +26,10 @@ class CustomUserCreateSerializer(DjoserUserCreateSerializer):
         validated_data['visitor_type'] = User.classify_visitor_type(
             validated_data.get('location', '')
         )
-        return super().create(validated_data)
+        user = super().create(validated_data)
+        from .verification import send_code
+        send_code(user)
+        return user
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -75,5 +78,14 @@ class CharacterSetupSerializer(DjoserUserSerializer):
 class LoginSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
+        from .verification import needs_verification, send_code, seconds_until_resend
+        if needs_verification(self.user):
+            if seconds_until_resend(self.user) == 0:
+                send_code(self.user)
+            raise exceptions.PermissionDenied({
+                'code': 'email_not_verified',
+                'email': self.user.email,
+                'detail': 'Please verify your email first. We sent a code to your inbox.',
+            })
         data['user'] = UserSerializer(self.user, context=self.context).data
         return data

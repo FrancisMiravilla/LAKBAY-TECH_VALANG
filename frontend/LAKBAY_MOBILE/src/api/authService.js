@@ -15,18 +15,37 @@ export const authService = {
         chosen_character: chosenCharacter,
         location,
       });
-      
-      const loginResponse = await apiClient.post('login/', { email, password });
-      if (loginResponse.data.access) {
-        await SecureStore.setItemAsync('accessToken', loginResponse.data.access);
-        await SecureStore.setItemAsync('refreshToken', loginResponse.data.refresh);
-      }
-      return loginResponse.data;
+      // The account starts unverified: the backend emails a 6-digit code and the
+      // player logs in by entering it on the VerifyEmail screen.
+      return response.data;
     } catch (error) {
       console.log('Register error:', JSON.stringify(error.response?.data, null, 2));
       throw error.response?.data || error;
     }
 },
+
+  // Checks the emailed sign-up code; on success the player is logged in.
+  verifyEmail: async (email, code) => {
+    try {
+      const response = await apiClient.post('verify-email/', { email, code });
+      if (response.data.access) {
+        await SecureStore.setItemAsync('accessToken', response.data.access);
+        await SecureStore.setItemAsync('refreshToken', response.data.refresh);
+      }
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  resendVerificationCode: async (email) => {
+    try {
+      const response = await apiClient.post('resend-code/', { email });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
 
   login: async (email, password) => {
     try {

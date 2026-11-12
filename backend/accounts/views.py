@@ -75,6 +75,59 @@ class LogoutView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+class VerifyEmailView(APIView):
+    """POST {email, code}: checks the sign-up code; on success returns login tokens."""
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request):
+        from .verification import check_code
+        email = str(request.data.get('email', '')).strip()
+        code = str(request.data.get('code', '')).strip()
+        if not email or not code:
+            return Response({'detail': 'Enter the 6-digit code from your email.'}, status=status.HTTP_400_BAD_REQUEST)
+        user = User.objects.filter(email__iexact=email).first()
+        if not user:
+            return Response({'detail': "That code isn't right."}, status=status.HTTP_400_BAD_REQUEST)
+        if user.email_verified:
+            return Response(
+                {'detail': 'This email is already verified. Please log in.', 'code': 'already_verified'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        error = check_code(user, code)
+        if error:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'user': UserSerializer(user).data,
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        })
+
+
+class ResendVerificationCodeView(APIView):
+    """POST {email}: mails a new sign-up code (at most once a minute)."""
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request):
+        from .verification import needs_verification, send_code, seconds_until_resend
+        email = str(request.data.get('email', '')).strip()
+        user = User.objects.filter(email__iexact=email).first() if email else None
+        # Same reply whether or not the email exists, so this can't be used to look up accounts.
+        if user and needs_verification(user):
+            wait = seconds_until_resend(user)
+            if wait:
+                return Response(
+                    {'detail': f'Please wait {wait} seconds before asking for a new code.', 'retry_after': wait},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+            if not send_code(user):
+                return Response(
+                    {'detail': "We couldn't send the email right now. Please try again in a moment."},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+        return Response({'detail': 'If that email needs verifying, a new code is on its way.', 'retry_after': 60})
+
+
 class CharacterSetupView(generics.UpdateAPIView):
     serializer_class = CharacterSetupSerializer
     permission_classes = (permissions.IsAuthenticated,)

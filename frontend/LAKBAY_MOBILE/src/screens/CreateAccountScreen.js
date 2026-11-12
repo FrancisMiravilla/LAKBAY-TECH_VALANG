@@ -79,7 +79,7 @@ export default function CreateAccountScreen({ navigation }) {
       );
       await SecureStore.setItemAsync('offline_fullName', fullName);
       setLoading(false);
-      navigation.replace('CharacterSelect');
+      navigation.replace('VerifyEmail', { email: email.trim() });
     } catch (error) {
       setLoading(false);
       const errorData = error.response?.data || error;

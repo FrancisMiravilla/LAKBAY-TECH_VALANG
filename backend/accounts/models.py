@@ -30,6 +30,8 @@ class CustomUser(AbstractUser):
     auth_provider = models.CharField(max_length=50, choices=AUTH_PROVIDERS, default='email')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='tourist')
     xp = models.IntegerField(default=0)
+    # Email sign-ups must enter the code mailed to them before they can play.
+    email_verified = models.BooleanField(default=False)
 
     # Avatar decorations unlocked by XP (ids from accounts/cosmetics.py; '' = none/default).
     avatar_hat = models.CharField(max_length=30, blank=True, default='')
@@ -85,3 +87,15 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.email
+
+
+class EmailVerificationCode(models.Model):
+    """The latest 6-digit sign-up code mailed to a user (stored hashed)."""
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='email_code')
+    code_hash = models.CharField(max_length=128)
+    expires_at = models.DateTimeField()
+    sent_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+
+    def __str__(self):
+        return f"Code for {self.user.email}"

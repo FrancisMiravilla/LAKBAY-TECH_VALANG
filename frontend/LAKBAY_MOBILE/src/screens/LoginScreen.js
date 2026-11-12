@@ -51,7 +51,10 @@ export default function LoginScreen({ navigation }) {
     } catch (error) {
       setLoading(false);
       const status = error.response?.status;
-      if (status === 400 || status === 401) {
+      if (status === 403 && error.response?.data?.code === 'email_not_verified') {
+        // Signed up but never entered the code: the server just mailed a fresh one.
+        navigation.navigate('VerifyEmail', { email: error.response.data.email || email.trim() });
+      } else if (status === 400 || status === 401) {
         showErr('Login Failed', 'Check your explorer email and password.');
       } else if (!error.response) {
         // No reply: the free-tier server may still be waking up, or the phone is offline.
@@ -64,10 +67,6 @@ export default function LoginScreen({ navigation }) {
         showErr('Login Failed', `The server had a problem (error ${status}). Please try again.`);
       }
     }
-  };
-
-  const handleGoogle = () => {
-    showErr('Google Sign-In', 'Google authentication will be integrated with the backend.', 'info');
   };
 
   return (
@@ -220,19 +219,6 @@ export default function LoginScreen({ navigation }) {
                   <Text style={styles.signInText}>Sign In to Adventure</Text>
                 </View>
               )}
-            </TouchableOpacity>
-
-            {/* Divider */}
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR CONNECT VIA</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* Google Button */}
-            <TouchableOpacity style={styles.googleBtn} activeOpacity={0.85} onPress={handleGoogle}>
-              <Text style={styles.googleLogo}>G</Text>
-              <Text style={styles.googleText}>Sign in with Google</Text>
             </TouchableOpacity>
 
             {/* Sign up link */}
@@ -471,47 +457,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: 0.5,
     lineHeight: 18,
-  },
-
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 12,
-    gap: 8,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: COLORS.borderLight,
-  },
-  dividerText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 10,
-    color: COLORS.textFaint,
-    letterSpacing: 1.5,
-    lineHeight: 13,
-  },
-
-  googleBtn: {
-    height: 48,
-    borderRadius: RADIUS.sm,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  googleLogo: {
-    fontSize: 18,
-    fontFamily: FONTS.bold,
-    color: '#4285F4',
-  },
-  googleText: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 13,
-    color: COLORS.text,
   },
 
   signupRow: {

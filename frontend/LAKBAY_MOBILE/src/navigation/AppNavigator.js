@@ -21,6 +21,7 @@ import WelcomeScreen from '../screens/WelcomeScreen';
 import LoginScreen from '../screens/LoginScreen';
 import CreateAccountScreen from '../screens/CreateAccountScreen';
 import CharacterSelectScreen from '../screens/CharacterSelectScreen';
+import VerifyEmailScreen from '../screens/VerifyEmailScreen';
 import CatchDetailsScreen from '../screens/CatchDetailsScreen';
 import QuizScreen from '../screens/QuizScreen';
 import MapScreen from '../screens/MapScreen'; 
@@ -114,6 +115,7 @@ export default function AppNavigator() {
       <Stack.Screen name="Welcome"         component={WelcomeScreen} />
       <Stack.Screen name="Login"           component={LoginScreen} />
       <Stack.Screen name="CreateAccount"   component={CreateAccountScreen} />
+      <Stack.Screen name="VerifyEmail"     component={VerifyEmailScreen} />
       <Stack.Screen name="CharacterSelect" component={CharacterSelectScreen} />
       
       {/* ── Main App ── */}

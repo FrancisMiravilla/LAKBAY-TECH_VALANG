@@ -233,3 +233,16 @@ AUTHENTICATION_BACKENDS = [
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_EMAIL_VERIFICATION = 'none'
+
+# Sign-up verification codes (accounts/verification.py).
+# Production: set BREVO_API_KEY and EMAIL_FROM (a sender verified in Brevo).
+# Without a key, mail goes through EMAIL_BACKEND: printed in the console by
+# default, or real SMTP if EMAIL_BACKEND/EMAIL_HOST/... are set.
+BREVO_API_KEY = config('BREVO_API_KEY', default='')
+EMAIL_FROM = config('EMAIL_FROM', default='')
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
