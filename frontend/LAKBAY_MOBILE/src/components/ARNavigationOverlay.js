@@ -409,6 +409,8 @@ export default function ARNavigationOverlay({
 
   // Dismiss state for the model popup modal — resets each time a new model appears
   const [modalDismissed, setModalDismissed] = useState(false);
+  // Passed-by spots the player tapped "Got it" on: they stay hidden for this trip.
+  const dismissedPassRef = useRef(new Set());
 
   // ── Live compass heading ──────────────────────────────────────────────────
   const [deviceHeading, setDeviceHeading] = useState(null);
@@ -479,7 +481,9 @@ export default function ARNavigationOverlay({
 
   // Each new popup (a different spot passed, or arriving) shows its message again.
   useEffect(() => {
-    if (show3DModel) setModalDismissed(false);
+    if (!show3DModel) return;
+    if (isEncounteringNearby && dismissedPassRef.current.has(nearbySpot?.id)) return;
+    setModalDismissed(false);
   }, [show3DModel, isEncounteringNearby ? nearbySpot?.id : 'arrived']);
 
   useEffect(() => {
@@ -512,8 +516,9 @@ export default function ARNavigationOverlay({
       }).start();
 
       // Auto-save discovered model to SecureStore so BadgesScreen shows it.
-      // Photo-only popups (e.g. a promotion without a model) are not collectibles.
-      if (!activeModel) return;
+      // Photo-only popups (e.g. a promotion without a model) are not collectibles,
+      // and passing by a spot only shows it: it must be caught in Catch to count.
+      if (!activeModel || isEncounteringNearby) return;
       (async () => {
         try {
           const itemToSave = activeSpot || icon;
@@ -557,7 +562,7 @@ export default function ARNavigationOverlay({
         }
       })();
     }
-  }, [show3DModel, activeSpot, spot, icon, activeModel]);
+  }, [show3DModel, activeSpot, spot, icon, activeModel, isEncounteringNearby]);
 
   const displayTitle = isEncounteringNearby
     ? nearbySpot.name
@@ -657,7 +662,7 @@ export default function ARNavigationOverlay({
           COMPACT MODEL POPUP — centered on screen
       ════════════════════════════════════════ */}
       {/* ── Passing by: the model floats in the camera view, the guide says what it is ── */}
-      {show3DModel && isEncounteringNearby && (
+      {show3DModel && isEncounteringNearby && !modalDismissed && (
         <>
           <Animated.View
             pointerEvents="none"
@@ -681,17 +686,22 @@ export default function ARNavigationOverlay({
             )}
           </Animated.View>
 
-          {!modalDismissed && (
-            <Animated.View style={[arStyles.passGuide, { transform: [{ scale: celebPopAnim }] }]}>
-              <GuideBubble
-                size={72}
-                text={`You're passing by ${displayTitle}! Look, it's right here, about ${Math.round(nearbyDistanceM || 0)}m from you.`}
-              />
-              <TouchableOpacity style={arStyles.passGotIt} onPress={() => setModalDismissed(true)} activeOpacity={0.85}>
-                <Text style={arStyles.passGotItText}>Got it</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
+          <Animated.View style={[arStyles.passGuide, { transform: [{ scale: celebPopAnim }] }]}>
+            <GuideBubble
+              size={72}
+              text={`You're passing by ${displayTitle}! Look, it's right here, about ${Math.round(nearbyDistanceM || 0)}m from you.`}
+            />
+            <TouchableOpacity
+              style={arStyles.passGotIt}
+              onPress={() => {
+                if (nearbySpot?.id != null) dismissedPassRef.current.add(nearbySpot.id);
+                setModalDismissed(true);
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={arStyles.passGotItText}>Got it</Text>
+            </TouchableOpacity>
+          </Animated.View>
         </>
       )}
 
