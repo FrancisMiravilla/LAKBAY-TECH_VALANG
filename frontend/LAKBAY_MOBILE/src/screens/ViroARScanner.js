@@ -1,15 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar, InteractionManager, Alert, Modal, Animated, Easing, Dimensions, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar, InteractionManager, Alert, Modal, Animated, Easing, Dimensions, ScrollView, Image } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-// Build model-viewer HTML for reward modal
-const buildRewardViewerHTML = (modelUrl) => {
-  if (!modelUrl) return null;
-  const safe = String(modelUrl).replace(/["'<>&]/g, c => ({ '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
-  return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js" crossorigin="anonymous"></script><style>*{margin:0;padding:0;box-sizing:border-box;}html,body{width:100%;height:100%;background:transparent;overflow:hidden;}model-viewer{width:100%;height:100%;--progress-bar-color:transparent;}</style></head><body><model-viewer src="${safe}" auto-rotate camera-controls bounds="tight" min-camera-orbit="auto auto 40%" camera-orbit="auto 75deg 80%" exposure="1.3" shadow-intensity="0" style="width:100%;height:100%"></model-viewer></body></html>`;
-};
 import {
   ViroARSceneNavigator,
   ViroARScene,
@@ -23,6 +17,8 @@ import {
   ViroSpotLight,
   ViroDirectionalLight,
   ViroARCamera,
+  ViroQuad,
+  ViroMaterials,
   isARSupportedOnDevice,
   requestRequiredPermissions,
 } from '@reactvision/react-viro';
@@ -32,7 +28,8 @@ import { COLORS, FONTS, RADIUS, GOLD_TEXT, onWhite } from '../constants/theme';
 import VintaCard from '../components/VintaCard';
 
 import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
+import { getGlbBounds } from '../utils/glbBounds';
 import { getARTargets, ORIGIN, logActivity, syncCollections } from '../api/qrService';
 import { authService } from '../api/authService';
 import ARGuideCenterPopup from '../components/ARGuideCenterPopup';
@@ -43,7 +40,7 @@ import UnrecognizedArtNotice from '../components/UnrecognizedArtNotice';
 import GuideSpeechModal from '../components/GuideSpeechModal';
 import BuildingPickerModal from '../components/BuildingPickerModal';
 import { galleryTourSteps } from '../constants/museumGalleries';
-import LucideIcon from '../components/LucideIcon';
+import ARArtworkGuide from '../components/ARArtworkGuide';
 
 // Resolve a model path into an absolute https URL Viro can load.
 const resolveModelUrl = (m) => {
@@ -51,6 +48,58 @@ const resolveModelUrl = (m) => {
   if (m.startsWith('data:')) return m;
   if (m.startsWith('http')) return m.replace('http://', 'https://');
   return `${ORIGIN}${m}`;
+};
+
+// ── Fitting the 3D model onto the recognized artwork ──────────────────────────
+// Every tracking image is registered as `markerWidth` meters wide. ARCore works
+// out the painting's distance from that width, so content sized to
+// markerWidth x (image aspect) covers the painting exactly as the camera sees
+// it, whatever the painting's real size.
+const ARTWORK_FIT = {
+  markerWidth: 0.5,
+  // Lays the model's X/Y onto the painting (Y = painting's top) with its front
+  // (+Z) facing out of the wall toward the viewer.
+  planeRotation: [-90, 0, 0],
+  // Extra turn for a model that doesn't face +Z. Change one axis at a time,
+  // e.g. [0, 180, 0] if it shows its back, [90, 0, 0] if it lies flat.
+  modelRotation: [0, 0, 0],
+  // Cover plane behind the model, as a multiple of the painting's size.
+  coverMargin: 1.08,
+  coverColor: '#15171C',
+  // Gap (m) between the cover plane and the back of the model.
+  lift: 0.002,
+};
+
+ViroMaterials.createMaterials({
+  artworkCover: { diffuseColor: ARTWORK_FIT.coverColor, lightingModel: 'Constant' },
+});
+
+const getImageAspect = (uri) => new Promise((resolve) => {
+  Image.getSize(uri, (w, h) => resolve(w > 0 && h > 0 ? h / w : null), () => resolve(null));
+});
+
+// Returns how to place the model on the painting, or null to keep the floating viewer.
+const computeArtworkFit = async (target, localModel) => {
+  if (!target?.image || !localModel || !localModel.startsWith('file://')) return null;
+  const [aspect, bounds] = await Promise.all([
+    getImageAspect(target.image),
+    getGlbBounds(localModel, ARTWORK_FIT.modelRotation),
+  ]);
+  if (!aspect || !bounds) return null;
+  const sizeX = bounds.max[0] - bounds.min[0];
+  const sizeY = bounds.max[1] - bounds.min[1];
+  if (!(sizeX > 0 && sizeY > 0)) return null;
+  const width = ARTWORK_FIT.markerWidth;
+  const height = width * aspect;
+  const scale = Math.min(width / sizeX, height / sizeY);
+  const centerX = (bounds.max[0] + bounds.min[0]) / 2;
+  const centerY = (bounds.max[1] + bounds.min[1]) / 2;
+  return {
+    width,
+    height,
+    scale,
+    position: [-centerX * scale, -centerY * scale, ARTWORK_FIT.lift - bounds.min[2] * scale],
+  };
 };
 
 export const RARITY_THEME = {
@@ -175,20 +224,47 @@ const buildSteadyViewerHTML = (modelUrl) => {
 // 2. DEFINE THE 3D AR SCENE (IMAGE MARKER DETECTION)
 // =========================================================================
 const MuseumARScene = (props) => {
+  const app = props.sceneNavigator.viroAppProps;
+  const detected = app.detectedSpot;
   return (
     <ViroARScene>
       <ViroAmbientLight color="#FFFFFF" intensity={1000} />
       <ViroDirectionalLight color="#FFFFFF" direction={[0, 0, -1]} intensity={1200} />
 
       {/* Dynamic Optical Image Markers for Museum Artworks */}
-      {(props.sceneNavigator.viroAppProps.arTargets || []).map(target => (
-        <ViroARImageMarker
-          key={target.id}
-          target={`target_${target.id}`}
-          onAnchorFound={() => props.sceneNavigator.viroAppProps.onTargetFound(target)}
-          onAnchorRemoved={() => props.sceneNavigator.viroAppProps.onTargetLost()}
-        />
-      ))}
+      {(app.arTargets || []).map(target => {
+        const fit = detected && detected.id === target.id ? detected.fit : null;
+        return (
+          <ViroARImageMarker
+            key={target.id}
+            target={`target_${target.id}`}
+            onAnchorFound={() => app.onTargetFound(target)}
+            onAnchorRemoved={() => app.onTargetLost()}
+          >
+            {fit && (
+              <ViroNode rotation={ARTWORK_FIT.planeRotation}>
+                <ViroQuad
+                  width={fit.width * ARTWORK_FIT.coverMargin}
+                  height={fit.height * ARTWORK_FIT.coverMargin}
+                  materials={['artworkCover']}
+                />
+                <ViroNode
+                  position={fit.position}
+                  scale={[fit.scale, fit.scale, fit.scale]}
+                  rotation={ARTWORK_FIT.modelRotation}
+                >
+                  <Viro3DObject
+                    source={{ uri: detected.local_model }}
+                    type="GLB"
+                    onLoadEnd={() => app.onModelLoadEnd(target.id)}
+                    onError={(e) => app.onModelError(e?.nativeEvent?.error)}
+                  />
+                </ViroNode>
+              </ViroNode>
+            )}
+          </ViroARImageMarker>
+        );
+      })}
     </ViroARScene>
   );
 };
@@ -249,14 +325,13 @@ export default function ViroARScanner({ navigation }) {
     const inBuilding = withHints.filter(t => t.building === selectedBuilding);
     return inBuilding.length > 0 ? inBuilding : withHints;
   };
-  const [rewardModalData, setRewardModalData] = useState(null);
   const [showGuideCenterPopup, setShowGuideCenterPopup] = useState(false);
   const [activeGuideTarget, setActiveGuideTarget] = useState(null);
   const [showHintModal, setShowHintModal] = useState(false);
   const [compassTarget, setCompassTarget] = useState(null);
-  const glowAnim = React.useRef(new Animated.Value(0)).current;
   const floatAnim = React.useRef(new Animated.Value(0)).current;
   const lastTargetIdRef = React.useRef(null);
+  const handlingTargetRef = React.useRef(null);
   const steadyWebViewRef = React.useRef(null);
 
   React.useEffect(() => {
@@ -268,34 +343,13 @@ export default function ViroARScanner({ navigation }) {
     ).start();
   }, []);
 
-  React.useEffect(() => {
-    if (rewardModalData) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(glowAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(glowAnim, {
-            toValue: 0,
-            duration: 1000,
-            useNativeDriver: true,
-          })
-        ])
-      ).start();
-    } else {
-      glowAnim.setValue(0);
-    }
-  }, [rewardModalData]);
-
   // Clue auto-popup: once the player has finished the intro steps, if no artwork
   // is found within 10 s the guide pops up with a clue (once per visit).
   const autoClueShownRef = React.useRef(false);
   React.useEffect(() => {
     if (galleryInProgress || autoClueShownRef.current) return;
     if (!sceneMountReady || arStatus !== 'ready' || loading || arTargets.length === 0) return;
-    if (detectedSpot || rewardModalData || showGuideCenterPopup || showHintModal) return;
+    if (detectedSpot || showGuideCenterPopup || showHintModal) return;
 
     const targetsWithHints = hintedTargets();
     if (targetsWithHints.length === 0) return;
@@ -308,7 +362,7 @@ export default function ViroARScanner({ navigation }) {
     }, 10000);
 
     return () => clearTimeout(timer);
-  }, [galleryInProgress, selectedBuilding, sceneMountReady, arStatus, loading, arTargets, detectedSpot, rewardModalData, showGuideCenterPopup, showHintModal]);
+  }, [galleryInProgress, selectedBuilding, sceneMountReady, arStatus, loading, arTargets, detectedSpot, showGuideCenterPopup, showHintModal]);
 
   React.useEffect(() => {
     (async () => {
@@ -356,7 +410,7 @@ export default function ViroARScanner({ navigation }) {
             targetMap[`target_${t.id}`] = {
               source: { uri: t.image },
               orientation: "Up",
-              physicalWidth: 0.5,
+              physicalWidth: ARTWORK_FIT.markerWidth,
             };
           }
         });
@@ -409,6 +463,16 @@ export default function ViroARScanner({ navigation }) {
     setCompassTarget((current) => (current && current.id === target.id ? null : current));
     // Ignore duplicate events while this artwork is already detected on screen
     if (detectedSpot && detectedSpot.id === target.id) return;
+    if (handlingTargetRef.current === target.id) return;
+    handlingTargetRef.current = target.id;
+    try {
+      await processFoundTarget(target);
+    } finally {
+      handlingTargetRef.current = null;
+    }
+  };
+
+  const processFoundTarget = async (target) => {
     lastTargetIdRef.current = target.id;
 
     const rarityKey = (target.rarity || 'common').toLowerCase();
@@ -477,19 +541,8 @@ export default function ViroARScanner({ navigation }) {
       }
     }
 
-    setRewardModalData({
-      id: target.id,
-      name: target.name,
-      building: target.building || 'S2',
-      rarity: target.rarity || 'common',
-      slot_number: target.slot_number || 1,
-      spot_name: target.spot_name || '',
-      hint: target.hint || '',
-      emoji: rarityTheme.emoji || 'palette',
-      earnedXP: earnedXP,
-      model_3d: target.model_3d ? resolveModelUrl(target.model_3d) : null,
-      already_collected: wasAlreadyCollected,
-    });
+    const fit = target.model_3d ? await computeArtworkFit(target, localModelPath) : null;
+    console.log('[AR] artwork fit:', target.name, fit);
 
     setDetectedSpot({
       id: target.id,
@@ -499,9 +552,12 @@ export default function ViroARScanner({ navigation }) {
       slot_number: target.slot_number || 1,
       spot_name: target.spot_name || '',
       hint: target.hint || '',
-      description: target.description || "You've uncovered a hidden AR experience inside the building! Point your camera to see it.",
+      description: target.description || '',
       model_3d: target.model_3d ? resolveModelUrl(target.model_3d) : null,
-      local_model: localModelPath || target.local_model || (target.model_3d ? resolveModelUrl(target.model_3d) : null)
+      local_model: localModelPath || target.local_model || (target.model_3d ? resolveModelUrl(target.model_3d) : null),
+      fit,
+      earnedXP,
+      already_collected: wasAlreadyCollected,
     });
 
     // Dismiss any active 3D hint popup when target is found
@@ -536,36 +592,6 @@ export default function ViroARScanner({ navigation }) {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       
-      <Modal
-        visible={!!rewardModalData}
-        transparent={true}
-        animationType="fade"
-        statusBarTranslucent
-      >
-        <RewardModal
-          data={rewardModalData}
-          glowAnim={glowAnim}
-          onClose={() => setRewardModalData(null)}
-          onViewDetails={() => {
-            setRewardModalData(null);
-            if (detectedSpot) {
-              navigation.navigate('CatchDetails', {
-                icon: {
-                  name: detectedSpot.name,
-                  about: detectedSpot.description,
-                  model_3d: detectedSpot.model_3d,
-                  rarity: detectedSpot.rarity || 'common',
-                  building: detectedSpot.building || 'S2',
-                  slot_number: detectedSpot.slot_number || 1,
-                  spot_name: detectedSpot.spot_name || '',
-                },
-                isAR: true,
-              });
-            }
-          }}
-        />
-      </Modal>
-
       <GuideSpeechModal
         visible={showInstructionModal}
         steps={guideSteps}
@@ -742,7 +768,7 @@ export default function ViroARScanner({ navigation }) {
         building={selectedBuilding}
         active={
           arStatus === 'ready' && sceneMountReady && !loading && arTargets.length > 0 &&
-          !galleryInProgress && !detectedSpot && !rewardModalData &&
+          !galleryInProgress && !detectedSpot &&
           !showGuideCenterPopup && !showHintModal
         }
       />
@@ -753,7 +779,7 @@ export default function ViroARScanner({ navigation }) {
       )}
 
       {/* ── Steady Floating 3D Model (Catch Feature Architecture + Full Multi-Touch & Zoom) ── */}
-      {detectedSpot && (
+      {detectedSpot && (!detectedSpot.fit || modelStatus.state === 'error') && (
         <Animated.View style={[styles.steadyModelWrap, { transform: [{ translateY: floatAnim }] }]}>
           {/* Ambient Glow (Placed BEHIND WebView with pointerEvents="none" so it NEVER blocks touches) */}
           <View
@@ -829,459 +855,19 @@ export default function ViroARScanner({ navigation }) {
         </Animated.View>
       )}
 
-      {/* React Native UI Overlay (Pops up when painting is detected) */}
+      {/* Guide reads out the recognized artwork over the camera */}
       {detectedSpot && (
-        <View style={styles.overlayUI}>
-          <View style={styles.infoCard}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <View style={styles.badge}>
-                <Ionicons name="sparkles" size={14} color={COLORS.gold} />
-                <Text style={styles.badgeText}>Artwork Detected</Text>
-              </View>
-              {(() => {
-                const rTheme = RARITY_THEME[(detectedSpot.rarity || 'common').toLowerCase()] || RARITY_THEME.common;
-                return (
-                  <View style={[styles.detectedRarityBadge, { backgroundColor: rTheme.bg, borderColor: rTheme.color }]}>
-                    <Text style={[styles.detectedRarityText, { color: rTheme.color }]}>{rTheme.label} · Building {detectedSpot.building || 'S2'} · Slot #{detectedSpot.slot_number || 1}</Text>
-                  </View>
-                );
-              })()}
-            </View>
-            <Text style={styles.title}>{detectedSpot.name}</Text>
-            <Text style={styles.desc} numberOfLines={2}>{detectedSpot.description}</Text>
-
-            {/* Action Buttons: Scan Another vs View Details */}
-            <View style={styles.cardActionsRow}>
-              <TouchableOpacity
-                style={styles.btnScanNext}
-                onPress={() => setDetectedSpot(null)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="scan-outline" size={16} color="rgba(255,255,255,0.85)" style={{ marginRight: 6 }} />
-                <Text style={styles.btnScanNextText}>Scan Another</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.btnDetails,
-                  { backgroundColor: (RARITY_THEME[detectedSpot.rarity?.toLowerCase()] || RARITY_THEME.common).color }
-                ]}
-                onPress={() => navigation.navigate('CatchDetails', {
-                  icon: {
-                    name: detectedSpot.name,
-                    about: detectedSpot.description,
-                    model_3d: detectedSpot.model_3d,
-                    rarity: detectedSpot.rarity || 'common',
-                    building: detectedSpot.building || 'S2',
-                    slot_number: detectedSpot.slot_number || 1,
-                    spot_name: detectedSpot.spot_name || '',
-                  },
-                  isAR: true
-                })}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="information-circle-outline" size={16} color="#FFF" style={{ marginRight: 6 }} />
-                <Text style={styles.btnDetailsText}>View Details</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+        <ARArtworkGuide
+          art={detectedSpot}
+          rarityTheme={RARITY_THEME[(detectedSpot.rarity || 'common').toLowerCase()] || RARITY_THEME.common}
+          onScanAnother={() => setDetectedSpot(null)}
+        />
       )}
     </SafeAreaView>
   );
 }
 
-// ── Gamified Reward Modal Component ─────────────────────────────────────────
-function RewardModal({ data, glowAnim, onClose, onViewDetails }) {
-  const scaleAnim  = useRef(new Animated.Value(0.6)).current;
-  const opacAnim   = useRef(new Animated.Value(0)).current;
-  const shimmer    = useRef(new Animated.Value(0)).current;
-  const titleBounce = useRef(new Animated.Value(0)).current;
 
-  // Floating particle orbs
-  const orbs = useRef(
-    Array.from({ length: 6 }, () => ({
-      x: new Animated.Value(0),
-      y: new Animated.Value(0),
-      op: new Animated.Value(0),
-      sc: new Animated.Value(0.3),
-    }))
-  ).current;
-
-  useEffect(() => {
-    if (!data) return;
-
-    // Card pop-in
-    Animated.parallel([
-      Animated.spring(scaleAnim, { toValue: 1, friction: 7, tension: 70, useNativeDriver: true }),
-      Animated.timing(opacAnim,  { toValue: 1, duration: 300, useNativeDriver: true }),
-    ]).start();
-
-    // Title bounce
-    setTimeout(() => {
-      Animated.sequence([
-        Animated.timing(titleBounce, { toValue: -8, duration: 180, useNativeDriver: true }),
-        Animated.spring(titleBounce,  { toValue: 0,  friction: 4, useNativeDriver: true }),
-      ]).start();
-    }, 400);
-
-    // Shimmer on model card
-    Animated.loop(
-      Animated.timing(shimmer, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: true })
-    ).start();
-
-    // Floating orbs
-    const POSITIONS = [
-      { tx: -80, ty: -120 }, { tx: 80, ty: -100 }, { tx: -110, ty: 20 },
-      { tx: 110, ty: 10  }, { tx: -60, ty: 130  }, { tx: 60,  ty: 120 },
-    ];
-    orbs.forEach((orb, i) => {
-      const pos = POSITIONS[i];
-      setTimeout(() => {
-        Animated.parallel([
-          Animated.timing(orb.op, { toValue: 1,   duration: 400, useNativeDriver: true }),
-          Animated.timing(orb.sc, { toValue: 1,   duration: 500, useNativeDriver: true }),
-          Animated.timing(orb.x,  { toValue: pos.tx, duration: 1800 + i * 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-          Animated.timing(orb.y,  { toValue: pos.ty, duration: 1800 + i * 200, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        ]).start(() => {
-          Animated.timing(orb.op, { toValue: 0, duration: 600, useNativeDriver: true }).start();
-        });
-      }, i * 80);
-    });
-
-    return () => {
-      scaleAnim.setValue(0.6);
-      opacAnim.setValue(0);
-      shimmer.setValue(0);
-      titleBounce.setValue(0);
-      orbs.forEach(o => { o.x.setValue(0); o.y.setValue(0); o.op.setValue(0); o.sc.setValue(0.3); });
-    };
-  }, [data]);
-
-  if (!data) return null;
-
-  const rarityKey = (data.rarity || 'common').toLowerCase();
-  const rTheme = RARITY_THEME[rarityKey] || RARITY_THEME.common;
-  const shimmerX = shimmer.interpolate({ inputRange: [0, 1], outputRange: [-(SCREEN_W), SCREEN_W] });
-  const rewardHTML = data.model_3d ? buildRewardViewerHTML(data.model_3d) : null;
-
-  return (
-    <View style={rwStyles.overlay}>
-      {/* Particle orbs */}
-      {orbs.map((orb, i) => (
-        <Animated.View
-          key={i}
-          pointerEvents="none"
-          style={[
-            rwStyles.orb,
-            { opacity: orb.op, transform: [{ translateX: orb.x }, { translateY: orb.y }, { scale: orb.sc }] },
-            { backgroundColor: i % 2 === 0 ? rTheme.color : COLORS.gold },
-          ]}
-        />
-      ))}
-
-      <Animated.View style={[rwStyles.card, { borderColor: rTheme.color + '99', shadowColor: rTheme.color, opacity: opacAnim, transform: [{ scale: scaleAnim }] }]}>
-
-        {/* Header banner */}
-        <View style={[rwStyles.cardHeader, { borderBottomColor: rTheme.color + '44' }]}>
-          <View style={[rwStyles.headerGlow, { backgroundColor: rTheme.color + '44' }]} />
-          <View style={rwStyles.rarityRow}>
-            <Ionicons name={rTheme.icon} size={13} color={rTheme.color} />
-            <Text style={[rwStyles.rarityText, { color: rTheme.color }]}>
-              {data.already_collected ? 'ALREADY IN COLLECTION' : `${rTheme.label} DISCOVERY`}
-            </Text>
-            <Ionicons name={rTheme.icon} size={13} color={rTheme.color} />
-          </View>
-          <Animated.Text style={[rwStyles.rewardTitle, { transform: [{ translateY: titleBounce }] }]}>
-            {data.already_collected ? 'Art Already Collected!' : 'Art Discovered!'}
-          </Animated.Text>
-          <Text style={rwStyles.slotBanner}>
-            Slot #{data.slot_number || 1} of 10 · Building {data.building || 'S2'}
-          </Text>
-        </View>
-
-        {/* 3D model viewer OR fallback icon */}
-        <View style={rwStyles.modelFrame}>
-          {/* Glow ring */}
-          <Animated.View style={[
-            rwStyles.modelGlow,
-            { backgroundColor: rTheme.color + '26',
-              opacity: glowAnim.interpolate({ inputRange: [0,1], outputRange: [0.3, 0.8] }),
-              transform: [{ scale: glowAnim.interpolate({ inputRange: [0,1], outputRange: [1, 1.15] }) }] }
-          ]} />
-
-          <View style={[rwStyles.modelCard, { borderColor: rTheme.color + '66' }]}>
-            {rewardHTML ? (
-              <WebView
-                source={{ html: rewardHTML }}
-                style={{ flex: 1, backgroundColor: 'transparent' }}
-                javaScriptEnabled
-                originWhitelist={['https://*']}
-                scrollEnabled={false}
-              />
-            ) : (
-              <View style={rwStyles.noModelFallback}>
-                <LucideIcon name={rTheme.emoji} fallback="palette" size={52} color={rTheme.color} strokeWidth={1.8} />
-              </View>
-            )}
-            {/* Shimmer sweep */}
-            <Animated.View
-              pointerEvents="none"
-              style={[rwStyles.shimmer, { transform: [{ translateX: shimmerX }] }]}
-            />
-          </View>
-
-          {/* Stars / icons below viewer */}
-          <View style={rwStyles.starsRow}>
-            {[...Array(5)].map((_, i) => (
-              <Ionicons key={i} name="star" size={14} color={rTheme.color} style={{ marginHorizontal: 2 }} />
-            ))}
-          </View>
-        </View>
-
-        {/* Model name */}
-        <Text style={rwStyles.modelName}>{data.name}</Text>
-
-        {/* XP + collection row */}
-        <View style={rwStyles.rewardRow}>
-          {data.already_collected ? (
-            <View style={[rwStyles.rewardPill, rwStyles.rewardPillGreen, { flex: 1, justifyContent: 'center' }]}>
-              <Ionicons name="checkmark-done-circle" size={15} color={COLORS.teal} style={{ marginRight: 4 }} />
-              <Text style={[rwStyles.rewardPillText, { color: COLORS.teal }]}>
-                Already In Collection (No Duplicate XP)
-              </Text>
-            </View>
-          ) : (
-            <>
-              <View style={[rwStyles.rewardPill, { borderColor: rTheme.color + '66', backgroundColor: rTheme.color + '22' }]}>
-                <Ionicons name="flash" size={14} color={rTheme.color} />
-                <Text style={[rwStyles.rewardPillText, { color: rTheme.color }]}>+{data.earnedXP || rTheme.xp} XP</Text>
-              </View>
-              <View style={[rwStyles.rewardPill, rwStyles.rewardPillGreen]}>
-                <Ionicons name="checkmark-circle" size={14} color={COLORS.teal} />
-                <Text style={[rwStyles.rewardPillText, { color: COLORS.teal }]}>Collected!</Text>
-              </View>
-            </>
-          )}
-        </View>
-
-        {/* Buttons */}
-        <View style={rwStyles.btnRow}>
-          <TouchableOpacity style={rwStyles.btnSecondary} onPress={onClose}>
-            <Text style={rwStyles.btnSecondaryText}>Hop Next</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={rwStyles.btnPrimary} onPress={onViewDetails}>
-            <Ionicons name="book-outline" size={15} color="#FFF" style={{ marginRight: 5 }} />
-            <Text style={rwStyles.btnPrimaryText}>View Lore</Text>
-          </TouchableOpacity>
-        </View>
-
-      </Animated.View>
-    </View>
-  );
-}
-
-const rwStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.88)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  orb: {
-    position: 'absolute',
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-  },
-  orbGold:   { backgroundColor: COLORS.gold },
-  orbPurple: { backgroundColor: '#A855F7' },
-
-  card: {
-    width: SCREEN_W - 48,
-    backgroundColor: '#0D0D24',
-    borderRadius: 28,
-    borderWidth: 1.5,
-    borderColor: 'rgba(168,85,247,0.5)',
-    overflow: 'hidden',
-    shadowColor: '#A855F7',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.6,
-    shadowRadius: 24,
-    elevation: 16,
-  },
-
-  // Header
-  cardHeader: {
-    backgroundColor: '#13132E',
-    paddingTop: 20,
-    paddingBottom: 16,
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderColor: 'rgba(168,85,247,0.2)',
-    overflow: 'hidden',
-  },
-  headerGlow: {
-    position: 'absolute',
-    top: -30,
-    width: 180,
-    height: 80,
-    borderRadius: 90,
-    backgroundColor: 'rgba(168,85,247,0.25)',
-  },
-  rarityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
-  },
-  rarityText: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: '#A855F7',
-    letterSpacing: 2,
-  },
-  rewardTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 22,
-    color: COLORS.gold,
-    letterSpacing: 0.5,
-    textShadowColor: 'rgba(251,191,36,0.6)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
-  },
-  slotBanner: {
-    fontFamily: FONTS.medium,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.75)',
-    marginTop: 4,
-    letterSpacing: 0.5,
-  },
-
-  // Model viewer
-  modelFrame: {
-    alignItems: 'center',
-    paddingTop: 20,
-    paddingBottom: 4,
-  },
-  modelGlow: {
-    position: 'absolute',
-    top: 12,
-    width: SCREEN_W - 100,
-    height: 225,
-    borderRadius: 20,
-    backgroundColor: 'rgba(168,85,247,0.18)',
-  },
-  modelCard: {
-    width: SCREEN_W - 100,
-    height: 215,
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(168,85,247,0.45)',
-    backgroundColor: '#0A0A1A',
-  },
-  noModelFallback: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shimmer: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    width: 70,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  starsRow: {
-    flexDirection: 'row',
-    marginTop: 10,
-  },
-
-  // Name
-  modelName: {
-    fontFamily: FONTS.bold,
-    fontSize: 18,
-    color: '#FFF',
-    textAlign: 'center',
-    marginTop: 14,
-    marginBottom: 4,
-    paddingHorizontal: 20,
-    textShadowColor: 'rgba(168,85,247,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 8,
-  },
-
-  // Reward pills
-  rewardRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 10,
-    marginTop: 10,
-    marginBottom: 18,
-  },
-  rewardPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(251,191,36,0.12)',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: 'rgba(251,191,36,0.3)',
-  },
-  rewardPillGreen: {
-    backgroundColor: 'rgba(16,185,129,0.1)',
-    borderColor: 'rgba(16,185,129,0.3)',
-  },
-  rewardPillText: {
-    fontFamily: FONTS.bold,
-    fontSize: 13,
-    color: COLORS.gold,
-  },
-
-  // Buttons
-  btnRow: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 20,
-    paddingBottom: 22,
-  },
-  btnSecondary: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: 14,
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-  },
-  btnSecondaryText: {
-    fontFamily: FONTS.bold,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.75)',
-  },
-  btnPrimary: {
-    flex: 1,
-    flexDirection: 'row',
-    paddingVertical: 13,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.accent,
-    shadowColor: COLORS.accent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  btnPrimaryText: {
-    fontFamily: FONTS.bold,
-    fontSize: 14,
-    color: '#FFF',
-  },
-});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
