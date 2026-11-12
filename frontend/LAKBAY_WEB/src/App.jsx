@@ -207,6 +207,16 @@ const INITIAL_ACTIVITIES = [
   { id: 6, type: 'catch', text: 'Santiago Perez caught "Pink Sand Jellyfish" in AR', time: '2h ago' }
 ];
 
+// 3D models are capped at 10 MB so they load quickly on phones (and in Viro AR).
+const MAX_MODEL_MB = 10;
+const isModelTooLarge = (e) => {
+  const file = e.target.files?.[0];
+  if (!file || file.size <= MAX_MODEL_MB * 1024 * 1024) return false;
+  alert(`This 3D model is ${(file.size / 1024 / 1024).toFixed(1)} MB. Please upload a .glb that is ${MAX_MODEL_MB} MB or smaller (reduce its polygons or texture size first).`);
+  e.target.value = '';
+  return true;
+};
+
 const normalizeSpot = (s) => ({
   id: s.id,
   name: s.name,
@@ -726,6 +736,7 @@ function App() {
   };
 
   const handleModelFileChange = (e, isEdit) => {
+    if (isModelTooLarge(e)) return;
     const file = e.target.files[0];
     if (!file) return;
     const blobUrl = URL.createObjectURL(file);
@@ -752,6 +763,7 @@ function App() {
   };
 
   const handleARTargetModelChange = (e) => {
+    if (isModelTooLarge(e)) return;
     const file = e.target.files[0];
     if (!file) return;
     const blobUrl = URL.createObjectURL(file);
@@ -951,6 +963,7 @@ function App() {
 
   // ─── Catch Handlers ──────────────────────────────────────────────────────────
   const handleCatchFileChange = (e, isEditing) => {
+    if (isModelTooLarge(e)) return;
     const file = e.target.files[0];
     if (!file) return;
     const blobUrl = URL.createObjectURL(file);
@@ -1042,6 +1055,7 @@ function App() {
   };
 
   const handleEditARTargetModelChange = (e) => {
+    if (isModelTooLarge(e)) return;
     const file = e.target.files[0];
     if (!file) return;
     const blobUrl = URL.createObjectURL(file);
@@ -3246,7 +3260,7 @@ function App() {
                     </div>
 
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb, optional)</span></label>
+                      <label className="form-label">3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb, optional, max 10 MB)</span></label>
                       <label style={{
                         position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                         height: '180px', border: newARTarget.model_3d ? `2px solid ${PIN_TYPE_CONFIG.ar.color}` : '2px dashed var(--card-border)', borderRadius: '10px',
@@ -3263,7 +3277,7 @@ function App() {
                           </div>
                         ) : (
                           <span style={{ color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center', padding: '0 10px' }}>
-                            Drag and drop a .glb model here<br/>or click to browse
+                            Drag and drop a .glb model here (max 10 MB)<br/>or click to browse
                           </span>
                         )}
                       </label>
@@ -3404,7 +3418,7 @@ function App() {
                     </div>
 
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label">3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb, optional)</span></label>
+                      <label className="form-label">3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb, optional, max 10 MB)</span></label>
                       <label style={{
                         position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                         height: '180px', border: editModelSrc ? `2px solid ${PIN_TYPE_CONFIG.ar.color}` : '2px dashed var(--card-border)', borderRadius: '10px',
@@ -3421,7 +3435,7 @@ function App() {
                           </div>
                         ) : (
                           <span style={{ color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center', padding: '0 10px' }}>
-                            Drag and drop a .glb model here<br/>or click to browse
+                            Drag and drop a .glb model here (max 10 MB)<br/>or click to browse
                           </span>
                         )}
                       </label>
@@ -3485,7 +3499,7 @@ function App() {
                     ) : (
                       <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', pointerEvents: 'none'}}>
                         <Target size={32} color="var(--text-muted)" />
-                        <span style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center', fontWeight: 600 }}>Drag and drop .glb file<br/>or click to upload</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center', fontWeight: 600 }}>Drag and drop .glb file (max 10 MB)<br/>or click to upload</span>
                       </div>
                     )}
                   </label>
@@ -3559,7 +3573,7 @@ function App() {
                     ) : (
                       <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', pointerEvents: 'none'}}>
                         <Target size={32} color="var(--text-muted)" />
-                        <span style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center', fontWeight: 600 }}>Drag and drop .glb file<br/>or click to upload</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '14px', textAlign: 'center', fontWeight: 600 }}>Drag and drop .glb file (max 10 MB)<br/>or click to upload</span>
                       </div>
                     );
                     })()}
@@ -3724,7 +3738,7 @@ function App() {
                         value={newSpot.hook} onChange={(e) => setNewSpot({ ...newSpot, hook: e.target.value })} />
                     </div>
                     <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gridColumn: '1 / -1' }}>
-                      <label className="form-label" style={{ color: PIN_TYPE_CONFIG.catch.color }}>3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb only)</span></label>
+                      <label className="form-label" style={{ color: PIN_TYPE_CONFIG.catch.color }}>3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb only, max 10 MB)</span></label>
                       <label style={{
                         position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                         height: '260px', marginTop: '8px',
@@ -3750,7 +3764,7 @@ function App() {
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', pointerEvents: 'none' }}>
                             <Target size={32} color="var(--text-muted)" />
-                            <span style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 600, textAlign: 'center' }}>Drag and drop .glb file<br/>or click to upload</span>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 600, textAlign: 'center' }}>Drag and drop .glb file (max 10 MB)<br/>or click to upload</span>
                           </div>
                         )}
                       </label>
@@ -3961,7 +3975,7 @@ function App() {
                         value={editingSpot.hook || ''} onChange={(e) => setEditingSpot({ ...editingSpot, hook: e.target.value })} />
                     </div>
                     <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gridColumn: '1 / -1' }}>
-                      <label className="form-label" style={{ color: PIN_TYPE_CONFIG.catch.color }}>3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb only)</span></label>
+                      <label className="form-label" style={{ color: PIN_TYPE_CONFIG.catch.color }}>3D Model <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(.glb only, max 10 MB)</span></label>
                       <label style={{
                         position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                         height: '260px', marginTop: '8px',
@@ -3987,7 +4001,7 @@ function App() {
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', pointerEvents: 'none' }}>
                             <Target size={32} color="var(--text-muted)" />
-                            <span style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 600, textAlign: 'center' }}>Drag and drop .glb file<br/>or click to change</span>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '14px', fontWeight: 600, textAlign: 'center' }}>Drag and drop .glb file (max 10 MB)<br/>or click to change</span>
                           </div>
                         )}
                       </label>
