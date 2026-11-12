@@ -22,7 +22,7 @@ export const artworkGuideScript = (art, rarityLabel) => {
 
 // Shown over the camera when an artwork is recognized: the guide reads out the
 // title and every detail while the 3D model stays visible on the painting.
-export default function ARArtworkGuide({ art, rarityTheme, onScanAnother, modelMissing }) {
+export default function ARArtworkGuide({ art, rarityTheme, onScanAnother }) {
   const [collapsed, setCollapsed] = useState(false);
   const script = useMemo(() => artworkGuideScript(art, rarityTheme.label), [art, rarityTheme.label]);
   const { typed, speaking, say, stop } = useGuideVoice();
@@ -67,15 +67,6 @@ export default function ARArtworkGuide({ art, rarityTheme, onScanAnother, modelM
           </View>
         </View>
 
-        {modelMissing && (
-          <View style={styles.modelNote}>
-            <Ionicons name="cube-outline" size={14} color="#FBBF24" />
-            <Text style={styles.modelNoteText}>
-              {"This artwork's 3D model can't be shown on this phone yet. Ask the museum admin to upload it again."}
-            </Text>
-          </View>
-        )}
-
         {!collapsed && (
           <>
             {speaking && <View style={styles.wave}><Waveform speaking color={COLORS.gold} /></View>}
@@ -97,11 +88,6 @@ export default function ARArtworkGuide({ art, rarityTheme, onScanAnother, modelM
 }
 
 const styles = StyleSheet.create({
-  modelNote: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, paddingHorizontal: 10, paddingVertical: 6,
-    borderRadius: 10, backgroundColor: 'rgba(251,191,36,0.12)',
-  },
-  modelNoteText: { flex: 1, fontFamily: FONTS.medium, fontSize: 11, color: '#FDE68A', lineHeight: 15 },
   wrap: { position: 'absolute', left: 12, right: 12, bottom: 24, zIndex: 20 },
   card: {
     backgroundColor: 'rgba(15, 23, 42, 0.86)',
