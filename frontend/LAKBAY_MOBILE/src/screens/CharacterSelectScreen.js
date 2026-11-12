@@ -1,712 +1,622 @@
-import React, { useState, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  SafeAreaView, StyleSheet, Text, View, TextInput,
-  TouchableOpacity, FlatList, StatusBar,
-  ActivityIndicator, Dimensions, KeyboardAvoidingView, Platform, Image,
-  ImageBackground, ScrollView,
+  Animated, BackHandler, Dimensions, Easing, Image, KeyboardAvoidingView, Platform,
+  ScrollView, StatusBar, StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import LucideIcon from '../components/LucideIcon';
 import * as SecureStore from 'expo-secure-store';
-import { COLORS, FONTS, RADIUS, SHADOW, CARD_BORDER_WIDTH, BG_OVERLAY, GOLD_TEXT } from '../constants/theme';
-import VintaCard from '../components/VintaCard';
+import { FONTS, GUIDE_FONTS } from '../constants/theme';
+import { HATS, PINS } from '../constants/cosmetics';
 import { authService } from '../api/authService';
 import ErrorModal from '../components/ErrorModal';
-import VintaStripe from '../components/VintaStripe';
+import LucideIcon from '../components/LucideIcon';
+import DecoratedAvatar, { ProfileBackdrop } from '../components/DecoratedAvatar';
+import {
+  BeachBackdrop, ChamferButton, ChamferFrame, CREATION, GlitchTitle, PopPressable, RiseIn,
+} from '../components/CreationKit';
+
+// Character creation: Guide → Customize (skippable) → In-game name → Finish.
+// Visual reference: a pixel-beach character creator — options rise in one by
+// one, the picked one glides to the centre while the rest fly off, and the
+// step title glitches into the next.
 
 const { width: SCREEN_W } = Dimensions.get('window');
-
+const PAD = 16;
 
 const CHARACTERS = [
-  {
-    id: 'mando',
-    name: 'Kuya Mando',
-    title: 'The Trailblazer',
-    image: require('../assets/characters/lila.jpg'),
-    color: COLORS.accent,
-    desc: 'Bold & fearless across every trail',
-    specialty: 'Historic Fortresses',
-    perk: '+10% Heritage XP',
-    badge: 'LEADER',
-    zoom: 1.15,
-  },
-  {
-    id: 'bela',
-    name: 'Ate Bela',
-    title: 'The Wanderer',
-    image: require('../assets/characters/new.jpg'),
-    color: '#FBBF24',
-    desc: 'Curious & free among vibrant colors',
-    specialty: 'Cultural Festivals',
-    perk: '+10% Festival XP',
-    badge: 'EXPLORER',
-    zoom: 1.15,
-  },
-  {
-    id: 'lila',
-    name: 'Ate Lila',
-    title: 'The Navigator',
-    image: require('../assets/characters/ricky.jpg'),
-    color: '#A78BFA',
-    desc: 'Wise & precise in every direction',
-    specialty: 'Island Coastlines',
-    perk: '+10% Map Discovery XP',
-    badge: 'NAVIGATOR',
-    zoom: 1.4,
-  },
-  {
-    id: 'dante',
-    name: 'Bossing Dante',
-    title: 'The Adventurer',
-    image: require('../assets/characters/dante.jpg'),
-    color: '#38BDF8',
-    desc: 'Leader & brave through every tide',
-    specialty: 'Urban Landmarks',
-    perk: '+10% City Quests XP',
-    badge: 'VETERAN',
-    zoom: 1.4,
-  },
-  {
-    id: 'sonya',
-    name: 'Ate Sonya',
-    title: 'The Discoverer',
-    image: require('../assets/characters/sonya.jpg'),
-    color: COLORS.teal,
-    desc: 'Creative & bold with ancient heritage',
-    specialty: 'Museum AR Exhibits',
-    perk: '+10% AR Scans XP',
-    badge: 'CURATOR',
-    zoom: 1.05,
-  },
+  { id: 'mando', name: 'Kuya Mando', title: 'The Trailblazer', image: require('../assets/characters/lila.jpg'), tint: '#FCD9B0' },
+  { id: 'bela', name: 'Ate Bela', title: 'The Wanderer', image: require('../assets/characters/new.jpg'), tint: '#B7D0FA' },
+  { id: 'lila', name: 'Ate Lila', title: 'The Navigator', image: require('../assets/characters/ricky.jpg'), tint: '#DCE3B4' },
+  { id: 'dante', name: 'Bossing Dante', title: 'The Adventurer', image: require('../assets/characters/dante.jpg'), tint: '#B5DCEB' },
+  { id: 'sonya', name: 'Ate Sonya', title: 'The Discoverer', image: require('../assets/characters/sonya.jpg'), tint: '#A9C6DE' },
 ];
 
 const RANDOM_CALLSIGNS = [
-  'HermosaScout',
-  'VintaRider',
-  'PilarExplorer',
-  'YakanVoyager',
-  'ChavacanoSeeker',
-  'CurachaHunter',
-  'ZamboangaPioneer',
-  'FortressTracker',
+  'HermosaScout', 'VintaRider', 'PilarExplorer', 'YakanVoyager',
+  'ChavacanoSeeker', 'CurachaHunter', 'ZamboangaPioneer', 'FortressTracker',
 ];
 
+const STEPS = [
+  { kicker: 'Select your', title: 'Guide' },
+  { kicker: 'Make it yours', title: 'Customize' },
+  { kicker: 'What should we call you?', title: 'Explorer Name' },
+  { kicker: 'All set, explorer', title: 'Set Sail' },
+];
+
+const SLOTS = [
+  { slot: 'hat', label: 'Hat', icon: 'crown' },
+  { slot: 'frame', label: 'Frame', icon: 'target' },
+  { slot: 'pin', label: 'Pin', icon: 'medal' },
+  { slot: 'backdrop', label: 'Backdrop', icon: 'palm' },
+];
+
+// Used when the cosmetics catalog can't be loaded: the free starter items.
+const STARTER_CATALOG = [
+  { slot: 'hat', id: '', name: 'No Hat', min_xp: 0, unlocked: true },
+  { slot: 'hat', id: 'cap', name: 'Explorer Cap', min_xp: 0, unlocked: true },
+  { slot: 'frame', id: '', name: 'Simple Ring', min_xp: 0, unlocked: true },
+  { slot: 'frame', id: 'vinta', name: 'Vinta Stripes', min_xp: 0, unlocked: true },
+  { slot: 'pin', id: '', name: 'No Pin', min_xp: 0, unlocked: true },
+  { slot: 'pin', id: 'compass', name: 'Compass Pin', min_xp: 0, unlocked: true },
+  { slot: 'backdrop', id: '', name: 'Vinta Sails', min_xp: 0, unlocked: true },
+];
+
+const DEFAULT_LOOK = { hat: '', frame: '', pin: '', backdrop: '' };
+
+const STARTER_LOOKS = [
+  { hat: 'cap', frame: 'vinta', pin: 'compass', tile: '#2E7D7A' },
+  { hat: 'cap', frame: '', pin: '', tile: '#F6D27A' },
+  { hat: '', frame: 'vinta', pin: 'compass', tile: '#F8C8DC' },
+  { hat: 'cap', frame: 'vinta', pin: '', tile: '#7FD3E8' },
+  { hat: '', frame: '', pin: 'compass', tile: '#F4B6C8' },
+  { hat: 'cap', frame: '', pin: 'compass', tile: '#5EC4B6' },
+];
+
+const pick = (list) => list[Math.floor(Math.random() * list.length)];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Step 1 tile: rises in, pops on touch; when another is picked it flies off,
+// and the picked one glides to the centre of the grid.
+// ─────────────────────────────────────────────────────────────────────────────
+function GuideTile({ char, index, width, height, phase, grid, onPick, offsetTop = 0 }) {
+  const [layout, setLayout] = useState(null);
+  const fly = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (phase === 'idle') { fly.setValue(0); return; }
+    Animated.timing(fly, {
+      toValue: 1,
+      duration: phase === 'chosen' ? 460 : 340,
+      delay: phase === 'chosen' ? 60 : index * 35,
+      easing: phase === 'chosen' ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [phase, fly, index]);
+
+  let transform = [];
+  let opacity = 1;
+  if (phase === 'chosen' && layout && grid) {
+    const dx = grid.width / 2 - (layout.x + layout.width / 2);
+    const dy = grid.height / 2 - (layout.y + layout.height / 2);
+    transform = [
+      { translateX: fly.interpolate({ inputRange: [0, 1], outputRange: [0, dx] }) },
+      { translateY: fly.interpolate({ inputRange: [0, 1], outputRange: [0, dy] }) },
+      { scale: fly.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] }) },
+    ];
+  } else if (phase === 'leaving') {
+    const dir = index % 2 ? 1 : -1;
+    transform = [
+      { translateX: fly.interpolate({ inputRange: [0, 1], outputRange: [0, dir * 60] }) },
+      { translateY: fly.interpolate({ inputRange: [0, 1], outputRange: [0, 90 + index * 12] }) },
+      { scale: fly.interpolate({ inputRange: [0, 1], outputRange: [1, 0.7] }) },
+    ];
+    opacity = fly.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+  }
+
+  return (
+    <Animated.View
+      onLayout={(e) => setLayout(e.nativeEvent.layout)}
+      style={[styles.guideCell, { width, marginTop: offsetTop, zIndex: phase === 'chosen' ? 5 : 1, opacity, transform }]}
+    >
+      <RiseIn index={index}>
+        <PopPressable onPress={() => onPick(index)} disabled={phase !== 'idle'} accessibilityLabel={`Choose ${char.name}`}>
+          <ChamferFrame width={width} height={height} cut={12} fill={char.tint}>
+            <Image source={char.image} style={styles.guideImg} resizeMode="cover" />
+          </ChamferFrame>
+          <Text style={styles.guideName} numberOfLines={1}>{char.name}</Text>
+          <Text style={styles.guideTitle} numberOfLines={1}>{char.title}</Text>
+        </PopPressable>
+      </RiseIn>
+    </Animated.View>
+  );
+}
+
+// Thumbnail for one cosmetic item.
+function ItemThumb({ slot, id, character, size = 40 }) {
+  if (slot === 'backdrop') return <ProfileBackdrop id={id} style={{ width: size * 1.3, height: size * 1.3, borderRadius: 6 }} />;
+  if (slot === 'frame') return <DecoratedAvatar character={character} size={size} frame={id} reserveHatSpace={false} />;
+  if (slot === 'hat') {
+    return HATS[id]
+      ? <DecoratedAvatar character={character} size={size * 0.85} hat={id} />
+      : <Ionicons name="ban-outline" size={size * 0.7} color={CREATION.muted} />;
+  }
+  return PINS[id] ? (
+    <View style={[styles.pinThumb, { width: size * 0.9, height: size * 0.9, borderRadius: size, backgroundColor: PINS[id].bg }]}>
+      <LucideIcon name={PINS[id].icon} size={size * 0.5} color="#FFFFFF" />
+    </View>
+  ) : (
+    <Ionicons name="ban-outline" size={size * 0.7} color={CREATION.muted} />
+  );
+}
+
+// Live avatar preview; bounces whenever the look changes.
+function AvatarPreview({ character, look, width, height, avatarSize }) {
+  const bounce = useRef(new Animated.Value(1)).current;
+  const key = `${character}|${look.hat}|${look.frame}|${look.pin}|${look.backdrop}`;
+  useEffect(() => {
+    bounce.setValue(0.92);
+    Animated.spring(bounce, { toValue: 1, friction: 4, tension: 140, useNativeDriver: true }).start();
+  }, [key, bounce]);
+  return (
+    <ChamferFrame width={width} height={height} cut={14} fill={CREATION.card}>
+      <ProfileBackdrop id={look.backdrop} style={styles.previewBackdrop}>
+        <View style={styles.previewShade} />
+        <Animated.View style={{ transform: [{ scale: bounce }] }}>
+          <DecoratedAvatar character={character} size={avatarSize} hat={look.hat} frame={look.frame} pin={look.pin} />
+        </Animated.View>
+      </ProfileBackdrop>
+    </ChamferFrame>
+  );
+}
+
 export default function CharacterSelectScreen({ navigation }) {
-  const [explorerName, setExplorerName] = useState('');
-  const [currentIndex, setCurrentIndex]  = useState(0);
-  const [loading, setLoading]            = useState(false);
-  const flatListRef = useRef(null);
-  const [errorModal, setErrorModal]      = useState({ visible: false, type: 'error', title: '', message: '' });
+  const [step, setStep] = useState(0);
+  const [guideIdx, setGuideIdx] = useState(null);
+  const [pickPhase, setPickPhase] = useState(null); // index being animated out
+  const [grid, setGrid] = useState(null);
+  const [catalog, setCatalog] = useState(STARTER_CATALOG);
+  const [look, setLook] = useState(DEFAULT_LOOK);
+  const [panel, setPanel] = useState(null); // null = category grid, else a slot id
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorModal, setErrorModal] = useState({ visible: false, type: 'error', title: '', message: '' });
+  const panelAnim = useRef(new Animated.Value(1)).current;
 
   const showErr = (title, message, type = 'error') => setErrorModal({ visible: true, type, title, message });
+  const guide = CHARACTERS[guideIdx ?? 0];
 
-  const selected = CHARACTERS[currentIndex] || CHARACTERS[0];
+  useEffect(() => {
+    authService.getCosmetics()
+      .then((data) => { if (Array.isArray(data?.catalog) && data.catalog.length) setCatalog(data.catalog); })
+      .catch(() => {});
+  }, []);
 
-  const goTo = (index) => {
-    if (index < 0 || index >= CHARACTERS.length) return;
-    flatListRef.current?.scrollToIndex({ index, animated: true });
-    setCurrentIndex(index);
+  const goBack = useCallback(() => {
+    if (step === 0) return false;
+    if (step === 1 && panel) { setPanel(null); return true; }
+    setStep((s) => s - 1);
+    if (step === 1) { setPickPhase(null); }
+    return true;
+  }, [step, panel]);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', goBack);
+    return () => sub.remove();
+  }, [goBack]);
+
+  // ── Step 1: pick a guide ────────────────────────────────────────────────────
+  const onPickGuide = (index) => {
+    setGuideIdx(index);
+    setPickPhase(index);
+    setTimeout(() => { setStep(1); setPanel(null); }, 620);
   };
 
-  const handleRandomCallsign = () => {
-    const randomPick = RANDOM_CALLSIGNS[Math.floor(Math.random() * RANDOM_CALLSIGNS.length)];
-    const randomNum = Math.floor(10 + Math.random() * 90);
-    setExplorerName(`${randomPick}_${randomNum}`);
+  // ── Step 2: customize ──────────────────────────────────────────────────────
+  const unlockedBySlot = useMemo(() => {
+    const map = {};
+    SLOTS.forEach(({ slot }) => { map[slot] = catalog.filter((i) => i.slot === slot && i.unlocked).map((i) => i.id); });
+    return map;
+  }, [catalog]);
+
+  const starterLooks = useMemo(() => STARTER_LOOKS.filter((l) => ['hat', 'frame', 'pin']
+    .every((slot) => unlockedBySlot[slot]?.includes(l[slot]))), [unlockedBySlot]);
+
+  const randomize = () => setLook({
+    hat: pick(unlockedBySlot.hat?.length ? unlockedBySlot.hat : ['']),
+    frame: pick(unlockedBySlot.frame?.length ? unlockedBySlot.frame : ['']),
+    pin: pick(unlockedBySlot.pin?.length ? unlockedBySlot.pin : ['']),
+    backdrop: pick(unlockedBySlot.backdrop?.length ? unlockedBySlot.backdrop : ['']),
+  });
+
+  const openPanel = (slot) => {
+    panelAnim.setValue(0);
+    setPanel(slot);
+    Animated.timing(panelAnim, { toValue: 1, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  };
+  const closePanel = () => {
+    panelAnim.setValue(0);
+    setPanel(null);
+    Animated.timing(panelAnim, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   };
 
-  const handleConfirm = async () => {
-    if (!explorerName.trim()) {
-      showErr('Explorer Callsign Required', 'Please enter your in-game name or tap Roll Name to get a callsign.');
-      return;
-    }
+  // ── Step 3: name ───────────────────────────────────────────────────────────
+  const rollName = () => setName(`${pick(RANDOM_CALLSIGNS)}_${Math.floor(10 + Math.random() * 90)}`);
+  const nameError = (() => {
+    const n = name.trim();
+    if (n.length < 3) return 'Use at least 3 characters.';
+    if (n.length > 20) return 'Keep it to 20 characters or less.';
+    if (!/^[A-Za-z0-9_ ]+$/.test(n)) return 'Letters, numbers, spaces and _ only.';
+    return null;
+  })();
+
+  // ── Step 4: finish ─────────────────────────────────────────────────────────
+  const finish = async () => {
     setLoading(true);
     try {
-      await authService.characterSetup(selected.id, explorerName.trim());
-      await SecureStore.setItemAsync('offline_character', selected.id);
-      await SecureStore.setItemAsync('offline_explorerName', explorerName.trim());
+      await authService.characterSetup(guide.id, name.trim());
+      const changed = Object.keys(DEFAULT_LOOK).some((k) => look[k] !== DEFAULT_LOOK[k]);
+      if (changed) {
+        try { await authService.saveCosmetics(look); } catch (_) { /* can be set later in Edit Profile */ }
+      }
+      await SecureStore.setItemAsync('offline_character', guide.id);
+      await SecureStore.setItemAsync('offline_explorerName', name.trim());
       navigation.replace('MainTabs', { showOnboarding: true });
     } catch (error) {
-      const errorData = error.response?.data || error;
-      let msg = 'Something went wrong during setup.';
-      if (errorData.in_game_name) msg = errorData.in_game_name[0];
-      showErr('Setup Error', msg);
+      const data = error?.response?.data || error || {};
+      if (data.in_game_name) {
+        setStep(2);
+        showErr('Name Taken', String(data.in_game_name[0] || data.in_game_name));
+      } else if (!data.detail && !error?.response && error?.message) {
+        showErr('Server Not Responding', 'The LAKBAY server may still be waking up. Please try again in a few seconds.', 'warning');
+      } else {
+        showErr('Setup Error', data.detail || 'Something went wrong during setup. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const renderCharacter = ({ item }) => (
-    <View style={styles.slide}>
-      <VintaCard style={styles.charCardBorder} contentStyle={styles.charCard}>
-        {/* Subtle Ambient Glow */}
-        <View style={[styles.cardGlow, { backgroundColor: item.color + '12' }]} />
+  const contentW = SCREEN_W - PAD * 2;
+  const tileW = Math.floor((contentW - 24) / 3);
+  const tileH = Math.round(tileW * 1.28);
 
-        {/* Companion Tag */}
-        <View style={[styles.guideBadge, { backgroundColor: item.color + '22', borderColor: item.color + '66' }]}>
-          <Ionicons name="sparkles" size={10} color={item.color} />
-          <Text style={styles.guideBadgeText}>
-            {item.badge} · COMPANION GUIDE
-          </Text>
-        </View>
-
-        {/* Character Avatar with Glowing Frame */}
-        <View style={[styles.avatarOuterRing, { borderColor: item.color + '55' }]}>
-          <View style={[styles.avatarRing, { borderColor: item.color }]}>
-            <Image
-              source={item.image}
-              style={{
-                width: '100%',
-                height: '100%',
-                transform: [{ scale: item.zoom || 1 }],
-              }}
-              resizeMode="cover"
-            />
-          </View>
-        </View>
-
-        {/* Character Names */}
-        <Text style={styles.charName}>{item.name}</Text>
-        <Text style={styles.charTitle}>{item.title}</Text>
-
-        {/* Gamified RPG Perks & Specialty */}
-        <View style={styles.perkContainer}>
-          <View style={styles.perkRow}>
-            <View style={styles.perkChip}>
-              <Ionicons name="compass-outline" size={12} color={item.color} />
-              <Text style={styles.perkChipLabel}>Focus: <Text style={{ color: COLORS.text, fontFamily: FONTS.semiBold }}>{item.specialty}</Text></Text>
-            </View>
-            <View style={[styles.perkChip, { borderColor: COLORS.gold + '44' }]}>
-              <Ionicons name="flash-outline" size={12} color={GOLD_TEXT} />
-              <Text style={[styles.perkChipLabel, { color: GOLD_TEXT }]}>{item.perk}</Text>
-            </View>
-          </View>
-        </View>
-
-        <Text style={styles.charDesc}>&ldquo;{item.desc}&rdquo;</Text>
-      </VintaCard>
+  // ── Renderers ──────────────────────────────────────────────────────────────
+  const renderGuides = () => (
+    <View
+      style={styles.guideGrid}
+      onLayout={(e) => setGrid(e.nativeEvent.layout)}
+    >
+      {CHARACTERS.map((char, i) => (
+        <GuideTile
+          key={char.id}
+          char={char}
+          index={i}
+          width={tileW}
+          height={tileH}
+          grid={grid}
+          offsetTop={i === 1 || i === 4 ? 18 : 0}
+          phase={pickPhase === null ? 'idle' : pickPhase === i ? 'chosen' : 'leaving'}
+          onPick={onPickGuide}
+        />
+      ))}
     </View>
   );
 
-  return (
-    <ImageBackground
-      source={require('../../reference/VINTA.jpeg')}
-      style={styles.bgImage}
-      resizeMode="cover"
-    >
-      <View style={styles.bgOverlay} />
-
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.scroll}
-          >
-            {/* ── Header ────────────────────────────────────────────────── */}
-            <View style={styles.header}>
-              <Text style={styles.headerTitle}>Choose Your Guide</Text>
-              <Text style={styles.headerSub}>Who leads your expedition through Zamboanga?</Text>
-            </View>
-
-            <VintaStripe height={4} />
-
-            {/* ── Companion Quick Select Strip ───────────────────────────── */}
-            <View style={styles.quickBar}>
-              <Text style={styles.quickBarLabel}>ALL GUIDES (TAP TO SELECT):</Text>
-              <View style={styles.quickRow}>
-                {CHARACTERS.map((char, idx) => {
-                  const isCur = idx === currentIndex;
-                  return (
-                    <TouchableOpacity
-                      key={char.id}
-                      style={[
-                        styles.quickAvatarWrap,
-                        isCur && { borderColor: char.color, transform: [{ scale: 1.1 }] },
-                      ]}
-                      onPress={() => goTo(idx)}
-                      activeOpacity={0.8}
-                    >
-                      <Image
-                        source={char.image}
-                        style={styles.quickAvatarImg}
-                        resizeMode="cover"
-                      />
-                      {isCur && (
-                        <View style={[styles.quickActiveDot, { backgroundColor: char.color }]} />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* ── Carousel ──────────────────────────────────────────────── */}
-            <View style={styles.carouselWrap}>
-              <FlatList
-                ref={flatListRef}
-                data={CHARACTERS}
-                keyExtractor={(item) => item.id}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                renderItem={renderCharacter}
-                onMomentumScrollEnd={(e) => {
-                  const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
-                  if (index >= 0 && index < CHARACTERS.length) {
-                    setCurrentIndex(index);
-                  }
-                }}
-                getItemLayout={(_, index) => ({
-                  length: SCREEN_W,
-                  offset: SCREEN_W * index,
-                  index,
-                })}
-                scrollEventThrottle={16}
-              />
-
-              {/* Navigation Arrows */}
-              <TouchableOpacity
-                style={[styles.arrow, styles.arrowLeft, currentIndex === 0 && styles.arrowDisabled]}
-                onPress={() => goTo(currentIndex - 1)}
-                disabled={currentIndex === 0}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="chevron-back" size={20} color="#fff" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.arrow, styles.arrowRight, currentIndex === CHARACTERS.length - 1 && styles.arrowDisabled]}
-                onPress={() => goTo(currentIndex + 1)}
-                disabled={currentIndex === CHARACTERS.length - 1}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="chevron-forward" size={20} color="#fff" />
-              </TouchableOpacity>
-            </View>
-
-            {/* ── Dot indicators ────────────────────────────────────────── */}
-            <View style={styles.dots}>
-              {CHARACTERS.map((char, i) => (
-                <TouchableOpacity key={char.id} onPress={() => goTo(i)}>
-                  <View style={[
-                    styles.dot,
-                    i === currentIndex && { backgroundColor: selected.color, width: 22, borderRadius: 4 },
-                  ]} />
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* ── Callsign Section & Launch Button ───────────────────────── */}
-            <VintaCard style={styles.bottomCardBorder} contentStyle={styles.bottomCard}>
-              <View style={styles.callsignHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="shield-outline" size={13} color={COLORS.accent} />
-                  <Text style={styles.label}>YOUR EXPLORER CALLSIGN</Text>
-                </View>
-
-                {/* Dice Button for Quick Fun Names */}
-                <TouchableOpacity
-                  style={styles.randomBtn}
-                  onPress={handleRandomCallsign}
-                  activeOpacity={0.8}
+  const renderPanel = () => {
+    const slide = { opacity: panelAnim, transform: [{ translateX: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [panel ? 40 : -40, 0] }) }] };
+    if (!panel) {
+      const cellW = (contentW - 24 - 10) / 2;
+      return (
+        <Animated.View style={slide}>
+          <View style={styles.panelHeader}>
+            <Text style={styles.panelTitle}>CUSTOMIZE</Text>
+            <PopPressable onPress={() => setLook(DEFAULT_LOOK)} accessibilityLabel="Reset look">
+              <Text style={styles.panelLink}>Reset ↺</Text>
+            </PopPressable>
+          </View>
+          <View style={styles.catGrid}>
+            {SLOTS.map((s, i) => {
+              const count = catalog.filter((c) => c.slot === s.slot).length;
+              const changed = look[s.slot] !== '';
+              return (
+                <RiseIn key={s.slot} index={i}>
+                  <PopPressable onPress={() => openPanel(s.slot)} accessibilityLabel={`Choose ${s.label}`}>
+                    <View style={[styles.catCell, { width: cellW }]}>
+                      {changed && <View style={styles.catDot} />}
+                      <View style={styles.catThumb}>
+                        <ItemThumb slot={s.slot} id={look[s.slot] || (s.slot === 'backdrop' ? '' : catalog.find((c) => c.slot === s.slot && c.id)?.id || '')} character={guide.id} size={34} />
+                      </View>
+                      <Text style={styles.catLabel}>{s.label.toUpperCase()} ({count})</Text>
+                    </View>
+                  </PopPressable>
+                </RiseIn>
+              );
+            })}
+          </View>
+        </Animated.View>
+      );
+    }
+    const items = catalog.filter((c) => c.slot === panel);
+    const cell = Math.floor((contentW - 24 - 16) / 3);
+    const slotLabel = SLOTS.find((s) => s.slot === panel)?.label || '';
+    return (
+      <Animated.View style={slide}>
+        <PopPressable onPress={closePanel} accessibilityLabel="Back to categories">
+          <View style={styles.panelHeader}>
+            <Text style={styles.panelTitle}>← {slotLabel.toUpperCase()}S ({items.length})</Text>
+          </View>
+        </PopPressable>
+        <View style={styles.itemGrid}>
+          {items.map((it, i) => {
+            const selected = look[panel] === it.id;
+            return (
+              <RiseIn key={`${panel}-${it.id || 'none'}`} index={i}>
+                <PopPressable
+                  disabled={!it.unlocked}
+                  onPress={() => setLook((l) => ({ ...l, [panel]: it.id }))}
+                  accessibilityLabel={it.unlocked ? it.name : `${it.name}, unlocks at ${it.min_xp} XP`}
                 >
-                  <LucideIcon name="dices" size={14} color={COLORS.accent} />
-                  <Text style={styles.randomBtnText}>Roll Name</Text>
-                </TouchableOpacity>
-              </View>
+                  <ChamferFrame
+                    width={cell}
+                    height={cell + 18}
+                    cut={9}
+                    bg="#FFFDF4"
+                    fill={selected ? '#EEF2FF' : '#F7F0D8'}
+                    stroke={selected ? CREATION.blue : undefined}
+                    strokeWidth={2.5}
+                  >
+                    <View style={[styles.itemInner, !it.unlocked && { opacity: 0.4 }]}>
+                      <ItemThumb slot={panel} id={it.id} character={guide.id} size={34} />
+                      <Text style={styles.itemName} numberOfLines={1}>{it.name}</Text>
+                    </View>
+                    {!it.unlocked && (
+                      <View style={styles.lockBadge}>
+                        <LucideIcon name="lock" size={10} color="#FFFFFF" />
+                        <Text style={styles.lockText}>{it.min_xp} XP</Text>
+                      </View>
+                    )}
+                  </ChamferFrame>
+                </PopPressable>
+              </RiseIn>
+            );
+          })}
+        </View>
+      </Animated.View>
+    );
+  };
 
-              <View style={[styles.inputWrap, { borderColor: selected.color + '88' }]}>
-                <Ionicons name="person-circle-outline" size={18} color={selected.color} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Captain_Hermosa"
-                  placeholderTextColor="#94A3B8"
-                  autoCapitalize="words"
-                  value={explorerName}
-                  onChangeText={setExplorerName}
-                  maxLength={24}
-                />
-                {explorerName.trim().length > 0 && (
-                  <View style={styles.countBadge}>
-                    <Text style={styles.countText}>{explorerName.trim().length}/24</Text>
-                  </View>
-                )}
-              </View>
+  const renderCustomize = () => (
+    <View>
+      <RiseIn index={0}>
+        <AvatarPreview character={guide.id} look={look} width={contentW} height={200} avatarSize={112} />
+      </RiseIn>
+      <RiseIn index={1} style={styles.btnRow}>
+        <ChamferButton
+          variant="outline"
+          label="Randomize"
+          width={(contentW - 10) / 2}
+          onPress={randomize}
+          icon={<LucideIcon name="dices" size={16} color={CREATION.blue} />}
+        />
+        <ChamferButton
+          label="Next"
+          width={(contentW - 10) / 2}
+          onPress={() => setStep(2)}
+          icon={<Ionicons name="arrow-forward" size={16} color="#FFFFFF" />}
+        />
+      </RiseIn>
+      <View style={styles.panelCard}>{renderPanel()}</View>
+      {starterLooks.length > 0 && (
+        <View style={styles.premade}>
+          <Text style={styles.premadeTitle}>Starter looks</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 8 }}>
+            {starterLooks.map((l, i) => (
+              <RiseIn key={i} index={i} delay={150}>
+                <PopPressable onPress={() => setLook((cur) => ({ ...cur, hat: l.hat, frame: l.frame, pin: l.pin }))} accessibilityLabel={`Starter look ${i + 1}`}>
+                  <ChamferFrame width={64} height={64} cut={10} fill={l.tile}>
+                    <View style={styles.premadeInner}>
+                      <DecoratedAvatar character={guide.id} size={30} hat={l.hat} frame={l.frame} pin={l.pin} />
+                    </View>
+                  </ChamferFrame>
+                </PopPressable>
+              </RiseIn>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+    </View>
+  );
 
-              <TouchableOpacity
-                style={[
-                  styles.startBtn,
-                  (!explorerName.trim() || loading) && styles.startBtnDisabled,
-                ]}
-                activeOpacity={0.88}
-                onPress={handleConfirm}
-                disabled={loading || !explorerName.trim()}
-              >
-                {loading ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <ActivityIndicator color="#FFFFFF" />
-                    <Text style={styles.startBtnText}>Embarking on Expedition...</Text>
-                  </View>
-                ) : (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="rocket-outline" size={17} color="#FFFFFF" />
-                    <Text style={styles.startBtnText}>Embark On Expedition</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </VintaCard>
+  const renderName = () => (
+    <View style={{ alignItems: 'center' }}>
+      <RiseIn index={0}>
+        <AvatarPreview character={guide.id} look={look} width={contentW} height={170} avatarSize={92} />
+      </RiseIn>
+      <RiseIn index={1} style={{ marginTop: 18 }}>
+        <ChamferFrame width={contentW} height={56} cut={10} fill="#FFFFFF" stroke={nameError && name ? '#EF4444' : CREATION.blue} strokeWidth={2}>
+          <TextInput
+            style={styles.nameInput}
+            value={name}
+            onChangeText={setName}
+            placeholder="Your explorer name"
+            placeholderTextColor="#B8AE96"
+            maxLength={20}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="done"
+            onSubmitEditing={() => { if (!nameError) setStep(3); }}
+          />
+        </ChamferFrame>
+      </RiseIn>
+      <Text style={[styles.nameHint, nameError && name ? { color: '#DC2626' } : null]}>
+        {name && nameError ? nameError : 'This is how other explorers see you on the leaderboard.'}
+      </Text>
+      <RiseIn index={2} style={styles.btnRow}>
+        <ChamferButton
+          variant="outline"
+          label="Roll a name"
+          width={(contentW - 10) / 2}
+          onPress={rollName}
+          icon={<LucideIcon name="dices" size={16} color={CREATION.blue} />}
+        />
+        <ChamferButton
+          label="Next"
+          width={(contentW - 10) / 2}
+          disabled={!!nameError}
+          onPress={() => setStep(3)}
+          icon={<Ionicons name="arrow-forward" size={16} color="#FFFFFF" />}
+        />
+      </RiseIn>
+    </View>
+  );
 
-            <View style={{ height: 24 }} />
+  const renderFinish = () => {
+    const itemName = (slot) => catalog.find((c) => c.slot === slot && c.id === look[slot])?.name;
+    const chips = SLOTS.map((s) => itemName(s.slot)).filter(Boolean);
+    return (
+      <View style={{ alignItems: 'center' }}>
+        <RiseIn index={0}>
+          <AvatarPreview character={guide.id} look={look} width={contentW} height={220} avatarSize={124} />
+        </RiseIn>
+        <RiseIn index={1} style={{ alignItems: 'center', marginTop: 16 }}>
+          <Text style={styles.finishName}>{name.trim()}</Text>
+          <Text style={styles.finishGuide}>Guided by {guide.name} · {guide.title}</Text>
+        </RiseIn>
+        <RiseIn index={2} style={styles.chipRow}>
+          {chips.map((c) => (
+            <View key={c} style={styles.chip}><Text style={styles.chipText}>{c}</Text></View>
+          ))}
+        </RiseIn>
+        <RiseIn index={3} style={{ marginTop: 22 }}>
+          <ChamferButton
+            label={loading ? 'Setting sail…' : 'Start Expedition'}
+            width={contentW}
+            height={54}
+            disabled={loading}
+            onPress={finish}
+            icon={<LucideIcon name="sailboat" size={18} color="#FFFFFF" />}
+          />
+        </RiseIn>
+      </View>
+    );
+  };
+
+  return (
+    <BeachBackdrop>
+      <StatusBar barStyle="dark-content" backgroundColor={CREATION.sand} />
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+        <View style={styles.header}>
+          <View style={styles.headerSide}>
+            {step > 0 && (
+              <PopPressable onPress={goBack} accessibilityLabel="Back">
+                <ChamferFrame width={36} height={36} cut={8} fill="#FFFDF4" stroke={CREATION.muted} strokeWidth={1.5}>
+                  <View style={styles.centerFill}><Ionicons name="arrow-back" size={16} color={CREATION.ink} /></View>
+                </ChamferFrame>
+              </PopPressable>
+            )}
+          </View>
+          <Text style={styles.wordmark}>LAKBAY</Text>
+          <View style={[styles.headerSide, { alignItems: 'flex-end' }]}>
+            {step === 1 ? (
+              <PopPressable onPress={() => setStep(2)} accessibilityLabel="Skip customizing">
+                <Text style={styles.skip}>Skip</Text>
+              </PopPressable>
+            ) : (
+              <Text style={styles.stepCount}>{step + 1}/4</Text>
+            )}
+          </View>
+        </View>
+        <View style={styles.progress}>
+          {STEPS.map((_, i) => (
+            <View key={i} style={[styles.progressSeg, i <= step && styles.progressOn]} />
+          ))}
+        </View>
+
+        <GlitchTitle kicker={STEPS[step].kicker} title={STEPS[step].title} />
+
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <ScrollView
+            key={step}
+            contentContainerStyle={styles.body}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {step === 0 && renderGuides()}
+            {step === 1 && renderCustomize()}
+            {step === 2 && renderName()}
+            {step === 3 && renderFinish()}
           </ScrollView>
         </KeyboardAvoidingView>
-
-        <ErrorModal
-          visible={errorModal.visible}
-          type={errorModal.type}
-          title={errorModal.title}
-          message={errorModal.message}
-          onClose={() => setErrorModal(prev => ({ ...prev, visible: false }))}
-        />
       </SafeAreaView>
-    </ImageBackground>
+
+      <ErrorModal
+        visible={errorModal.visible}
+        type={errorModal.type}
+        title={errorModal.title}
+        message={errorModal.message}
+        onClose={() => setErrorModal((prev) => ({ ...prev, visible: false }))}
+      />
+    </BeachBackdrop>
   );
 }
 
 const styles = StyleSheet.create({
-  bgImage: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  bgOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: BG_OVERLAY,
-  },
-  container: { flex: 1, backgroundColor: 'transparent' },
-  scroll: { flexGrow: 1, paddingBottom: 20 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: PAD, paddingTop: 6 },
+  headerSide: { width: 64, height: 36, justifyContent: 'center' },
+  wordmark: { flex: 1, textAlign: 'center', fontFamily: GUIDE_FONTS.display, fontSize: 18, color: CREATION.blue, letterSpacing: 3 },
+  skip: { fontFamily: FONTS.bold, fontSize: 14, color: CREATION.blue, paddingVertical: 6 },
+  stepCount: { fontFamily: FONTS.semiBold, fontSize: 12, color: CREATION.muted },
+  progress: { flexDirection: 'row', gap: 6, paddingHorizontal: PAD + 48, marginTop: 10 },
+  progressSeg: { flex: 1, height: 4, backgroundColor: CREATION.sandDeep },
+  progressOn: { backgroundColor: CREATION.blue },
+  centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  body: { paddingHorizontal: PAD, paddingBottom: 120 },
 
-  // ── Header ──────────────────────────────────────────────────────────
-  header: {
-    paddingTop: 43,
-    paddingBottom: 14,
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  headerTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 26,
-    color: '#FFFFFF',
-    letterSpacing: 1,
-    marginBottom: 2,
-    lineHeight: 30,
-    textAlign: 'center',
-  },
-  headerSub: {
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: 'rgba(191, 215, 255, 0.75)',
-    textAlign: 'center',
-    lineHeight: 16,
-  },
+  guideGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: 12, rowGap: 14 },
+  guideCell: { alignItems: 'center' },
+  guideImg: { width: '100%', height: '100%' },
+  guideName: { fontFamily: FONTS.bold, fontSize: 13, color: CREATION.ink, textAlign: 'center', marginTop: 8 },
+  guideTitle: { fontFamily: FONTS.regular, fontSize: 11, color: CREATION.muted, textAlign: 'center' },
 
-  // ── Quick Select Bar ────────────────────────────────────────────────
-  quickBar: {
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 4,
-  },
-  quickBarLabel: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 11,
-    color: 'rgba(191, 215, 255, 0.75)',
-    letterSpacing: 1.5,
-    marginBottom: 8,
-    lineHeight: 14,
-  },
-  quickRow: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-  },
-  quickAvatarWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: '#1E3A8A',
-    backgroundColor: '#0C2054',
-    overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  quickAvatarImg: {
-    width: '100%',
-    height: '100%',
-  },
-  quickActiveDot: {
-    position: 'absolute',
-    bottom: 2,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
+  previewBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  previewShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(234, 223, 184, 0.35)' },
+  btnRow: { flexDirection: 'row', gap: 10, marginTop: 14, justifyContent: 'center' },
 
-  // ── Carousel ────────────────────────────────────────────────────────
-  carouselWrap: {
-    height: 380,
-    position: 'relative',
-    marginTop: 8,
+  panelCard: {
+    marginTop: 16, padding: 12, backgroundColor: '#FFFDF4',
+    borderWidth: 1, borderColor: CREATION.sandDeep, borderRadius: 4,
   },
-  slide: {
-    width: SCREEN_W,
-    height: 380,
-    paddingHorizontal: 22,
-    justifyContent: 'center',
+  panelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  panelTitle: { fontFamily: GUIDE_FONTS.display, fontSize: 13, color: CREATION.ink, letterSpacing: 0.5 },
+  panelLink: { fontFamily: FONTS.semiBold, fontSize: 12, color: CREATION.blue },
+  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  catCell: { alignItems: 'center', paddingVertical: 12, backgroundColor: '#F7F0D8', borderRadius: 4 },
+  catThumb: { height: 50, alignItems: 'center', justifyContent: 'center' },
+  catLabel: { fontFamily: FONTS.bold, fontSize: 11, color: CREATION.muted, marginTop: 6, letterSpacing: 0.4 },
+  catDot: { position: 'absolute', top: 8, right: 8, width: 7, height: 7, backgroundColor: CREATION.green },
+  itemGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  itemInner: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  itemName: { fontFamily: FONTS.medium, fontSize: 10, color: CREATION.ink, marginTop: 6, textAlign: 'center' },
+  lockBadge: {
+    position: 'absolute', top: 6, left: 6, flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: 'rgba(30,27,22,0.75)', paddingHorizontal: 5, paddingVertical: 2,
   },
-  charCardBorder: {
-    flex: 1,
-    borderRadius: RADIUS.lg,
-    padding: CARD_BORDER_WIDTH,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  charCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: RADIUS.lg - CARD_BORDER_WIDTH,
-    alignItems: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    overflow: 'hidden',
-  },
-  cardGlow: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-  },
-  guideBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginBottom: 10,
-  },
-  guideBadgeText: {
-    fontFamily: FONTS.bold,
-    fontSize: 10,
-    color: COLORS.navy,
-    letterSpacing: 1.2,
-    lineHeight: 13,
-  },
-  avatarOuterRing: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-    backgroundColor: COLORS.bgCardAlt,
-  },
-  avatarRing: {
-    width: 126,
-    height: 126,
-    borderRadius: 63,
-    borderWidth: 2.5,
-    overflow: 'hidden',
-  },
-  charName: {
-    fontFamily: FONTS.bold,
-    fontSize: 22,
-    color: COLORS.navy,
-    textAlign: 'center',
-    marginBottom: 2,
-    lineHeight: 26,
-  },
-  charTitle: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 11,
-    color: COLORS.textMuted,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  perkContainer: {
-    width: '100%',
-    marginBottom: 8,
-  },
-  perkRow: {
-    flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'center',
-  },
-  perkChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.bgCardAlt,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-  },
-  perkChipLabel: {
-    fontFamily: FONTS.regular,
-    fontSize: 10.5,
-    color: COLORS.textSub,
-  },
-  charDesc: {
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: COLORS.textSub,
-    textAlign: 'center',
-    fontStyle: 'italic',
-    lineHeight: 16,
-  },
+  lockText: { fontFamily: FONTS.bold, fontSize: 9, color: '#FFFFFF' },
+  pinThumb: { alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF' },
 
-  // ── Arrows ──────────────────────────────────────────────────────────
-  arrow: {
-    position: 'absolute',
-    top: '50%',
-    marginTop: -20,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(8, 20, 60, 0.80)',
-    borderWidth: 1,
-    borderColor: '#1E3A8A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  arrowLeft:     { left: 6 },
-  arrowRight:    { right: 6 },
-  arrowDisabled: { opacity: 0.25 },
+  premade: { marginTop: 16 },
+  premadeTitle: { fontFamily: FONTS.bold, fontSize: 12, color: CREATION.ink, marginBottom: 8 },
+  premadeInner: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-  // ── Dots ────────────────────────────────────────────────────────────
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
+  nameInput: {
+    flex: 1, fontFamily: FONTS.bold, fontSize: 18, color: CREATION.ink, textAlign: 'center', paddingHorizontal: 14,
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#1E3A8A',
-  },
+  nameHint: { fontFamily: FONTS.regular, fontSize: 12, color: CREATION.muted, marginTop: 8, textAlign: 'center' },
 
-  // ── Bottom Card ──────────────────────────────────────────────────────
-  bottomCardBorder: {
-    borderRadius: RADIUS.lg,
-    padding: CARD_BORDER_WIDTH,
-    marginHorizontal: 16,
-    marginTop: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  bottomCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: RADIUS.lg - CARD_BORDER_WIDTH,
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 16,
-  },
-  callsignHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  label: {
-    fontFamily: FONTS.bold,
-    fontSize: 12,
-    color: COLORS.navy,
-    letterSpacing: 1.2,
-    lineHeight: 15,
-  },
-  randomBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.accentSoft,
-    borderWidth: 1,
-    borderColor: COLORS.accentBorder,
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  randomBtnText: {
-    fontFamily: FONTS.bold,
-    fontSize: 11,
-    color: COLORS.accent,
-    lineHeight: 14,
-  },
-  inputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.bgCardAlt,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1.5,
-    paddingHorizontal: 14,
-    height: 48,
-    marginBottom: 14,
-  },
-  inputIcon: { marginRight: 10 },
-  input: {
-    flex: 1,
-    fontFamily: FONTS.medium,
-    fontSize: 13.5,
-    color: COLORS.text,
-  },
-  countBadge: {
-    backgroundColor: 'rgba(15, 23, 42, 0.06)',
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-  },
-  countText: {
-    fontFamily: FONTS.regular,
-    fontSize: 10,
-    color: COLORS.textMuted,
-  },
-  startBtn: {
-    height: 50,
-    borderRadius: RADIUS.sm,
-    backgroundColor: COLORS.accent,
-    borderWidth: 1,
-    borderColor: COLORS.accentDark,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  startBtnDisabled: { opacity: 0.45 },
-  startBtnText: {
-    fontFamily: FONTS.bold,
-    fontSize: 15,
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-    lineHeight: 18,
-  },
+  finishName: { fontFamily: GUIDE_FONTS.display, fontSize: 24, color: CREATION.ink, textAlign: 'center' },
+  finishGuide: { fontFamily: FONTS.medium, fontSize: 13, color: CREATION.muted, marginTop: 4, textAlign: 'center' },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 12 },
+  chip: { backgroundColor: '#FFFDF4', borderWidth: 1, borderColor: CREATION.sandDeep, paddingHorizontal: 10, paddingVertical: 4 },
+  chipText: { fontFamily: FONTS.semiBold, fontSize: 11, color: CREATION.ink },
 });
