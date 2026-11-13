@@ -12,7 +12,8 @@ class Base64ImageField(serializers.ImageField):
             data = ContentFile(base64.b64decode(imgstr), name=f"{uuid.uuid4().hex}.{ext}")
         return super().to_internal_value(data)
 
-MAX_MODEL_BYTES = 10 * 1024 * 1024
+MAX_MODEL_MB = 15
+MAX_MODEL_BYTES = MAX_MODEL_MB * 1024 * 1024
 
 
 class Base64FileField(serializers.FileField):
@@ -24,7 +25,7 @@ class Base64FileField(serializers.FileField):
             raw = base64.b64decode(filestr)
             if len(raw) > MAX_MODEL_BYTES:
                 raise serializers.ValidationError(
-                    f"3D model is too large ({len(raw) / 1024 / 1024:.1f} MB). The limit is 10 MB per model."
+                    f"3D model is too large ({len(raw) / 1024 / 1024:.1f} MB). The limit is {MAX_MODEL_MB} MB per model."
                 )
             # Strip glTF material extensions Viro's mobile AR loader can't parse
             raw = strip_incompatible_extensions(raw)
