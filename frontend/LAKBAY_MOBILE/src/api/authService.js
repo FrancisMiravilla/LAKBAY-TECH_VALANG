@@ -71,6 +71,11 @@ export const authService = {
       const response = await apiClient.post('password/change/', {
         current_password: currentPassword, new_password: newPassword,
       });
+      // Other sessions were signed out; keep this phone logged in with the new tokens.
+      if (response.data.access) {
+        await SecureStore.setItemAsync('accessToken', response.data.access);
+        await SecureStore.setItemAsync('refreshToken', response.data.refresh);
+      }
       return response.data;
     } catch (error) {
       throw error.response?.data || error;

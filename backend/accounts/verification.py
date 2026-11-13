@@ -15,6 +15,7 @@ from datetime import timedelta
 import requests
 from django.conf import settings
 from django.core.mail import send_mail
+from django.db import transaction
 from django.utils import timezone
 from django.utils.html import escape
 
@@ -25,6 +26,10 @@ logger = logging.getLogger(__name__)
 CODE_TTL = timedelta(minutes=10)
 RESEND_COOLDOWN = timedelta(seconds=60)
 MAX_ATTEMPTS = 5
+# Per account, per hour: codes that may be mailed, and wrong guesses over all codes.
+LIMIT_WINDOW = timedelta(hours=1)
+MAX_CODES_PER_WINDOW = 5
+MAX_FAILURES_PER_WINDOW = 15
 
 
 def _hash(code):
@@ -92,14 +97,34 @@ def seconds_until_resend(user):
     return max(0, math.ceil(wait))
 
 
+def _window_open(entry, now):
+    return entry.window_start is not None and entry.window_start + LIMIT_WINDOW > now
+
+
+def hourly_limit_reached(user):
+    """True when this account was already mailed the most codes allowed this hour."""
+    entry = EmailVerificationCode.objects.filter(user=user).first()
+    return bool(entry and _window_open(entry, timezone.now()) and entry.codes_in_window >= MAX_CODES_PER_WINDOW)
+
+
 def send_code(user, purpose='signup'):
     """Create a fresh code for `user` and email it. Returns True if it was sent."""
     code = f"{secrets.randbelow(1_000_000):06d}"
     now = timezone.now()
-    EmailVerificationCode.objects.update_or_create(
-        user=user,
-        defaults={'code_hash': _hash(code), 'expires_at': now + CODE_TTL, 'sent_at': now, 'attempts': 0},
-    )
+    with transaction.atomic():
+        entry = EmailVerificationCode.objects.select_for_update().filter(user=user).first()
+        if entry is None:
+            entry = EmailVerificationCode(user=user)
+        if not _window_open(entry, now):
+            entry.window_start, entry.codes_in_window, entry.failures_in_window = now, 0, 0
+        if entry.codes_in_window >= MAX_CODES_PER_WINDOW:
+            return False
+        entry.code_hash = _hash(code)
+        entry.expires_at = now + CODE_TTL
+        entry.sent_at = now
+        entry.attempts = 0
+        entry.codes_in_window += 1
+        entry.save()
     try:
         _send_email(user.email, user.first_name, code, purpose)
         return True
@@ -108,25 +133,47 @@ def send_code(user, purpose='signup'):
         return False
 
 
-def check_code(user, code):
-    """Return None when `code` is right (and mark the user verified), else an error message."""
-    entry = EmailVerificationCode.objects.filter(user=user).first()
-    if not entry:
-        return "No code was sent to this email. Tap Resend to get one."
-    if entry.expires_at < timezone.now():
-        return "This code has expired. Tap Resend to get a new one."
-    if entry.attempts >= MAX_ATTEMPTS:
-        return "Too many wrong tries. Tap Resend to get a new code."
-    if not hmac.compare_digest(entry.code_hash, _hash(str(code).strip())):
-        entry.attempts += 1
-        entry.save(update_fields=['attempts'])
-        left = MAX_ATTEMPTS - entry.attempts
-        return f"That code isn't right. {left} {'try' if left == 1 else 'tries'} left." if left else \
-            "Too many wrong tries. Tap Resend to get a new code."
-    user.email_verified = True
-    user.save(update_fields=['email_verified'])
-    entry.delete()
+def check_code(user, code, consume=True):
+    """Return None when `code` is right, else an error message.
+
+    With consume=True a right code marks the email verified and is used up.
+    With consume=False the code is only checked (wrong guesses still count),
+    so the caller can finish other checks and then call use_code(user).
+    """
+    now = timezone.now()
+    with transaction.atomic():
+        entry = EmailVerificationCode.objects.select_for_update().filter(user=user).first()
+        if not entry:
+            return "No code was sent to this email. Tap Resend to get one."
+        if _window_open(entry, now) and entry.failures_in_window >= MAX_FAILURES_PER_WINDOW:
+            return "Too many wrong tries. Please wait an hour and ask for a new code."
+        if entry.expires_at < now:
+            return "This code has expired. Tap Resend to get a new one."
+        if entry.attempts >= MAX_ATTEMPTS:
+            return "Too many wrong tries. Tap Resend to get a new code."
+        if not hmac.compare_digest(entry.code_hash, _hash(str(code).strip())):
+            if not _window_open(entry, now):
+                entry.window_start, entry.codes_in_window, entry.failures_in_window = now, 0, 0
+            entry.attempts += 1
+            entry.failures_in_window += 1
+            entry.save(update_fields=['attempts', 'failures_in_window', 'window_start', 'codes_in_window'])
+            left = MAX_ATTEMPTS - entry.attempts
+            return f"That code isn't right. {left} {'try' if left == 1 else 'tries'} left." if left else \
+                "Too many wrong tries. Tap Resend to get a new code."
+    if consume:
+        use_code(user)
     return None
+
+
+def use_code(user):
+    """Marks the email verified (the code proved the user owns it) and spends the code.
+
+    The row is kept, with the code made unusable, so the hourly limits still apply.
+    """
+    if not user.email_verified:
+        user.email_verified = True
+        user.save(update_fields=['email_verified'])
+    EmailVerificationCode.objects.filter(user=user).update(code_hash='', expires_at=timezone.now())
 
 
 def needs_verification(user):

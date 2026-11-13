@@ -2,6 +2,7 @@ from rest_framework import generics, status, permissions
 from .levels import level_for_xp
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from django.conf import settings
@@ -109,7 +110,7 @@ class ResendVerificationCodeView(APIView):
     permission_classes = (permissions.AllowAny,)
 
     def post(self, request):
-        from .verification import needs_verification, send_code, seconds_until_resend
+        from .verification import hourly_limit_reached, needs_verification, send_code, seconds_until_resend
         email = str(request.data.get('email', '')).strip()
         user = User.objects.filter(email__iexact=email).first() if email else None
         # Same reply whether or not the email exists, so this can't be used to look up accounts.
@@ -118,6 +119,11 @@ class ResendVerificationCodeView(APIView):
             if wait:
                 return Response(
                     {'detail': f'Please wait {wait} seconds before asking for a new code.', 'retry_after': wait},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+            if hourly_limit_reached(user):
+                return Response(
+                    {'detail': 'Too many codes were sent to this email. Please try again in an hour.'},
                     status=status.HTTP_429_TOO_MANY_REQUESTS,
                 )
             if not send_code(user):
@@ -146,48 +152,41 @@ def _sign_out_everywhere(user):
         BlacklistedToken.objects.get_or_create(token=token)
 
 
-# Reset codes one account may be mailed per hour, so codes can't be guessed in bulk.
-RESET_CODES_PER_HOUR = 5
+class PasswordCodeThrottle(AnonRateThrottle):
+    """Per-IP limit on the forgot/reset endpoints, on top of the per-account limits."""
+    rate = '20/hour'
 
 
 class ForgotPasswordView(APIView):
-    """POST {email}: mails a 6-digit password reset code."""
+    """POST {email}: mails a 6-digit password reset code.
+
+    The reply is the same whether or not the email has an account, and also
+    when the account is rate-limited or the email can't be sent, so the
+    endpoint can't be used to find out who is registered.
+    """
     permission_classes = (permissions.AllowAny,)
+    throttle_classes = (PasswordCodeThrottle,)
 
     def post(self, request):
-        from django.core.cache import cache
         from .verification import send_code, seconds_until_resend
         email = str(request.data.get('email', '')).strip()
         if not email:
             return Response({'detail': 'Enter your email address.'}, status=status.HTTP_400_BAD_REQUEST)
         user = User.objects.filter(email__iexact=email).first()
-        # Same reply whether or not the email exists, so this can't be used to look up accounts.
-        reply = Response({
+        if user and user.is_active and user.has_usable_password() and not seconds_until_resend(user):
+            send_code(user, purpose='reset')
+        return Response({
             'detail': 'If that email has a LAKBAY account, a reset code is on its way.', 'retry_after': 60,
         })
-        if not user or not user.is_active or not user.has_usable_password():
-            return reply
-        if seconds_until_resend(user):
-            return reply
-        key = f'pw-reset-count-{user.pk}'
-        sent = cache.get(key, 0)
-        if sent >= RESET_CODES_PER_HOUR:
-            return reply
-        cache.set(key, sent + 1, 3600)
-        if not send_code(user, purpose='reset'):
-            return Response(
-                {'detail': "We couldn't send the email right now. Please try again in a moment."},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-        return reply
 
 
 class ResetPasswordView(APIView):
     """POST {email, code, new_password}: sets a new password using the emailed code."""
     permission_classes = (permissions.AllowAny,)
+    throttle_classes = (PasswordCodeThrottle,)
 
     def post(self, request):
-        from .verification import check_code
+        from .verification import check_code, use_code
         email = str(request.data.get('email', '')).strip()
         code = str(request.data.get('code', '')).strip()
         new_password = str(request.data.get('new_password', ''))
@@ -196,16 +195,27 @@ class ResetPasswordView(APIView):
                 {'detail': 'Enter the code from your email and a new password.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        # Rules that don't depend on the account run first, the same for every email.
+        errors = _password_errors(new_password, None)
+        if errors:
+            return Response({'detail': ' '.join(errors), 'field': 'new_password'}, status=status.HTTP_400_BAD_REQUEST)
         user = User.objects.filter(email__iexact=email).first()
+        # One reply for every failure (unknown email, no code, wrong or expired
+        # code, locked out) so this can't reveal which emails have accounts.
+        wrong = Response(
+            {'detail': "That code isn't right or has expired. Check the email or ask for a new code."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
         if not user or not user.is_active or not user.has_usable_password():
-            return Response({'detail': "That code isn't right."}, status=status.HTTP_400_BAD_REQUEST)
-        # Check the password first so a weak one doesn't use up the code.
+            return wrong
+        if check_code(user, code, consume=False):
+            return wrong
+        # Only someone holding the right code gets here, so account-specific
+        # rules (e.g. too similar to the email) reveal nothing new.
         errors = _password_errors(new_password, user)
         if errors:
             return Response({'detail': ' '.join(errors), 'field': 'new_password'}, status=status.HTTP_400_BAD_REQUEST)
-        error = check_code(user, code)
-        if error:
-            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+        use_code(user)
         user.set_password(new_password)
         user.save(update_fields=['password'])
         _sign_out_everywhere(user)
@@ -213,7 +223,10 @@ class ResetPasswordView(APIView):
 
 
 class ChangePasswordView(APIView):
-    """POST {current_password, new_password}: changes the logged-in user's password."""
+    """POST {current_password, new_password}: changes the logged-in user's password.
+
+    Every other session is signed out; this phone gets a fresh token pair.
+    """
     permission_classes = (permissions.IsAuthenticated,)
 
     def post(self, request):
@@ -240,7 +253,13 @@ class ChangePasswordView(APIView):
             return Response({'detail': ' '.join(errors), 'field': 'new_password'}, status=status.HTTP_400_BAD_REQUEST)
         user.set_password(new_password)
         user.save(update_fields=['password'])
-        return Response({'detail': 'Your password was changed.'})
+        _sign_out_everywhere(user)
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'detail': 'Your password was changed.',
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        })
 
 
 class CharacterSetupView(generics.UpdateAPIView):

@@ -112,3 +112,59 @@ def test_change_password_needs_login_and_the_current_password(user):
     client.force_authenticate(None)
     assert login(client, OLD).status_code == 401
     assert login(client, NEW).status_code == 200
+
+
+def test_reset_gives_one_reply_for_unknown_and_known_emails(user):
+    client = APIClient()
+    body = {'code': '123456', 'new_password': NEW}
+    unknown = client.post('/api/auth/password/reset/', {'email': 'nobody@example.com', **body}, format='json')
+    no_code = client.post('/api/auth/password/reset/', {'email': 'juan@example.com', **body}, format='json')
+    assert unknown.status_code == no_code.status_code == 400
+    assert unknown.data == no_code.data
+
+    weak = {'code': '123456', 'new_password': '12345'}
+    weak_unknown = client.post('/api/auth/password/reset/', {'email': 'nobody@example.com', **weak}, format='json')
+    weak_known = client.post('/api/auth/password/reset/', {'email': 'juan@example.com', **weak}, format='json')
+    assert weak_unknown.data == weak_known.data
+
+
+def test_change_password_signs_out_other_sessions_and_keeps_this_one(user):
+    other_phone = APIClient()
+    old_refresh = login(other_phone, OLD).data['refresh']
+
+    this_phone = APIClient()
+    this_phone.force_authenticate(user)
+    body = {'current_password': OLD, 'new_password': NEW}
+    res = this_phone.post('/api/auth/password/change/', body, format='json')
+    assert res.status_code == 200 and res.data['refresh']
+
+    assert other_phone.post('/api/auth/token/refresh/', {'refresh': old_refresh}, format='json').status_code == 401
+    assert this_phone.post('/api/auth/token/refresh/', {'refresh': res.data['refresh']}, format='json').status_code == 200
+
+
+def test_hourly_code_limit_is_kept_in_the_database(user):
+    from accounts.models import EmailVerificationCode
+    from accounts.verification import MAX_CODES_PER_WINDOW, send_code
+    for _ in range(MAX_CODES_PER_WINDOW):
+        assert send_code(user, purpose='reset')
+    cache.clear()  # a restart or another worker must not reset the limit
+    assert not send_code(user, purpose='reset')
+    assert EmailVerificationCode.objects.get(user=user).codes_in_window == MAX_CODES_PER_WINDOW
+
+
+def test_wrong_guesses_are_capped_across_codes(user):
+    from accounts.verification import MAX_ATTEMPTS, MAX_FAILURES_PER_WINDOW, send_code, check_code
+    guesses = 0
+    while guesses < MAX_FAILURES_PER_WINDOW:
+        send_code(user, purpose='reset')
+        code = mailed_code()
+        wrong = '000000' if code != '000000' else '111111'
+        for _ in range(MAX_ATTEMPTS):
+            if guesses == MAX_FAILURES_PER_WINDOW:
+                break
+            check_code(user, wrong)
+            guesses += 1
+        from accounts.models import EmailVerificationCode
+        EmailVerificationCode.objects.filter(user=user).update(codes_in_window=0)
+    send_code(user, purpose='reset')
+    assert check_code(user, mailed_code()) is not None
