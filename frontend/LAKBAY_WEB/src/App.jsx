@@ -666,6 +666,8 @@ function App() {
     hint: '',
   });
   const [selectedARTarget, setSelectedARTarget] = useState(null);
+  const [arBuildingFilter, setArBuildingFilter] = useState('all');
+  const shownARTargets = arBuildingFilter === 'all' ? arTargets : arTargets.filter(t => t.building === arBuildingFilter);
   const [editingARTarget, setEditingARTarget] = useState(null);
   const [isEditCatchIconModalOpen, setIsEditCatchIconModalOpen] = useState(false);
   const [editingCatchIcon, setEditingCatchIcon] = useState(null);
@@ -2591,6 +2593,21 @@ function App() {
                       <Plus size={14} /> Add Art
                     </button>
                   </div>
+
+                  {arTargets.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '16px' }}>
+                      {['all', 'S2', 'S3', 'S4'].map(b => {
+                        const count = b === 'all' ? arTargets.length : arTargets.filter(t => t.building === b).length;
+                        return (
+                          <button key={b} type="button" aria-pressed={arBuildingFilter === b}
+                            className={`btn ${arBuildingFilter === b ? 'btn-primary' : 'btn-secondary'}`}
+                            onClick={() => setArBuildingFilter(b)}>
+                            {b === 'all' ? 'All' : `Building ${b}`} ({count})
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                   
                   {arTargets.length === 0 ? (
                     <div style={{ marginTop: '20px', padding: '48px 20px', textAlign: 'center', border: '2px dashed var(--card-border)', borderRadius: '12px', backgroundColor: 'var(--body-bg)' }}>
@@ -2598,9 +2615,11 @@ function App() {
                       <p style={{ margin: '0 0 4px 0', fontSize: '15px', fontWeight: 600, color: 'var(--text-title)' }}>No AR paintings yet</p>
                       <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>Add a museum painting so tourists can scan it in AR.</p>
                     </div>
+                  ) : shownARTargets.length === 0 ? (
+                    <p style={{ margin: '24px 0 8px 0', textAlign: 'center', fontSize: '13px', color: 'var(--text-secondary)' }}>No artworks in Building {arBuildingFilter} yet.</p>
                   ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '20px', marginTop: '20px' }}>
-                    {arTargets.map(target => {
+                    {shownARTargets.map(target => {
                       const imgSrc = typeof target.image === 'string'
                         ? qrService.getMediaUrl(target.image)
                         : (target.image ? URL.createObjectURL(target.image) : null);
