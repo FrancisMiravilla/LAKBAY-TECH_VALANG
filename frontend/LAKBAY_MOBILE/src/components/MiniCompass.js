@@ -25,7 +25,9 @@ export default function MiniCompass({ style }) {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted' || !active) return;
         sub = await Location.watchHeadingAsync((h) => {
-          if (active) setHeading(h.trueHeading >= 0 ? h.trueHeading : h.magHeading);
+          if (!active) return;
+          const next = h.trueHeading >= 0 ? h.trueHeading : h.magHeading;
+          setHeading((prev) => (prev === null || Math.abs(((next - prev + 540) % 360) - 180) >= 2 ? next : prev));
         });
       } catch (_) {
         // no magnetometer: the compass stays hidden

@@ -423,7 +423,11 @@ export default function ARNavigationOverlay({
         headingSub.current = await Location.watchHeadingAsync((hdg) => {
           if (!active) return;
           const h = hdg.trueHeading >= 0 ? hdg.trueHeading : hdg.magHeading;
-          setDeviceHeading(h);
+          setDeviceHeading((prev) => {
+            if (prev === null) return h;
+            const diff = Math.abs(((h - prev + 540) % 360) - 180);
+            return diff >= 2 ? h : prev;
+          });
         });
       } catch (_) {
         // Heading not available on this device

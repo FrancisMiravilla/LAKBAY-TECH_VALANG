@@ -1,3 +1,4 @@
+import { sizedImage } from '../utils/imageUrl';
 import React, { useRef, useEffect } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity, StatusBar,
@@ -21,7 +22,7 @@ const formatImageUrl = (img) => {
     return img.replace(/^http:\/\/(localhost|127\.0\.0\.1):8000/, ORIGIN);
   }
   if (img.startsWith('/media')) return `${ORIGIN}${img}`;
-  return img;
+  return sizedImage(img, 900);
 };
 
 const CARD_SECTIONS = [

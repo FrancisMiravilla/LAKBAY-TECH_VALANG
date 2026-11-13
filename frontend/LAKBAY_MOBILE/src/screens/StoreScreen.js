@@ -1,3 +1,4 @@
+import { sizedImage } from '../utils/imageUrl';
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, Dimensions, ImageBackground, StatusBar, Modal, ScrollView,
@@ -30,7 +31,7 @@ const formatImageUrl = (img) => {
     return img.replace(/^http:\/\/(localhost|127\.0\.0\.1):8000/, ORIGIN);
   }
   if (img.startsWith('/media')) return `${ORIGIN}${img}`;
-  return img;
+  return sizedImage(img, 400);
 };
 
 export default function StoreScreen({ navigation }) {

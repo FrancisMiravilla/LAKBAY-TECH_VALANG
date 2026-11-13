@@ -40,7 +40,8 @@ export default function HintCompass({ target, onClose }) {
         if (status !== 'granted' || !active) return;
         sub = await Location.watchHeadingAsync((h) => {
           if (!active) return;
-          setHeading(h.trueHeading >= 0 ? h.trueHeading : h.magHeading);
+          const next = h.trueHeading >= 0 ? h.trueHeading : h.magHeading;
+          setHeading((prev) => (prev === null || Math.abs(((next - prev + 540) % 360) - 180) >= 2 ? next : prev));
         });
       } catch (_) {
         // No magnetometer: the card still shows the hint direction in words.

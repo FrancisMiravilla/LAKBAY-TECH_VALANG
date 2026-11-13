@@ -1,3 +1,4 @@
+import { sizedImage } from '../utils/imageUrl';
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import {
   StyleSheet, Text, View, ScrollView, TouchableOpacity,
@@ -32,7 +33,7 @@ const formatImageUrl = (img) => {
     return img.replace(/^http:\/\/(localhost|127\.0\.0\.1):8000/, ORIGIN);
   }
   if (img.startsWith('/media')) return `${ORIGIN}${img}`;
-  return img;
+  return sizedImage(img, 900);
 };
 
 // ── Mini Map HTML ─────────────────────────────────────────────────────────────
@@ -309,24 +310,37 @@ export default function HomeScreen({ navigation, route }) {
   const reloadRef = useRef(null);
 
   useEffect(() => {
+    // Polling replaces state only when the data really changed, so an idle
+    // Home screen is not re-rendered (and its images re-laid out) every tick.
+    const seen = {};
+    const changed = (key, value) => {
+      const sig = JSON.stringify(value);
+      if (seen[key] === sig) return false;
+      seen[key] = sig;
+      return true;
+    };
+    let lastFetchAt = 0;
     const fetchSpotsAndPromotions = async () => {
+      lastFetchAt = Date.now();
       try {
         const [data, profileData] = await Promise.all([
           getSpots(),
           authService.getProfile().catch(() => null),
         ]);
-        if (profileData) setProfile(profileData);
+        if (profileData && changed('profile', profileData)) setProfile(profileData);
         getWallet().then((w) => setCoins(w?.balance ?? 0)).catch(() => {});
         const allSpots = Array.isArray(data) ? data : (data.results || []);
-        setSpots(allSpots);
-        setFeaturedPlaces(allSpots.filter(s => s.is_featured));
+        if (changed('spots', allSpots)) {
+          setSpots(allSpots);
+          setFeaturedPlaces(allSpots.filter(s => s.is_featured));
+        }
         if (prevSpotCountRef.current > 0 && allSpots.length > prevSpotCountRef.current) {
           addNotification({ type: 'admin', icon: 'pin', title: 'New Place Added!', sub: 'The admin just posted a new place to experience. Check it out on the map!' });
         }
         prevSpotCountRef.current = allSpots.length;
         const promoData = await getPublishedPromotions();
         const publishedPromos = Array.isArray(promoData) ? promoData : (promoData.results || []);
-        setPromotedPlaces(publishedPromos.filter(p => p.is_place));
+        if (changed('promos', publishedPromos)) setPromotedPlaces(publishedPromos.filter(p => p.is_place));
 
         // Check for user promotions approved by admin
         getPromotions().then(userPromos => {
@@ -354,7 +368,13 @@ export default function HomeScreen({ navigation, route }) {
     };
     reloadRef.current = fetchSpotsAndPromotions;
     fetchSpotsAndPromotions();
-    const interval = setInterval(fetchSpotsAndPromotions, 15000);
+    // Poll only while Home is on screen; catch up as soon as it is shown again.
+    const interval = setInterval(() => {
+      if (navigation.isFocused()) fetchSpotsAndPromotions();
+    }, 30000);
+    const unsubscribeFocus = navigation.addListener('focus', () => {
+      if (Date.now() - lastFetchAt > 5000) fetchSpotsAndPromotions();
+    });
 
     // Check login streak and show modal if eligible
     const checkStreak = async () => {
@@ -376,7 +396,10 @@ export default function HomeScreen({ navigation, route }) {
     };
     checkStreak();
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      unsubscribeFocus();
+    };
   }, []);
 
   const handleClaimStreak = async () => {

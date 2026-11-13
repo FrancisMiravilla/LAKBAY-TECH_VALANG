@@ -1,3 +1,4 @@
+import { sizedImage } from '../utils/imageUrl';
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { getCatchIcons, getSpots, ORIGIN } from '../api/qrService';
@@ -49,7 +50,7 @@ export const resolveMediaUrl = (v: unknown): string | null => {
   const raw = str(v);
   if (!raw) return null;
   if (raw.startsWith('data:')) return raw;
-  if (raw.startsWith('http')) return raw.replace(/^http:\/\//, 'https://');
+  if (raw.startsWith('http')) return sizedImage(raw.replace(/^http:\/\//, 'https://'), 900);
   return `${ORIGIN}${raw}`;
 };
 
