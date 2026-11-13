@@ -195,10 +195,10 @@ export default function LoginScreen({ navigation }) {
             {/* Forgot password */}
             <TouchableOpacity
               style={styles.forgotRow}
-              onPress={() => showErr('Reset Password', 'A reset link will be sent to your email.', 'info')}
+              onPress={() => navigation.navigate('ForgotPassword', { email: email.trim() })}
             >
               <Ionicons name="key-outline" size={12} color={COLORS.accent} style={{ marginRight: 4 }} />
-              <Text style={styles.forgotText}>Recover credentials?</Text>
+              <Text style={styles.forgotText}>Forgot password?</Text>
             </TouchableOpacity>
 
             {/* Sign In Button */}

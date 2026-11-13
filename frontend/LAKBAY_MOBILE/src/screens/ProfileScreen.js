@@ -309,6 +309,7 @@ export default function ProfileScreen({ navigation }) {
     else if (id === 'edit')       navigation.navigate('EditProfile');
     else if (id === 'promotions') navigation.navigate('MyPromotions');
     else if (id === 'notif')      navigation.navigate('Notifications');
+    else if (id === 'priv')       navigation.navigate('PrivacySecurity');
   };
 
   // Derived stats

@@ -128,6 +128,121 @@ class ResendVerificationCodeView(APIView):
         return Response({'detail': 'If that email needs verifying, a new code is on its way.', 'retry_after': 60})
 
 
+def _password_errors(password, user):
+    """Django's password rules as a list of messages (empty when the password is fine)."""
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError
+    try:
+        validate_password(password, user)
+    except ValidationError as e:
+        return list(e.messages)
+    return []
+
+
+def _sign_out_everywhere(user):
+    """Ends every session of `user` by blacklisting their refresh tokens."""
+    from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+    for token in OutstandingToken.objects.filter(user=user):
+        BlacklistedToken.objects.get_or_create(token=token)
+
+
+# Reset codes one account may be mailed per hour, so codes can't be guessed in bulk.
+RESET_CODES_PER_HOUR = 5
+
+
+class ForgotPasswordView(APIView):
+    """POST {email}: mails a 6-digit password reset code."""
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request):
+        from django.core.cache import cache
+        from .verification import send_code, seconds_until_resend
+        email = str(request.data.get('email', '')).strip()
+        if not email:
+            return Response({'detail': 'Enter your email address.'}, status=status.HTTP_400_BAD_REQUEST)
+        user = User.objects.filter(email__iexact=email).first()
+        # Same reply whether or not the email exists, so this can't be used to look up accounts.
+        reply = Response({
+            'detail': 'If that email has a LAKBAY account, a reset code is on its way.', 'retry_after': 60,
+        })
+        if not user or not user.is_active or not user.has_usable_password():
+            return reply
+        if seconds_until_resend(user):
+            return reply
+        key = f'pw-reset-count-{user.pk}'
+        sent = cache.get(key, 0)
+        if sent >= RESET_CODES_PER_HOUR:
+            return reply
+        cache.set(key, sent + 1, 3600)
+        if not send_code(user, purpose='reset'):
+            return Response(
+                {'detail': "We couldn't send the email right now. Please try again in a moment."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return reply
+
+
+class ResetPasswordView(APIView):
+    """POST {email, code, new_password}: sets a new password using the emailed code."""
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request):
+        from .verification import check_code
+        email = str(request.data.get('email', '')).strip()
+        code = str(request.data.get('code', '')).strip()
+        new_password = str(request.data.get('new_password', ''))
+        if not email or not code or not new_password:
+            return Response(
+                {'detail': 'Enter the code from your email and a new password.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user = User.objects.filter(email__iexact=email).first()
+        if not user or not user.is_active or not user.has_usable_password():
+            return Response({'detail': "That code isn't right."}, status=status.HTTP_400_BAD_REQUEST)
+        # Check the password first so a weak one doesn't use up the code.
+        errors = _password_errors(new_password, user)
+        if errors:
+            return Response({'detail': ' '.join(errors), 'field': 'new_password'}, status=status.HTTP_400_BAD_REQUEST)
+        error = check_code(user, code)
+        if error:
+            return Response({'detail': error}, status=status.HTTP_400_BAD_REQUEST)
+        user.set_password(new_password)
+        user.save(update_fields=['password'])
+        _sign_out_everywhere(user)
+        return Response({'detail': 'Your password was changed. Please log in with the new one.'})
+
+
+class ChangePasswordView(APIView):
+    """POST {current_password, new_password}: changes the logged-in user's password."""
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request):
+        user = request.user
+        current = str(request.data.get('current_password', ''))
+        new_password = str(request.data.get('new_password', ''))
+        if not current or not new_password:
+            return Response(
+                {'detail': 'Enter your current password and a new password.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not user.check_password(current):
+            return Response(
+                {'detail': 'Your current password is not correct.', 'field': 'current_password'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if current == new_password:
+            return Response(
+                {'detail': 'Choose a new password that is different from the current one.', 'field': 'new_password'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        errors = _password_errors(new_password, user)
+        if errors:
+            return Response({'detail': ' '.join(errors), 'field': 'new_password'}, status=status.HTTP_400_BAD_REQUEST)
+        user.set_password(new_password)
+        user.save(update_fields=['password'])
+        return Response({'detail': 'Your password was changed.'})
+
+
 class CharacterSetupView(generics.UpdateAPIView):
     serializer_class = CharacterSetupSerializer
     permission_classes = (permissions.IsAuthenticated,)

@@ -1,4 +1,4 @@
-"""Sign-up email verification: a 6-digit code mailed to the user.
+"""Emailed 6-digit codes: sign-up verification and password reset.
 
 Mail goes through Brevo's HTTP API when BREVO_API_KEY is set (Render's free
 plan blocks outgoing SMTP), otherwise through Django's EMAIL_BACKEND, which
@@ -31,22 +31,38 @@ def _hash(code):
     return hmac.new(settings.SECRET_KEY.encode(), code.encode(), hashlib.sha256).hexdigest()
 
 
-def _send_email(to_email, name, code):
-    subject = f"{code} is your LAKBAY verification code"
+EMAIL_COPY = {
+    'signup': {
+        'subject': "{code} is your LAKBAY verification code",
+        'intro': "Your LAKBAY verification code is:",
+        'action': "Copy this code and paste it in the LAKBAY app to finish signing up.",
+        'ignore': "If you didn't sign up for LAKBAY, you can ignore this email.",
+    },
+    'reset': {
+        'subject': "{code} is your LAKBAY password reset code",
+        'intro': "Your LAKBAY password reset code is:",
+        'action': "Copy this code and paste it in the LAKBAY app to choose a new password.",
+        'ignore': "If you didn't ask to reset your password, you can ignore this email. "
+                  "Your password stays the same.",
+    },
+}
+
+
+def _send_email(to_email, name, code, purpose='signup'):
+    copy = EMAIL_COPY[purpose]
+    subject = copy['subject'].format(code=code)
     text = (
         f"Hi {name or 'Explorer'},\n\n"
-        f"Your LAKBAY verification code is: {code}\n\n"
-        "Copy this code and paste it in the LAKBAY app to finish signing up. "
-        "It expires in 10 minutes.\n\n"
-        "If you didn't sign up for LAKBAY, you can ignore this email."
+        f"{copy['intro']} {code}\n\n"
+        f"{copy['action']} It expires in 10 minutes.\n\n"
+        f"{copy['ignore']}"
     )
     html = (
         f"<p>Hi {escape(name or 'Explorer')},</p>"
-        "<p>Your LAKBAY verification code is:</p>"
+        f"<p>{copy['intro']}</p>"
         f"<p style=\"font-size:28px;font-weight:bold;letter-spacing:6px\">{code}</p>"
-        "<p>Copy this code and paste it in the LAKBAY app to finish signing up. "
-        "It expires in 10 minutes.</p>"
-        "<p style=\"color:#888\">If you didn't sign up for LAKBAY, you can ignore this email.</p>"
+        f"<p>{copy['action']} It expires in 10 minutes.</p>"
+        f"<p style=\"color:#888\">{copy['ignore']}</p>"
     )
 
     if settings.BREVO_API_KEY:
@@ -76,7 +92,7 @@ def seconds_until_resend(user):
     return max(0, math.ceil(wait))
 
 
-def send_code(user):
+def send_code(user, purpose='signup'):
     """Create a fresh code for `user` and email it. Returns True if it was sent."""
     code = f"{secrets.randbelow(1_000_000):06d}"
     now = timezone.now()
@@ -85,7 +101,7 @@ def send_code(user):
         defaults={'code_hash': _hash(code), 'expires_at': now + CODE_TTL, 'sent_at': now, 'attempts': 0},
     )
     try:
-        _send_email(user.email, user.first_name, code)
+        _send_email(user.email, user.first_name, code, purpose)
         return True
     except Exception:
         logger.exception("Could not send the verification email to %s", user.email)

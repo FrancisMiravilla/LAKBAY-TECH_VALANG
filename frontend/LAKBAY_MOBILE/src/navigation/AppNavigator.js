@@ -22,6 +22,8 @@ import LoginScreen from '../screens/LoginScreen';
 import CreateAccountScreen from '../screens/CreateAccountScreen';
 import CharacterSelectScreen from '../screens/CharacterSelectScreen';
 import VerifyEmailScreen from '../screens/VerifyEmailScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import PrivacySecurityScreen from '../screens/PrivacySecurityScreen';
 import CatchDetailsScreen from '../screens/CatchDetailsScreen';
 import QuizScreen from '../screens/QuizScreen';
 import MapScreen from '../screens/MapScreen'; 
@@ -116,6 +118,7 @@ export default function AppNavigator() {
       <Stack.Screen name="Login"           component={LoginScreen} />
       <Stack.Screen name="CreateAccount"   component={CreateAccountScreen} />
       <Stack.Screen name="VerifyEmail"     component={VerifyEmailScreen} />
+      <Stack.Screen name="ForgotPassword"  component={ForgotPasswordScreen} />
       <Stack.Screen name="CharacterSelect" component={CharacterSelectScreen} />
       
       {/* ── Main App ── */}
@@ -133,6 +136,7 @@ export default function AppNavigator() {
       <Stack.Screen name="QuizScreen"    component={QuizScreen} />
       <Stack.Screen name="Map"           component={MapScreen} />
       <Stack.Screen name="EditProfile"   component={EditProfileScreen} />
+      <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
       <Stack.Screen name="MindAR"        component={ViroARScanner} />
       <Stack.Screen name="Promote"       component={PromoteScreen} />
       <Stack.Screen name="MyPromotions"  component={MyPromotionsScreen} />

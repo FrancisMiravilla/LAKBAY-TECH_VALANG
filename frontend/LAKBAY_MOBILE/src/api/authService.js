@@ -47,6 +47,36 @@ export const authService = {
     }
   },
 
+  // Mails a 6-digit password reset code (same reply whether or not the email exists).
+  forgotPassword: async (email) => {
+    try {
+      const response = await apiClient.post('password/forgot/', { email });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  resetPassword: async (email, code, newPassword) => {
+    try {
+      const response = await apiClient.post('password/reset/', { email, code, new_password: newPassword });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  changePassword: async (currentPassword, newPassword) => {
+    try {
+      const response = await apiClient.post('password/change/', {
+        current_password: currentPassword, new_password: newPassword,
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
   login: async (email, password) => {
     try {
       const response = await apiClient.post('login/', { email, password });
