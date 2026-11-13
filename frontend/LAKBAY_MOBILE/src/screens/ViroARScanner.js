@@ -70,8 +70,9 @@ const ARTWORK_FIT = {
   coverColor: '#15171C',
   // Gap (m) between the cover plane and the back of the model.
   lift: 0.003,
-  // If the model hasn't appeared after this long, use the floating viewer.
-  loadTimeoutMs: 12000,
+  // If the model hasn't appeared after this long, the floating viewer shows
+  // in the meantime; the model still moves onto the artwork once it loads.
+  slowLoadMs: 15000,
 };
 
 ViroMaterials.createMaterials({
@@ -82,32 +83,36 @@ const getImageAspect = (uri) => new Promise((resolve) => {
   Image.getSize(uri, (w, h) => resolve(w > 0 && h > 0 ? h / w : null), () => resolve(null));
 });
 
-// How to place the model on the artwork, or null to use the floating viewer.
+// Returns { fit } to place the model on the artwork, or { reason } when it
+// has to use the floating viewer.
 const computeArtworkFit = async (target, localModel) => {
-  if (!target?.image || !localModel || !localModel.startsWith('file://')) return null;
+  if (!target?.image) return { reason: 'no tracking image' };
+  if (!localModel || !localModel.startsWith('file://')) return { reason: 'the model could not be downloaded to the phone' };
   const [aspect, bounds] = await Promise.all([
     getImageAspect(target.image),
     getGlbBounds(localModel, ARTWORK_FIT.modelRotation),
   ]);
-  if (!aspect || !bounds) return null;
+  if (!aspect) return { reason: 'the tracking image size could not be read' };
+  if (!bounds) return { reason: 'the model file could not be read (not a valid .glb?)' };
   if (bounds.problems.length) {
-    console.log('[AR] model needs re-uploading from the web admin:', target.name, bounds.problems);
-    return null;
+    return { reason: `re-upload this model in the web admin (it uses ${bounds.problems.join(', ')})` };
   }
   const width = ARTWORK_FIT.markerWidth;
   const height = width * aspect;
   const sizeX = bounds.max[0] - bounds.min[0];
   const sizeY = bounds.max[1] - bounds.min[1];
-  if (!(sizeX > 0 && sizeY > 0)) return null;
+  if (!(sizeX > 0 && sizeY > 0)) return { reason: 'the model has no size' };
   // Largest size that stays inside the artwork without stretching the model.
   const scale = Math.min(width / sizeX, height / sizeY);
   const centerX = (bounds.max[0] + bounds.min[0]) / 2;
   const centerY = (bounds.max[1] + bounds.min[1]) / 2;
   return {
-    width,
-    height,
-    scale,
-    position: [-centerX * scale, -centerY * scale, ARTWORK_FIT.lift - bounds.min[2] * scale],
+    fit: {
+      width,
+      height,
+      scale,
+      position: [-centerX * scale, -centerY * scale, ARTWORK_FIT.lift - bounds.min[2] * scale],
+    },
   };
 };
 
@@ -300,6 +305,10 @@ export default function ViroARScanner({ navigation }) {
   // Where the detected artwork's model is shown: 'floating' (drag/zoom viewer),
   // 'loading' (being placed on the artwork) or 'anchored' (on the artwork).
   const [placement, setPlacement] = useState('floating');
+  // The model is taking long to load: show the floating viewer meanwhile.
+  const [slowLoad, setSlowLoad] = useState(false);
+  // Why the current model is in the floating viewer (shown in dev builds).
+  const [floatReason, setFloatReason] = useState('');
   const [modelScale, setModelScale] = useState(0.25);
   const [modelPosition, setModelPosition] = useState([0, -0.05, -1.2]);
   const [arTargets, setArTargets] = useState([]);
@@ -554,9 +563,13 @@ export default function ViroARScanner({ navigation }) {
     }
 
     const resolvedLocal = localModelPath || target.local_model || null;
-    const fit = target.model_3d ? await computeArtworkFit(target, resolvedLocal) : null;
-    console.log('[AR] artwork fit:', target.name, fit);
+    const { fit = null, reason = '' } = target.model_3d
+      ? await computeArtworkFit(target, resolvedLocal)
+      : { reason: 'no 3D model uploaded' };
+    console.log('[AR] artwork fit:', target.name, fit || reason);
 
+    setSlowLoad(false);
+    setFloatReason(reason);
     setPlacement(fit ? 'loading' : 'floating');
     setDetectedSpot({
       fit,
@@ -582,20 +595,25 @@ export default function ViroARScanner({ navigation }) {
 
   const handleModelLoadEnd = (targetId) => {
     if (lastTargetIdRef.current !== targetId) return;
+    setSlowLoad(false);
     setPlacement((current) => (current === 'loading' ? 'anchored' : current));
   };
 
   const handleModelError = (targetId, message) => {
     console.log('[AR] model could not be placed on the artwork:', message);
     if (lastTargetIdRef.current !== targetId) return;
+    setFloatReason(`the AR renderer could not load the model (${message || 'unknown error'})`);
     setPlacement('floating');
   };
 
-  // A model that never finishes loading still gets shown, in the floating viewer.
+  // A slow model is shown in the floating viewer while it keeps loading.
   const detectedId = detectedSpot?.id;
   React.useEffect(() => {
     if (placement !== 'loading' || detectedId == null) return undefined;
-    const timer = setTimeout(() => setPlacement('floating'), ARTWORK_FIT.loadTimeoutMs);
+    const timer = setTimeout(() => {
+      setFloatReason('the model is still loading in AR (large file?)');
+      setSlowLoad(true);
+    }, ARTWORK_FIT.slowLoadMs);
     return () => clearTimeout(timer);
   }, [placement, detectedId]);
 
@@ -797,14 +815,14 @@ export default function ViroARScanner({ navigation }) {
       )}
 
       {/* ── Steady Floating 3D Model (Catch Feature Architecture + Full Multi-Touch & Zoom) ── */}
-      {detectedSpot && placement === 'loading' && (
+      {detectedSpot && placement === 'loading' && !slowLoad && (
         <View pointerEvents="none" style={styles.placingPill}>
           <ActivityIndicator size="small" color={COLORS.gold} />
           <Text style={styles.placingPillText}>Placing the 3D model on the artwork… keep it in view</Text>
         </View>
       )}
 
-      {detectedSpot && placement === 'floating' && (
+      {detectedSpot && (placement === 'floating' || slowLoad) && (
         <Animated.View style={[styles.steadyModelWrap, { transform: [{ translateY: floatAnim }] }]}>
           {/* Ambient Glow (Placed BEHIND WebView with pointerEvents="none" so it NEVER blocks touches) */}
           <View
@@ -873,6 +891,9 @@ export default function ViroARScanner({ navigation }) {
           )}
 
           {/* Interactive Touch Hint Badge */}
+          {__DEV__ && !!floatReason && (
+            <Text pointerEvents="none" style={styles.floatReason}>Not on the artwork: {floatReason}</Text>
+          )}
           <View pointerEvents="none" style={styles.touchHintBadge}>
             <Ionicons name="hand-left-outline" size={11} color="rgba(255,255,255,0.85)" style={{ marginRight: 4 }} />
             <Text style={styles.touchHintText}>Drag to rotate 360° · Pinch to zoom</Text>
@@ -900,6 +921,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18,
     backgroundColor: 'rgba(15, 23, 42, 0.82)',
+  },
+  floatReason: {
+    position: 'absolute', top: -34, left: -20, right: -20, textAlign: 'center',
+    fontFamily: FONTS.medium, fontSize: 11, color: '#FDE68A',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
   },
   placingPillText: { fontFamily: FONTS.medium, fontSize: 12, color: '#FFF' },
   container: { flex: 1, backgroundColor: '#000' },
