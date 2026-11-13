@@ -26,10 +26,12 @@ logger = logging.getLogger(__name__)
 CODE_TTL = timedelta(minutes=10)
 RESEND_COOLDOWN = timedelta(seconds=60)
 MAX_ATTEMPTS = 5
-# Per account, per hour: codes that may be mailed, and wrong guesses over all codes.
+# Codes one account may be mailed per hour. There is deliberately no separate
+# lockout for wrong guesses: anyone who knows an email could trigger it and
+# block the real owner. MAX_ATTEMPTS x MAX_CODES_PER_WINDOW (25 guesses an
+# hour out of 1,000,000 codes) already makes guessing impractical.
 LIMIT_WINDOW = timedelta(hours=1)
 MAX_CODES_PER_WINDOW = 5
-MAX_FAILURES_PER_WINDOW = 15
 
 
 def _hash(code):
@@ -116,7 +118,7 @@ def send_code(user, purpose='signup'):
         if entry is None:
             entry = EmailVerificationCode(user=user)
         if not _window_open(entry, now):
-            entry.window_start, entry.codes_in_window, entry.failures_in_window = now, 0, 0
+            entry.window_start, entry.codes_in_window = now, 0
         if entry.codes_in_window >= MAX_CODES_PER_WINDOW:
             return False
         entry.code_hash = _hash(code)
@@ -145,18 +147,13 @@ def check_code(user, code, consume=True):
         entry = EmailVerificationCode.objects.select_for_update().filter(user=user).first()
         if not entry:
             return "No code was sent to this email. Tap Resend to get one."
-        if _window_open(entry, now) and entry.failures_in_window >= MAX_FAILURES_PER_WINDOW:
-            return "Too many wrong tries. Please wait an hour and ask for a new code."
         if entry.expires_at < now:
             return "This code has expired. Tap Resend to get a new one."
         if entry.attempts >= MAX_ATTEMPTS:
             return "Too many wrong tries. Tap Resend to get a new code."
         if not hmac.compare_digest(entry.code_hash, _hash(str(code).strip())):
-            if not _window_open(entry, now):
-                entry.window_start, entry.codes_in_window, entry.failures_in_window = now, 0, 0
             entry.attempts += 1
-            entry.failures_in_window += 1
-            entry.save(update_fields=['attempts', 'failures_in_window', 'window_start', 'codes_in_window'])
+            entry.save(update_fields=['attempts'])
             left = MAX_ATTEMPTS - entry.attempts
             return f"That code isn't right. {left} {'try' if left == 1 else 'tries'} left." if left else \
                 "Too many wrong tries. Tap Resend to get a new code."

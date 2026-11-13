@@ -139,7 +139,8 @@ def test_change_password_signs_out_other_sessions_and_keeps_this_one(user):
     assert res.status_code == 200 and res.data['refresh']
 
     assert other_phone.post('/api/auth/token/refresh/', {'refresh': old_refresh}, format='json').status_code == 401
-    assert this_phone.post('/api/auth/token/refresh/', {'refresh': res.data['refresh']}, format='json').status_code == 200
+    renewed = this_phone.post('/api/auth/token/refresh/', {'refresh': res.data['refresh']}, format='json')
+    assert renewed.status_code == 200
 
 
 def test_hourly_code_limit_is_kept_in_the_database(user):
@@ -152,19 +153,24 @@ def test_hourly_code_limit_is_kept_in_the_database(user):
     assert EmailVerificationCode.objects.get(user=user).codes_in_window == MAX_CODES_PER_WINDOW
 
 
-def test_wrong_guesses_are_capped_across_codes(user):
-    from accounts.verification import MAX_ATTEMPTS, MAX_FAILURES_PER_WINDOW, send_code, check_code
-    guesses = 0
-    while guesses < MAX_FAILURES_PER_WINDOW:
-        send_code(user, purpose='reset')
-        code = mailed_code()
-        wrong = '000000' if code != '000000' else '111111'
-        for _ in range(MAX_ATTEMPTS):
-            if guesses == MAX_FAILURES_PER_WINDOW:
-                break
-            check_code(user, wrong)
-            guesses += 1
-        from accounts.models import EmailVerificationCode
-        EmailVerificationCode.objects.filter(user=user).update(codes_in_window=0)
+def test_wrong_guesses_by_others_cannot_lock_out_a_new_code(user):
+    from accounts.verification import MAX_ATTEMPTS, send_code, check_code
     send_code(user, purpose='reset')
-    assert check_code(user, mailed_code()) is not None
+    wrong = '000000' if mailed_code() != '000000' else '111111'
+    for _ in range(MAX_ATTEMPTS):
+        check_code(user, wrong)
+    send_code(user, purpose='reset')
+    assert check_code(user, mailed_code()) is None
+
+
+def test_throttle_ignores_a_forged_forwarded_for_header(user):
+    # The client writes a different fake IP each time; Render's proxy then
+    # appends the address it really saw, which is what the throttle must use.
+    from accounts.views import PasswordCodeThrottle
+    client = APIClient()
+    statuses = [
+        client.post('/api/auth/password/forgot/', {'email': 'nobody@example.com'}, format='json',
+                    HTTP_X_FORWARDED_FOR=f'10.0.0.{i}, 203.0.113.7').status_code
+        for i in range(int(PasswordCodeThrottle.rate.split('/')[0]) + 1)
+    ]
+    assert statuses[-1] == 429

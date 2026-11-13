@@ -187,6 +187,10 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    # Proxies in front of Django (Render's load balancer = 1). Throttles then
+    # take the client IP the proxy added, not one a client wrote into
+    # X-Forwarded-For itself. Without it a fake header bypasses the limits.
+    'NUM_PROXIES': config('NUM_PROXIES', default=1, cast=int),
 }
 
 # SimpleJWT settings
