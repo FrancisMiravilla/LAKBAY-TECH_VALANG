@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar, InteractionManager, Alert, Modal, Animated, Easing, Dimensions, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, StatusBar, InteractionManager, Alert, Modal, Animated, Easing, Dimensions, ScrollView, Image } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -9,6 +9,10 @@ import {
   ViroARScene,
   ViroARImageMarker,
   ViroARTrackingTargets,
+  ViroNode,
+  ViroQuad,
+  Viro3DObject,
+  ViroMaterials,
   ViroText,
   ViroAnimations,
   ViroAmbientLight,
@@ -36,6 +40,7 @@ import GuideSpeechModal from '../components/GuideSpeechModal';
 import BuildingPickerModal from '../components/BuildingPickerModal';
 import { galleryTourSteps } from '../constants/museumGalleries';
 import ARArtworkGuide from '../components/ARArtworkGuide';
+import { getGlbBounds } from '../utils/glbBounds';
 
 // Resolve a model path into an absolute https URL Viro can load.
 const resolveModelUrl = (m) => {
@@ -43,6 +48,67 @@ const resolveModelUrl = (m) => {
   if (m.startsWith('data:')) return m;
   if (m.startsWith('http')) return m.replace('http://', 'https://');
   return `${ORIGIN}${m}`;
+};
+
+// ── Placing the 3D model on the recognized artwork ───────────────────────────
+// Nothing is measured by the admin. Every tracking image is registered as
+// `markerWidth` meters wide and the AR engine works out the artwork's distance
+// from that, so content sized markerWidth x (image height / width) covers the
+// artwork exactly as the camera sees it, whatever its real size, and stays
+// locked to it. Models the AR renderer can't load use the floating viewer.
+const ARTWORK_FIT = {
+  markerWidth: 0.5,
+  // Lays content flat on the artwork: X = right, Y = the artwork's top,
+  // +Z = out of the wall toward the viewer.
+  planeRotation: [-90, 0, 0],
+  // Extra turn (degrees, X/Y/Z) for the model itself. [0, 0, 0] suits a model
+  // whose front faces +Z. Change one axis at a time: [0, 180, 0] if it shows
+  // its back, [90, 0, 0] or [-90, 0, 0] if it lies flat against the wall.
+  modelRotation: [0, 0, 0],
+  // Plane behind the model that hides the real artwork, as a multiple of its size.
+  coverMargin: 1.08,
+  coverColor: '#15171C',
+  // Gap (m) between the cover plane and the back of the model.
+  lift: 0.003,
+  // If the model hasn't appeared after this long, use the floating viewer.
+  loadTimeoutMs: 12000,
+};
+
+ViroMaterials.createMaterials({
+  artworkCover: { diffuseColor: ARTWORK_FIT.coverColor, lightingModel: 'Constant' },
+});
+
+const getImageAspect = (uri) => new Promise((resolve) => {
+  Image.getSize(uri, (w, h) => resolve(w > 0 && h > 0 ? h / w : null), () => resolve(null));
+});
+
+// How to place the model on the artwork, or null to use the floating viewer.
+const computeArtworkFit = async (target, localModel) => {
+  if (!target?.image || !localModel || !localModel.startsWith('file://')) return null;
+  const [aspect, bounds] = await Promise.all([
+    getImageAspect(target.image),
+    getGlbBounds(localModel, ARTWORK_FIT.modelRotation),
+  ]);
+  if (!aspect || !bounds) return null;
+  if (bounds.problems.length) {
+    console.log('[AR] model needs re-uploading from the web admin:', target.name, bounds.problems);
+    return null;
+  }
+  const width = ARTWORK_FIT.markerWidth;
+  const height = width * aspect;
+  const sizeX = bounds.max[0] - bounds.min[0];
+  const sizeY = bounds.max[1] - bounds.min[1];
+  if (!(sizeX > 0 && sizeY > 0)) return null;
+  // Largest size that stays inside the artwork without stretching the model.
+  const scale = Math.min(width / sizeX, height / sizeY);
+  const centerX = (bounds.max[0] + bounds.min[0]) / 2;
+  const centerY = (bounds.max[1] + bounds.min[1]) / 2;
+  return {
+    width,
+    height,
+    scale,
+    position: [-centerX * scale, -centerY * scale, ARTWORK_FIT.lift - bounds.min[2] * scale],
+  };
 };
 
 export const RARITY_THEME = {
@@ -168,20 +234,50 @@ const buildSteadyViewerHTML = (modelUrl) => {
 // =========================================================================
 const MuseumARScene = (props) => {
   const app = props.sceneNavigator.viroAppProps;
+  const detected = app.detectedSpot;
   return (
     <ViroARScene>
       <ViroAmbientLight color="#FFFFFF" intensity={1000} />
       <ViroDirectionalLight color="#FFFFFF" direction={[0, 0, -1]} intensity={1200} />
 
       {/* Dynamic Optical Image Markers for Museum Artworks */}
-      {(app.arTargets || []).map(target => (
-        <ViroARImageMarker
-          key={target.id}
-          target={`target_${target.id}`}
-          onAnchorFound={() => app.onTargetFound(target)}
-          onAnchorRemoved={() => app.onTargetLost()}
-        />
-      ))}
+      {(app.arTargets || []).map(target => {
+        const onArtwork = detected && detected.id === target.id && detected.fit && app.placement !== 'floating';
+        const fit = onArtwork ? detected.fit : null;
+        return (
+          <ViroARImageMarker
+            key={target.id}
+            target={`target_${target.id}`}
+            onAnchorFound={() => app.onTargetFound(target)}
+            onAnchorRemoved={() => app.onTargetLost()}
+          >
+            {fit && (
+              <ViroNode rotation={ARTWORK_FIT.planeRotation}>
+                {/* The cover appears with the model, never on its own */}
+                {app.placement === 'anchored' && (
+                  <ViroQuad
+                    width={fit.width * ARTWORK_FIT.coverMargin}
+                    height={fit.height * ARTWORK_FIT.coverMargin}
+                    materials={['artworkCover']}
+                  />
+                )}
+                <ViroNode
+                  position={fit.position}
+                  scale={[fit.scale, fit.scale, fit.scale]}
+                  rotation={ARTWORK_FIT.modelRotation}
+                >
+                  <Viro3DObject
+                    source={{ uri: detected.local_model }}
+                    type="GLB"
+                    onLoadEnd={() => app.onModelLoadEnd(target.id)}
+                    onError={(e) => app.onModelError(target.id, e?.nativeEvent?.error)}
+                  />
+                </ViroNode>
+              </ViroNode>
+            )}
+          </ViroARImageMarker>
+        );
+      })}
     </ViroARScene>
   );
 };
@@ -201,6 +297,9 @@ ViroAnimations.registerAnimations({
 // =========================================================================
 export default function ViroARScanner({ navigation }) {
   const [detectedSpot, setDetectedSpot] = useState(null);
+  // Where the detected artwork's model is shown: 'floating' (drag/zoom viewer),
+  // 'loading' (being placed on the artwork) or 'anchored' (on the artwork).
+  const [placement, setPlacement] = useState('floating');
   const [modelScale, setModelScale] = useState(0.25);
   const [modelPosition, setModelPosition] = useState([0, -0.05, -1.2]);
   const [arTargets, setArTargets] = useState([]);
@@ -323,7 +422,7 @@ export default function ViroARScanner({ navigation }) {
             targetMap[`target_${t.id}`] = {
               source: { uri: t.image },
               orientation: "Up",
-              physicalWidth: 0.5,
+              physicalWidth: ARTWORK_FIT.markerWidth,
             };
           }
         });
@@ -454,7 +553,13 @@ export default function ViroARScanner({ navigation }) {
       }
     }
 
+    const resolvedLocal = localModelPath || target.local_model || null;
+    const fit = target.model_3d ? await computeArtworkFit(target, resolvedLocal) : null;
+    console.log('[AR] artwork fit:', target.name, fit);
+
+    setPlacement(fit ? 'loading' : 'floating');
     setDetectedSpot({
+      fit,
       id: target.id,
       name: target.name,
       building: target.building || 'S2',
@@ -474,6 +579,25 @@ export default function ViroARScanner({ navigation }) {
     setModelScale(0.25);
     setModelPosition([0, -0.05, -1.2]);
   };
+
+  const handleModelLoadEnd = (targetId) => {
+    if (lastTargetIdRef.current !== targetId) return;
+    setPlacement((current) => (current === 'loading' ? 'anchored' : current));
+  };
+
+  const handleModelError = (targetId, message) => {
+    console.log('[AR] model could not be placed on the artwork:', message);
+    if (lastTargetIdRef.current !== targetId) return;
+    setPlacement('floating');
+  };
+
+  // A model that never finishes loading still gets shown, in the floating viewer.
+  const detectedId = detectedSpot?.id;
+  React.useEffect(() => {
+    if (placement !== 'loading' || detectedId == null) return undefined;
+    const timer = setTimeout(() => setPlacement('floating'), ARTWORK_FIT.loadTimeoutMs);
+    return () => clearTimeout(timer);
+  }, [placement, detectedId]);
 
   // Called when the painting leaves the camera view
   const handleTargetLost = () => {
@@ -575,6 +699,9 @@ export default function ViroARScanner({ navigation }) {
               onTargetFound: handleTargetFound,
               onTargetLost: handleTargetLost,
               detectedSpot: detectedSpot,
+              placement: placement,
+              onModelLoadEnd: handleModelLoadEnd,
+              onModelError: handleModelError,
               modelScale: modelScale,
               onModelScaleChange: setModelScale,
               modelPosition: modelPosition,
@@ -670,7 +797,14 @@ export default function ViroARScanner({ navigation }) {
       )}
 
       {/* ── Steady Floating 3D Model (Catch Feature Architecture + Full Multi-Touch & Zoom) ── */}
-      {detectedSpot && (
+      {detectedSpot && placement === 'loading' && (
+        <View pointerEvents="none" style={styles.placingPill}>
+          <ActivityIndicator size="small" color={COLORS.gold} />
+          <Text style={styles.placingPillText}>Placing the 3D model on the artwork… keep it in view</Text>
+        </View>
+      )}
+
+      {detectedSpot && placement === 'floating' && (
         <Animated.View style={[styles.steadyModelWrap, { transform: [{ translateY: floatAnim }] }]}>
           {/* Ambient Glow (Placed BEHIND WebView with pointerEvents="none" so it NEVER blocks touches) */}
           <View
@@ -761,6 +895,13 @@ export default function ViroARScanner({ navigation }) {
 
 
 const styles = StyleSheet.create({
+  placingPill: {
+    position: 'absolute', top: 110, alignSelf: 'center', zIndex: 15,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18,
+    backgroundColor: 'rgba(15, 23, 42, 0.82)',
+  },
+  placingPillText: { fontFamily: FONTS.medium, fontSize: 12, color: '#FFF' },
   container: { flex: 1, backgroundColor: '#000' },
   header: {
     height: 60,
