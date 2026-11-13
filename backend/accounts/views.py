@@ -110,7 +110,7 @@ class ResendVerificationCodeView(APIView):
     permission_classes = (permissions.AllowAny,)
 
     def post(self, request):
-        from .verification import hourly_limit_reached, needs_verification, send_code, seconds_until_resend
+        from .verification import code_limit_reached, needs_verification, send_code, seconds_until_resend
         email = str(request.data.get('email', '')).strip()
         user = User.objects.filter(email__iexact=email).first() if email else None
         # Same reply whether or not the email exists, so this can't be used to look up accounts.
@@ -121,9 +121,9 @@ class ResendVerificationCodeView(APIView):
                     {'detail': f'Please wait {wait} seconds before asking for a new code.', 'retry_after': wait},
                     status=status.HTTP_429_TOO_MANY_REQUESTS,
                 )
-            if hourly_limit_reached(user):
+            if code_limit_reached(user):
                 return Response(
-                    {'detail': 'Too many codes were sent to this email. Please try again in an hour.'},
+                    {'detail': 'Too many codes were sent to this email today. Please try again tomorrow.'},
                     status=status.HTTP_429_TOO_MANY_REQUESTS,
                 )
             if not send_code(user):

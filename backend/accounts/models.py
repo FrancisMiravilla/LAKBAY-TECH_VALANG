@@ -96,9 +96,8 @@ class EmailVerificationCode(models.Model):
     expires_at = models.DateTimeField()
     sent_at = models.DateTimeField()
     attempts = models.PositiveSmallIntegerField(default=0)
-    # Codes mailed this hour, kept in the database so the limit holds across
-    # server workers and restarts. With MAX_ATTEMPTS per code this caps
-    # guessing at a few dozen tries an hour out of a million codes.
+    # Codes mailed in the current limit window (see verification.LIMIT_WINDOW),
+    # kept in the database so the limit holds across workers and restarts.
     window_start = models.DateTimeField(null=True, blank=True)
     codes_in_window = models.PositiveSmallIntegerField(default=0)
 

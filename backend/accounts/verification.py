@@ -26,12 +26,13 @@ logger = logging.getLogger(__name__)
 CODE_TTL = timedelta(minutes=10)
 RESEND_COOLDOWN = timedelta(seconds=60)
 MAX_ATTEMPTS = 5
-# Codes one account may be mailed per hour. There is deliberately no separate
-# lockout for wrong guesses: anyone who knows an email could trigger it and
-# block the real owner. MAX_ATTEMPTS x MAX_CODES_PER_WINDOW (25 guesses an
-# hour out of 1,000,000 codes) already makes guessing impractical.
-LIMIT_WINDOW = timedelta(hours=1)
-MAX_CODES_PER_WINDOW = 5
+# Codes one account may be mailed per day. Guessing is capped at
+# MAX_ATTEMPTS x MAX_CODES_PER_WINDOW = 50 tries a day out of 1,000,000 codes,
+# and every new code is an email the real owner sees. There is deliberately no
+# separate lockout for wrong guesses: anyone who knows an email could trigger
+# it to block the real owner.
+LIMIT_WINDOW = timedelta(hours=24)
+MAX_CODES_PER_WINDOW = 10
 
 
 def _hash(code):
@@ -103,8 +104,8 @@ def _window_open(entry, now):
     return entry.window_start is not None and entry.window_start + LIMIT_WINDOW > now
 
 
-def hourly_limit_reached(user):
-    """True when this account was already mailed the most codes allowed this hour."""
+def code_limit_reached(user):
+    """True when this account was already mailed the most codes allowed today."""
     entry = EmailVerificationCode.objects.filter(user=user).first()
     return bool(entry and _window_open(entry, timezone.now()) and entry.codes_in_window >= MAX_CODES_PER_WINDOW)
 
@@ -165,7 +166,7 @@ def check_code(user, code, consume=True):
 def use_code(user):
     """Marks the email verified (the code proved the user owns it) and spends the code.
 
-    The row is kept, with the code made unusable, so the hourly limits still apply.
+    The row is kept, with the code made unusable, so the daily code limit still applies.
     """
     if not user.email_verified:
         user.email_verified = True
