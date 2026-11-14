@@ -24,6 +24,7 @@ import CharacterSelectScreen from '../screens/CharacterSelectScreen';
 import VerifyEmailScreen from '../screens/VerifyEmailScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import PrivacySecurityScreen from '../screens/PrivacySecurityScreen';
+import HelpSupportScreen from '../screens/HelpSupportScreen';
 import CatchDetailsScreen from '../screens/CatchDetailsScreen';
 import QuizScreen from '../screens/QuizScreen';
 import MapScreen from '../screens/MapScreen'; 
@@ -137,6 +138,7 @@ export default function AppNavigator() {
       <Stack.Screen name="Map"           component={MapScreen} />
       <Stack.Screen name="EditProfile"   component={EditProfileScreen} />
       <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
+      <Stack.Screen name="HelpSupport"   component={HelpSupportScreen} />
       <Stack.Screen name="MindAR"        component={ViroARScanner} />
       <Stack.Screen name="Promote"       component={PromoteScreen} />
       <Stack.Screen name="MyPromotions"  component={MyPromotionsScreen} />
