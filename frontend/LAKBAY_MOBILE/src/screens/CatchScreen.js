@@ -21,6 +21,7 @@ import ErrorModal from '../components/ErrorModal';
 import VintaStripe from '../components/VintaStripe';
 import { ARNavCards, ARGroundPath, ARRoundButtons } from '../components/ARGuidance';
 import GuideBubble from '../components/GuideBubble';
+import CatchEncounterScene from '../components/CatchEncounterScene';
 import { catchXpFor } from '../constants/rewards';
 import { Svg, Polygon, Path, Circle, G, Defs, LinearGradient, Stop, Line, Rect, ClipPath } from 'react-native-svg';
 
@@ -37,9 +38,10 @@ const ANCHOR_FREEZE_METERS = 6;      // closer than this, GPS bearing is noise: 
 const MAX_GPS_ACCURACY_METERS = 50;  // ignore GPS fixes less precise than this (they point the arrow randomly)
 const PANEL_CLEARANCE = 210;         // keep the ground path above the bottom panel
 
-// Net throw: swipe up from the net to throw it at the drifting model.
+// Net throw: swipe up from the net (resting at the bottom centre) to throw it.
 const NET_SIZE = 168;
-const NET_TOP = H - 215 - NET_SIZE;
+const NET_TOP = H - 56 - NET_SIZE;
+const RING_SIZE = W * 0.46;
 const NET_CY = NET_TOP + NET_SIZE / 2;
 const MODEL_CY = H * 0.22 + W * 0.375;
 const MODEL_DRIFT = W * 0.2;          // how far the model sways left/right while you aim
@@ -89,6 +91,7 @@ function normalizeIcon(raw, idx) {
     id: raw.id,
     name: raw.name || 'Unknown',
     tagline: raw.tagline || '',
+    type_name: raw.type_name || '',
     about: raw.about || '',
     significance: raw.significance || raw.cultural_significance || '',
     color,
@@ -702,8 +705,22 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
   // Distance sizing: small at 10 m, growing to full size as the player walks in.
   const distanceScale = useRef(new Animated.Value(FAR_MODEL_SCALE)).current;
 
+  // Once the treasure is open the camera gives way to a painted meadow and the
+  // model stands centred in it at full size (the compass no longer moves it).
+  const encounter = revealPhase === 'revealed';
+  const sceneAnim = useRef(new Animated.Value(0)).current;
+  const sceneOut = sceneAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+  const [cameraOff, setCameraOff] = useState(false);
+
   useEffect(() => {
-    if (distanceM === null) return;
+    if (!encounter) return;
+    Animated.timing(distanceScale, { toValue: 1, duration: 450, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+    Animated.timing(sceneAnim, { toValue: 1, duration: 600, easing: Easing.out(Easing.quad), useNativeDriver: true })
+      .start(({ finished }) => { if (finished) setCameraOff(true); });
+  }, [encounter]);
+
+  useEffect(() => {
+    if (distanceM === null || encounter) return;
     const lin = Math.max(0, Math.min(1, (SIGHT_RADIUS_METERS - distanceM) / (SIGHT_RADIUS_METERS - FULL_SIZE_METERS)));
     // Eased: stays small from afar, then grows quickly over the last few metres.
     const t = Math.pow(lin, 1.6);
@@ -733,8 +750,8 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
     ? ((anchorBearing - deviceHeading + 540) % 360) - 180
     : 0;
   const halfFov = CAMERA_HFOV_DEG / 2;
-  const modelInView = Math.abs(modelRel) <= halfFov;
-  const bearingTarget = Math.max(-1.6, Math.min(1.6, modelRel / halfFov)) * (W / 2);
+  const modelInView = encounter || Math.abs(modelRel) <= halfFov;
+  const bearingTarget = encounter ? 0 : Math.max(-1.6, Math.min(1.6, modelRel / halfFov)) * (W / 2);
 
   const bearingAnim = useRef(new Animated.Value(0)).current;
   const bearingX = useRef(0);
@@ -772,10 +789,29 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
   const netShake = useRef(new Animated.Value(0)).current;
   const netOpacity = useRef(new Animated.Value(1)).current;
 
+  // Target ring around the model shrinks over and over while aiming; a hit
+  // when it is small earns a nicer throw message (no extra XP).
+  const ringAnim = useRef(new Animated.Value(1)).current;
+  const ringScale = useRef(1);
+
   useEffect(() => {
     const id = driftAnim.addListener(({ value }) => { driftX.current = value; });
-    return () => driftAnim.removeListener(id);
+    const ringId = ringAnim.addListener(({ value }) => { ringScale.current = value; });
+    return () => {
+      driftAnim.removeListener(id);
+      ringAnim.removeListener(ringId);
+    };
   }, []);
+
+  useEffect(() => {
+    if (catchPhase !== 'aiming') return undefined;
+    ringAnim.setValue(1);
+    const loop = Animated.loop(
+      Animated.timing(ringAnim, { toValue: 0.3, duration: 1700, easing: Easing.linear, useNativeDriver: true })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [catchPhase]);
 
   useEffect(() => {
     const moving = catchPhase === 'aiming' || catchPhase === 'flying';
@@ -868,6 +904,7 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
     const landY = reaches ? fullDy : fullDy * Math.max(0.35, (speed / THROW_MIN_SPEED) * 0.8);
     const slope = speed > 0.05 ? g.vx / speed : g.dx / -g.dy;
     const landX = Math.max(-W / 2, Math.min(W / 2, startX + slope * (startY - landY)));
+    const ringAtThrow = ringScale.current;
 
     setCatchPhase('flying');
     Animated.parallel([
@@ -880,6 +917,7 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
         driftLoop.current?.stop();
         driftLoop.current = null;
         bearingAnim.stopAnimation();
+        setThrowMsg(ringAtThrow < 0.5 ? 'Excellent throw!' : ringAtThrow < 0.75 ? 'Great throw!' : 'Nice throw!');
         Animated.timing(netPos.x, { toValue: modelX, duration: 120, useNativeDriver: true }).start(captureModel);
       } else {
         missThrow(reaches ? 'Missed! Aim for the model.' : 'Too weak! Swipe up faster.', landY);
@@ -912,12 +950,19 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
   return (
     <Animated.View style={[StyleSheet.absoluteFill, { opacity: fadeAnim }]}>
       {/* ── Live Camera feed ── */}
-      <CameraView style={StyleSheet.absoluteFill} facing="back" />
+      {!cameraOff && <CameraView style={StyleSheet.absoluteFill} facing="back" />}
 
       {arrived ? (
         <>
-          <FloatingParticles color={icon.color} />
-          <View style={arStyles.bottomVignette} />
+          {!cameraOff && <FloatingParticles color={icon.color} />}
+          {!cameraOff && <View style={arStyles.bottomVignette} />}
+
+          {/* ── Painted meadow that replaces the camera once the treasure opens ── */}
+          {encounter && (
+            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: sceneAnim }]}>
+              <CatchEncounterScene />
+            </Animated.View>
+          )}
 
           {revealPhase === 'chest' ? (
             <>
@@ -930,7 +975,7 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
                 hasHeading={deviceHeading !== null}
               />
             </>
-          ) : (
+          ) : !encounter && (
             <>
               <View style={arStyles.topGradient} />
               <ARStatusBar color={icon.color} distanceM={distanceM} showArrow={false} accuracy={userLocation?.accuracy} />
@@ -988,13 +1033,45 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
       )}
 
       {/* ── Treasure chest (≤ 10m): seen small from afar; tap it within 5m to open ── */}
-      {arrived && (
-        <TreasureChest
-          phase={revealPhase}
-          ready={canOpen && modelInView}
-          offsetX={bearingAnim}
-          sizeScale={distanceScale}
-          onOpen={revealPhase === 'chest' && canOpen ? openChest : null}
+      {arrived && !cameraOff && (
+        <Animated.View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { opacity: sceneOut }]}>
+          <TreasureChest
+            phase={revealPhase}
+            ready={canOpen && modelInView}
+            offsetX={bearingAnim}
+            sizeScale={distanceScale}
+            onOpen={revealPhase === 'chest' && canOpen ? openChest : null}
+          />
+        </Animated.View>
+      )}
+
+      {/* ── Encounter: name label above the model and its shadow on the grass ── */}
+      {encounter && catchPhase !== 'caught' && (
+        <Animated.View pointerEvents="none" style={[arStyles.namePill, { opacity: sceneAnim }]}>
+          <View style={[arStyles.namePillDot, { backgroundColor: icon.color }]} />
+          <Text style={arStyles.namePillName} numberOfLines={1}>{modelTitle}</Text>
+          {!!icon.type_name && (
+            <>
+              <View style={arStyles.namePillDivider} />
+              <Text style={arStyles.namePillType} numberOfLines={1}>{icon.type_name}</Text>
+            </>
+          )}
+        </Animated.View>
+      )}
+      {encounter && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            arStyles.groundShadow,
+            {
+              opacity: sceneAnim,
+              transform: [
+                { translateX: driftAnim },
+                { scale: floatAnim.interpolate({ inputRange: [-14, 0], outputRange: [0.8, 1] }) },
+                { scale: capturedScale },
+              ],
+            },
+          ]}
         />
       )}
 
@@ -1034,10 +1111,10 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
             pointerEvents="none"
             style={[
               arStyles.modelAura,
-              { backgroundColor: icon.color + '55', shadowColor: icon.color, transform: [{ scale: pulseAnim }] },
+              { opacity: sceneOut, backgroundColor: icon.color + '55', shadowColor: icon.color, transform: [{ scale: pulseAnim }] },
             ]}
           />
-          <Animated.View pointerEvents="none" style={[arStyles.modelAuraCore, { transform: [{ scale: pulseAnim }] }]} />
+          <Animated.View pointerEvents="none" style={[arStyles.modelAuraCore, { opacity: sceneOut, transform: [{ scale: pulseAnim }] }]} />
           {activeModel ? (
             <WebView
               source={{ html: buildARViewerHTML(activeModel) }}
@@ -1053,7 +1130,18 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
               <Ionicons name="fish" size={72} color={icon.color} style={{ opacity: 0.9 }} />
             </View>
           )}
-          <View style={[arStyles.modelGlow, { backgroundColor: icon.color + '30', shadowColor: icon.color }]} />
+          <Animated.View style={[arStyles.modelGlow, { opacity: sceneOut, backgroundColor: icon.color + '30', shadowColor: icon.color }]} />
+        </Animated.View>
+      )}
+
+      {/* ── Shrinking target ring around the model while aiming ── */}
+      {encounter && (catchPhase === 'aiming' || catchPhase === 'flying') && (
+        <Animated.View
+          pointerEvents="none"
+          style={[arStyles.ringWrap, { transform: [{ translateX: driftAnim }, { translateY: floatAnim }] }]}
+        >
+          <View style={arStyles.ringOuter} />
+          <Animated.View style={[arStyles.ringInner, { transform: [{ scale: ringAnim }] }]} />
         </Animated.View>
       )}
 
@@ -1151,8 +1239,9 @@ function ARCatchOverlay({ icon, spot, userLocation, alreadyCaught, onModelFound,
         }
 
         if (guide) {
+          // While aiming the net rests at the bottom, so the guide moves to the top.
           return (
-            <View style={arStyles.guidePanel} pointerEvents="box-none">
+            <View style={guide.key === 'aim' ? arStyles.guidePanelTop : arStyles.guidePanel} pointerEvents="box-none">
               <GuideBubble key={guide.key} size={70} text={guide.text} />
               {guide.actions ? <View style={arStyles.guideActions}>{guide.actions}</View> : null}
             </View>
@@ -2340,7 +2429,64 @@ const arStyles = StyleSheet.create({
     right: 12,
     bottom: 30,
   },
+  guidePanelTop: {
+    position: 'absolute',
+    left: 12,
+    right: 64,
+    top: 44,
+  },
   guideActions: { alignItems: 'center', marginTop: 6 },
+  namePill: {
+    position: 'absolute',
+    top: H * 0.22 - 30,
+    alignSelf: 'center',
+    maxWidth: W - 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: 'rgba(15,23,42,0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  namePillDot: { width: 9, height: 9, borderRadius: 5, marginRight: 8 },
+  namePillName: { fontFamily: FONTS.bold, fontSize: 15, color: '#FFF', flexShrink: 1 },
+  namePillDivider: { width: 1, height: 14, backgroundColor: 'rgba(255,255,255,0.4)', marginHorizontal: 10 },
+  namePillType: { fontFamily: FONTS.semiBold, fontSize: 12, color: 'rgba(255,255,255,0.85)', flexShrink: 1 },
+  groundShadow: {
+    position: 'absolute',
+    top: H * 0.22 + W * 0.75 - 30,
+    left: W / 2 - W * 0.19,
+    width: W * 0.38,
+    height: 26,
+    borderRadius: 50,
+    backgroundColor: 'rgba(20,40,22,0.4)',
+  },
+  ringWrap: {
+    position: 'absolute',
+    top: MODEL_CY - RING_SIZE / 2,
+    left: W / 2 - RING_SIZE / 2,
+    width: RING_SIZE,
+    height: RING_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringOuter: {
+    position: 'absolute',
+    width: RING_SIZE,
+    height: RING_SIZE,
+    borderRadius: RING_SIZE / 2,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.85)',
+  },
+  ringInner: {
+    width: RING_SIZE,
+    height: RING_SIZE,
+    borderRadius: RING_SIZE / 2,
+    borderWidth: 4,
+    borderColor: '#FDE047',
+  },
   catchCard: {
     width: '100%',
     backgroundColor: '#FFFFFF',
