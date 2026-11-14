@@ -1,5 +1,5 @@
 import { sizedImage } from '../utils/imageUrl';
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity, StatusBar,
   ScrollView, Image, Animated, Easing, Dimensions, ImageBackground,
@@ -13,6 +13,11 @@ import VintaCard from '../components/VintaCard';
 import { ORIGIN } from '../api/qrService';
 import { useApp } from '../context/AppContext';
 import VintaStripe from '../components/VintaStripe';
+import GuideSpeechModal from '../components/GuideSpeechModal';
+import GuideStoryButton from '../components/GuideStoryButton';
+import { loreStorySteps } from '../constants/loreStory';
+
+const bodyOf = (v) => (typeof v === 'object' && v !== null ? v.body : v);
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -60,16 +65,22 @@ const CARD_SECTIONS = [
   },
 ];
 
+// Leaves when opened without a spot; otherwise shows the discovery.
 export default function QRScannedScreen({ navigation, route }) {
   const spot = route?.params?.spot;
+  useEffect(() => {
+    if (!spot) navigation.goBack();
+  }, [spot, navigation]);
+  if (!spot) return null;
+  return <QRScannedContent navigation={navigation} route={route} />;
+}
+
+function QRScannedContent({ navigation, route }) {
+  const spot = route.params.spot;
   const already_scanned = route?.params?.already_scanned ?? false;
   const { addNotification } = useApp();
 
-  const combinedImages = spot
-    ? [spot.image, spot.image2, spot.image3].filter(Boolean).map(formatImageUrl)
-    : [];
-
-  if (!spot) { navigation.goBack(); return null; }
+  const combinedImages = [spot.image, spot.image2, spot.image3].filter(Boolean).map(formatImageUrl);
 
   // ── Animations ──
   const headerOpacity  = useRef(new Animated.Value(0)).current;
@@ -82,6 +93,22 @@ export default function QRScannedScreen({ navigation, route }) {
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const btnY           = useRef(new Animated.Value(30)).current;
   const btnOpacity     = useRef(new Animated.Value(0)).current;
+
+  // The guide tells the lore as a story as soon as the cards have come in.
+  const storySteps = useMemo(() => loreStorySteps({
+    title: spot.name,
+    description: bodyOf(spot.description),
+    history: bodyOf(spot.historical),
+    culture: bodyOf(spot.cultural),
+    funFact: bodyOf(spot.funFact),
+  }), [spot]);
+  const [storyOpen, setStoryOpen] = useState(false);
+
+  useEffect(() => {
+    if (!storySteps.length) return undefined;
+    const t = setTimeout(() => setStoryOpen(true), 1100);
+    return () => clearTimeout(t);
+  }, [storySteps]);
 
   useEffect(() => {
     const xpReward = spot.xp_reward || 50;
@@ -252,6 +279,9 @@ export default function QRScannedScreen({ navigation, route }) {
 
           {/* ── Lore Info Cards ── */}
           <Animated.View style={{ transform: [{ translateY: contentY }], opacity: contentOpacity }}>
+            {storySteps.length > 0 && (
+              <GuideStoryButton style={styles.storyBtn} onPress={() => setStoryOpen(true)} />
+            )}
             {CARD_SECTIONS.map((section) => {
               const data = spot[section.key];
               const body = typeof data === 'object' && data !== null ? data.body : data;
@@ -299,6 +329,14 @@ export default function QRScannedScreen({ navigation, route }) {
           </Animated.View>
         </ScrollView>
       </SafeAreaView>
+
+      <GuideSpeechModal
+        visible={storyOpen}
+        steps={storySteps}
+        finalLabel="Thanks, Guide!"
+        onClose={() => setStoryOpen(false)}
+        onSkip={() => setStoryOpen(false)}
+      />
     </ImageBackground>
   );
 }
@@ -513,6 +551,7 @@ const styles = StyleSheet.create({
   },
 
   // ── Info Cards ──
+  storyBtn: { marginBottom: 14 },
   infoFrame: {
     marginBottom: 12,
   },

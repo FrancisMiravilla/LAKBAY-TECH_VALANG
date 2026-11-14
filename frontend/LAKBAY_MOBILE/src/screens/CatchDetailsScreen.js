@@ -17,6 +17,9 @@ import { WebView } from 'react-native-webview';
 import { COLORS, FONTS, RADIUS, BG_OVERLAY, GOLD_TEXT, onWhite } from '../constants/theme';
 import VintaCard from '../components/VintaCard';
 import { catchXpFor, rarityXp } from '../constants/rewards';
+import GuideSpeechModal from '../components/GuideSpeechModal';
+import GuideStoryButton from '../components/GuideStoryButton';
+import { loreStorySteps } from '../constants/loreStory';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -135,6 +138,33 @@ export default function CatchDetailsScreen({ route, navigation }) {
 
   const [activeTab, setActiveTab] = useState('about');
   const tabAnim = useRef(new Animated.Value(0)).current;
+
+  // Catch lore only: the guide tells it as a story when the screen opens.
+  // Same sources as the tabs below, without their placeholder texts.
+  const storySteps = useMemo(() => {
+    if (isAR) return [];
+    const src = spot
+      ? {
+          description: spot.description,
+          history: spot.historical_background,
+          culture: spot.cultural_significance,
+          funFact: spot.fun_fact,
+        }
+      : {
+          description: icon?.about || icon?.description,
+          history: icon?.history || icon?.historical_background,
+          culture: icon?.significance || icon?.cultural_significance,
+          funFact: icon?.fun_fact,
+        };
+    return loreStorySteps({ title: spot?.name || icon?.name, ...src });
+  }, [isAR, spot, icon]);
+  const [storyOpen, setStoryOpen] = useState(false);
+
+  useEffect(() => {
+    if (!storySteps.length) return undefined;
+    const t = setTimeout(() => setStoryOpen(true), 900);
+    return () => clearTimeout(t);
+  }, [storySteps]);
 
   useEffect(() => {
     Animated.parallel([
@@ -297,6 +327,9 @@ export default function CatchDetailsScreen({ route, navigation }) {
         ) : (
           /* ── Catch: 4-tab lore system ── */
           <View style={styles.tabsSection}>
+            {storySteps.length > 0 && (
+              <GuideStoryButton style={styles.storyBtn} onPress={() => setStoryOpen(true)} />
+            )}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -409,6 +442,14 @@ export default function CatchDetailsScreen({ route, navigation }) {
 
       </ScrollView>
     </View>
+
+    <GuideSpeechModal
+      visible={storyOpen}
+      steps={storySteps}
+      finalLabel="Thanks, Guide!"
+      onClose={() => setStoryOpen(false)}
+      onSkip={() => setStoryOpen(false)}
+    />
   </ImageBackground>
 );
 }
@@ -542,6 +583,7 @@ const styles = StyleSheet.create({
   // ── Tabs ──
   tabsSection: { marginTop: 24, paddingHorizontal: 20 },
   tabsRow: { flexDirection: 'row', gap: 8, paddingBottom: 4 },
+  storyBtn: { marginBottom: 12 },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
