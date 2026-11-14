@@ -65,8 +65,14 @@ const ARTWORK_FIT = {
   // whose front faces +Z. Change one axis at a time: [0, 180, 0] if it shows
   // its back, [90, 0, 0] or [-90, 0, 0] if it lies flat against the wall.
   modelRotation: [0, 0, 0],
-  // Plane behind the model that hides the real artwork, as a multiple of its size.
+  // Plane behind the model that hides the real artwork, as a multiple of the
+  // model's own footprint (never the whole tracking image, so no empty bars).
   coverMargin: 1.08,
+  // The cover is only used when the model fills at least this share of the
+  // artwork both ways, i.e. it is a flat copy of a painting or print. Displayed
+  // objects (tools, jars, weapons) or models shaped unlike the photo get no
+  // cover, so the real exhibit stays visible behind them.
+  coverMinFill: 0.9,
   coverColor: '#15171C',
   // Gap (m) between the cover plane and the back of the model.
   lift: 0.003,
@@ -106,11 +112,17 @@ const computeArtworkFit = async (target, localModel) => {
   const scale = Math.min(width / sizeX, height / sizeY);
   const centerX = (bounds.max[0] + bounds.min[0]) / 2;
   const centerY = (bounds.max[1] + bounds.min[1]) / 2;
+  const modelW = sizeX * scale;
+  const modelH = sizeY * scale;
+  const fillsArtwork = Math.min(modelW / width, modelH / height) >= ARTWORK_FIT.coverMinFill;
   return {
     fit: {
       width,
       height,
       scale,
+      cover: fillsArtwork
+        ? { width: modelW * ARTWORK_FIT.coverMargin, height: modelH * ARTWORK_FIT.coverMargin }
+        : null,
       position: [-centerX * scale, -centerY * scale, ARTWORK_FIT.lift - bounds.min[2] * scale],
     },
   };
@@ -259,10 +271,10 @@ const MuseumARScene = (props) => {
             {fit && (
               <ViroNode rotation={ARTWORK_FIT.planeRotation}>
                 {/* The cover appears with the model, never on its own */}
-                {app.placement === 'anchored' && (
+                {app.placement === 'anchored' && fit.cover && (
                   <ViroQuad
-                    width={fit.width * ARTWORK_FIT.coverMargin}
-                    height={fit.height * ARTWORK_FIT.coverMargin}
+                    width={fit.cover.width}
+                    height={fit.cover.height}
                     materials={['artworkCover']}
                   />
                 )}
