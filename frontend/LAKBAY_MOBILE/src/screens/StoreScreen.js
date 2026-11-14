@@ -1,12 +1,13 @@
 import { sizedImage } from '../utils/imageUrl';
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, Dimensions, ImageBackground, StatusBar, Modal, ScrollView,
+  View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, Dimensions, StatusBar, Modal, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
-import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT } from '../constants/theme';
+import { COLORS, FONTS, GUIDE_FONTS, RADIUS } from '../constants/theme';
 import VintaCard from '../components/VintaCard';
 import {
   getWallet,
@@ -16,12 +17,43 @@ import {
   simulateTestBundlePayment,
 } from '../api/promotionService';
 import { ORIGIN } from '../api/qrService';
-import VintaStripe from '../components/VintaStripe';
 import { useTabBarSpace } from '../navigation/tabBarLayout';
 import { useVintaRefresh, VintaRefreshIndicator } from '../components/VintaRefresh';
+import { CoinIcon, CoinPile, RaysGlow, Sparkles } from '../components/store/StoreArt';
+import VintaStripe from '../components/VintaStripe';
 
 import { useAppDialog } from '../components/useAppDialog';
 const { width } = Dimensions.get('window');
+
+// Game-shop look: the app's navy header with the coin balance, then colourful
+// pack cards on a pale sky background.
+const SHOP = {
+  sky: '#E6F4FB',
+  ink: '#16324F',
+  inkSoft: '#5B7186',
+  teal: '#1DB8A3',
+  tealDark: '#0F8F7F',
+  green: '#3BC45A',
+  greenDark: '#22923B',
+};
+const GRID_PAD = 16;
+const GRID_GAP = 14;
+const CARD_W = (width - GRID_PAD * 2 - GRID_GAP) / 2;
+
+const CARD_THEMES = [
+  { colors: ['#7B6CF6', '#93A6FB', '#E1E8FF'], ink: '#3B2F9E' },
+  { colors: ['#25BF7E', '#72DBA4', '#DDF8E8'], ink: '#126B45' },
+  { colors: ['#FF973A', '#FFBD72', '#FFEBD2'], ink: '#A9500C' },
+  { colors: ['#EF5A9A', '#F59BC3', '#FFE2EF'], ink: '#9C2560' },
+  { colors: ['#21B1D4', '#73D1E8', '#DBF4FA'], ink: '#0D6A82' },
+];
+
+
+const formatPeso = (v) => {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return `₱${v}`;
+  return `₱${n.toLocaleString('en-PH', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })}`;
+};
 
 const COIN_IMAGE = 'https://cdn-icons-png.flaticon.com/512/2850/2850730.png';
 
@@ -165,122 +197,141 @@ export default function StoreScreen({ navigation }) {
     fetchData();
   };
 
+  // ── Pack highlights ──
+  const ratio = (b) => Number(b.coins_amount) / Math.max(Number(b.price_php) || 0, 0.01);
+  const byPrice = useMemo(
+    () => [...bundles].sort((a, b) => Number(a.price_php) - Number(b.price_php)),
+    [bundles]
+  );
+  const bestValueId = useMemo(
+    () => (bundles.length > 1 ? bundles.reduce((best, b) => (ratio(b) > ratio(best) ? b : best)).id : null),
+    [bundles]
+  );
+  const starterId = byPrice.length > 1 && byPrice[0].id !== bestValueId ? byPrice[0].id : null;
+  // Pile size 1..4 by how many coins a pack holds compared with the others.
+  const tierOf = useMemo(() => {
+    const order = [...bundles].sort((a, b) => a.coins_amount - b.coins_amount);
+    const map = {};
+    order.forEach((b, i) => {
+      map[b.id] = order.length <= 1 ? 2 : 1 + Math.round((i * 3) / (order.length - 1));
+    });
+    return map;
+  }, [bundles]);
   if (loading) {
     return (
-      <ImageBackground
-        source={require('../../reference/VINTA.jpeg')}
-        style={styles.bgImage}
-        resizeMode="cover"
-      >
-        <View style={styles.bgOverlay} />
-        <SafeAreaView style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={COLORS.gold} />
-          <Text style={styles.loadingText}>Opening Lakbay Vault…</Text>
-        </SafeAreaView>
-      </ImageBackground>
+      <SafeAreaView style={[styles.container, styles.centerContainer]}>
+        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+        <ActivityIndicator size="large" color={SHOP.tealDark} />
+        <Text style={styles.loadingText}>Opening the LAKBAY Store…</Text>
+      </SafeAreaView>
     );
   }
 
-  const renderBundleCard = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.cardContainer}
-      onPress={() => handleBuy(item)}
-      disabled={buying || qrLoading}
-      activeOpacity={0.82}
-    >
-      <VintaCard style={styles.cardFrame} contentStyle={styles.cardInner}>
-      <ImageBackground 
-        source={{ uri: formatImageUrl(item.image) }} 
-        style={styles.bundleBgImage} 
-        resizeMode="cover"
+  const renderBundleCard = ({ item }) => {
+    const themeIdx = Math.max(0, byPrice.findIndex((b) => b.id === item.id));
+    const theme = CARD_THEMES[themeIdx % CARD_THEMES.length];
+    const busy = (buying || qrLoading) && selectedBundle?.id === item.id;
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => handleBuy(item)}
+        disabled={buying || qrLoading}
+        activeOpacity={0.88}
       >
-        <View style={styles.cardOverlay}>
-          {/* Top Row: Coin badge + Price Tag */}
-          <View style={styles.cardTopRow}>
-            <View style={styles.coinBadgeMini}>
-              <Ionicons name="sparkles" size={10} color={COLORS.gold} />
+        <LinearGradient colors={theme.colors} locations={[0, 0.5, 1]} style={styles.cardGrad}>
+          <View style={styles.cardShine} pointerEvents="none" />
+          {item.id === starterId && (
+            <View style={styles.ribbon} pointerEvents="none">
+              <Text style={styles.ribbonText}>STARTER</Text>
             </View>
-            <View style={styles.priceTag}>
-              <Text style={styles.priceText}>₱{item.price_php}</Text>
+          )}
+
+          <Text style={[styles.cardTitle, { textShadowColor: theme.ink }]} numberOfLines={2}>{item.name}</Text>
+
+          <View style={styles.artWrap}>
+            <View style={styles.artRays} pointerEvents="none">
+              <RaysGlow size={CARD_W * 1.05} />
+            </View>
+            {item.image ? (
+              <Image source={{ uri: formatImageUrl(item.image) }} style={styles.packImage} resizeMode="contain" />
+            ) : (
+              <CoinPile size={CARD_W * 0.8} tier={tierOf[item.id] || 1} />
+            )}
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              <Sparkles width={CARD_W - 16} height={CARD_W * 0.82} />
             </View>
           </View>
 
-          {/* Center: Coin Amount */}
-          <View style={styles.centerContent}>
-            <Image source={{ uri: COIN_IMAGE }} style={{ width: 34, height: 34, tintColor: COLORS.gold }} />
-            <Text style={styles.coinsTextCenter}>{item.coins_amount}</Text>
+          <View style={styles.amountTag}>
+            <CoinIcon size={16} />
+            <Text style={styles.amountText}>{Number(item.coins_amount).toLocaleString()} coins</Text>
           </View>
 
-          {/* Bottom: Name & Action */}
-          <View style={styles.bottomContent}>
-            <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
-            <View style={styles.buyBtnPill}>
-              <Text style={styles.buyBtnText}>BUY QR PH →</Text>
-            </View>
+          <View style={styles.priceBtn}>
+            {busy ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.priceBtnText}>{formatPeso(item.price_php)}</Text>
+            )}
           </View>
-        </View>
-      </ImageBackground>
-      </VintaCard>
-    </TouchableOpacity>
-  );
+          <Text style={[styles.cardCaption, { color: theme.ink }]} numberOfLines={1}>
+            {item.description || 'Pay with QR Ph'}
+          </Text>
+        </LinearGradient>
+
+        {item.id === bestValueId && (
+          <View style={styles.sticker} pointerEvents="none">
+            <Text style={styles.stickerText}>{'BEST\nVALUE'}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const balance = Number(wallet?.balance || 0);
 
   return (
-    <ImageBackground
-      source={require('../../reference/VINTA.jpeg')}
-      style={styles.bgImage}
-      resizeMode="cover"
-    >
-      <View style={styles.bgOverlay} />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-
-        {/* ── Header ── */}
+      {/* ── Header: title and coin balance ── */}
+      <SafeAreaView edges={['top']} style={styles.headerSafe}>
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>LAKBAY STORE</Text>
             <Text style={styles.headerSub}>EXPEDITION COIN VAULT</Text>
           </View>
+          <View style={styles.balancePill}>
+            <View style={styles.balanceCoin}>
+              <CoinIcon size={30} />
+            </View>
+            <Text style={styles.balanceText}>{balance.toLocaleString()}</Text>
+          </View>
         </View>
         <VintaStripe height={3} />
+      </SafeAreaView>
 
-        <View style={{ flex: 1 }}>
+      <View style={styles.content}>
         <FlatList
           key="2col"
           refreshControl={refreshControl}
-          data={bundles}
+          data={byPrice}
           keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={[styles.list, { paddingBottom: tabBarSpace }]}
+          contentContainerStyle={[styles.grid, { paddingBottom: tabBarSpace }]}
           numColumns={2}
-          columnWrapperStyle={styles.columnWrapper}
+          columnWrapperStyle={styles.gridRow}
           renderItem={renderBundleCard}
+          showsVerticalScrollIndicator={false}
           ListHeaderComponent={
-            <VintaCard style={styles.walletFrame} contentStyle={styles.walletCard}>
-              <View style={styles.walletHeaderRow}>
-                <View style={styles.vaultPill}>
-                  <Ionicons name="wallet-outline" size={12} color={GOLD_TEXT} />
-                  <Text style={styles.vaultPillText}>TREASURY BALANCE</Text>
-                </View>
-                <TouchableOpacity onPress={fetchData} activeOpacity={0.7} style={styles.refreshBtn}>
-                  <Ionicons name="refresh" size={14} color={COLORS.textMuted} />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.walletRow}>
-                <Image source={{ uri: COIN_IMAGE }} style={{ width: 32, height: 32, tintColor: COLORS.gold }} />
-                <Text style={styles.walletBalance}>{wallet?.balance || 0}</Text>
-                <Text style={styles.walletCoinsLabel}>COINS</Text>
-              </View>
-
-              <Text style={styles.walletHint}>
-                Coins are required to promote landmark spots on the map, unlock cosmetics, and access exclusive travel quests.
-              </Text>
-            </VintaCard>
+            <View style={styles.listHead}>
+              <Text style={styles.sectionTitle}>Coin Packs</Text>
+              <Text style={styles.sectionHint}>Coins pay for publishing your place or business promotion on the map.</Text>
+            </View>
           }
-          ListEmptyComponent={<Text style={styles.emptyText}>No treasure bundles available right now.</Text>}
+          ListEmptyComponent={<Text style={styles.emptyText}>No coin packs available right now.</Text>}
         />
         <VintaRefreshIndicator visible={refreshing} />
-        </View>
+      </View>
 
         {/* ── QR Ph Payment Modal for Coin Bundle ── */}
         <Modal
@@ -398,180 +449,141 @@ export default function StoreScreen({ navigation }) {
           </View>
         </Modal>
         {dialog}
-      </SafeAreaView>
-    </ImageBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bgImage: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  bgOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: BG_OVERLAY,
-  },
-  container: { flex: 1, backgroundColor: 'transparent' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 },
-  loadingText: { fontFamily: FONTS.medium, fontSize: 13, color: 'rgba(191,215,255,0.85)' },
+  container: { flex: 1, backgroundColor: SHOP.sky },
+  centerContainer: { justifyContent: 'center', alignItems: 'center', gap: 10 },
+  loadingText: { fontFamily: FONTS.medium, fontSize: 13, color: SHOP.inkSoft },
 
+  // Header (app navy with the Vinta stripe)
+  headerSafe: { backgroundColor: COLORS.navy, zIndex: 2 },
   header: {
     height: 64,
-    backgroundColor: 'rgba(8, 20, 60, 0.70)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(99, 179, 237, 0.20)',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
   },
   headerTitle: { fontFamily: FONTS.bold, fontSize: 20, color: '#FFFFFF', letterSpacing: 2, lineHeight: 22 },
   headerSub: { fontFamily: FONTS.semiBold, fontSize: 11, color: 'rgba(191,215,255,0.70)', letterSpacing: 1.5, marginTop: 2, lineHeight: 14 },
-  
-  // Wallet Vault Card
-  walletFrame: {
-    marginBottom: 20,
-  },
-  walletCard: {
-    padding: 20,
-  },
-  walletHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  vaultPill: {
+  balancePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    backgroundColor: 'rgba(255,255,255,0.10)',
     borderWidth: 1,
-    borderColor: 'rgba(251, 191, 36, 0.35)',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    borderColor: 'rgba(251,191,36,0.40)',
     borderRadius: RADIUS.pill,
+    height: 30,
+    paddingRight: 12,
+    marginLeft: 22,
   },
-  vaultPillText: {
-    fontFamily: FONTS.bold,
-    fontSize: 9,
-    color: GOLD_TEXT,
-    letterSpacing: 1.5,
-  },
-  refreshBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: COLORS.bg,
-    justifyContent: 'center',
+  balanceCoin: { marginLeft: -14, marginRight: 6 },
+  balanceText: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.gold, minWidth: 28 },
+
+  // Content
+  content: { flex: 1 },
+  grid: { paddingHorizontal: GRID_PAD, paddingTop: 16 },
+  gridRow: { justifyContent: 'space-between', marginBottom: 18 },
+  listHead: { marginBottom: 16 },
+  sectionTitle: { fontFamily: FONTS.bold, fontSize: 16, color: SHOP.ink },
+  sectionHint: { fontFamily: FONTS.regular, fontSize: 12, lineHeight: 17, color: SHOP.inkSoft, marginTop: 3 },
+  emptyText: { textAlign: 'center', color: SHOP.inkSoft, marginTop: 40, fontFamily: FONTS.regular },
+
+  // Pack card
+  card: { width: CARD_W },
+  cardGrad: {
+    borderRadius: 20,
+    overflow: 'hidden',
     alignItems: 'center',
-  },
-  walletRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 10,
-  },
-  walletBalance: {
-    fontFamily: FONTS.bold,
-    fontSize: 34,
-    color: GOLD_TEXT,
-    letterSpacing: 1,
-  },
-  walletCoinsLabel: {
-    fontFamily: FONTS.bold,
-    fontSize: 11,
-    color: COLORS.textSub,
-    letterSpacing: 1.5,
-    marginTop: 4,
-  },
-  walletHint: {
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: COLORS.textSub,
-    lineHeight: 17,
-  },
-  
-  list: { padding: 16, paddingBottom: 40 },
-  columnWrapper: { justifyContent: 'space-between', marginBottom: 14 },
-  
-  // Bundle card
-  cardContainer: {
-    width: (width - 44) / 2,
-  },
-  cardFrame: {
-    height: 180,
-  },
-  cardInner: {
-    flex: 1,
-  },
-  bundleBgImage: {
-    width: '100%',
-    height: '100%',
-  },
-  cardOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(4,10,38,0.72)',
-    padding: 12,
-    justifyContent: 'space-between',
-  },
-  cardTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  coinBadgeMini: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(251,191,36,0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(251,191,36,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  priceTag: {
-    backgroundColor: COLORS.teal,
+    paddingTop: 16,
+    paddingBottom: 10,
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: RADIUS.pill,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.85)',
+    shadowColor: '#0B3550', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.18, shadowRadius: 6, elevation: 5,
   },
-  priceText: {
-    fontFamily: FONTS.bold, fontSize: 11, color: '#08143C',
-  },
-  centerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  coinsTextCenter: {
-    fontFamily: FONTS.bold, fontSize: 24, color: COLORS.gold,
-    textShadowColor: 'rgba(0,0,0,0.9)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6,
-  },
-  bottomContent: {
-    alignItems: 'center',
-    gap: 6,
+  cardShine: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 46,
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
   cardTitle: {
-    fontFamily: FONTS.semiBold, fontSize: 12, color: '#FFFFFF', textAlign: 'center',
-  },
-  buyBtnPill: {
-    backgroundColor: COLORS.accent,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    borderRadius: RADIUS.pill,
-    paddingVertical: 3,
-    paddingHorizontal: 10,
-  },
-  buyBtnText: {
-    fontFamily: FONTS.bold,
-    fontSize: 9,
+    fontFamily: GUIDE_FONTS.display,
+    fontSize: 14,
+    lineHeight: 19,
+    minHeight: 38,
     color: '#FFFFFF',
-    letterSpacing: 1,
+    textAlign: 'center',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 1,
   },
-  emptyText: { textAlign: 'center', color: 'rgba(191,215,255,0.6)', marginTop: 40, fontFamily: FONTS.regular },
+  artWrap: {
+    width: CARD_W - 16,
+    height: CARD_W * 0.82,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  artRays: {
+    position: 'absolute',
+    left: (CARD_W - 16 - CARD_W * 1.05) / 2,
+    top: (CARD_W * 0.82 - CARD_W * 1.05) / 2,
+  },
+  packImage: { width: CARD_W * 0.72, height: CARD_W * 0.72 },
+  amountTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    marginBottom: 10,
+  },
+  amountText: { fontFamily: FONTS.bold, fontSize: 12, color: SHOP.ink },
+  priceBtn: {
+    width: '86%',
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: SHOP.green,
+    borderBottomWidth: 4,
+    borderBottomColor: SHOP.greenDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  priceBtnText: {
+    fontFamily: GUIDE_FONTS.display, fontSize: 15, color: '#FFFFFF',
+    textShadowColor: 'rgba(0,70,20,0.45)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 1,
+  },
+  cardCaption: { fontFamily: FONTS.medium, fontSize: 10, marginTop: 7, opacity: 0.8, textAlign: 'center' },
+
+  sticker: {
+    position: 'absolute',
+    top: -10,
+    left: -8,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#7C3AED',
+    borderWidth: 2.5,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ rotate: '-14deg' }],
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3, elevation: 7,
+  },
+  stickerText: { fontFamily: GUIDE_FONTS.display, fontSize: 9, lineHeight: 11, color: '#FDE047', textAlign: 'center' },
+  ribbon: {
+    position: 'absolute',
+    top: 12,
+    left: -34,
+    width: 120,
+    paddingVertical: 3,
+    backgroundColor: '#FDE047',
+    transform: [{ rotate: '-45deg' }],
+    alignItems: 'center',
+  },
+  ribbonText: { fontFamily: GUIDE_FONTS.display, fontSize: 8, color: SHOP.ink, letterSpacing: 0.5 },
 
   // ── QR Ph Modal Styles ──
   qrModalBackdrop: {
