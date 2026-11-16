@@ -18,6 +18,7 @@ adminClient.interceptors.request.use((config) => {
 
 const qrService = {
   getSpots:     ()         => adminClient.get('/api/qr/spots/'),
+  getPublicMap: ()         => adminClient.get('/api/qr/public-map/'),
   createSpot:   (data)     => adminClient.post('/api/qr/spots/', data),
   updateSpot:   (id, data) => adminClient.patch(`/api/qr/spots/${id}/`, data),
   deleteSpot:   (id)       => adminClient.delete(`/api/qr/spots/${id}/`),

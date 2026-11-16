@@ -1,35 +1,32 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,800&display=swap');
-
 /* ══════════════════════════════════════════════════════════════════════════
    LAKBAY LANDING PAGE — framed "stage" layout
-   A sand-coloured frame holds rounded ocean-navy and cream panels; the hero
-   puts one 3D artifact on a dune with the rest orbiting behind it.
+   A pale-blue frame holds rounded navy and white panels; the hero puts one
+   3D artifact on a wave-shaped hill with the rest orbiting behind it.
    ══════════════════════════════════════════════════════════════════════════ */
 
 :root {
   /* Frame + surfaces */
-  --lp-frame: #C2A56B;
-  --lp-frame-line: rgba(70, 52, 20, 0.22);
+  --lp-frame: #E3E9F5;
   --lp-ocean: #0C2461;
   --lp-ocean-hi: #1B3C88;
-  --lp-ocean-deep: #061338;
-  --lp-cream: #F3EDE0;
-  --lp-cream-2: #E7DECB;
-  --lp-sand: #E3C789;
-  --lp-gold-warm: #F2B640;
-  --lp-gold-panel: #E9C77E;
+  --lp-ocean-deep: #040A26;
+  --lp-cream: #FFFFFF;
+  --lp-cream-2: #EEF2FA;
+  --lp-soft: #F5F7FC;
+  --lp-gold-warm: #93C5FD;
+  --lp-blue-accent: #1D4ED8;
 
   /* Text */
-  --lp-ink: #0E1733;
-  --lp-ink-muted: #545B70;
-  --lp-on-dark: #F3EDE0;
-  --lp-on-dark-muted: rgba(243, 237, 224, 0.7);
-  --lp-on-dark-line: rgba(243, 237, 224, 0.14);
+  --lp-ink: #111827;
+  --lp-ink-muted: #4B5563;
+  --lp-on-dark: #FFFFFF;
+  --lp-on-dark-muted: rgba(255, 255, 255, 0.72);
+  --lp-on-dark-line: rgba(255, 255, 255, 0.14);
 
   --lp-radius: 28px;
   --lp-gap: 14px;
-  --lp-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
-  --lp-font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --lp-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --lp-serif: var(--lp-font);
 
   /* Used by the login modal */
   --lp-crimson: #0C2461;
@@ -74,6 +71,12 @@ html:has(.lp-page) {
 }
 
 .lp-title-accent {
+  color: var(--lp-blue-accent);
+}
+
+.lp-panel--dark .lp-title-accent,
+.lp-hero .lp-title-accent,
+.lp-cta .lp-title-accent {
   color: var(--lp-gold-warm);
 }
 
@@ -97,7 +100,7 @@ html:has(.lp-page) {
 }
 
 .lp-panel--gold {
-  background: linear-gradient(160deg, #F1D594 0%, var(--lp-gold-panel) 55%, #D7AE5C 100%);
+  background: linear-gradient(160deg, #EFF5FF 0%, #DBEAFE 55%, #BFDBFE 100%);
   color: var(--lp-ink);
 }
 
@@ -108,7 +111,7 @@ html:has(.lp-page) {
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.16em;
-  color: #B07A12;
+  color: var(--lp-blue-accent);
   margin-bottom: 1rem;
 }
 
@@ -164,7 +167,7 @@ html:has(.lp-page) {
   width: min(70vw, 820px);
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(242, 182, 64, 0.22) 0%, rgba(242, 182, 64, 0) 62%);
+  background: radial-gradient(circle, rgba(147, 197, 253, 0.22) 0%, rgba(147, 197, 253, 0) 62%);
   pointer-events: none;
   z-index: 0;
 }
@@ -207,7 +210,7 @@ html:has(.lp-page) {
   gap: 2px;
   padding: 5px;
   border-radius: 14px;
-  background: rgba(243, 237, 224, 0.09);
+  background: rgba(255, 255, 255, 0.09);
   border: 1px solid var(--lp-on-dark-line);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -226,7 +229,7 @@ html:has(.lp-page) {
 
 .lp-pill-nav a:hover,
 .lp-pill-nav a:focus-visible {
-  background: rgba(243, 237, 224, 0.14);
+  background: rgba(255, 255, 255, 0.14);
   color: var(--lp-on-dark);
 }
 
@@ -260,13 +263,13 @@ html:has(.lp-page) {
 }
 
 .lp-chip-btn--ghost {
-  background: rgba(243, 237, 224, 0.09);
+  background: rgba(255, 255, 255, 0.09);
   border-color: var(--lp-on-dark-line);
   color: var(--lp-on-dark);
 }
 
 .lp-chip-btn--ghost:hover {
-  background: rgba(243, 237, 224, 0.18);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .lp-hero-kicker {
@@ -305,10 +308,10 @@ html:has(.lp-page) {
   padding: 8%;
   border: none;
   border-radius: 28%;
-  background: linear-gradient(160deg, #FBF7EE 0%, var(--lp-cream-2) 100%);
+  background: linear-gradient(160deg, var(--lp-soft) 0%, var(--lp-cream-2) 100%);
   box-shadow:
     0 18px 40px rgba(3, 10, 32, 0.45),
-    inset 0 -6px 14px rgba(120, 96, 50, 0.12);
+    inset 0 -6px 14px rgba(12, 36, 97, 0.12);
   cursor: pointer;
   transition: opacity 0.4s ease, box-shadow 0.2s ease;
   will-change: transform;
@@ -381,7 +384,7 @@ html:has(.lp-page) {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  background: rgba(243, 237, 224, 0.92);
+  background: rgba(255, 255, 255, 0.92);
   color: var(--lp-ocean-deep);
   text-decoration: none;
   box-shadow: 0 12px 30px rgba(3, 10, 32, 0.4);
@@ -512,11 +515,11 @@ html:has(.lp-page) {
 
 .lp-cta-solid:hover {
   transform: translateY(-2px);
-  background: #000A2A;
+  background: #020617;
 }
 
 .lp-cta-line {
-  border: 1px solid rgba(243, 237, 224, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   background: rgba(6, 19, 56, 0.35);
   color: var(--lp-cream);
   backdrop-filter: blur(6px);
@@ -562,8 +565,7 @@ html:has(.lp-page) {
   gap: 1.4rem;
   padding-right: 1.4rem;
   font-family: var(--lp-serif);
-  font-style: italic;
-  font-weight: 500;
+    font-weight: 500;
   font-size: 1.15rem;
   color: var(--lp-ink);
   white-space: nowrap;
@@ -571,7 +573,7 @@ html:has(.lp-page) {
 
 .lp-marquee-star {
   font-style: normal;
-  color: #B07A12;
+  color: var(--lp-blue-accent);
   font-size: 0.85rem;
 }
 
@@ -606,7 +608,7 @@ html:has(.lp-page) {
 }
 
 .lp-metric-accent {
-  color: var(--lp-gold-warm);
+  color: var(--lp-gold);
 }
 
 .lp-metric-label {
@@ -635,8 +637,8 @@ html:has(.lp-page) {
   gap: 1rem;
   padding: 1.1rem 1.25rem;
   border-radius: 18px;
-  background: #FBF7EE;
-  box-shadow: 0 1px 0 rgba(120, 96, 50, 0.12);
+  background: var(--lp-soft);
+  box-shadow: 0 1px 0 rgba(12, 36, 97, 0.12);
 }
 
 .lp-highlight-num {
@@ -644,7 +646,7 @@ html:has(.lp-page) {
   font-weight: 800;
   font-size: 1.5rem;
   line-height: 1;
-  color: #B07A12;
+  color: var(--lp-blue-accent);
 }
 
 .lp-highlight h4 {
@@ -685,7 +687,7 @@ html:has(.lp-page) {
   bottom: 1rem;
   padding: 0.7rem 1rem;
   border-radius: 14px;
-  background: rgba(243, 237, 224, 0.92);
+  background: rgba(255, 255, 255, 0.92);
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--lp-ink);
@@ -703,7 +705,7 @@ html:has(.lp-page) {
 .lp-step-tile {
   padding: 2rem 1.75rem;
   border-radius: 26px;
-  background: linear-gradient(160deg, #FBF7EE 0%, var(--lp-cream-2) 100%);
+  background: linear-gradient(160deg, var(--lp-soft) 0%, var(--lp-cream-2) 100%);
   color: var(--lp-ink);
   box-shadow: 0 24px 50px rgba(3, 10, 32, 0.4);
   transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -786,7 +788,7 @@ html:has(.lp-page) {
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 700;
-  background: rgba(243, 237, 224, 0.14);
+  background: rgba(255, 255, 255, 0.14);
   color: var(--lp-cream);
   border: 1px solid var(--lp-on-dark-line);
 }
@@ -835,7 +837,7 @@ html:has(.lp-page) {
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: #B07A12;
+  color: var(--lp-blue-accent);
 }
 
 .lp-model-title {
@@ -857,7 +859,7 @@ html:has(.lp-page) {
   margin: 1.25rem 0;
   padding: 0.25rem 1.1rem;
   border-radius: 18px;
-  background: #FBF7EE;
+  background: var(--lp-soft);
 }
 
 .lp-model-meta > div {
@@ -869,7 +871,7 @@ html:has(.lp-page) {
 }
 
 .lp-model-meta > div + div {
-  border-top: 1px solid rgba(120, 96, 50, 0.16);
+  border-top: 1px solid rgba(12, 36, 97, 0.16);
 }
 
 .lp-model-meta dt {
@@ -908,7 +910,7 @@ html:has(.lp-page) {
   padding: 0.65rem 0.75rem;
   border-radius: 14px;
   border: 1.5px solid transparent;
-  background: #FBF7EE;
+  background: var(--lp-soft);
   font-family: inherit;
   text-align: left;
   cursor: pointer;
@@ -980,7 +982,7 @@ html:has(.lp-page) {
   padding: 0.6rem;
   border-radius: 24px;
   border: 1.5px solid transparent;
-  background: #FBF7EE;
+  background: var(--lp-soft);
   font-family: inherit;
   text-align: left;
   cursor: pointer;
@@ -1000,7 +1002,7 @@ html:has(.lp-page) {
   display: block;
   height: 180px;
   border-radius: 18px;
-  background: linear-gradient(160deg, var(--lp-cream-2) 0%, #D9CDB3 100%);
+  background: linear-gradient(160deg, var(--lp-cream-2) 0%, #DCE4F2 100%);
   overflow: hidden;
 }
 
@@ -1016,7 +1018,7 @@ html:has(.lp-page) {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #B07A12;
+  color: var(--lp-blue-accent);
 }
 
 .lp-model-card-title {
@@ -1049,7 +1051,7 @@ html:has(.lp-page) {
   margin: 0 auto;
   border-radius: 22px;
   overflow: hidden;
-  border: 6px solid rgba(243, 237, 224, 0.1);
+  border: 6px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 30px 60px rgba(3, 10, 32, 0.45);
 }
 
@@ -1080,7 +1082,7 @@ html:has(.lp-page) {
 }
 
 .lp-eco-card--web {
-  background: #FBF7EE;
+  background: var(--lp-soft);
   color: var(--lp-ink);
 }
 
@@ -1091,7 +1093,7 @@ html:has(.lp-page) {
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.12em;
-  color: #B07A12;
+  color: var(--lp-blue-accent);
 }
 
 .lp-eco-card--mobile .lp-eco-tag {
@@ -1143,7 +1145,7 @@ html:has(.lp-page) {
 }
 
 .lp-eco-card--mobile .lp-feat-icon {
-  background: rgba(243, 237, 224, 0.12);
+  background: rgba(255, 255, 255, 0.12);
   color: var(--lp-gold-warm);
 }
 
@@ -1171,7 +1173,7 @@ html:has(.lp-page) {
   border-radius: 34px;
   background: #050B1F;
   box-shadow:
-    0 0 0 2px rgba(243, 237, 224, 0.12),
+    0 0 0 2px rgba(255, 255, 255, 0.12),
     0 30px 60px rgba(0, 0, 0, 0.5);
   transform: rotate(4deg);
 }
@@ -1211,7 +1213,7 @@ html:has(.lp-page) {
   position: absolute;
   right: -30px;
   bottom: -40px;
-  color: rgba(243, 237, 224, 0.07);
+  color: rgba(255, 255, 255, 0.07);
   pointer-events: none;
 }
 
@@ -1228,12 +1230,12 @@ html:has(.lp-page) {
 }
 
 .lp-bento-aside .lp-kicker {
-  color: #7A5408;
+  color: var(--lp-blue-accent);
   margin-bottom: 0.4rem;
 }
 
 .lp-bento-aside .lp-body {
-  color: #4A3F28;
+  color: var(--lp-ink-muted);
 }
 
 .lp-bento-title {
@@ -1274,14 +1276,14 @@ html:has(.lp-page) {
   height: 8px;
   margin: 0.75rem 0;
   border-radius: 999px;
-  background: rgba(243, 237, 224, 0.14);
+  background: rgba(255, 255, 255, 0.14);
   overflow: hidden;
 }
 
 .lp-progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--lp-gold-warm), #FFD98A);
+  background: linear-gradient(90deg, var(--lp-gold-warm), #DBEAFE);
 }
 
 /* ══ FAQ ═══════════════════════════════════════════════════════════════════ */
@@ -1304,7 +1306,7 @@ html:has(.lp-page) {
 
 .lp-faq-item {
   border-radius: 18px;
-  background: #FBF7EE;
+  background: var(--lp-soft);
   transition: background-color 0.2s ease;
 }
 
@@ -1391,7 +1393,7 @@ html:has(.lp-page) {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.75rem 0.75rem 0.25rem;
-  color: #3A2D12;
+  color: var(--lp-ocean);
 }
 
 .lp-footer-left {
@@ -1415,7 +1417,7 @@ html:has(.lp-page) {
 .lp-footer-sub {
   margin: 0.1rem 0 0;
   font-size: 0.8rem;
-  color: #5A4723;
+  color: var(--lp-ink-muted);
 }
 
 .lp-footer-right {
@@ -1423,7 +1425,7 @@ html:has(.lp-page) {
   flex-wrap: wrap;
   gap: 0.5rem;
   font-size: 0.8rem;
-  color: #5A4723;
+  color: var(--lp-ink-muted);
 }
 
 .lp-footer-pipe {

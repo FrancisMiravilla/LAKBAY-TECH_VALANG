@@ -61,15 +61,15 @@ const MODELS = [
     details: 'Complex geometric motifs reflecting nature, Islamic geometry, and ancestral storytelling traditions.',
   },
   {
-    id: 'building',
-    title: 'Heritage Architecture',
-    short: 'Heritage',
-    subtitle: 'Western Mindanao Cultural Landmark',
-    category: 'Architectural Heritage',
-    badge: 'Historic Structure',
+    id: 'lantaka',
+    title: 'Lantaka',
+    short: 'Lantaka',
+    subtitle: 'Bronze Swivel Cannon',
+    category: 'Moro Heritage Artifact',
+    badge: 'Historic Artifact',
     src: '/models/resort_building_final.glb',
-    desc: 'Historic coastal and fortress architecture embodying Spanish colonial, American period, and traditional Moro spatial designs.',
-    details: 'High-detail architectural model capturing the preservation of Zamboanga historic structures and pavilion outposts.',
+    desc: 'The bronze swivel cannon cast by Moro metalsmiths, once mounted on sea vessels and coastal defenses to guard the waters of Zamboanga and Mindanao.',
+    details: 'Cast-bronze barrel with ornamental motifs, prized as a symbol of wealth, status, and defense in Moro communities.',
   },
 ];
 
@@ -111,9 +111,10 @@ const MARQUEE_PLACES = [
   'Pasonanca Natural Park',
 ];
 
-// ── Interactive Mapbox Component (same design as the mobile Explore map) ────
-// Spot data needs a login, so anonymous visitors see a few showcase landmarks;
-// published promotions are public and always load.
+// ── Interactive Mapbox Component (same data as the admin Interactive Map) ──
+// Places and Catch models come from the public map endpoint; published
+// promotions load inside LakbayMap. The showcase pins only appear if the
+// server can't be reached.
 const SHOWCASE_SPOTS = [
   { id: 'fort-pilar', name: 'Fort Pilar National Museum', description: 'AR exhibits inside the 1635 Spanish fort.', location_name: 'Zone IV', latitude: 6.9038, longitude: 122.0825, feature_types: ['ar'], required_level: 1 },
   { id: 'city-hall', name: 'Zamboanga City Hall', description: 'Scan the marker to unlock its story.', location_name: 'Zone IV', latitude: 6.9062, longitude: 122.0758, feature_types: ['qr'], required_level: 1 },
@@ -121,26 +122,33 @@ const SHOWCASE_SPOTS = [
 ];
 
 function MapSection() {
-  const [spots, setSpots] = useState(SHOWCASE_SPOTS);
+  const [spots, setSpots] = useState([]);
+  const [catchIcons, setCatchIcons] = useState([]);
 
   useEffect(() => {
-    if (!localStorage.getItem('accessToken')) return;
-    qrService.getSpots()
+    let cancelled = false;
+    qrService.getPublicMap()
       .then(({ data }) => {
-        const items = Array.isArray(data) ? data : (data.results || []);
-        if (items.length) setSpots(items);
+        if (cancelled) return;
+        setSpots(Array.isArray(data?.spots) ? data.spots : []);
+        setCatchIcons(Array.isArray(data?.catch_icons) ? data.catch_icons : []);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setSpots(SHOWCASE_SPOTS);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
     <div className="lp-map-container">
-      <LakbayMap spots={spots} />
+      <LakbayMap spots={spots} catchIcons={catchIcons} />
     </div>
   );
 }
 
-// ── Sand-dune pedestal the hero model stands on ─────────────────────────────
+// ── Wave-shaped hill the hero model stands on ─────────────────────────────
 function DunePedestal({ id = 'hero' }) {
   const main = `lpDuneMain-${id}`;
   const side = `lpDuneSide-${id}`;
@@ -149,19 +157,19 @@ function DunePedestal({ id = 'hero' }) {
     <svg className="lp-dunes" viewBox="0 0 1200 260" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
       <defs>
         <linearGradient id={main} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#E3C789" />
-          <stop offset="0.55" stopColor="#B8954F" />
-          <stop offset="1" stopColor="#6E5528" />
+          <stop offset="0" stopColor="#5B8DEF" />
+          <stop offset="0.55" stopColor="#1D4ED8" />
+          <stop offset="1" stopColor="#0C2461" />
         </linearGradient>
         <linearGradient id={side} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#C9A863" />
-          <stop offset="1" stopColor="#5A4520" />
+          <stop offset="0" stopColor="#2F5FC4" />
+          <stop offset="1" stopColor="#08143C" />
         </linearGradient>
         <filter id={grain} x="0" y="0" width="100%" height="100%">
           <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="noise" />
           <feColorMatrix in="noise" type="saturate" values="0" result="mono" />
           <feComponentTransfer in="mono" result="grain">
-            <feFuncA type="table" tableValues="0 0.35" />
+            <feFuncA type="table" tableValues="0 0.18" />
           </feComponentTransfer>
           <feComposite in="grain" in2="SourceGraphic" operator="in" result="grainIn" />
           <feBlend in="SourceGraphic" in2="grainIn" mode="multiply" />
@@ -174,7 +182,7 @@ function DunePedestal({ id = 'hero' }) {
         fill={`url(#${main})`}
         filter={`url(#${grain})`}
       />
-      <path d="M520 104 C560 84 640 84 680 104" stroke="#F4E2B4" strokeOpacity="0.45" strokeWidth="2" fill="none" />
+      <path d="M520 104 C560 84 640 84 680 104" stroke="#DBEAFE" strokeOpacity="0.45" strokeWidth="2" fill="none" />
     </svg>
   );
 }

@@ -120,6 +120,25 @@ class CulturalIconSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class PublicMapSpotSerializer(serializers.ModelSerializer):
+    """Read-only spot fields the public landing-page map needs."""
+
+    class Meta:
+        model = CulturalSpot
+        fields = [
+            'id', 'name', 'description', 'location_name', 'latitude', 'longitude',
+            'feature_types', 'required_level', 'model_3d',
+        ]
+        read_only_fields = fields
+
+
+class PublicMapIconSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CulturalIcon
+        fields = ['id', 'name', 'model_3d']
+        read_only_fields = fields
+
+
 class ARTargetSerializer(serializers.ModelSerializer):
     spot_id = serializers.PrimaryKeyRelatedField(
         queryset=CulturalSpot.objects.all(), source='spot', write_only=True, required=False, allow_null=True

@@ -19,6 +19,7 @@ from .models import (
     UserActivityLog
 )
 from .serializers import (
+    PublicMapSpotSerializer, PublicMapIconSerializer,
     CulturalSpotSerializer, QRMarkerSerializer,
     TriviaQuestionSerializer, TriviaQuestionAdminSerializer,
     CulturalIconSerializer, ARTargetSerializer, MilestoneBadgeSerializer
@@ -75,6 +76,24 @@ class CulturalSpotViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             return [permissions.IsAuthenticated()]
         return [permissions.IsAdminUser()]
+
+
+class PublicMapView(APIView):
+    """Spots and Catch models for the public landing-page map (no login)."""
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        spots = CulturalSpot.objects.only(*PublicMapSpotSerializer.Meta.fields).order_by('name')
+        icons = (
+            CulturalIcon.objects.only(*PublicMapIconSerializer.Meta.fields)
+            .exclude(model_3d='').exclude(model_3d__isnull=True).order_by('name')
+        )
+        context = {'request': request}
+        return Response({
+            'spots': PublicMapSpotSerializer(spots, many=True, context=context).data,
+            'catch_icons': PublicMapIconSerializer(icons, many=True, context=context).data,
+        })
 
 
 class QRMarkerViewSet(viewsets.ModelViewSet):

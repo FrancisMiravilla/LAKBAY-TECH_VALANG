@@ -9,7 +9,7 @@ from .views import (
     IconTriviaView, SubmitIconTriviaView,
     TriviaReviewListView, TriviaReviewActionView,
     ARTargetViewSet, MilestoneBadgeViewSet,
-    DashboardStatsView, LogActivityView, MyCollectionView,
+    DashboardStatsView, LogActivityView, MyCollectionView, PublicMapView,
 )
 
 router = DefaultRouter()
@@ -22,6 +22,7 @@ router.register(r'milestones', MilestoneBadgeViewSet, basename='milestones')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('public-map/', PublicMapView.as_view(), name='qr_public_map'),
     path('validate/', ValidateQRView.as_view(), name='qr_validate'),
     path('my-scans/', UserQRScansView.as_view(), name='qr_my_scans'),
     path('my-collection/', MyCollectionView.as_view(), name='qr_my_collection'),
