@@ -11,8 +11,8 @@ import './ReportsPage.css';
 // Categorical slots 1-3 (validated all-pairs for CVD in both modes). Single-measure
 // charts use slot 1 only.
 const PALETTE = {
-  light: { s1: '#2a78d6', s2: '#eb6834', s3: '#1baf7a', grid: '#E2E8F0', axis: '#64748B' },
-  dark: { s1: '#3987e5', s2: '#d95926', s3: '#199e70', grid: '#2A3152', axis: '#94A3B8' },
+  light: { s1: '#14967F', s2: '#F08A3C', s3: '#7C6CF2', grid: '#ECEEF2', axis: '#6B7280' },
+  dark: { s1: '#2BB59B', s2: '#F29A55', s3: '#8F82F5', grid: '#252A33', axis: '#9CA3AF' },
 };
 
 const PRESETS = [

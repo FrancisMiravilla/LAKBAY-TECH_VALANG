@@ -1509,22 +1509,6 @@ function App() {
         </nav>
 
       <div className="sidebar-footer">
-        <div className="sidebar-user-row">
-          <div className="user-avatar">
-            {(currentUser?.name || currentUser?.username || currentUser?.email || 'G')
-              .charAt(0)
-              .toUpperCase()}
-          </div>
-          <div className="user-info">
-            <span className="user-name">
-              {currentUser?.name || currentUser?.username || currentUser?.email || 'Guest User'}
-            </span>
-            <span className="user-role">
-              {currentUser?.is_staff ? 'Super Administrator' : 'User'}
-            </span>
-          </div>
-        </div>
-
         <button className="sidebar-logout-btn" onClick={() => setShowLogoutModal(true)}>
           <LogOut size={13} />
           Sign Out
@@ -1536,73 +1520,38 @@ function App() {
       <main className="main-content">
         {/* HEADER */}
         <header className="main-header">
-          <div className="header-title-container">
-            <h1 className="header-title">
-              {activeTab === 'overview' && 'LAKBAY Dashboard'}
-              {activeTab === 'spots' && 'Feature Places'}
-              {activeTab === 'qrcodes' && 'QR Codes'}
-              {activeTab === 'map' && 'Interactive Map'}
-              {activeTab === 'ar' && 'AR Progress'}
-              {activeTab === 'catch' && 'CATCH Progress'}
-
-              {activeTab === 'trivia' && 'Trivia Questions'}
-              {activeTab === 'users' && 'User Directory'}
-              {activeTab === 'badges' && 'Gamification Badges'}
-              {activeTab === 'reports' && 'Analytics & Reports'}
-              {activeTab === 'promotions' && 'Promotions Queue'}
-              {activeTab === 'coin_bundles' && 'Coin Bundles'}
-              {activeTab === 'settings' && 'System Settings'}
-            </h1>
-            <span className="header-subtitle">
-              {activeTab === 'overview' && 'Zamboanga City cultural app performance & analytics'}
-              {activeTab === 'spots' && 'Manage geographic positions and historical details of Zamboanga'}
-              {activeTab === 'qrcodes' && 'Manage and download system spot QR codes'}
-              {activeTab === 'map' && 'Geospatial visualization and geofencing of tourist spots'}
-              {activeTab === 'ar' && 'Track AR museum exhibit interactions and visits'}
-              {activeTab === 'catch' && 'Monitor the capture rate of cultural icons'}
-
-              {activeTab === 'trivia' && 'Manage the randomized question pool for each cultural spot'}
-              {activeTab === 'users' && 'Manage user achievements, checks, and registration status'}
-              {activeTab === 'badges' && 'Configure and inspect user achievement badges'}
-              {activeTab === 'reports' && 'Export records and review monthly performance summaries'}
-              {activeTab === 'promotions' && 'Review and approve submitted user promotions and 3D models'}
-              {activeTab === 'coin_bundles' && 'Manage coin bundles available for purchase'}
-              {activeTab === 'settings' && 'Configure system variables like dynamic pricing'}
-            </span>
-          </div>
+          {/* Context Search Input */}
+          {activeTab === 'users' ? (
+            <div className="search-bar">
+              <Search size={16} className="text-secondary" />
+              <input 
+                type="text" 
+                placeholder="Search registered users..." 
+                className="search-input"
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+              />
+              {userSearchQuery && (
+                <X size={16} className="text-secondary" style={{cursor: 'pointer'}} onClick={() => setUserSearchQuery('')} />
+              )}
+            </div>
+          ) : (
+            <div className="search-bar">
+              <Search size={16} className="text-secondary" />
+              <input 
+                type="text" 
+                placeholder="Search feature places..." 
+                className="search-input"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <X size={16} className="text-secondary" style={{cursor: 'pointer'}} onClick={() => setSearchQuery('')} />
+              )}
+            </div>
+          )}
 
           <div className="header-actions">
-            {/* Context Search Input */}
-            {activeTab === 'users' ? (
-              <div className="search-bar">
-                <Search size={16} className="text-secondary" />
-                <input 
-                  type="text" 
-                  placeholder="Search registered users..." 
-                  className="search-input"
-                  value={userSearchQuery}
-                  onChange={(e) => setUserSearchQuery(e.target.value)}
-                />
-                {userSearchQuery && (
-                  <X size={16} className="text-secondary" style={{cursor: 'pointer'}} onClick={() => setUserSearchQuery('')} />
-                )}
-              </div>
-            ) : (
-              <div className="search-bar">
-                <Search size={16} className="text-secondary" />
-                <input 
-                  type="text" 
-                  placeholder="Search feature places..." 
-                  className="search-input"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {searchQuery && (
-                  <X size={16} className="text-secondary" style={{cursor: 'pointer'}} onClick={() => setSearchQuery('')} />
-                )}
-              </div>
-            )}
-
             {/* Notification Bell */}
             <div style={{position: 'relative'}}>
               <button 
@@ -1614,30 +1563,19 @@ function App() {
               </button>
 
               {showNotificationDropdown && (
-                <div style={{
-                  position: 'absolute', 
-                  right: 0, 
-                  top: '50px', 
-                  backgroundColor: '#1E254C', 
-                  border: '1px solid #2D376D', 
-                  borderRadius: '12px', 
-                  width: '320px', 
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-                  zIndex: 150,
-                  padding: '16px'
-                }}>
-                  <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid #2D376D', paddingBottom: '8px'}}>
-                    <span style={{fontWeight: 700, fontSize: '13px'}}>Notifications</span>
-                    <span style={{fontSize: '11px', color: 'var(--accent-blue)', cursor: 'pointer'}} onClick={() => setNotifications([])}>Clear all</span>
+                <div className="notif-dropdown">
+                  <div className="notif-dropdown-head">
+                    <span>Notifications</span>
+                    <span className="notif-dropdown-clear" onClick={() => setNotifications([])}>Clear all</span>
                   </div>
                   <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
                     {notifications.length === 0 ? (
                       <span style={{fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', padding: '12px 0'}}>No alerts</span>
                     ) : (
                       notifications.map(n => (
-                        <div key={n.id} style={{display: 'flex', flexDirection: 'column', gap: '2px', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '8px'}}>
-                          <span style={{fontSize: '12px', color: '#F7FAFC'}}>{n.text}</span>
-                          <span style={{fontSize: '10px', color: '#718096'}}>{n.time}</span>
+                        <div key={n.id} className="notif-item">
+                          <span className="notif-item-text">{n.text}</span>
+                          <span className="notif-item-time">{n.time}</span>
                         </div>
                       ))
                     )}
@@ -1656,6 +1594,61 @@ function App() {
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
 
+            <div className="header-user">
+              <div className="user-avatar">
+                {(currentUser?.name || currentUser?.username || currentUser?.email || 'G')
+                  .charAt(0)
+                  .toUpperCase()}
+              </div>
+              <div className="user-info">
+                <span className="user-name">
+                  {currentUser?.name || currentUser?.username || currentUser?.email || 'Guest User'}
+                </span>
+                <span className="user-role">
+                  {currentUser?.is_staff ? 'Super Administrator' : 'User'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* PAGE BODY */}
+        <div className="page-body">
+          <div className="page-heading">
+            <div className="header-title-container">
+              <h1 className="header-title">
+                {activeTab === 'overview' && 'LAKBAY Dashboard'}
+                {activeTab === 'spots' && 'Feature Places'}
+                {activeTab === 'qrcodes' && 'QR Codes'}
+                {activeTab === 'map' && 'Interactive Map'}
+                {activeTab === 'ar' && 'AR Progress'}
+                {activeTab === 'catch' && 'CATCH Progress'}
+
+                {activeTab === 'trivia' && 'Trivia Questions'}
+                {activeTab === 'users' && 'User Directory'}
+                {activeTab === 'badges' && 'Gamification Badges'}
+                {activeTab === 'reports' && 'Analytics & Reports'}
+                {activeTab === 'promotions' && 'Promotions Queue'}
+                {activeTab === 'coin_bundles' && 'Coin Bundles'}
+                {activeTab === 'settings' && 'System Settings'}
+              </h1>
+              <span className="header-subtitle">
+                {activeTab === 'overview' && 'Zamboanga City cultural app performance & analytics'}
+                {activeTab === 'spots' && 'Manage geographic positions and historical details of Zamboanga'}
+                {activeTab === 'qrcodes' && 'Manage and download system spot QR codes'}
+                {activeTab === 'map' && 'Geospatial visualization and geofencing of tourist spots'}
+                {activeTab === 'ar' && 'Track AR museum exhibit interactions and visits'}
+                {activeTab === 'catch' && 'Monitor the capture rate of cultural icons'}
+
+                {activeTab === 'trivia' && 'Manage the randomized question pool for each cultural spot'}
+                {activeTab === 'users' && 'Manage user achievements, checks, and registration status'}
+                {activeTab === 'badges' && 'Configure and inspect user achievement badges'}
+                {activeTab === 'reports' && 'Export records and review monthly performance summaries'}
+                {activeTab === 'promotions' && 'Review and approve submitted user promotions and 3D models'}
+                {activeTab === 'coin_bundles' && 'Manage coin bundles available for purchase'}
+                {activeTab === 'settings' && 'Configure system variables like dynamic pricing'}
+              </span>
+            </div>
             {/* Context Add Button */}
             {activeTab === 'spots' && (
               <button className="btn btn-primary" onClick={() => setIsAddSpotModalOpen(true)}>
@@ -1664,11 +1657,7 @@ function App() {
               </button>
             )}
           </div>
-        </header>
 
-        {/* PAGE BODY */}
-        <div className="page-body">
-          
           {/* TAB CONTENT: 1. DASHBOARD */}
           {activeTab === 'overview' && (
             <>
@@ -1755,10 +1744,10 @@ function App() {
                     {(() => {
                       const chartData = spotVisitsForChart.slice(0, 7);
                       const maxVisits = Math.max(...chartData.map(s => s.visits), 1);
-                      return chartData.map((spot) => {
+                      return chartData.map((spot, idx) => {
                         const pctHeight = Math.max(8, (spot.visits / maxVisits) * 100);
                         return (
-                          <div key={spot.id} className="chart-bar-item">
+                          <div key={spot.id} className={`chart-bar-item ${idx === 0 ? 'is-top' : ''}`}>
                             <div className="chart-tooltip">{spot.visits.toLocaleString()} scans</div>
                             <div className="chart-bar" style={{height: `${pctHeight}%`}}></div>
                             <span className="chart-bar-label" title={spot.name}>{spot.name.split(' ')[0]}</span>
@@ -1770,7 +1759,7 @@ function App() {
 
                   <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)'}}>
                     <span>Visits counted via app check-ins</span>
-                    <span>Magenta Pink accents represent high-traffic spots</span>
+                    <span>Solid bar marks the most visited spot</span>
                   </div>
                 </div>
 

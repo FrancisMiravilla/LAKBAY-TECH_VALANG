@@ -150,37 +150,37 @@ const CoinBundleManagement = () => {
 
   const inputStyle = {
     width: '100%',
-    padding: '12px 16px',
-    borderRadius: '8px',
+    padding: '9px 12px',
+    borderRadius: '10px',
     border: '1px solid var(--border-color, #ccc)',
     background: 'var(--bg-color, #fff)',
     color: 'var(--text-primary, #333)',
-    fontSize: '15px',
+    fontSize: '13.5px',
     outline: 'none',
     boxSizing: 'border-box',
-    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
+    boxShadow: 'none'
   };
 
   const buttonStyle = {
-    padding: '12px 24px',
-    borderRadius: '8px',
+    padding: '9px 16px',
+    borderRadius: '10px',
     fontWeight: '600',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    fontSize: '15px',
+    fontSize: '13px',
     border: 'none',
     transition: 'background 0.2s ease'
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-        <h2 style={{ margin: 0 }}>Coin Bundles Management</h2>
+    <div className="content-card">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <h2 className="card-title" style={{ margin: 0 }}>Coin Bundles Management</h2>
         <button 
           onClick={() => handleOpenForm()}
-          style={{ ...buttonStyle, background: '#3b82f6', color: '#fff' }}
+          style={{ ...buttonStyle, background: 'var(--accent-blue)', color: '#fff' }}
         >
           <Plus size={18} /> Add Bundle
         </button>
@@ -189,7 +189,7 @@ const CoinBundleManagement = () => {
       {error && <div style={{ color: '#ef4444', marginBottom: '15px', padding: '10px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px' }}>{error}</div>}
 
       {isFormOpen ? (
-        <div style={{ background: 'var(--card-bg, #fff)', borderRadius: '12px', padding: '30px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: '1px solid var(--border-color, #eaeaea)' }}>
+        <div style={{ background: 'var(--card-bg, #fff)', borderRadius: '14px', padding: '22px', boxShadow: 'none', border: '1px solid var(--border-color, #eaeaea)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px', alignItems: 'center' }}>
             <h3 style={{ margin: 0, fontSize: '20px' }}>{editingBundle ? 'Edit Coin Bundle' : 'Create New Coin Bundle'}</h3>
             <button onClick={handleCloseForm} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary, #666)', padding: '5px' }}>
@@ -289,7 +289,7 @@ const CoinBundleManagement = () => {
                 <button type="button" onClick={handleCloseForm} style={{ ...buttonStyle, background: 'transparent', color: 'var(--text-primary, #333)', border: '1px solid var(--border-color, #ccc)' }}>
                   Cancel
                 </button>
-                <button type="submit" style={{ ...buttonStyle, background: '#10b981', color: '#fff' }}>
+                <button type="submit" style={{ ...buttonStyle, background: 'var(--accent-blue)', color: '#fff' }}>
                   <Save size={18} /> Save Bundle
                 </button>
               </div>
@@ -333,7 +333,7 @@ const CoinBundleManagement = () => {
                   <div style={{ display: 'flex', gap: '12px' }}>
                     <button 
                       onClick={() => handleOpenForm(bundle)} 
-                      style={{ background: 'rgba(59, 130, 246, 0.1)', border: 'none', cursor: 'pointer', color: '#3b82f6', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      style={{ background: 'var(--accent-blue-light)', border: 'none', cursor: 'pointer', color: 'var(--accent-blue)', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       title="Edit Bundle"
                     >
                       <Edit size={18} />

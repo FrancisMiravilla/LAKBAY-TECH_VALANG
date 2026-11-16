@@ -83,7 +83,7 @@ export default function PromotionModeration() {
     <section className="content-card" style={{ gap: '30px', paddingBottom: '40px', position: 'relative' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+          <h2 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-title)', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
             <Box size={28} color="var(--accent-gold)" />
             Promotion Moderation Queue
           </h2>
@@ -153,7 +153,7 @@ export default function PromotionModeration() {
             >
               
               {/* Media Thumbnail */}
-              <div style={{ width: '100%', height: '160px', backgroundColor: '#111', position: 'relative' }}>
+              <div style={{ width: '100%', height: '160px', backgroundColor: 'var(--subtle-bg)', position: 'relative' }}>
                 {promo.model_3d_file ? (
                   <model-viewer
                     src={promo.model_3d_file}
@@ -171,8 +171,8 @@ export default function PromotionModeration() {
               </div>
 
               {/* Minimal Content */}
-              <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff' }}>
-                <h3 style={{ margin: '0 0 8px 0', color: '#111827', fontSize: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{promo.spot_name}</h3>
+              <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--card-bg)' }}>
+                <h3 style={{ margin: '0 0 8px 0', color: 'var(--text-title)', fontSize: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{promo.spot_name}</h3>
                 
                 {/* Status Badge */}
                 <div style={{ 
