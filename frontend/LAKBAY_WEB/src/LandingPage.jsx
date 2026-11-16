@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import './LandingPage.css';
 import lakbayLogo from './assets/lakbay_icon_glyph.png';
+import authBackdrop from './assets/zc2.webp';
 
 // ── Models Data ─────────────────────────────────────────────────────────────
 const MODELS = [
@@ -356,6 +357,22 @@ export default function LandingPage({
     });
   };
 
+  const isGuide = selectedRole === 'tourist_guide';
+
+  useEffect(() => {
+    if (!isLoginModalOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setIsLoginModalOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isLoginModalOpen]);
+
   const handleOpenAdminModal = (role = 'admin') => {
     setSelectedRole(role);
     setIsLoginModalOpen(true);
@@ -383,13 +400,6 @@ export default function LandingPage({
           </nav>
 
           <div className="lp-topbar-actions">
-            <button
-              type="button"
-              className="lp-chip-btn lp-chip-btn--ghost"
-              onClick={() => handleOpenAdminModal('tourist_guide')}
-            >
-              Tour Guide Portal
-            </button>
             <button
               type="button"
               className="lp-chip-btn"
@@ -917,157 +927,120 @@ export default function LandingPage({
         </div>
       </footer>
 
-      {/* ── Login Modal (Preserved for Administrators & Tour Guides) ── */}
+      {/* ── Staff sign-in (Administrators & Tour Guides) ── */}
       {isLoginModalOpen && (
-        <div className="lp-modal-backdrop" onClick={() => setIsLoginModalOpen(false)}>
-          <div
-            className={`lp-login-modal ${selectedRole === 'tourist_guide' ? 'lp-login-modal--guide' : ''}`}
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-          >
-            <div
-              className={`lp-login-glow-bar ${selectedRole === 'tourist_guide' ? 'lp-login-glow-bar--guide' : ''}`}
-            />
-
-            <button
-              className="lp-login-close-btn"
-              onClick={() => setIsLoginModalOpen(false)}
-              aria-label="Close Staff Portal login modal"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="lp-login-header">
-              <div className="lp-login-logo-wrap">
-                <img src={lakbayLogo} alt="LAKBAY" className="lp-login-logo" />
-              </div>
-              <h2 className="lp-login-title">
-                LAKBAY{' '}
-                <span
-                  className={`lp-login-title-accent ${selectedRole === 'tourist_guide' ? 'lp-login-title-accent--guide' : ''}`}
+        <div
+          className={`lp-auth ${isGuide ? 'lp-auth--guide' : ''}`}
+          style={{ backgroundImage: `url(${authBackdrop})` }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="lp-auth-title"
+        >
+          <div className="lp-auth-card">
+            <div className="lp-auth-main">
+              <h2 id="lp-auth-title" className="lp-auth-title">Log In</h2>
+              <p className="lp-auth-switch">
+                {isGuide ? 'Are you an administrator of LAKBAY? ' : 'Are you the tour guide of LAKBAY? '}
+                <button
+                  type="button"
+                  onClick={() => setSelectedRole(isGuide ? 'admin' : 'tourist_guide')}
                 >
-                  {selectedRole === 'tourist_guide' ? 'GUIDE' : 'ADMIN'}
-                </span>
-              </h2>
-              <p className="lp-login-subtitle">
-                {selectedRole === 'tourist_guide'
-                  ? 'Cultural Validation & Tour Guide Portal'
-                  : 'Zamboanga Cultural System Administration'}
+                  Click sign in
+                </button>
               </p>
-            </div>
 
-            {/* Role Tab Selector */}
-            <div className="lp-role-selector">
-              <button
-                type="button"
-                className={`lp-role-tab ${selectedRole === 'admin' ? 'lp-role-tab--active' : ''}`}
-                onClick={() => setSelectedRole('admin')}
-              >
-                <div className="lp-role-tab-icon">
-                  <ShieldCheck size={20} />
-                </div>
-                <div className="lp-role-tab-info">
-                  <span className="lp-role-tab-title">Administrator</span>
-                  <span className="lp-role-tab-sub">System Operations</span>
-                </div>
-              </button>
+              {loginError && <div className="lp-auth-error" role="alert">{loginError}</div>}
 
-              <button
-                type="button"
-                className={`lp-role-tab lp-role-tab--guide ${selectedRole === 'tourist_guide' ? 'lp-role-tab--active' : ''}`}
-                onClick={() => setSelectedRole('tourist_guide')}
-              >
-                <div className="lp-role-tab-icon">
-                  <Compass size={20} />
-                </div>
-                <div className="lp-role-tab-info">
-                  <span className="lp-role-tab-title">Tour Guide</span>
-                  <span className="lp-role-tab-sub">Quiz &amp; Verification</span>
-                </div>
-              </button>
-            </div>
-
-            {/* Scope Badge */}
-            {selectedRole === 'admin' ? (
-              <div className="lp-role-desc-box">
-                <span className="lp-role-desc-badge">ADMIN ACCESS</span>
-                <p className="lp-role-desc-text">
-                  Manage cultural spots, 3D AR targets, QR markers, users, merchant promotions, and live platform analytics.
-                </p>
-              </div>
-            ) : (
-              <div className="lp-role-desc-box lp-role-desc-box--guide">
-                <span className="lp-role-desc-badge">GUIDE ACCESS</span>
-                <p className="lp-role-desc-text">
-                  Educational &amp; cultural validation hub: review, edit, approve, or reject AI-generated quizzes and verify local lore.
-                </p>
-              </div>
-            )}
-
-            {loginError && <div className="lp-login-error">{loginError}</div>}
-
-            <form onSubmit={onLogin} className="lp-login-form">
-              <div className="lp-form-group">
-                <label className="lp-form-label">
-                  {selectedRole === 'admin' ? 'Administrator Email' : 'Tour Guide Email'}
-                </label>
-                <div className="lp-input-wrap">
-                  <Lock size={16} className="lp-input-icon" />
+              <form onSubmit={onLogin} className="lp-auth-form">
+                <label className="lp-auth-field">
+                  <span className="lp-auth-field-label">
+                    {isGuide ? 'Tour Guide Email' : 'Administrator Email'}
+                  </span>
+                  <span className="lp-auth-field-hint">Use your LAKBAY staff email address</span>
                   <input
                     type="email"
-                    className="lp-form-input"
-                    placeholder={selectedRole === 'admin' ? 'admin@lakbay.ph' : 'guide@lakbay.ph'}
+                    placeholder={isGuide ? 'guide@lakbay.ph' : 'admin@lakbay.ph'}
                     value={loginCredentials?.email || ''}
                     onChange={(e) =>
                       setLoginCredentials &&
                       setLoginCredentials({ ...loginCredentials, email: e.target.value })
                     }
+                    autoComplete="email"
                     required
                     autoFocus
                   />
-                </div>
-              </div>
+                </label>
 
-              <div className="lp-form-group">
-                <label className="lp-form-label">Password</label>
-                <div className="lp-input-wrap">
-                  <Lock size={16} className="lp-input-icon" />
+                <label className="lp-auth-field">
+                  <span className="lp-auth-field-label">Password</span>
+                  <span className="lp-auth-field-hint">Enter your password</span>
                   <input
                     type="password"
-                    className="lp-form-input"
-                    placeholder="Enter your password"
+                    placeholder="••••••••"
                     value={loginCredentials?.password || ''}
                     onChange={(e) =>
                       setLoginCredentials &&
                       setLoginCredentials({ ...loginCredentials, password: e.target.value })
                     }
+                    autoComplete="current-password"
                     required
                   />
+                </label>
+
+                <div className="lp-auth-actions">
+                  <button
+                    type="button"
+                    className="lp-auth-cancel"
+                    onClick={() => setIsLoginModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="lp-auth-submit" disabled={isLoggingIn}>
+                    {isLoggingIn
+                      ? isSlowLogin
+                        ? 'Waking up server, this can take up to a minute...'
+                        : 'Authenticating...'
+                      : isGuide
+                      ? 'Sign in as Tour Guide'
+                      : 'Sign in as Administrator'}
+                  </button>
                 </div>
+              </form>
+
+              <div className="lp-auth-foot">
+                <p>LAKBAY Staff Portal — Dedicated access for Administrators &amp; Certified Tour Guides</p>
+                <span className="lp-auth-foot-icon">
+                  <Lock size={15} />
+                </span>
               </div>
-
-              <button
-                type="submit"
-                className={`lp-btn lp-btn-primary lp-login-submit-btn ${selectedRole === 'tourist_guide' ? 'lp-login-submit-btn--guide' : ''}`}
-                disabled={isLoggingIn}
-              >
-                {isLoggingIn
-                  ? isSlowLogin
-                    ? 'Waking up server, this can take up to a minute...'
-                    : 'Authenticating...'
-                  : selectedRole === 'admin'
-                  ? 'Sign in as Administrator →'
-                  : 'Sign in as Tour Guide →'}
-              </button>
-            </form>
-
-            <div className="lp-login-footer">
-              <p className="lp-login-footer-text">
-                LAKBAY Staff Portal — Dedicated access for Administrators &amp; Certified Tour Guides
-              </p>
             </div>
+
+            <aside className="lp-auth-side">
+              <p className="lp-auth-side-label">
+                {isGuide ? 'Cultural Validation & Tour Guide Portal' : 'Zamboanga Cultural System Administration'}
+              </p>
+              <span className="lp-auth-scope">{isGuide ? 'GUIDE ACCESS' : 'ADMIN ACCESS'}</span>
+              <p className="lp-auth-scope-text">
+                {isGuide
+                  ? 'Educational & cultural validation hub: review, edit, approve, or reject AI-generated quizzes and verify local lore.'
+                  : 'Manage cultural spots, 3D AR targets, QR markers, users, merchant promotions, and live platform analytics.'}
+              </p>
+            </aside>
           </div>
+
+          <div className="lp-auth-brand" aria-hidden="true">
+            <img src={lakbayLogo} alt="" />
+            <span>{isGuide ? 'Tour Guide' : 'Admin'}</span>
+          </div>
+
+          <button
+            type="button"
+            className="lp-auth-close"
+            onClick={() => setIsLoginModalOpen(false)}
+            aria-label="Close sign in"
+          >
+            <X size={20} />
+          </button>
         </div>
       )}
     </div>
