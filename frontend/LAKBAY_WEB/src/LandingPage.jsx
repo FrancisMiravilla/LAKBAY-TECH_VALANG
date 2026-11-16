@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import '@google/model-viewer';
 import qrService from './api/qrService';
@@ -16,15 +16,11 @@ import {
   Box,
   Layers,
   Award,
-  Download,
-  ExternalLink,
-  Flame,
   Globe,
   Radio,
   CheckCircle2,
   Lock,
   X,
-  Play
 } from 'lucide-react';
 import './LandingPage.css';
 import lakbayLogo from './assets/lakbay_icon_glyph.png';
@@ -34,6 +30,7 @@ const MODELS = [
   {
     id: 'vinta',
     title: 'Zamboanga Vinta Boat',
+    short: 'Vinta',
     subtitle: 'Iconic Multi-Colored Sail Vessel',
     category: 'Maritime Heritage',
     badge: 'Legendary Exhibit',
@@ -44,6 +41,7 @@ const MODELS = [
   {
     id: 'curacha',
     title: 'Alavar Curacha',
+    short: 'Curacha',
     subtitle: 'Zamboanga Spanner Crab',
     category: 'Cultural Gastronomy',
     badge: 'Iconic Delicacy',
@@ -54,6 +52,7 @@ const MODELS = [
   {
     id: 'cloth',
     title: 'Traditional Yakan Weave',
+    short: 'Yakan Weave',
     subtitle: 'Sacred Indigenous Textile',
     category: 'Indigenous Artifact',
     badge: 'Living Tradition',
@@ -64,6 +63,7 @@ const MODELS = [
   {
     id: 'building',
     title: 'Heritage Architecture',
+    short: 'Heritage',
     subtitle: 'Western Mindanao Cultural Landmark',
     category: 'Architectural Heritage',
     badge: 'Historic Structure',
@@ -72,6 +72,13 @@ const MODELS = [
     details: 'High-detail architectural model capturing the preservation of Zamboanga historic structures and pavilion outposts.',
   },
 ];
+
+// The hero ring holds every model twice so the orbit always looks full.
+const RING_SLOTS = MODELS.length * 2;
+const SLOT_DEG = 360 / RING_SLOTS;
+const AUTO_ADVANCE_MS = 6000;
+
+const modelForStep = (step) => (((step % RING_SLOTS) + RING_SLOTS) % RING_SLOTS) % MODELS.length;
 
 // ── FAQs Data ───────────────────────────────────────────────────────────────
 const FAQS = [
@@ -91,6 +98,17 @@ const FAQS = [
     q: 'Who has access to the Staff and Tour Guide Portal?',
     a: 'The portal features role-based access. System Administrators manage landmarks, 3D targets, and merchant promotions, while Certified Tour Guides review, validate, and moderate cultural trivia questions.',
   },
+];
+
+const MARQUEE_PLACES = [
+  'Fort Pilar National Museum',
+  'Zamboanga City Hall',
+  'Paseo del Mar & Vintas',
+  'Yakan Weaving Village',
+  'Pettit Barracks',
+  'Plaza Pershing',
+  'Santa Cruz Pink Sand Island',
+  'Pasonanca Natural Park',
 ];
 
 // ── Interactive Mapbox Component (same design as the mobile Explore map) ────
@@ -122,6 +140,141 @@ function MapSection() {
   );
 }
 
+// ── Sand-dune pedestal the hero model stands on ─────────────────────────────
+function DunePedestal({ id = 'hero' }) {
+  const main = `lpDuneMain-${id}`;
+  const side = `lpDuneSide-${id}`;
+  const grain = `lpGrain-${id}`;
+  return (
+    <svg className="lp-dunes" viewBox="0 0 1200 260" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <defs>
+        <linearGradient id={main} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#E3C789" />
+          <stop offset="0.55" stopColor="#B8954F" />
+          <stop offset="1" stopColor="#6E5528" />
+        </linearGradient>
+        <linearGradient id={side} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#C9A863" />
+          <stop offset="1" stopColor="#5A4520" />
+        </linearGradient>
+        <filter id={grain} x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="noise" />
+          <feColorMatrix in="noise" type="saturate" values="0" result="mono" />
+          <feComponentTransfer in="mono" result="grain">
+            <feFuncA type="table" tableValues="0 0.35" />
+          </feComponentTransfer>
+          <feComposite in="grain" in2="SourceGraphic" operator="in" result="grainIn" />
+          <feBlend in="SourceGraphic" in2="grainIn" mode="multiply" />
+        </filter>
+      </defs>
+      <path d="M0 260 L0 190 C90 150 170 168 250 186 C330 204 360 210 420 214 L420 260 Z" fill={`url(#${side})`} filter={`url(#${grain})`} />
+      <path d="M780 260 L780 214 C850 206 900 186 980 170 C1060 154 1130 166 1200 186 L1200 260 Z" fill={`url(#${side})`} filter={`url(#${grain})`} />
+      <path
+        d="M230 260 C300 232 380 214 440 170 C490 132 520 70 600 62 C680 70 710 132 760 170 C820 214 900 232 970 260 Z"
+        fill={`url(#${main})`}
+        filter={`url(#${grain})`}
+      />
+      <path d="M520 104 C560 84 640 84 680 104" stroke="#F4E2B4" strokeOpacity="0.45" strokeWidth="2" fill="none" />
+    </svg>
+  );
+}
+
+const prefersReducedMotion = () => {
+  try {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch {
+    return false;
+  }
+};
+
+// ── Orbiting tiles: an ellipse of model thumbnails turning behind the hero ──
+function OrbitRing({ step, onPick, onHoverChange }) {
+  const ringRef = useRef(null);
+  const tileRefs = useRef([]);
+  const targetRef = useRef(-step * SLOT_DEG);
+
+  useEffect(() => {
+    targetRef.current = -step * SLOT_DEG;
+  }, [step]);
+
+  useEffect(() => {
+    const reduceMotion = prefersReducedMotion();
+    let angle = targetRef.current;
+    let frame = 0;
+    let rx = 0;
+    let ry = 0;
+    const measure = () => {
+      const hero = ringRef.current?.parentElement;
+      if (!hero) return;
+      const w = hero.clientWidth;
+      const h = hero.clientHeight;
+      rx = Math.min(w * (w < 720 ? 0.56 : 0.46), 660);
+      ry = h * (w < 720 ? 0.34 : 0.42);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+
+    const draw = (time) => {
+      angle = reduceMotion ? targetRef.current : angle + (targetRef.current - angle) * 0.06;
+      tileRefs.current.forEach((tile, slot) => {
+        if (!tile) return;
+        const deg = slot * SLOT_DEG + angle;
+        const rad = (deg * Math.PI) / 180;
+        const depth = Math.cos(rad);
+        const bob = reduceMotion ? 0 : Math.sin(time / 900 + slot * 1.3) * 6;
+        const x = Math.sin(rad) * rx;
+        const y = -depth * ry + bob;
+        const scale = 0.78 + 0.22 * Math.max(depth, 0);
+        tile.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${(deg * 0.55).toFixed(1)}deg) scale(${scale.toFixed(3)})`;
+        tile.style.opacity = depth < -0.45 ? '0' : depth > 0.93 ? '0.35' : '1';
+        tile.style.pointerEvents = depth < -0.45 ? 'none' : 'auto';
+      });
+      frame = requestAnimationFrame(draw);
+    };
+    frame = requestAnimationFrame(draw);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
+
+  const topSlot = ((step % RING_SLOTS) + RING_SLOTS) % RING_SLOTS;
+
+  return (
+    <div
+      ref={ringRef}
+      className="lp-orbit"
+      onMouseEnter={() => onHoverChange(true)}
+      onMouseLeave={() => onHoverChange(false)}
+    >
+      {Array.from({ length: RING_SLOTS }, (_, slot) => {
+        const model = MODELS[slot % MODELS.length];
+        return (
+          <button
+            key={slot}
+            ref={(el) => { tileRefs.current[slot] = el; }}
+            type="button"
+            className={`lp-orbit-tile ${slot === topSlot ? 'is-active' : ''}`}
+            onClick={() => onPick(slot)}
+            aria-label={`Show ${model.title}`}
+            tabIndex={slot < MODELS.length ? 0 : -1}
+          >
+            <model-viewer
+              src={model.src}
+              alt=""
+              camera-orbit="35deg 72deg auto"
+              interaction-prompt="none"
+              disable-zoom
+              disable-pan
+              style={{ width: '100%', height: '100%', backgroundColor: 'transparent', pointerEvents: 'none' }}
+            />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ══════════════════════════════════════════════════════════════════════════
 export default function LandingPage({
   onLogin,
@@ -134,11 +287,14 @@ export default function LandingPage({
 }) {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(initialLoginOpen);
   const [selectedRole, setSelectedRole] = useState('admin'); // 'admin' | 'tourist_guide'
-  const [activeModelIndex, setActiveModelIndex] = useState(0);
+  const [ringStep, setRingStep] = useState(0);
+  const [isRingPaused, setIsRingPaused] = useState(false);
   const [openFaq, setOpenFaq] = useState(null);
+  const ringPausedRef = useRef(false);
 
   const [isSlowLogin, setIsSlowLogin] = useState(false);
 
+  const activeModelIndex = modelForStep(ringStep);
   const activeModel = MODELS[activeModelIndex];
 
   useEffect(() => {
@@ -154,6 +310,44 @@ export default function LandingPage({
     };
   }, [isLoggingIn]);
 
+  useEffect(() => {
+    ringPausedRef.current = isRingPaused || isLoginModalOpen;
+  }, [isRingPaused, isLoginModalOpen]);
+
+  useEffect(() => {
+    const reduceMotion = prefersReducedMotion();
+    if (reduceMotion) return undefined;
+    const timer = setInterval(() => {
+      if (!ringPausedRef.current && !document.hidden) setRingStep((s) => s + 1);
+    }, AUTO_ADVANCE_MS);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Turn the ring the short way round so the chosen slot lands at the top.
+  const goToSlot = (slot) => {
+    setRingStep((step) => {
+      const current = ((step % RING_SLOTS) + RING_SLOTS) % RING_SLOTS;
+      let delta = slot - current;
+      if (delta > RING_SLOTS / 2) delta -= RING_SLOTS;
+      if (delta < -RING_SLOTS / 2) delta += RING_SLOTS;
+      return step + delta;
+    });
+  };
+
+  const goToModel = (modelIdx) => {
+    setRingStep((step) => {
+      let best = step;
+      let bestDist = Infinity;
+      for (let delta = -RING_SLOTS / 2; delta <= RING_SLOTS / 2; delta += 1) {
+        if (modelForStep(step + delta) === modelIdx && Math.abs(delta) < bestDist) {
+          best = step + delta;
+          bestDist = Math.abs(delta);
+        }
+      }
+      return best;
+    });
+  };
+
   const handleOpenAdminModal = (role = 'admin') => {
     setSelectedRole(role);
     setIsLoginModalOpen(true);
@@ -162,15 +356,17 @@ export default function LandingPage({
 
   return (
     <div className="lp-page">
-      {/* ── Top Navigation Bar ── */}
-      <header className="lp-navbar">
-        <div className="lp-nav-inner">
+      {/* ── Hero: framed stage with the orbiting 3D artifacts ── */}
+      <section className="lp-hero" aria-label="LAKBAY 3D artifacts">
+        <div className="lp-hero-glow" />
+
+        <header className="lp-topbar">
           <a href="#" className="lp-brand">
             <img src={lakbayLogo} alt="LAKBAY Logo" className="lp-brand-logo" />
-            <span className="lp-brand-name">LAKBAY</span>
+            <span className="lp-brand-name">lakbay</span>
           </a>
 
-          <nav className="lp-nav-links">
+          <nav className="lp-pill-nav" aria-label="Sections">
             <a href="#models">3D Artifacts</a>
             <a href="#how-it-works">How It Works</a>
             <a href="#map">Digital Twin</a>
@@ -178,358 +374,320 @@ export default function LandingPage({
             <a href="#faq">FAQ</a>
           </nav>
 
-          <div className="lp-nav-actions">
+          <div className="lp-topbar-actions">
             <button
-              className="lp-link-guide"
+              type="button"
+              className="lp-chip-btn lp-chip-btn--ghost"
               onClick={() => handleOpenAdminModal('tourist_guide')}
             >
               Tour Guide Portal
             </button>
             <button
-              className="lp-btn-primary lp-btn-sm"
+              type="button"
+              className="lp-chip-btn"
               onClick={() => handleOpenAdminModal('admin')}
             >
-              <ShieldCheck size={16} />
+              <ShieldCheck size={15} />
               <span>Admin Portal</span>
             </button>
           </div>
+        </header>
+
+        <div className="lp-hero-kicker">
+          <Sparkles size={13} />
+          <span>CULTURAL HERITAGE &amp; AUGMENTED REALITY</span>
         </div>
-      </header>
 
-      {/* ── Hero Section ── */}
-      <section className="lp-hero">
-        <div className="lp-hero-bg-gradient" />
-        <div className="lp-hero-inner">
-          <div className="lp-hero-content">
-            <div className="lp-badge">
-              <Sparkles size={14} className="text-amber-500" />
-              <span>CULTURAL HERITAGE &amp; AUGMENTED REALITY</span>
-            </div>
+        <OrbitRing step={ringStep} onPick={goToSlot} onHoverChange={setIsRingPaused} />
 
-            <h1 className="lp-hero-title">
-              Your Heritage, <br />
-              <span className="lp-title-accent">Fully Unlocked.</span>
-            </h1>
+        <DunePedestal />
 
-            <p className="lp-hero-desc">
-              Step into the digital layer of Zamboanga City. LAKBAY merges Mapbox GPS,
-              3D AR visualization, and interactive cultural quests into one seamless
-              exploration app.
-            </p>
-
-            <div className="lp-hero-cta-group">
-              <a href="#ecosystem" className="lp-btn-primary lp-btn-lg">
-                <Smartphone size={20} />
-                <span>Explore Ecosystem</span>
-              </a>
-
-              <a href="#models" className="lp-btn-secondary lp-btn-lg">
-                <span>Inspect 3D Artifacts</span>
-                <ArrowRight size={18} />
-              </a>
-            </div>
-
-            <div className="lp-hero-micro">
-              <div className="lp-micro-item">
-                <CheckCircle2 size={16} className="text-emerald-600" />
-                <span>National Museum Coordinates</span>
-              </div>
-              <div className="lp-micro-item">
-                <CheckCircle2 size={16} className="text-emerald-600" />
-                <span>Zero-Latency 3D WebGL</span>
-              </div>
-            </div>
+        <div className="lp-hero-stage">
+          <div key={activeModel.id} className="lp-hero-model">
+            <model-viewer
+              src={activeModel.src}
+              alt={activeModel.title}
+              auto-rotate="true"
+              rotation-per-second="18deg"
+              camera-controls="true"
+              disable-zoom
+              interaction-prompt="none"
+              shadow-intensity="1.4"
+              exposure="1.05"
+              style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
+            />
+            <span className="lp-hero-model-name">{activeModel.short}</span>
           </div>
 
-          {/* 3D Angled Phone Mockup */}
-          <div className="lp-phone-wrapper">
-            <div className="lp-phone-glow" />
-            <div className="lp-phone-frame">
-              {/* Speaker / Camera Notch */}
-              <div className="lp-phone-notch" />
-              {/* Screen Image */}
-              <img
-                src="/mobilepicture.jpg"
-                alt="LAKBAY Mobile Interactive Map"
-                className="lp-phone-screen-img"
-              />
+          <a href="#models" className="lp-hero-tag" aria-label={`Inspect ${activeModel.title}`}>
+            <span className="lp-hero-tag-num">#{String(activeModelIndex + 1).padStart(2, '0')}</span>
+            <Box size={18} />
+          </a>
+        </div>
+
+        <div className="lp-hero-bottom">
+          <p className="lp-hero-desc">
+            Step into the digital layer of Zamboanga City. LAKBAY merges Mapbox GPS,
+            3D AR visualization, and interactive cultural quests into one seamless
+            exploration app.
+          </p>
+
+          <h1 className="lp-hero-title">
+            Your Heritage, <span className="lp-title-accent">Fully Unlocked.</span>
+          </h1>
+
+          <div className="lp-hero-side">
+            <div className="lp-hero-cta-group">
+              <a href="#ecosystem" className="lp-cta-solid">
+                <Smartphone size={17} />
+                <span>Explore Ecosystem</span>
+              </a>
+              <a href="#models" className="lp-cta-line">
+                <span>Inspect 3D Artifacts</span>
+                <ArrowRight size={16} />
+              </a>
+            </div>
+            <div className="lp-hero-micro">
+              <span><CheckCircle2 size={14} /> National Museum Coordinates</span>
+              <span><CheckCircle2 size={14} /> Zero-Latency 3D WebGL</span>
             </div>
           </div>
         </div>
       </section>
 
       {/* ── Marquee Ribbon ── */}
-      <section className="lp-marquee-section">
+      <section className="lp-marquee" aria-label="Featured places">
         <div className="lp-marquee-track">
           {[1, 2].map((i) => (
-            <div key={i} className="lp-marquee-content">
-              <span>Fort Pilar National Museum</span>
-              <span className="lp-marquee-star">✦</span>
-              <span>Zamboanga City Hall</span>
-              <span className="lp-marquee-star">✦</span>
-              <span>Paseo del Mar &amp; Vintas</span>
-              <span className="lp-marquee-star">✦</span>
-              <span>Yakan Weaving Village</span>
-              <span className="lp-marquee-star">✦</span>
-              <span>Pettit Barracks</span>
-              <span className="lp-marquee-star">✦</span>
-              <span>Plaza Pershing</span>
-              <span className="lp-marquee-star">✦</span>
-              <span>Santa Cruz Pink Sand Island</span>
-              <span className="lp-marquee-star">✦</span>
-              <span>Pasonanca Natural Park</span>
-              <span className="lp-marquee-star">✦</span>
+            <div key={i} className="lp-marquee-content" aria-hidden={i === 2}>
+              {MARQUEE_PLACES.map((place) => (
+                <span key={place} className="lp-marquee-item">
+                  {place}
+                  <span className="lp-marquee-star">✦</span>
+                </span>
+              ))}
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── Impact Metrics (Dark Section) ── */}
-      <section className="lp-metrics-section">
-        <div className="lp-metrics-grid">
-          <div className="lp-metric-card">
-            <div className="lp-metric-number">30+</div>
-            <p className="lp-metric-label">Landmarks &amp; Cultural Spots</p>
-          </div>
-          <div className="lp-metric-card">
-            <div className="lp-metric-number">1,000+</div>
-            <p className="lp-metric-label">Interactive Cultural Quests</p>
-          </div>
-          <div className="lp-metric-card">
-            <div className="lp-metric-number">4</div>
-            <p className="lp-metric-label">Full-Scale 3D Artifacts</p>
-          </div>
-          <div className="lp-metric-card">
-            <div className="lp-metric-number lp-metric-accent">360°</div>
-            <p className="lp-metric-label">Spatial &amp; AR Walkthroughs</p>
-          </div>
+      {/* ── Impact Metrics ── */}
+      <section className="lp-panel lp-panel--dark lp-metrics">
+        <div className="lp-metric">
+          <div className="lp-metric-number">30+</div>
+          <p className="lp-metric-label">Landmarks &amp; Cultural Spots</p>
+        </div>
+        <div className="lp-metric">
+          <div className="lp-metric-number">1,000+</div>
+          <p className="lp-metric-label">Interactive Cultural Quests</p>
+        </div>
+        <div className="lp-metric">
+          <div className="lp-metric-number">4</div>
+          <p className="lp-metric-label">Full-Scale 3D Artifacts</p>
+        </div>
+        <div className="lp-metric">
+          <div className="lp-metric-number lp-metric-accent">360°</div>
+          <p className="lp-metric-label">Spatial &amp; AR Walkthroughs</p>
         </div>
       </section>
 
-      {/* ── Heritage Showcase (Zamboanga Photo) ── */}
-      <section className="lp-heritage-section">
-        <div className="lp-heritage-inner">
-          <div className="lp-heritage-text">
-            <div className="lp-badge">
-              <Globe size={14} className="text-amber-500" />
-              <span>CULTURAL TOURISM RESILIENCE</span>
-            </div>
-            <h2 className="lp-section-title">
-              Built exclusively for <br />
-              <span className="lp-title-accent">Zamboanga City &amp; Western Mindanao.</span>
-            </h2>
-            <p className="lp-section-desc">
-              We are bridging the gap between physical historical heritage and digital
-              innovation. LAKBAY transforms the historic architecture, cultural arts,
-              and sacred landmarks of Zamboanga City into a highly interactive, accessible,
-              and connected spatial experience.
-            </p>
-            <div className="lp-heritage-highlights">
-              <div className="lp-highlight-item">
-                <span className="lp-highlight-num">01</span>
-                <div>
-                  <h4>Preserving Oral &amp; Visual Lore</h4>
-                  <p>Validated trivia reviewed by licensed cultural tour guides and educators.</p>
-                </div>
-              </div>
-              <div className="lp-highlight-item">
-                <span className="lp-highlight-num">02</span>
-                <div>
-                  <h4>Gamified Explorer Rewards</h4>
-                  <p>Daily streaks, explorer levels, and treasury coins for local merchant perks.</p>
-                </div>
+      {/* ── Heritage Showcase ── */}
+      <section className="lp-panel lp-panel--light lp-heritage">
+        <div className="lp-heritage-text">
+          <span className="lp-kicker">
+            <Globe size={13} />
+            CULTURAL TOURISM RESILIENCE
+          </span>
+          <h2 className="lp-heading">
+            Built exclusively for{' '}
+            <span className="lp-title-accent">Zamboanga City &amp; Western Mindanao.</span>
+          </h2>
+          <p className="lp-body">
+            We are bridging the gap between physical historical heritage and digital
+            innovation. LAKBAY transforms the historic architecture, cultural arts,
+            and sacred landmarks of Zamboanga City into a highly interactive, accessible,
+            and connected spatial experience.
+          </p>
+          <div className="lp-heritage-highlights">
+            <div className="lp-highlight">
+              <span className="lp-highlight-num">01</span>
+              <div>
+                <h4>Preserving Oral &amp; Visual Lore</h4>
+                <p>Validated trivia reviewed by licensed cultural tour guides and educators.</p>
               </div>
             </div>
-          </div>
-
-          <div className="lp-heritage-image-wrapper">
-            <div className="lp-heritage-offset-box" />
-            <img
-              src="/zamboanga.jpg"
-              alt="Zamboanga City Vinta Heritage"
-              className="lp-heritage-img"
-            />
-            <div className="lp-heritage-caption">
-              <span>⛵ Colorful Vintas of Paseo del Mar, Zamboanga City</span>
+            <div className="lp-highlight">
+              <span className="lp-highlight-num">02</span>
+              <div>
+                <h4>Gamified Explorer Rewards</h4>
+                <p>Daily streaks, explorer levels, and treasury coins for local merchant perks.</p>
+              </div>
             </div>
           </div>
         </div>
+
+        <figure className="lp-heritage-photo">
+          <img src="/zamboanga.jpg" alt="Zamboanga City Vinta Heritage" />
+          <figcaption>⛵ Colorful Vintas of Paseo del Mar, Zamboanga City</figcaption>
+        </figure>
       </section>
 
-      {/* ── How It Works (3 Steps) ── */}
-      <section id="how-it-works" className="lp-steps-section">
-        <div className="lp-section-header">
-          <h2 className="lp-section-title">How It Works</h2>
-          <p className="lp-section-subtitle">
+      {/* ── How It Works ── */}
+      <section id="how-it-works" className="lp-panel lp-panel--dark lp-steps">
+        <div className="lp-section-head">
+          <h2 className="lp-heading">How It Works</h2>
+          <p className="lp-body">
             Your physical journey, perfectly synced with your digital expedition log.
           </p>
         </div>
 
-        <div className="lp-steps-grid">
-          <div className="lp-step-connector" />
-
-          <div className="lp-step-card">
-            <div className="lp-step-icon-wrap">
-              <Smartphone size={28} />
-            </div>
-            <h3 className="lp-step-title">1. Open the Scanner</h3>
-            <p className="lp-step-desc">
+        <div className="lp-steps-row">
+          <article className="lp-step-tile">
+            <span className="lp-step-icon"><Smartphone size={26} /></span>
+            <h3>1. Open the Scanner</h3>
+            <p>
               Launch the LAKBAY mobile app and activate your camera to scan real-world target
               exhibits, museum markers, and QR plaques.
             </p>
-          </div>
-
-          <div className="lp-step-card">
-            <div className="lp-step-icon-wrap">
-              <Radio size={28} />
-            </div>
-            <h3 className="lp-step-title">2. Enter a Geofence</h3>
-            <p className="lp-step-desc">
+          </article>
+          <article className="lp-step-tile">
+            <span className="lp-step-icon"><Radio size={26} /></span>
+            <h3>2. Enter a Geofence</h3>
+            <p>
               Walk into designated heritage zones across Zamboanga to trigger location-based
               tales, proximity puzzles, and audio notes.
             </p>
-          </div>
-
-          <div className="lp-step-card">
-            <div className="lp-step-icon-wrap lp-step-icon-accent">
-              <Sparkles size={28} />
-            </div>
-            <h3 className="lp-step-title">3. Unlock 3D Discoveries</h3>
-            <p className="lp-step-desc">
+          </article>
+          <article className="lp-step-tile">
+            <span className="lp-step-icon lp-step-icon--accent"><Sparkles size={26} /></span>
+            <h3>3. Unlock 3D Discoveries</h3>
+            <p>
               Gain EXP, collect rare artifacts, answer historical quizzes, and inspect 3D
               sculptures from any angle directly in AR.
             </p>
-          </div>
+          </article>
         </div>
       </section>
 
-      {/* ── 4 3D Models Showcase ── */}
-      <section id="models" className="lp-models-section">
-        <div className="lp-section-header">
-          <div className="lp-badge">
-            <Box size={14} className="text-amber-500" />
-            <span>INTERACTIVE AR ARTIFACTS</span>
-          </div>
-          <h2 className="lp-section-title">
+      {/* ── 3D Models Showcase ── */}
+      <section id="models" className="lp-panel lp-panel--light lp-models">
+        <div className="lp-section-head">
+          <span className="lp-kicker">
+            <Box size={13} />
+            INTERACTIVE AR ARTIFACTS
+          </span>
+          <h2 className="lp-heading">
             True Spatial <span className="lp-title-accent">Understanding.</span>
           </h2>
-          <p className="lp-section-subtitle">
+          <p className="lp-body">
             Don't just read about Zamboanga heritage—experience it. LAKBAY renders high-fidelity
             3D models directly through the app. Rotate, zoom, and inspect cultural artifacts in 360°.
           </p>
         </div>
 
-        {/* Active Featured 3D Viewer */}
-        <div className="lp-model-showcase-box">
-          <div className="lp-model-viewer-frame">
-            <div className="lp-model-badge-row">
-              <span className="lp-model-category-pill">{activeModel.category}</span>
-              <span className="lp-model-tag-pill">{activeModel.badge}</span>
+        <div className="lp-model-showcase">
+          <div className="lp-model-stage">
+            <div className="lp-model-pills">
+              <span>{activeModel.category}</span>
+              <span className="is-gold">{activeModel.badge}</span>
             </div>
 
-            <div className="lp-model-canvas-wrap">
-              <model-viewer
-                src={activeModel.src}
-                alt={activeModel.title}
-                auto-rotate="true"
-                camera-controls="true"
-                shadow-intensity="1.5"
-                exposure="1.0"
-                style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
-              />
-            </div>
+            <model-viewer
+              src={activeModel.src}
+              alt={activeModel.title}
+              auto-rotate="true"
+              camera-controls="true"
+              shadow-intensity="1.5"
+              exposure="1.0"
+              style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
+            />
 
             <div className="lp-spin-prompt">
-              <RotateCw size={14} className="animate-spin text-amber-500" />
+              <RotateCw size={14} />
               <span>Fully Interactive — Click &amp; Drag to Rotate 360° • Pinch / Scroll to Zoom</span>
             </div>
           </div>
 
-          {/* Model Description & Details Card */}
-          <div className="lp-model-info-side">
-            <div className="lp-model-info-header">
-              <span className="lp-model-id-label">CATALOG ARTIFACT #{activeModelIndex + 1}</span>
-              <h3 className="lp-model-active-title">{activeModel.title}</h3>
-              <p className="lp-model-active-subtitle">{activeModel.subtitle}</p>
-            </div>
+          <div className="lp-model-info">
+            <span className="lp-model-id">CATALOG ARTIFACT #{activeModelIndex + 1}</span>
+            <h3 className="lp-model-title">{activeModel.title}</h3>
+            <p className="lp-model-subtitle">{activeModel.subtitle}</p>
+            <p className="lp-body">{activeModel.desc}</p>
 
-            <p className="lp-model-active-desc">{activeModel.desc}</p>
+            <dl className="lp-model-meta">
+              <div>
+                <dt>Artifact Class:</dt>
+                <dd>{activeModel.category}</dd>
+              </div>
+              <div>
+                <dt>Curator Notes:</dt>
+                <dd>{activeModel.details}</dd>
+              </div>
+              <div>
+                <dt>Interactive Mode:</dt>
+                <dd className="is-live">WebGL 3D &amp; Native Mobile AR</dd>
+              </div>
+            </dl>
 
-            <div className="lp-model-meta-card">
-              <div className="lp-meta-row">
-                <span className="lp-meta-label">Artifact Class:</span>
-                <span className="lp-meta-val">{activeModel.category}</span>
-              </div>
-              <div className="lp-meta-row">
-                <span className="lp-meta-label">Curator Notes:</span>
-                <span className="lp-meta-val">{activeModel.details}</span>
-              </div>
-              <div className="lp-meta-row">
-                <span className="lp-meta-label">Interactive Mode:</span>
-                <span className="lp-meta-val text-emerald-600 font-bold">WebGL 3D &amp; Native Mobile AR</span>
-              </div>
-            </div>
-
-            {/* Quick 4-Model Switcher Tabs */}
-            <div className="lp-model-tabs-label">Select 3D Artifact:</div>
-            <div className="lp-model-selector-grid">
+            <div className="lp-model-select-label">Select 3D Artifact:</div>
+            <div className="lp-model-select">
               {MODELS.map((item, idx) => (
                 <button
                   key={item.id}
-                  className={`lp-model-select-btn ${activeModelIndex === idx ? 'active' : ''}`}
-                  onClick={() => setActiveModelIndex(idx)}
+                  type="button"
+                  className={activeModelIndex === idx ? 'is-active' : ''}
+                  onClick={() => goToModel(idx)}
                 >
                   <span className="lp-select-num">{idx + 1}</span>
-                  <div className="lp-select-text">
+                  <span className="lp-select-text">
                     <span className="lp-select-name">{item.title}</span>
                     <span className="lp-select-cat">{item.category}</span>
-                  </div>
+                  </span>
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* 4 Models Grid Cards */}
-        <div className="lp-models-quad-grid">
+        <div className="lp-model-cards">
           {MODELS.map((m, idx) => (
-            <div
+            <button
               key={m.id}
-              className={`lp-quad-card ${activeModelIndex === idx ? 'lp-quad-card-active' : ''}`}
-              onClick={() => setActiveModelIndex(idx)}
+              type="button"
+              className={`lp-model-card ${activeModelIndex === idx ? 'is-active' : ''}`}
+              onClick={() => goToModel(idx)}
             >
-              <div className="lp-quad-thumb-viewer">
+              <span className="lp-model-card-view">
                 <model-viewer
                   src={m.src}
                   alt={m.title}
                   auto-rotate="true"
-                  style={{ width: '100%', height: '180px', backgroundColor: 'transparent' }}
                   interaction-prompt="none"
+                  style={{ width: '100%', height: '100%', backgroundColor: 'transparent', pointerEvents: 'none' }}
                 />
-              </div>
-              <div className="lp-quad-card-body">
-                <span className="lp-quad-cat">{m.category}</span>
-                <h4 className="lp-quad-title">{m.title}</h4>
-                <p className="lp-quad-desc">{m.subtitle}</p>
-                <button className="lp-quad-inspect-btn">
-                  <span>Inspect 3D Artifact</span>
-                  <ArrowRight size={13} />
-                </button>
-              </div>
-            </div>
+              </span>
+              <span className="lp-model-card-body">
+                <span className="lp-model-card-cat">{m.category}</span>
+                <span className="lp-model-card-title">{m.title}</span>
+                <span className="lp-model-card-desc">{m.subtitle}</span>
+                <span className="lp-model-card-link">
+                  Inspect 3D Artifact <ArrowRight size={13} />
+                </span>
+              </span>
+            </button>
           ))}
         </div>
       </section>
 
-      {/* ── Digital Twin Mapbox Section ── */}
-      <section id="map" className="lp-map-section">
-        <div className="lp-section-header">
-          <div className="lp-badge">
-            <MapPin size={14} className="text-amber-500" />
-            <span>HIGH-PRECISION GEOFENCING</span>
-          </div>
-          <h2 className="lp-section-title">The Digital Twin.</h2>
-          <p className="lp-section-subtitle">
+      {/* ── Digital Twin Map ── */}
+      <section id="map" className="lp-panel lp-panel--dark lp-map-panel">
+        <div className="lp-section-head">
+          <span className="lp-kicker">
+            <MapPin size={13} />
+            HIGH-PRECISION GEOFENCING
+          </span>
+          <h2 className="lp-heading">The Digital Twin.</h2>
+          <p className="lp-body">
             Navigate a living 3D replica of Zamboanga City. Experience real-time GPS
             pathfinding, cultural spot highlights, and active geofence boundaries powered by Mapbox.
           </p>
@@ -539,162 +697,146 @@ export default function LandingPage({
       </section>
 
       {/* ── Two Interfaces. One Ecosystem. ── */}
-      <section id="ecosystem" className="lp-ecosystem-section">
-        <div className="lp-section-header">
-          <h2 className="lp-section-title">
-            Two Interfaces. <br />
-            <span className="lp-title-accent">One Connected Ecosystem.</span>
+      <section id="ecosystem" className="lp-panel lp-panel--light lp-ecosystem">
+        <div className="lp-section-head">
+          <h2 className="lp-heading">
+            Two Interfaces. <span className="lp-title-accent">One Connected Ecosystem.</span>
           </h2>
-          <p className="lp-section-subtitle">
+          <p className="lp-body">
             Unified infrastructure designed for on-the-ground exploration and cloud administrative command.
           </p>
         </div>
 
-        <div className="lp-ecosystem-grid">
-          {/* Mobile Card */}
-          <div className="lp-eco-column">
-            <div className="lp-eco-header">
-              <div className="lp-eco-icon-tag lp-eco-icon-tag--mobile">
-                <Smartphone size={24} />
-                <span>FOR TOURISTS, STUDENTS &amp; EXPLORERS</span>
-              </div>
+        <div className="lp-eco-grid">
+          <div className="lp-eco-card lp-eco-card--mobile">
+            <div className="lp-eco-copy">
+              <span className="lp-eco-tag">
+                <Smartphone size={16} />
+                FOR TOURISTS, STUDENTS &amp; EXPLORERS
+              </span>
               <h3 className="lp-eco-title">The Mobile Application</h3>
               <p className="lp-eco-desc">
                 Turn your smartphone into a magic lens. Built with React Native &amp; Expo for
                 immersive cultural discovery, live navigation, and interactive trivia.
               </p>
+
+              <ul className="lp-eco-features">
+                <li>
+                  <span className="lp-feat-icon"><Compass size={18} /></span>
+                  <div>
+                    <h4>Live Mapbox Geolocation</h4>
+                    <p>Turn-by-turn routing to historical sites and museum wings across Zamboanga.</p>
+                  </div>
+                </li>
+                <li>
+                  <span className="lp-feat-icon"><Sparkles size={18} /></span>
+                  <div>
+                    <h4>Steady AR Exhibit Scanners</h4>
+                    <p>Touch-enabled 360° swipe rotation, multi-touch pinch zoom, and artifact inspect HUD.</p>
+                  </div>
+                </li>
+                <li>
+                  <span className="lp-feat-icon"><Award size={18} /></span>
+                  <div>
+                    <h4>Gamified Expedition Log</h4>
+                    <p>Collect rare mythical badges, maintain daily streaks, and climb community rankings.</p>
+                  </div>
+                </li>
+              </ul>
             </div>
 
-            <ul className="lp-eco-features">
-              <li>
-                <div className="lp-feat-icon">
-                  <Compass size={20} />
-                </div>
-                <div>
-                  <h4>Live Mapbox Geolocation</h4>
-                  <p>Turn-by-turn routing to historical sites and museum wings across Zamboanga.</p>
-                </div>
-              </li>
-              <li>
-                <div className="lp-feat-icon">
-                  <Sparkles size={20} />
-                </div>
-                <div>
-                  <h4>Steady AR Exhibit Scanners</h4>
-                  <p>Touch-enabled 360° swipe rotation, multi-touch pinch zoom, and artifact inspect HUD.</p>
-                </div>
-              </li>
-              <li>
-                <div className="lp-feat-icon">
-                  <Award size={20} />
-                </div>
-                <div>
-                  <h4>Gamified Expedition Log</h4>
-                  <p>Collect rare mythical badges, maintain daily streaks, and climb community rankings.</p>
-                </div>
-              </li>
-            </ul>
+            <div className="lp-phone">
+              <div className="lp-phone-notch" />
+              <img src="/mobilepicture.jpg" alt="LAKBAY Mobile Interactive Map" />
+            </div>
           </div>
 
-          {/* Web Dashboard Card */}
-          <div className="lp-eco-column">
-            <div className="lp-eco-header">
-              <div className="lp-eco-icon-tag lp-eco-icon-tag--web">
-                <ShieldCheck size={24} />
-                <span>FOR ADMINISTRATORS &amp; TOUR GUIDES</span>
-              </div>
+          <div className="lp-eco-card lp-eco-card--web">
+            <div className="lp-eco-copy">
+              <span className="lp-eco-tag">
+                <ShieldCheck size={16} />
+                FOR ADMINISTRATORS &amp; TOUR GUIDES
+              </span>
               <h3 className="lp-eco-title">The Staff Web Portal</h3>
               <p className="lp-eco-desc">
                 A unified desktop command center for monitoring historical data, verifying
                 educational trivia, and managing merchant promotions from anywhere.
               </p>
-            </div>
 
-            <ul className="lp-eco-features">
-              <li>
-                <div className="lp-feat-icon">
-                  <Layers size={20} />
-                </div>
-                <div>
-                  <h4>Cultural Spot &amp; 3D Target Management</h4>
-                  <p>Upload lightweight .glb models, set coordinates, and curate historical descriptions.</p>
-                </div>
-              </li>
-              <li>
-                <div className="lp-feat-icon">
-                  <CheckCircle2 size={20} />
-                </div>
-                <div>
-                  <h4>Tour Guide Trivia Moderation</h4>
-                  <p>Certified local guides review and calibrate AI trivia questions for authentic accuracy.</p>
-                </div>
-              </li>
-              <li>
-                <div className="lp-feat-icon">
-                  <Globe size={20} />
-                </div>
-                <div>
-                  <h4>Live Real-Time Analytics</h4>
-                  <p>Monitor visitor traffic, scan density heatmaps, and merchant coin promotions.</p>
-                </div>
-              </li>
-            </ul>
+              <ul className="lp-eco-features">
+                <li>
+                  <span className="lp-feat-icon"><Layers size={18} /></span>
+                  <div>
+                    <h4>Cultural Spot &amp; 3D Target Management</h4>
+                    <p>Upload lightweight .glb models, set coordinates, and curate historical descriptions.</p>
+                  </div>
+                </li>
+                <li>
+                  <span className="lp-feat-icon"><CheckCircle2 size={18} /></span>
+                  <div>
+                    <h4>Tour Guide Trivia Moderation</h4>
+                    <p>Certified local guides review and calibrate AI trivia questions for authentic accuracy.</p>
+                  </div>
+                </li>
+                <li>
+                  <span className="lp-feat-icon"><Globe size={18} /></span>
+                  <div>
+                    <h4>Live Real-Time Analytics</h4>
+                    <p>Monitor visitor traffic, scan density heatmaps, and merchant coin promotions.</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </section>
 
       {/* ── Bento Features ── */}
-      <section className="lp-bento-section">
-        <div className="lp-bento-grid">
-          {/* Card 1: Proximity Engine */}
-          <div className="lp-bento-card lp-bento-main">
-            <div className="lp-bento-watermark">
-              <MapPin size={240} strokeWidth={1} />
+      <section className="lp-bento">
+        <div className="lp-panel lp-panel--dark lp-bento-main">
+          <MapPin className="lp-bento-watermark" size={240} strokeWidth={1} aria-hidden="true" />
+          <span className="lp-kicker">PROXIMITY ENGINE</span>
+          <h3 className="lp-heading">
+            Walk inside. <br />
+            Unlock the landmark.
+          </h3>
+          <p className="lp-body">
+            No manual check-ins needed. LAKBAY utilizes calibrated GPS geofences. Cross
+            the perimeter of Fort Pilar or City Hall, and your device automatically unlocks
+            exclusive historical trivia and 3D artifacts.
+          </p>
+        </div>
+
+        <div className="lp-panel lp-panel--gold lp-bento-aside">
+          <Award size={34} />
+          <span className="lp-kicker">EXPLORER GUILD</span>
+          <h3 className="lp-bento-title">Climb the Leaderboard</h3>
+          <p className="lp-body">
+            Complete cultural quests, maintain daily login streaks, and earn EXP to advance
+            from Novice Scout to Grand Curator.
+          </p>
+
+          <div className="lp-rank-card">
+            <div className="lp-rank-row">
+              <span>CURRENT RANK:</span>
+              <strong>VINTA NAVIGATOR (Lv. 4)</strong>
             </div>
-            <span className="lp-bento-tag">PROXIMITY ENGINE</span>
-            <h3 className="lp-bento-title">
-              Walk inside. <br />
-              Unlock the landmark.
-            </h3>
-            <p className="lp-bento-desc">
-              No manual check-ins needed. LAKBAY utilizes calibrated GPS geofences. Cross
-              the perimeter of Fort Pilar or City Hall, and your device automatically unlocks
-              exclusive historical trivia and 3D artifacts.
-            </p>
-          </div>
-
-          {/* Card 2: Leaderboard */}
-          <div className="lp-bento-card lp-bento-aside">
-            <Award size={36} className="text-amber-400 mb-4" />
-            <span className="lp-bento-tag text-amber-300">EXPLORER GUILD</span>
-            <h3 className="lp-bento-title-sm">Climb the Leaderboard</h3>
-            <p className="lp-bento-desc-sm">
-              Complete cultural quests, maintain daily login streaks, and earn EXP to advance
-              from Novice Scout to Grand Curator.
-            </p>
-
-            <div className="lp-bento-stat-box">
-              <div className="lp-stat-row">
-                <span className="lp-stat-label">CURRENT RANK:</span>
-                <span className="lp-stat-val text-amber-300 font-bold">VINTA NAVIGATOR (Lv. 4)</span>
-              </div>
-              <div className="lp-progress-bar">
-                <div className="lp-progress-fill" style={{ width: '80%' }} />
-              </div>
-              <div className="lp-stat-footer">
-                <span>1,450 / 1,800 EXP</span>
-                <span className="text-amber-300 font-bold">+350 EXP Next Tier</span>
-              </div>
+            <div className="lp-progress">
+              <div className="lp-progress-fill" style={{ width: '80%' }} />
+            </div>
+            <div className="lp-rank-row lp-rank-foot">
+              <span>1,450 / 1,800 EXP</span>
+              <strong>+350 EXP Next Tier</strong>
             </div>
           </div>
         </div>
       </section>
 
       {/* ── Frequently Asked Questions ── */}
-      <section id="faq" className="lp-faq-section">
-        <div className="lp-section-header">
-          <h2 className="lp-section-title">Frequently Asked Questions</h2>
-          <p className="lp-section-subtitle">
+      <section id="faq" className="lp-panel lp-panel--light lp-faq">
+        <div className="lp-section-head lp-faq-head">
+          <h2 className="lp-heading">Frequently Asked Questions</h2>
+          <p className="lp-body">
             Everything you need to know about experiencing and managing LAKBAY.
           </p>
         </div>
@@ -703,16 +845,15 @@ export default function LandingPage({
           {FAQS.map((faq, idx) => {
             const isOpen = openFaq === idx;
             return (
-              <div key={idx} className={`lp-faq-item ${isOpen ? 'open' : ''}`}>
+              <div key={faq.q} className={`lp-faq-item ${isOpen ? 'open' : ''}`}>
                 <button
+                  type="button"
                   className="lp-faq-question"
+                  aria-expanded={isOpen}
                   onClick={() => setOpenFaq(isOpen ? null : idx)}
                 >
                   <span>{faq.q}</span>
-                  <ChevronDown
-                    size={20}
-                    className={`lp-faq-chevron ${isOpen ? 'rotate' : ''}`}
-                  />
+                  <ChevronDown size={20} className="lp-faq-chevron" />
                 </button>
                 {isOpen && <div className="lp-faq-answer">{faq.a}</div>}
               </div>
@@ -722,22 +863,25 @@ export default function LandingPage({
       </section>
 
       {/* ── CTA Banner ── */}
-      <section className="lp-cta-banner">
+      <section className="lp-panel lp-panel--dark lp-cta">
+        <DunePedestal id="cta" />
         <div className="lp-cta-inner">
           <h2 className="lp-cta-title">Ready to explore the digital heritage of Zamboanga?</h2>
-          <p className="lp-cta-desc">
+          <p className="lp-body">
             The ultimate cultural mapping, spatial 3D visualization, and quest system is live.
           </p>
           <div className="lp-cta-buttons">
             <button
-              className="lp-btn-cta-light"
+              type="button"
+              className="lp-cta-solid lp-cta-solid--light"
               onClick={() => handleOpenAdminModal('admin')}
             >
               <ShieldCheck size={18} />
               <span>Launch Admin Portal</span>
             </button>
             <button
-              className="lp-btn-cta-outline"
+              type="button"
+              className="lp-cta-line lp-cta-line--light"
               onClick={() => handleOpenAdminModal('tourist_guide')}
             >
               <span>Tour Guide Login →</span>
@@ -748,22 +892,20 @@ export default function LandingPage({
 
       {/* ── Footer ── */}
       <footer className="lp-footer">
-        <div className="lp-footer-inner">
-          <div className="lp-footer-left">
-            <img src={lakbayLogo} alt="LAKBAY Logo" className="lp-footer-logo" />
-            <div>
-              <span className="lp-footer-brand">LAKBAY Zamboanga</span>
-              <p className="lp-footer-sub">
-                Official Augmented Reality Cultural Tourism Platform
-              </p>
-            </div>
+        <div className="lp-footer-left">
+          <img src={lakbayLogo} alt="LAKBAY Logo" className="lp-footer-logo" />
+          <div>
+            <span className="lp-footer-brand">LAKBAY Zamboanga</span>
+            <p className="lp-footer-sub">
+              Official Augmented Reality Cultural Tourism Platform
+            </p>
           </div>
+        </div>
 
-          <div className="lp-footer-right">
-            <span>© {new Date().getFullYear()} LAKBAY. Western Mindanao State University.</span>
-            <span className="lp-footer-pipe">|</span>
-            <span>National Museum of the Philippines – Zamboanga</span>
-          </div>
+        <div className="lp-footer-right">
+          <span>© {new Date().getFullYear()} LAKBAY. Western Mindanao State University.</span>
+          <span className="lp-footer-pipe">|</span>
+          <span>National Museum of the Philippines – Zamboanga</span>
         </div>
       </footer>
 
