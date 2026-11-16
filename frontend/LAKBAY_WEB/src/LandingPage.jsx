@@ -19,12 +19,9 @@ import {
   Globe,
   Radio,
   CheckCircle2,
-  Lock,
-  X,
 } from 'lucide-react';
 import './LandingPage.css';
 import lakbayLogo from './assets/lakbay_icon_glyph.png';
-import authBackdrop from './assets/zc2.webp';
 
 // ── Models Data ─────────────────────────────────────────────────────────────
 const MODELS = [
@@ -931,32 +928,32 @@ export default function LandingPage({
       {isLoginModalOpen && (
         <div
           className={`lp-auth ${isGuide ? 'lp-auth--guide' : ''}`}
-          style={{ backgroundImage: `url(${authBackdrop})` }}
           role="dialog"
           aria-modal="true"
           aria-labelledby="lp-auth-title"
         >
-          <div className="lp-auth-card">
-            <div className="lp-auth-main">
+          <div className="lp-auth-form-side">
+            <button
+              type="button"
+              className="lp-auth-back"
+              onClick={() => setIsLoginModalOpen(false)}
+            >
+              <ArrowRight size={15} className="lp-auth-back-icon" />
+              Back to home
+            </button>
+
+            <div className="lp-auth-box">
+              <img src={lakbayLogo} alt="LAKBAY" className="lp-auth-logo" />
               <h2 id="lp-auth-title" className="lp-auth-title">Log In</h2>
-              <p className="lp-auth-switch">
-                {isGuide ? 'Are you an administrator of LAKBAY? ' : 'Are you the tour guide of LAKBAY? '}
-                <button
-                  type="button"
-                  onClick={() => setSelectedRole(isGuide ? 'admin' : 'tourist_guide')}
-                >
-                  Click sign in
-                </button>
+              <p className="lp-auth-sub">
+                {isGuide ? 'Cultural Validation & Tour Guide Portal' : 'Zamboanga Cultural System Administration'}
               </p>
 
               {loginError && <div className="lp-auth-error" role="alert">{loginError}</div>}
 
               <form onSubmit={onLogin} className="lp-auth-form">
                 <label className="lp-auth-field">
-                  <span className="lp-auth-field-label">
-                    {isGuide ? 'Tour Guide Email' : 'Administrator Email'}
-                  </span>
-                  <span className="lp-auth-field-hint">Use your LAKBAY staff email address</span>
+                  <span>{isGuide ? 'Tour Guide Email' : 'Administrator Email'}</span>
                   <input
                     type="email"
                     placeholder={isGuide ? 'guide@lakbay.ph' : 'admin@lakbay.ph'}
@@ -972,11 +969,10 @@ export default function LandingPage({
                 </label>
 
                 <label className="lp-auth-field">
-                  <span className="lp-auth-field-label">Password</span>
-                  <span className="lp-auth-field-hint">Enter your password</span>
+                  <span>Password</span>
                   <input
                     type="password"
-                    placeholder="••••••••"
+                    placeholder="Enter your password"
                     value={loginCredentials?.password || ''}
                     onChange={(e) =>
                       setLoginCredentials &&
@@ -987,60 +983,78 @@ export default function LandingPage({
                   />
                 </label>
 
-                <div className="lp-auth-actions">
-                  <button
-                    type="button"
-                    className="lp-auth-cancel"
-                    onClick={() => setIsLoginModalOpen(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="lp-auth-submit" disabled={isLoggingIn}>
-                    {isLoggingIn
-                      ? isSlowLogin
-                        ? 'Waking up server, this can take up to a minute...'
-                        : 'Authenticating...'
-                      : isGuide
-                      ? 'Sign in as Tour Guide'
-                      : 'Sign in as Administrator'}
-                  </button>
-                </div>
+                <button type="submit" className="lp-auth-submit" disabled={isLoggingIn}>
+                  {isLoggingIn
+                    ? isSlowLogin
+                      ? 'Waking up server, this can take up to a minute...'
+                      : 'Authenticating...'
+                    : 'Log In'}
+                </button>
               </form>
 
-              <div className="lp-auth-foot">
-                <p>LAKBAY Staff Portal — Dedicated access for Administrators &amp; Certified Tour Guides</p>
-                <span className="lp-auth-foot-icon">
-                  <Lock size={15} />
-                </span>
-              </div>
+              <p className="lp-auth-switch">
+                {isGuide ? 'Are you an administrator of LAKBAY? ' : 'Are you the tour guide of LAKBAY? '}
+                <button
+                  type="button"
+                  onClick={() => setSelectedRole(isGuide ? 'admin' : 'tourist_guide')}
+                >
+                  Click sign in
+                </button>
+              </p>
             </div>
 
-            <aside className="lp-auth-side">
-              <p className="lp-auth-side-label">
-                {isGuide ? 'Cultural Validation & Tour Guide Portal' : 'Zamboanga Cultural System Administration'}
-              </p>
-              <span className="lp-auth-scope">{isGuide ? 'GUIDE ACCESS' : 'ADMIN ACCESS'}</span>
-              <p className="lp-auth-scope-text">
-                {isGuide
-                  ? 'Educational & cultural validation hub: review, edit, approve, or reject AI-generated quizzes and verify local lore.'
-                  : 'Manage cultural spots, 3D AR targets, QR markers, users, merchant promotions, and live platform analytics.'}
-              </p>
-            </aside>
+            <p className="lp-auth-foot">
+              LAKBAY Staff Portal — Dedicated access for Administrators &amp; Certified Tour Guides
+            </p>
           </div>
 
-          <div className="lp-auth-brand" aria-hidden="true">
-            <img src={lakbayLogo} alt="" />
-            <span>{isGuide ? 'Tour Guide' : 'Admin'}</span>
+          <div className="lp-auth-showcase" aria-hidden="true">
+            <div className="lp-auth-shot lp-auth-shot--back2" />
+            <div className="lp-auth-shot lp-auth-shot--back1" />
+            <div className="lp-auth-shot">
+              <div className="lp-shot-sidebar">
+                <div className="lp-shot-brand">
+                  <img src={lakbayLogo} alt="" />
+                  LAKBAY
+                </div>
+                {['Dashboard', 'Feature Places', 'QR Codes', 'Interactive Map', 'AR', 'CATCH', 'Trivia Generator'].map((item, i) => (
+                  <span key={item} className={i === 0 ? 'is-active' : ''}>{item}</span>
+                ))}
+                <em>Operations</em>
+                {['Users', 'Badges', 'Reports', 'Promotions Queue'].map((item) => (
+                  <span key={item}>{item}</span>
+                ))}
+              </div>
+              <div className="lp-shot-main">
+                <div className="lp-shot-search" />
+                <strong>LAKBAY Dashboard</strong>
+                <div className="lp-shot-stats">
+                  {['Total Users', 'Total QR Scans', 'Total Catches', 'Total AR Visits'].map((label, i) => (
+                    <div key={label} className="lp-shot-stat">
+                      <i className={`t${i}`} />
+                      <small>{label}</small>
+                      <b />
+                    </div>
+                  ))}
+                </div>
+                <div className="lp-shot-chart">
+                  {[46, 78, 52, 30, 70, 58, 92, 64, 40].map((h, i) => (
+                    <span key={i} className={i === 6 ? 'is-top' : ''} style={{ height: `${h}%` }} />
+                  ))}
+                </div>
+                <div className="lp-shot-rows">
+                  {[0, 1, 2, 3].map((i) => (
+                    <div key={i}><b /><b /><i /></div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <p className="lp-auth-showcase-caption">
+              {isGuide
+                ? 'Educational & cultural validation hub: review, edit, approve, or reject AI-generated quizzes and verify local lore.'
+                : 'Manage cultural spots, 3D AR targets, QR markers, users, merchant promotions, and live platform analytics.'}
+            </p>
           </div>
-
-          <button
-            type="button"
-            className="lp-auth-close"
-            onClick={() => setIsLoginModalOpen(false)}
-            aria-label="Close sign in"
-          >
-            <X size={20} />
-          </button>
         </div>
       )}
     </div>
