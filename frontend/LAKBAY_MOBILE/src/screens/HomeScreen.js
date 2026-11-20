@@ -9,6 +9,7 @@ import VintaCard from '../components/VintaCard';
 import LucideIcon from '../components/LucideIcon';
 import PlaceDeck from '../components/PlaceDeck';
 import PromoBentoGrid from '../components/PromoBentoGrid';
+import { CoinIcon } from '../components/store/StoreArt';
 import { barangayName } from '../utils/barangayName';
 import GuideWelcome from '../components/GuideWelcome';
 import GuideSpeechModal from '../components/GuideSpeechModal';
@@ -239,7 +240,7 @@ export default function HomeScreen({ navigation, route }) {
     images: [p.image_file, p.image_file2, p.image_file3].filter(Boolean).map(formatImageUrl),
     // Models are never resized: promotion GLBs live under Cloudinary /image/upload/.
     model3d: p.model_3d_file ? p.model_3d_file.replace(/^http:\/\//, 'https://') : null,
-    kindLabel: p.is_place ? 'PLACE' : 'BUSINESS',
+    kindLabel: 'PROMOTED',
     location: barangayName(p.latitude, p.longitude) || 'Zamboanga City',
     ratingAvg: p.rating_avg,
     ratingCount: p.rating_count || 0,
@@ -252,7 +253,6 @@ export default function HomeScreen({ navigation, route }) {
       destination: {
         promoId: p.id,
         is_mine: !!p.is_mine,
-        is_place: !!p.is_place,
         title: p.spot_name,
         location: item.location,
         description: p.description,
@@ -528,12 +528,23 @@ export default function HomeScreen({ navigation, route }) {
         <Ionicons name="notifications-outline" size={20} color="#FFF" />
         {notifs.some(n => !n.read) && <View style={styles.unreadBadge} />}
       </TouchableOpacity>
-      <View ref={statsRef} collapsable={false} style={styles.statsPill}>
-        <LucideIcon name="zap" size={15} color={COLORS.gold} />
-        <Text style={styles.statsPillText}>{userXp.toLocaleString()}</Text>
-        <View style={styles.statsPillDivider} />
-        <Ionicons name="logo-bitcoin" size={15} color={COLORS.gold} />
-        <Text style={styles.statsPillText}>{(coins ?? 0).toLocaleString()}</Text>
+      <View ref={statsRef} collapsable={false} style={styles.statsRow}>
+        <View style={styles.statsPill}>
+          <LucideIcon name="zap" size={15} color={COLORS.gold} />
+          <Text style={styles.statsPillText}>{userXp.toLocaleString()}</Text>
+        </View>
+        {/* Same gold coin pill as the Store header; tap to buy more coins */}
+        <TouchableOpacity
+          style={styles.coinPill}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('MainTabs', { screen: 'Store' })}
+          accessibilityLabel={`${(coins ?? 0).toLocaleString()} coins. Open the Store`}
+        >
+          <View style={styles.coinPillIcon}>
+            <CoinIcon size={28} />
+          </View>
+          <Text style={styles.coinPillText}>{(coins ?? 0).toLocaleString()}</Text>
+        </TouchableOpacity>
       </View>
     </>
   );
@@ -808,7 +819,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 6,
   },
   statsPillText: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 14, color: '#FFFFFF' },
-  statsPillDivider: { width: 1, height: 16, backgroundColor: 'rgba(255,255,255,0.3)', marginHorizontal: 4 },
+  statsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Matches the Store header's balance pill: coin overlapping the left edge, gold amount.
+  coinPill: {
+    flexDirection: 'row', alignItems: 'center',
+    height: 30, paddingRight: 12, marginLeft: 14,
+    backgroundColor: 'rgba(12,36,97,0.72)', borderRadius: 22,
+    borderWidth: 1, borderColor: 'rgba(251,191,36,0.55)',
+  },
+  coinPillIcon: { marginLeft: -14, marginRight: 6 },
+  coinPillText: { fontFamily: GUIDE_FONTS.semiBold, fontSize: 14, color: COLORS.gold, minWidth: 20 },
   guideSectionTitle: { fontFamily: GUIDE_FONTS.bold, fontSize: 19, color: COLORS.navy },
   catRow: { flexDirection: 'row', gap: 10 },
   catTile: {
