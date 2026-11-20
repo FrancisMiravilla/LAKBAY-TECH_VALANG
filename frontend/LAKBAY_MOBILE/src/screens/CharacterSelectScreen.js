@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated, BackHandler, Dimensions, Easing, Image, KeyboardAvoidingView, Platform,
   ScrollView, StatusBar, StyleSheet, Text, TextInput, View,
@@ -7,14 +7,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { FONTS, GUIDE_FONTS } from '../constants/theme';
-import { HATS, PINS } from '../constants/cosmetics';
 import { authService } from '../api/authService';
 import ErrorModal from '../components/ErrorModal';
 import LucideIcon from '../components/LucideIcon';
-import DecoratedAvatar, { ProfileBackdrop } from '../components/DecoratedAvatar';
 import {
   BeachBackdrop, ChamferButton, ChamferFrame, CREATION, GlitchTitle, PopPressable, RiseIn,
 } from '../components/CreationKit';
+import {
+  AvatarPreview, CHARACTERS, CustomizePanel, DEFAULT_LOOK, SLOTS, STARTER_CATALOG, StarterLooks,
+  customizerStyles, randomLook,
+} from '../components/AvatarCustomizer';
 
 // Character creation: Guide → Customize (skippable) → In-game name → Finish.
 // Visual reference: a pixel-beach character creator — options rise in one by
@@ -23,14 +25,6 @@ import {
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const PAD = 16;
-
-const CHARACTERS = [
-  { id: 'mando', name: 'Kuya Mando', title: 'The Trailblazer', image: require('../assets/characters/lila.jpg'), tint: '#FCD9B0' },
-  { id: 'bela', name: 'Ate Bela', title: 'The Wanderer', image: require('../assets/characters/new.jpg'), tint: '#B7D0FA' },
-  { id: 'lila', name: 'Ate Lila', title: 'The Navigator', image: require('../assets/characters/ricky.jpg'), tint: '#DCE3B4' },
-  { id: 'dante', name: 'Bossing Dante', title: 'The Adventurer', image: require('../assets/characters/dante.jpg'), tint: '#B5DCEB' },
-  { id: 'sonya', name: 'Ate Sonya', title: 'The Discoverer', image: require('../assets/characters/sonya.jpg'), tint: '#A9C6DE' },
-];
 
 const RANDOM_CALLSIGNS = [
   'HermosaScout', 'VintaRider', 'PilarExplorer', 'YakanVoyager',
@@ -42,35 +36,6 @@ const STEPS = [
   { kicker: 'Make it yours', title: 'Customize' },
   { kicker: 'What should we call you?', title: 'Explorer Name' },
   { kicker: 'All set, explorer', title: 'Set Sail' },
-];
-
-const SLOTS = [
-  { slot: 'hat', label: 'Hat', icon: 'crown' },
-  { slot: 'frame', label: 'Frame', icon: 'target' },
-  { slot: 'pin', label: 'Pin', icon: 'medal' },
-  { slot: 'backdrop', label: 'Backdrop', icon: 'palm' },
-];
-
-// Used when the cosmetics catalog can't be loaded: the free starter items.
-const STARTER_CATALOG = [
-  { slot: 'hat', id: '', name: 'No Hat', min_xp: 0, unlocked: true },
-  { slot: 'hat', id: 'cap', name: 'Explorer Cap', min_xp: 0, unlocked: true },
-  { slot: 'frame', id: '', name: 'Simple Ring', min_xp: 0, unlocked: true },
-  { slot: 'frame', id: 'vinta', name: 'Vinta Stripes', min_xp: 0, unlocked: true },
-  { slot: 'pin', id: '', name: 'No Pin', min_xp: 0, unlocked: true },
-  { slot: 'pin', id: 'compass', name: 'Compass Pin', min_xp: 0, unlocked: true },
-  { slot: 'backdrop', id: '', name: 'Vinta Sails', min_xp: 0, unlocked: true },
-];
-
-const DEFAULT_LOOK = { hat: '', frame: '', pin: '', backdrop: '' };
-
-const STARTER_LOOKS = [
-  { hat: 'cap', frame: 'vinta', pin: 'compass', tile: '#2E7D7A' },
-  { hat: 'cap', frame: '', pin: '', tile: '#F6D27A' },
-  { hat: '', frame: 'vinta', pin: 'compass', tile: '#F8C8DC' },
-  { hat: 'cap', frame: 'vinta', pin: '', tile: '#7FD3E8' },
-  { hat: '', frame: '', pin: 'compass', tile: '#F4B6C8' },
-  { hat: 'cap', frame: '', pin: 'compass', tile: '#5EC4B6' },
 ];
 
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
@@ -132,44 +97,6 @@ function GuideTile({ char, index, width, height, phase, grid, onPick, offsetTop 
   );
 }
 
-// Thumbnail for one cosmetic item.
-function ItemThumb({ slot, id, character, size = 40 }) {
-  if (slot === 'backdrop') return <ProfileBackdrop id={id} style={{ width: size * 1.3, height: size * 1.3, borderRadius: 6 }} />;
-  if (slot === 'frame') return <DecoratedAvatar character={character} size={size} frame={id} reserveHatSpace={false} />;
-  if (slot === 'hat') {
-    return HATS[id]
-      ? <DecoratedAvatar character={character} size={size * 0.85} hat={id} />
-      : <Ionicons name="ban-outline" size={size * 0.7} color={CREATION.muted} />;
-  }
-  return PINS[id] ? (
-    <View style={[styles.pinThumb, { width: size * 0.9, height: size * 0.9, borderRadius: size, backgroundColor: PINS[id].bg }]}>
-      <LucideIcon name={PINS[id].icon} size={size * 0.5} color="#FFFFFF" />
-    </View>
-  ) : (
-    <Ionicons name="ban-outline" size={size * 0.7} color={CREATION.muted} />
-  );
-}
-
-// Live avatar preview; bounces whenever the look changes.
-function AvatarPreview({ character, look, width, height, avatarSize }) {
-  const bounce = useRef(new Animated.Value(1)).current;
-  const key = `${character}|${look.hat}|${look.frame}|${look.pin}|${look.backdrop}`;
-  useEffect(() => {
-    bounce.setValue(0.92);
-    Animated.spring(bounce, { toValue: 1, friction: 4, tension: 140, useNativeDriver: true }).start();
-  }, [key, bounce]);
-  return (
-    <ChamferFrame width={width} height={height} cut={14} fill={CREATION.card}>
-      <ProfileBackdrop id={look.backdrop} style={styles.previewBackdrop}>
-        <View style={styles.previewShade} />
-        <Animated.View style={{ transform: [{ scale: bounce }] }}>
-          <DecoratedAvatar character={character} size={avatarSize} hat={look.hat} frame={look.frame} pin={look.pin} />
-        </Animated.View>
-      </ProfileBackdrop>
-    </ChamferFrame>
-  );
-}
-
 export default function CharacterSelectScreen({ navigation }) {
   const [step, setStep] = useState(0);
   const [guideIdx, setGuideIdx] = useState(null);
@@ -181,7 +108,6 @@ export default function CharacterSelectScreen({ navigation }) {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorModal, setErrorModal] = useState({ visible: false, type: 'error', title: '', message: '' });
-  const panelAnim = useRef(new Animated.Value(1)).current;
 
   const showErr = (title, message, type = 'error') => setErrorModal({ visible: true, type, title, message });
   const guide = CHARACTERS[guideIdx ?? 0];
@@ -213,32 +139,7 @@ export default function CharacterSelectScreen({ navigation }) {
   };
 
   // ── Step 2: customize ──────────────────────────────────────────────────────
-  const unlockedBySlot = useMemo(() => {
-    const map = {};
-    SLOTS.forEach(({ slot }) => { map[slot] = catalog.filter((i) => i.slot === slot && i.unlocked).map((i) => i.id); });
-    return map;
-  }, [catalog]);
-
-  const starterLooks = useMemo(() => STARTER_LOOKS.filter((l) => ['hat', 'frame', 'pin']
-    .every((slot) => unlockedBySlot[slot]?.includes(l[slot]))), [unlockedBySlot]);
-
-  const randomize = () => setLook({
-    hat: pick(unlockedBySlot.hat?.length ? unlockedBySlot.hat : ['']),
-    frame: pick(unlockedBySlot.frame?.length ? unlockedBySlot.frame : ['']),
-    pin: pick(unlockedBySlot.pin?.length ? unlockedBySlot.pin : ['']),
-    backdrop: pick(unlockedBySlot.backdrop?.length ? unlockedBySlot.backdrop : ['']),
-  });
-
-  const openPanel = (slot) => {
-    panelAnim.setValue(0);
-    setPanel(slot);
-    Animated.timing(panelAnim, { toValue: 1, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-  };
-  const closePanel = () => {
-    panelAnim.setValue(0);
-    setPanel(null);
-    Animated.timing(panelAnim, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-  };
+  const randomize = () => setLook(randomLook(catalog));
 
   // ── Step 3: name ───────────────────────────────────────────────────────────
   const rollName = () => setName(`${pick(RANDOM_CALLSIGNS)}_${Math.floor(10 + Math.random() * 90)}`);
@@ -303,89 +204,6 @@ export default function CharacterSelectScreen({ navigation }) {
     </View>
   );
 
-  const renderPanel = () => {
-    const slide = { opacity: panelAnim, transform: [{ translateX: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [panel ? 40 : -40, 0] }) }] };
-    if (!panel) {
-      const cellW = (contentW - 24 - 10) / 2;
-      return (
-        <Animated.View style={slide}>
-          <View style={styles.panelHeader}>
-            <Text style={styles.panelTitle}>CUSTOMIZE</Text>
-            <PopPressable onPress={() => setLook(DEFAULT_LOOK)} accessibilityLabel="Reset look">
-              <Text style={styles.panelLink}>Reset ↺</Text>
-            </PopPressable>
-          </View>
-          <View style={styles.catGrid}>
-            {SLOTS.map((s, i) => {
-              const count = catalog.filter((c) => c.slot === s.slot).length;
-              const changed = look[s.slot] !== '';
-              return (
-                <RiseIn key={s.slot} index={i}>
-                  <PopPressable onPress={() => openPanel(s.slot)} accessibilityLabel={`Choose ${s.label}`}>
-                    <View style={[styles.catCell, { width: cellW }]}>
-                      {changed && <View style={styles.catDot} />}
-                      <View style={styles.catThumb}>
-                        <ItemThumb slot={s.slot} id={look[s.slot] || (s.slot === 'backdrop' ? '' : catalog.find((c) => c.slot === s.slot && c.id)?.id || '')} character={guide.id} size={34} />
-                      </View>
-                      <Text style={styles.catLabel}>{s.label.toUpperCase()} ({count})</Text>
-                    </View>
-                  </PopPressable>
-                </RiseIn>
-              );
-            })}
-          </View>
-        </Animated.View>
-      );
-    }
-    const items = catalog.filter((c) => c.slot === panel);
-    const cell = Math.floor((contentW - 24 - 16) / 3);
-    const slotLabel = SLOTS.find((s) => s.slot === panel)?.label || '';
-    return (
-      <Animated.View style={slide}>
-        <PopPressable onPress={closePanel} accessibilityLabel="Back to categories">
-          <View style={styles.panelHeader}>
-            <Text style={styles.panelTitle}>← {slotLabel.toUpperCase()}S ({items.length})</Text>
-          </View>
-        </PopPressable>
-        <View style={styles.itemGrid}>
-          {items.map((it, i) => {
-            const selected = look[panel] === it.id;
-            return (
-              <RiseIn key={`${panel}-${it.id || 'none'}`} index={i}>
-                <PopPressable
-                  disabled={!it.unlocked}
-                  onPress={() => setLook((l) => ({ ...l, [panel]: it.id }))}
-                  accessibilityLabel={it.unlocked ? it.name : `${it.name}, unlocks at ${it.min_xp} XP`}
-                >
-                  <ChamferFrame
-                    width={cell}
-                    height={cell + 18}
-                    cut={9}
-                    bg="#FFFDF4"
-                    fill={selected ? '#EEF2FF' : '#F7F0D8'}
-                    stroke={selected ? CREATION.blue : undefined}
-                    strokeWidth={2.5}
-                  >
-                    <View style={[styles.itemInner, !it.unlocked && { opacity: 0.4 }]}>
-                      <ItemThumb slot={panel} id={it.id} character={guide.id} size={34} />
-                      <Text style={styles.itemName} numberOfLines={1}>{it.name}</Text>
-                    </View>
-                    {!it.unlocked && (
-                      <View style={styles.lockBadge}>
-                        <LucideIcon name="lock" size={10} color="#FFFFFF" />
-                        <Text style={styles.lockText}>{it.min_xp} XP</Text>
-                      </View>
-                    )}
-                  </ChamferFrame>
-                </PopPressable>
-              </RiseIn>
-            );
-          })}
-        </View>
-      </Animated.View>
-    );
-  };
-
   const renderCustomize = () => (
     <View>
       <RiseIn index={0}>
@@ -406,25 +224,18 @@ export default function CharacterSelectScreen({ navigation }) {
           icon={<Ionicons name="arrow-forward" size={16} color="#FFFFFF" />}
         />
       </RiseIn>
-      <View style={styles.panelCard}>{renderPanel()}</View>
-      {starterLooks.length > 0 && (
-        <View style={styles.premade}>
-          <Text style={styles.premadeTitle}>Starter looks</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 8 }}>
-            {starterLooks.map((l, i) => (
-              <RiseIn key={i} index={i} delay={150}>
-                <PopPressable onPress={() => setLook((cur) => ({ ...cur, hat: l.hat, frame: l.frame, pin: l.pin }))} accessibilityLabel={`Starter look ${i + 1}`}>
-                  <ChamferFrame width={64} height={64} cut={10} fill={l.tile}>
-                    <View style={styles.premadeInner}>
-                      <DecoratedAvatar character={guide.id} size={30} hat={l.hat} frame={l.frame} pin={l.pin} />
-                    </View>
-                  </ChamferFrame>
-                </PopPressable>
-              </RiseIn>
-            ))}
-          </ScrollView>
-        </View>
-      )}
+      <View style={customizerStyles.panelCard}>
+        <CustomizePanel
+          catalog={catalog}
+          look={look}
+          onLookChange={setLook}
+          character={guide.id}
+          panel={panel}
+          onPanelChange={setPanel}
+          onReset={() => setLook(DEFAULT_LOOK)}
+        />
+      </View>
+      <StarterLooks catalog={catalog} character={guide.id} onPick={(l) => setLook((cur) => ({ ...cur, ...l }))} />
     </View>
   );
 
@@ -579,35 +390,9 @@ const styles = StyleSheet.create({
   guideName: { fontFamily: FONTS.bold, fontSize: 13, color: CREATION.ink, textAlign: 'center', marginTop: 8 },
   guideTitle: { fontFamily: FONTS.regular, fontSize: 11, color: CREATION.muted, textAlign: 'center' },
 
-  previewBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  previewShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(234, 223, 184, 0.35)' },
   btnRow: { flexDirection: 'row', gap: 10, marginTop: 14, justifyContent: 'center' },
 
-  panelCard: {
-    marginTop: 16, padding: 12, backgroundColor: '#FFFDF4',
-    borderWidth: 1, borderColor: CREATION.sandDeep, borderRadius: 4,
-  },
-  panelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  panelTitle: { fontFamily: GUIDE_FONTS.display, fontSize: 13, color: CREATION.ink, letterSpacing: 0.5 },
-  panelLink: { fontFamily: FONTS.semiBold, fontSize: 12, color: CREATION.blue },
-  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  catCell: { alignItems: 'center', paddingVertical: 12, backgroundColor: '#F7F0D8', borderRadius: 4 },
-  catThumb: { height: 50, alignItems: 'center', justifyContent: 'center' },
-  catLabel: { fontFamily: FONTS.bold, fontSize: 11, color: CREATION.muted, marginTop: 6, letterSpacing: 0.4 },
-  catDot: { position: 'absolute', top: 8, right: 8, width: 7, height: 7, backgroundColor: CREATION.green },
-  itemGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  itemInner: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
-  itemName: { fontFamily: FONTS.medium, fontSize: 10, color: CREATION.ink, marginTop: 6, textAlign: 'center' },
-  lockBadge: {
-    position: 'absolute', top: 6, left: 6, flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: 'rgba(30,27,22,0.75)', paddingHorizontal: 5, paddingVertical: 2,
-  },
-  lockText: { fontFamily: FONTS.bold, fontSize: 9, color: '#FFFFFF' },
-  pinThumb: { alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF' },
 
-  premade: { marginTop: 16 },
-  premadeTitle: { fontFamily: FONTS.bold, fontSize: 12, color: CREATION.ink, marginBottom: 8 },
-  premadeInner: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   nameInput: {
     flex: 1, fontFamily: FONTS.bold, fontSize: 18, color: CREATION.ink, textAlign: 'center', paddingHorizontal: 14,

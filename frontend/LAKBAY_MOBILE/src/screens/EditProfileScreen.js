@@ -1,21 +1,56 @@
-import React, { useState, useEffect } from 'react';
-import { SafeAreaView, StyleSheet, Text, View, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Image, ImageBackground, StatusBar } from 'react-native';
-import { COLORS, FONTS, RADIUS, BG_OVERLAY } from '../constants/theme';
-import VintaCard from '../components/VintaCard';
-import VintaStripe from '../components/VintaStripe';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator, BackHandler, Dimensions, KeyboardAvoidingView, Platform,
+  ScrollView, StatusBar, StyleSheet, Text, TextInput, View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { FONTS, GUIDE_FONTS } from '../constants/theme';
 import { authService } from '../api/authService';
-import DecoratedAvatar, { ProfileBackdrop } from '../components/DecoratedAvatar';
-import AvatarStylePicker from '../components/AvatarStylePicker';
-
+import LucideIcon from '../components/LucideIcon';
 import { useAppDialog } from '../components/useAppDialog';
-const CHARACTERS = [
-  { id: 'mando', name: 'Kuya Mando', image: require('../assets/characters/lila.jpg'), zoom: 1.15 },
-  { id: 'bela', name: 'Ate Bela', image: require('../assets/characters/new.jpg'), zoom: 1.15 },
-  { id: 'lila', name: 'Ate Lila', image: require('../assets/characters/ricky.jpg'), zoom: 1.4 },
-  { id: 'dante', name: 'Bossing Dante', image: require('../assets/characters/dante.jpg'), zoom: 1.4 },
-  { id: 'sonya', name: 'Ate Sonya', image: require('../assets/characters/sonya.jpg'), zoom: 1 },
-];
+import {
+  BeachBackdrop, ChamferButton, ChamferFrame, CREATION, GlitchTitle, PopPressable, RiseIn,
+} from '../components/CreationKit';
+import {
+  AvatarPreview, CustomizePanel, DEFAULT_LOOK, GuidePicker, STARTER_CATALOG, StarterLooks,
+  customizerStyles, randomLook,
+} from '../components/AvatarCustomizer';
+
+// Edit Profile in the same pixel-beach style as character creation:
+// live preview, details, guide, then the same customize panel.
+
+const { width: SCREEN_W } = Dimensions.get('window');
+const PAD = 16;
+
+const explorerNameError = (value) => {
+  const n = value.trim();
+  if (n.length < 3) return 'Use at least 3 characters.';
+  if (n.length > 20) return 'Keep it to 20 characters or less.';
+  if (!/^[A-Za-z0-9_ ]+$/.test(n)) return 'Letters, numbers, spaces and _ only.';
+  return null;
+};
+
+function Field({ label, value, onChangeText, placeholder, error, width, autoCapitalize = 'words', maxLength }) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <ChamferFrame width={width} height={52} cut={10} fill="#FFFFFF" stroke={error ? '#EF4444' : CREATION.blue} strokeWidth={2}>
+        <TextInput
+          style={styles.input}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor="#B8AE96"
+          autoCapitalize={autoCapitalize}
+          autoCorrect={false}
+          maxLength={maxLength}
+        />
+      </ChamferFrame>
+      {!!error && <Text style={styles.fieldError}>{error}</Text>}
+    </View>
+  );
+}
 
 export default function EditProfileScreen({ navigation }) {
   const { dialog, showAlert } = useAppDialog();
@@ -26,38 +61,51 @@ export default function EditProfileScreen({ navigation }) {
   const [character, setCharacter] = useState('mando');
   // Avatar decorations: catalog + equipped from the server, `look` is the unsaved choice.
   const [cosmetics, setCosmetics] = useState(null);
-  const [look, setLook] = useState({ hat: '', frame: '', pin: '', backdrop: '' });
+  const [look, setLook] = useState(DEFAULT_LOOK);
+  const [panel, setPanel] = useState(null);
+
+  const catalog = cosmetics?.catalog?.length ? cosmetics.catalog : STARTER_CATALOG;
+  const contentW = SCREEN_W - PAD * 2;
+  const nameError = inGameName ? explorerNameError(inGameName) : 'Enter your explorer name.';
+  const fullNameError = fullName.trim() ? null : 'Enter your full name.';
 
   useEffect(() => {
-    fetchProfile();
+    (async () => {
+      try {
+        const [data, cos] = await Promise.all([
+          authService.getProfile(),
+          authService.getCosmetics().catch(() => null),
+        ]);
+        setFullName(data.full_name || '');
+        setInGameName(data.in_game_name || '');
+        setCharacter(data.chosen_character || 'mando');
+        if (cos) {
+          setCosmetics(cos);
+          setLook(cos.equipped);
+        }
+      } catch (e) {
+        console.log('Error fetching profile for edit', e);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
-  const fetchProfile = async () => {
-    try {
-      const [data, cos] = await Promise.all([
-        authService.getProfile(),
-        authService.getCosmetics().catch(() => null),
-      ]);
-      setFullName(data.full_name || '');
-      setInGameName(data.in_game_name || '');
-      setCharacter(data.chosen_character || 'mando');
-      if (cos) {
-        setCosmetics(cos);
-        setLook(cos.equipped);
-      }
-    } catch (e) {
-      console.log('Error fetching profile for edit', e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Android back closes an open item list first, like character creation.
+  const onBack = useCallback(() => {
+    if (panel) { setPanel(null); return true; }
+    return false;
+  }, [panel]);
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
+    return () => sub.remove();
+  }, [onBack]);
 
   const handleSave = async () => {
-    if (!fullName.trim() || !inGameName.trim()) {
-      showAlert('Validation Error', 'Full Name and Explorer Name cannot be empty.');
+    if (fullNameError || nameError) {
+      showAlert('Check Your Details', fullNameError || nameError);
       return;
     }
-    
     setSaving(true);
     try {
       await authService.updateProfile({
@@ -77,230 +125,152 @@ export default function EditProfileScreen({ navigation }) {
       navigation.goBack();
     } catch (e) {
       console.log('Error updating profile', e);
-      let errorMsg = 'Failed to update profile.';
-      if (e.in_game_name) {
-          errorMsg = e.in_game_name[0];
-      }
-      showAlert('Update Failed', errorMsg);
+      const taken = e?.in_game_name || e?.response?.data?.in_game_name;
+      showAlert('Update Failed', taken ? String(taken[0] || taken) : 'Failed to update profile.');
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return (
-      <ImageBackground source={require('../../reference/VINTA.jpeg')} style={styles.bgImage} resizeMode="cover">
-        <View style={styles.bgOverlay} />
-        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-          <ActivityIndicator color={COLORS.gold} size="large" />
-        </View>
-      </ImageBackground>
-    );
-  }
+  const header = (
+    <View style={styles.header}>
+      <View style={styles.headerSide}>
+        <PopPressable onPress={() => (onBack() ? null : navigation.goBack())} accessibilityLabel="Back">
+          <ChamferFrame width={36} height={36} cut={8} fill="#FFFDF4" stroke={CREATION.muted} strokeWidth={1.5}>
+            <View style={styles.centerFill}><Ionicons name="arrow-back" size={16} color={CREATION.ink} /></View>
+          </ChamferFrame>
+        </PopPressable>
+      </View>
+      <Text style={styles.wordmark}>LAKBAY</Text>
+      <View style={styles.headerSide} />
+    </View>
+  );
 
   return (
-    <ImageBackground source={require('../../reference/VINTA.jpeg')} style={styles.bgImage} resizeMode="cover">
-    <View style={styles.bgOverlay} />
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Profile</Text>
-        <View style={{ width: 40 }} />
-      </View>
-      <VintaStripe height={3} />
+    <BeachBackdrop>
+      <StatusBar barStyle="dark-content" backgroundColor={CREATION.sand} />
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+        {header}
+        <GlitchTitle kicker="Make it yours" title="Edit Profile" />
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {/* Live preview of companion + avatar style */}
-        <View style={styles.preview}>
-          <ProfileBackdrop id={look.backdrop} style={StyleSheet.absoluteFill} />
-          <View style={styles.previewDim} />
-          <DecoratedAvatar character={character} size={100} hat={look.hat} frame={look.frame} pin={look.pin} />
-          <Text style={styles.previewName} numberOfLines={1}>{inGameName.trim() || 'Explorer'}</Text>
-          {cosmetics && (
-            <Text style={styles.previewXp}>{cosmetics.xp.toLocaleString()} XP · earn more to unlock styles</Text>
-          )}
-        </View>
-
-        <VintaCard contentStyle={styles.formCard}>
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>FULL NAME</Text>
-          <View style={styles.inputWrap}>
-            <TextInput
-              style={styles.input}
-              value={fullName}
-              onChangeText={setFullName}
-              placeholder="Enter your full name"
-              placeholderTextColor={COLORS.textMuted}
-            />
+        {loading ? (
+          <View style={styles.loading}>
+            <ActivityIndicator color={CREATION.blue} size="large" />
           </View>
-        </View>
+        ) : (
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <RiseIn index={0}>
+                <AvatarPreview character={character} look={look} width={contentW} height={210} avatarSize={112}>
+                  <Text style={styles.previewName} numberOfLines={1}>{inGameName.trim() || 'Explorer'}</Text>
+                  {!!cosmetics && (
+                    <Text style={styles.previewXp}>{cosmetics.xp.toLocaleString()} XP · earn more to unlock styles</Text>
+                  )}
+                </AvatarPreview>
+              </RiseIn>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>EXPLORER NAME</Text>
-          <View style={styles.inputWrap}>
-            <TextInput
-              style={styles.input}
-              value={inGameName}
-              onChangeText={setInGameName}
-              placeholder="Enter your explorer name"
-              placeholderTextColor={COLORS.textMuted}
-              autoCapitalize="words"
-            />
-          </View>
-        </View>
+              <RiseIn index={1} style={styles.btnRow}>
+                <ChamferButton
+                  variant="outline"
+                  label="Randomize"
+                  width={(contentW - 10) / 2}
+                  onPress={() => setLook(randomLook(catalog))}
+                  icon={<LucideIcon name="dices" size={16} color={CREATION.blue} />}
+                />
+                <ChamferButton
+                  label={saving ? 'Saving…' : 'Save'}
+                  width={(contentW - 10) / 2}
+                  disabled={saving}
+                  onPress={handleSave}
+                  icon={<Ionicons name="checkmark" size={17} color="#FFFFFF" />}
+                />
+              </RiseIn>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>CHOOSE COMPANION</Text>
-          <View style={styles.charGrid}>
-            {CHARACTERS.map(c => {
-              const isSelected = character === c.id;
-              return (
-                <TouchableOpacity 
-                  key={c.id} 
-                  style={[styles.charCard, isSelected && styles.charCardSelected]} 
-                  onPress={() => setCharacter(c.id)}
-                >
-                  <View style={[styles.charImageWrap, isSelected && { borderColor: COLORS.accent, borderWidth: 2 }]}>
-                    <Image 
-                      source={c.image} 
-                      style={[styles.charImage, { transform: [{ scale: c.zoom }] }]} 
-                      resizeMode="cover" 
-                    />
-                  </View>
-                  <Text style={[styles.charName, isSelected && { color: COLORS.accent, fontFamily: FONTS.bold }]}>
-                    {c.name}
-                  </Text>
-                </TouchableOpacity>
-              )
-            })}
-          </View>
-        </View>
+              <Text style={styles.sectionTitle}>EXPLORER DETAILS</Text>
+              <View style={customizerStyles.panelCard}>
+                <Field
+                  label="Full name"
+                  value={fullName}
+                  onChangeText={setFullName}
+                  placeholder="Your full name"
+                  error={fullNameError}
+                  width={contentW - 26}
+                />
+                <Field
+                  label="Explorer name"
+                  value={inGameName}
+                  onChangeText={setInGameName}
+                  placeholder="Your explorer name"
+                  error={nameError}
+                  width={contentW - 26}
+                  autoCapitalize="none"
+                  maxLength={20}
+                />
+                <Text style={styles.hint}>Your explorer name is how others see you on the leaderboard.</Text>
+              </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>AVATAR STYLE</Text>
-          {cosmetics ? (
-            <AvatarStylePicker catalog={cosmetics.catalog} value={look} onChange={setLook} character={character} />
-          ) : (
-            <Text style={styles.styleUnavailable}>Avatar styles could not load. Check your connection and reopen Edit Profile.</Text>
-          )}
-        </View>
+              <Text style={styles.sectionTitle}>YOUR GUIDE</Text>
+              <View style={customizerStyles.panelCard}>
+                <GuidePicker value={character} onChange={setCharacter} width={contentW - 26} />
+              </View>
 
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
-        </TouchableOpacity>
-        </VintaCard>
+              <Text style={styles.sectionTitle}>AVATAR STYLE</Text>
+              {!cosmetics && (
+                <Text style={styles.hint}>Only the starter styles are shown. Reopen Edit Profile online to see everything you unlocked.</Text>
+              )}
+              <View style={customizerStyles.panelCard}>
+                <CustomizePanel
+                  catalog={catalog}
+                  look={look}
+                  onLookChange={setLook}
+                  character={character}
+                  panel={panel}
+                  onPanelChange={setPanel}
+                  onReset={cosmetics ? () => setLook(cosmetics.equipped) : () => setLook(DEFAULT_LOOK)}
+                  resetLabel={cosmetics ? 'Undo ↺' : 'Reset ↺'}
+                />
+              </View>
+              <StarterLooks catalog={catalog} character={character} onPick={(l) => setLook((cur) => ({ ...cur, ...l }))} />
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
+              <RiseIn index={2} style={{ marginTop: 22 }}>
+                <ChamferButton
+                  label={saving ? 'Saving…' : 'Save Changes'}
+                  width={contentW}
+                  height={54}
+                  disabled={saving}
+                  onPress={handleSave}
+                  icon={<LucideIcon name="sailboat" size={18} color="#FFFFFF" />}
+                />
+              </RiseIn>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        )}
+      </SafeAreaView>
       {dialog}
-    </SafeAreaView>
-    </ImageBackground>
+    </BeachBackdrop>
   );
 }
 
 const styles = StyleSheet.create({
-  preview: {
-    height: 230, borderRadius: 28, overflow: 'hidden', borderWidth: 3, borderColor: '#FFFFFF',
-    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-  },
-  previewDim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(6,18,49,0.25)' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: PAD, paddingTop: 6 },
+  headerSide: { width: 64, height: 36, justifyContent: 'center' },
+  wordmark: { flex: 1, textAlign: 'center', fontFamily: GUIDE_FONTS.display, fontSize: 18, color: CREATION.blue, letterSpacing: 3 },
+  centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  body: { paddingHorizontal: PAD, paddingBottom: 120 },
+
   previewName: {
-    fontFamily: FONTS.bold, fontSize: 20, color: '#FFFFFF', marginTop: 8, maxWidth: '85%',
-    textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6,
+    fontFamily: FONTS.bold, fontSize: 18, color: CREATION.ink, marginTop: 8, maxWidth: '85%', textAlign: 'center',
   },
-  previewXp: {
-    fontFamily: FONTS.medium, fontSize: 12, color: '#FFFFFF', marginTop: 2,
-    textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6,
+  previewXp: { fontFamily: FONTS.medium, fontSize: 11.5, color: CREATION.ink, marginTop: 2, opacity: 0.8 },
+  btnRow: { flexDirection: 'row', gap: 10, marginTop: 14, justifyContent: 'center' },
+
+  sectionTitle: {
+    fontFamily: GUIDE_FONTS.display, fontSize: 13, color: CREATION.ink, letterSpacing: 0.5, marginTop: 22,
   },
-  styleUnavailable: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMuted },
-  bgImage: { flex: 1 },
-  bgOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: BG_OVERLAY },
-  container: { flex: 1, backgroundColor: 'transparent' },
-  header: {
-    height: 60,
-    backgroundColor: 'rgba(8, 20, 60, 0.70)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-  },
-  backBtn: {
-    width: 40, height: 40, justifyContent: 'center',
-  },
-  headerTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 20,
-    color: '#fff',
-  },
-  content: { padding: 16 },
-  formCard: { padding: 20, paddingTop: 24 },
-  formGroup: { marginBottom: 24 },
-  label: {
-    fontFamily: FONTS.bold,
-    fontSize: 12,
-    color: COLORS.textSub,
-    letterSpacing: 1.5,
-    marginBottom: 8,
-  },
-  inputWrap: {
-    backgroundColor: COLORS.bgCardAlt,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: 16,
-    height: 52,
-    justifyContent: 'center',
-  },
-  input: {
-    fontFamily: FONTS.semiBold,
-    fontSize: 15,
-    color: COLORS.text,
-  },
-  charGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  charCard: {
-    width: '31%',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  charCardSelected: {
-    opacity: 1,
-  },
-  charImageWrap: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: COLORS.bgSurface,
-    overflow: 'hidden',
-    marginBottom: 8,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  charImage: { width: '100%', height: '100%' },
-  charName: {
-    fontFamily: FONTS.medium,
-    fontSize: 11,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-  },
-  saveBtn: {
-    backgroundColor: COLORS.accent,
-    height: 54,
-    borderRadius: RADIUS.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  saveBtnText: {
-    fontFamily: FONTS.bold,
-    fontSize: 16,
-    color: '#fff',
-  }
+  field: { marginBottom: 12 },
+  fieldLabel: { fontFamily: FONTS.bold, fontSize: 12, color: CREATION.muted, marginBottom: 6, letterSpacing: 0.4 },
+  input: { flex: 1, fontFamily: FONTS.bold, fontSize: 16, color: CREATION.ink, paddingHorizontal: 14 },
+  fieldError: { fontFamily: FONTS.medium, fontSize: 11.5, color: '#DC2626', marginTop: 4 },
+  hint: { fontFamily: FONTS.regular, fontSize: 12, color: CREATION.muted, marginTop: 4 },
 });
