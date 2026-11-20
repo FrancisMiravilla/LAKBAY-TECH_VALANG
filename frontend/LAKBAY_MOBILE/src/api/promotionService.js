@@ -50,11 +50,10 @@ const appendImages = (formData, imageUris) => {
   });
 };
 
-export const submitPromotion = async (spotName, description, imageUris, glbUri, lat, lng, isPlace = false, useCoins = false) => {
+export const submitPromotion = async (spotName, description, imageUris, glbUri, lat, lng, useCoins = false) => {
   const formData = new FormData();
   formData.append('spot_name', spotName);
   formData.append('description', description);
-  formData.append('is_place', isPlace ? 'true' : 'false');
   formData.append('use_coins', useCoins ? 'true' : 'false');
 
   if (lat !== undefined && lng !== undefined) {
@@ -78,11 +77,10 @@ export const submitPromotion = async (spotName, description, imageUris, glbUri, 
   return response.data;
 };
 
-export const updatePromotion = async (id, { spotName, description, imageUris, glbUri, lat, lng, isPlace }) => {
+export const updatePromotion = async (id, { spotName, description, imageUris, glbUri, lat, lng }) => {
   const formData = new FormData();
   if (spotName !== undefined) formData.append('spot_name', spotName);
   if (description !== undefined) formData.append('description', description);
-  if (isPlace !== undefined) formData.append('is_place', isPlace ? 'true' : 'false');
 
   if (lat !== undefined && lng !== undefined) {
     formData.append('latitude', lat);

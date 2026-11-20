@@ -164,10 +164,7 @@ export default function DetailsScreen({ route, navigation }) {
             <View style={styles.infoRow}>
               <View style={styles.chipGrid}>
                 {isSponsored ? (
-                  <>
-                    <InfoChip icon="megaphone" label="Sponsored" color={GOLD_TEXT} />
-                    <InfoChip icon="pin" label={destination.is_place ? 'Place' : 'Business'} color={COLORS.accent} />
-                  </>
+                  <InfoChip icon="megaphone" label="Sponsored" color={GOLD_TEXT} />
                 ) : (
                   <>
                     {(featureTypes.length ? featureTypes : [primaryType]).map((ft) => {

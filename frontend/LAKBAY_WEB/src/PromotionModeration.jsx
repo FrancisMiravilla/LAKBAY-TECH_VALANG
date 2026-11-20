@@ -510,7 +510,6 @@ function ArchiveList({ promotions, remindingId, onRemind, onOpen }) {
                   style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-title)', fontWeight: 600, textAlign: 'left' }}>
                   {p.spot_name}
                 </button>
-                <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>{p.is_place ? 'Place' : 'Business'}</div>
               </td>
               <td>{p.user_name}</td>
               <td>{formatDate(p.expires_at)}</td>

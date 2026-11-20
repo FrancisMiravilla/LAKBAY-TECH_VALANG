@@ -186,7 +186,6 @@ export default function PromoteScreen({ route, navigation }) {
   const [glbName,     setGlbName]     = useState(
     editPromotion?.model_3d_file ? editPromotion.model_3d_file.split('/').pop() : null
   );
-  const [isPlace,     setIsPlace]     = useState(Boolean(editPromotion?.is_place));
   const [submitting,  setSubmitting]  = useState(false);
 
   const initialLoc = (editPromotion?.latitude && editPromotion?.longitude)
@@ -258,7 +257,6 @@ export default function PromoteScreen({ route, navigation }) {
           glbUri,
           lat: location.lat,
           lng: location.lng,
-          isPlace,
         });
         showAlert(
           'Promotion Updated!',
@@ -278,7 +276,6 @@ export default function PromoteScreen({ route, navigation }) {
           glbUri,
           location.lat,
           location.lng,
-          isPlace,
           false // use_coins = false (submits for Admin Review)
         );
         showAlert(
@@ -295,7 +292,6 @@ export default function PromoteScreen({ route, navigation }) {
                   setGlbUri(null);
                   setGlbName(null);
                   setLocation(null);
-                  setIsPlace(false);
                 }
                 navigation.navigate('MyPromotions');
               },
@@ -310,7 +306,6 @@ export default function PromoteScreen({ route, navigation }) {
                   setGlbUri(null);
                   setGlbName(null);
                   setLocation(null);
-                  setIsPlace(false);
                 } else {
                   navigation.goBack();
                 }
@@ -415,24 +410,6 @@ export default function PromoteScreen({ route, navigation }) {
               value={description}
               onChangeText={setDescription}
             />
-
-            {/* Is Place toggle */}
-            <TouchableOpacity
-              style={[styles.toggleRow, isPlace && styles.toggleRowActive]}
-              onPress={() => setIsPlace(!isPlace)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.toggleIcon, isPlace && styles.toggleIconActive]}>
-                <Ionicons name={isPlace ? 'location' : 'location-outline'} size={18} color={isPlace ? '#fff' : COLORS.textMuted} />
-              </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[styles.toggleLabel, isPlace && { color: '#059669' }]}>Mark as Heritage Landmark</Text>
-                <Text style={styles.toggleSub}>Will appear as a primary quest pin on the World Map</Text>
-              </View>
-              <View style={[styles.toggleSwitch, isPlace && styles.toggleSwitchOn]}>
-                <View style={[styles.toggleThumb, isPlace && styles.toggleThumbOn]} />
-              </View>
-            </TouchableOpacity>
           </VintaCard>
 
           {/* ── Section: Location ── */}
@@ -703,47 +680,6 @@ const styles = StyleSheet.create({
     color: COLORS.text, fontFamily: FONTS.regular, fontSize: 13,
     height: 100, textAlignVertical: 'top',
   },
-
-  // Toggle row
-  toggleRow: {
-    flexDirection: 'row', alignItems: 'center',
-    marginTop: 16, padding: 14,
-    backgroundColor: COLORS.bgCardAlt,
-    borderRadius: RADIUS.md,
-    borderWidth: 1, borderColor: COLORS.border,
-  },
-  toggleRowActive: {
-    borderColor: 'rgba(16, 185, 129, 0.45)',
-    backgroundColor: '#ECFDF5',
-  },
-  toggleIcon: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1, borderColor: COLORS.border,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  toggleIconActive: {
-    backgroundColor: COLORS.teal,
-    borderColor: COLORS.teal,
-  },
-  toggleLabel: {
-    fontFamily: FONTS.semiBold, fontSize: 13, color: COLORS.navy,
-  },
-  toggleSub: {
-    fontFamily: FONTS.regular, fontSize: 10,
-    color: COLORS.textMuted, marginTop: 2,
-  },
-  toggleSwitch: {
-    width: 42, height: 24, borderRadius: 12,
-    backgroundColor: 'rgba(15, 23, 42, 0.15)',
-    justifyContent: 'center', paddingHorizontal: 3,
-  },
-  toggleSwitchOn: { backgroundColor: COLORS.teal },
-  toggleThumb: {
-    width: 18, height: 18, borderRadius: 9,
-    backgroundColor: '#fff',
-  },
-  toggleThumbOn: { alignSelf: 'flex-end' },
 
   // Map trigger
   mapTrigger: {
