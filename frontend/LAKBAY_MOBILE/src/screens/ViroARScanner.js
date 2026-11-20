@@ -39,7 +39,7 @@ import UnrecognizedArtNotice from '../components/UnrecognizedArtNotice';
 import GuideSpeechModal from '../components/GuideSpeechModal';
 import BuildingPickerModal from '../components/BuildingPickerModal';
 import { galleryTourSteps } from '../constants/museumGalleries';
-import { PLACARD_CLUE, hasClue, groupCluesByBuilding, mysteryLabel } from '../constants/arClues';
+import { PLACARD_CLUE, hasClue, groupCluesByBuilding, mysteryLabel, BUILDING_ORDER } from '../constants/arClues';
 import ARArtworkGuide from '../components/ARArtworkGuide';
 import { getGlbBounds } from '../utils/glbBounds';
 
@@ -369,6 +369,13 @@ export default function ViroARScanner({ navigation }) {
   const [showGuideCenterPopup, setShowGuideCenterPopup] = useState(false);
   const [activeGuideTarget, setActiveGuideTarget] = useState(null);
   const [showHintModal, setShowHintModal] = useState(false);
+  // Clue list tab: opens on the building the player picked, and they can switch.
+  const [clueBuilding, setClueBuilding] = useState(null);
+  const clueGroups = React.useMemo(() => groupCluesByBuilding(arTargets), [arTargets]);
+  const activeClueBuilding = clueBuilding || selectedBuilding || clueGroups[0]?.building || BUILDING_ORDER[0];
+  React.useEffect(() => {
+    if (showHintModal) setClueBuilding(selectedBuilding || null);
+  }, [showHintModal, selectedBuilding]);
   const [compassTarget, setCompassTarget] = useState(null);
   const floatAnim = React.useRef(new Animated.Value(0)).current;
   const lastTargetIdRef = React.useRef(null);
@@ -774,13 +781,43 @@ export default function ViroARScanner({ navigation }) {
               </TouchableOpacity>
             </View>
 
+            {/* Building tabs: the player picks which building's clues to read */}
+            <View style={styles.hintTabs} accessibilityRole="tablist">
+              {BUILDING_ORDER.map((b) => {
+                const count = clueGroups.find((g) => g.building === b)?.targets.length || 0;
+                const active = activeClueBuilding === b;
+                return (
+                  <TouchableOpacity
+                    key={b}
+                    style={[styles.hintTab, active && styles.hintTabActive]}
+                    onPress={() => setClueBuilding(b)}
+                    activeOpacity={0.85}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={`Building ${b}, ${count} clues`}
+                  >
+                    <Text style={[styles.hintTabText, active && styles.hintTabTextActive]}>{b}</Text>
+                    <View style={[styles.hintTabCount, active && styles.hintTabCountActive]}>
+                      <Text style={[styles.hintTabCountText, active && styles.hintTabCountTextActive]}>{count}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
             <ScrollView style={styles.hintModalScroll} contentContainerStyle={{ paddingBottom: 24 }}>
               {arTargets.length === 0 ? (
                 <View style={{ padding: 30, alignItems: 'center' }}>
                   <Text style={{ color: COLORS.textMuted, textAlign: 'center', fontFamily: FONTS.regular }}>No AR target exhibits registered for this spot yet.</Text>
                 </View>
+              ) : !clueGroups.some((g) => g.building === activeClueBuilding) ? (
+                <View style={{ padding: 30, alignItems: 'center' }}>
+                  <Text style={{ color: COLORS.textMuted, textAlign: 'center', fontFamily: FONTS.regular }}>
+                    No clues for Building {activeClueBuilding} yet. Try another building.
+                  </Text>
+                </View>
               ) : (
-                groupCluesByBuilding(arTargets).map((group) => (
+                clueGroups.filter((g) => g.building === activeClueBuilding).map((group) => (
                   <View key={group.building}>
                     <View style={styles.hintBuildingHeader}>
                       <Ionicons name="business-outline" size={15} color={COLORS.navy} />
@@ -1301,6 +1338,19 @@ const styles = StyleSheet.create({
     color: COLORS.navy,
     marginBottom: 8,
   },
+  hintTabs: { flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 4 },
+  hintTab: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 9, borderRadius: 22,
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: COLORS.border,
+  },
+  hintTabActive: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
+  hintTabText: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.textSub },
+  hintTabTextActive: { color: '#FFFFFF' },
+  hintTabCount: { minWidth: 20, paddingHorizontal: 5, borderRadius: 10, backgroundColor: COLORS.bg, alignItems: 'center' },
+  hintTabCountActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
+  hintTabCountText: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textMuted },
+  hintTabCountTextActive: { color: '#FFFFFF' },
   hintBuildingHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     marginTop: 14, marginBottom: 8, paddingBottom: 6,
