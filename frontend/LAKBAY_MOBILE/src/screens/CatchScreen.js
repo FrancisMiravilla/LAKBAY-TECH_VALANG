@@ -1558,7 +1558,7 @@ export default function CatchScreen({ navigation }) {
     setArVisible(false);
     if (arIcon) {
       await handleModelFound(arIcon, arSpot);
-      navigation.navigate('CatchDetails', { icon: arIcon, spot: arSpot });
+      navigation.navigate('CatchDetails', { icon: arIcon, spot: arSpot, justCaught: true });
     }
   }, [arIcon, arSpot, navigation, handleModelFound]);
 

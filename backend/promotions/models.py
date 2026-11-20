@@ -1,3 +1,4 @@
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.conf import settings
 
@@ -56,6 +57,23 @@ class UserPromotion(models.Model):
 
     def __str__(self):
         return f"Promotion for {self.spot_name} by {self.user}"
+
+
+class PromotionReview(models.Model):
+    """A user's star rating (1-5) and optional comment on a published promotion."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='promotion_reviews')
+    promotion = models.ForeignKey(UserPromotion, on_delete=models.CASCADE, related_name='reviews')
+    rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'promotion')
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"{self.user} rated {self.promotion.spot_name} {self.rating}/5"
 
 
 class Transaction(models.Model):

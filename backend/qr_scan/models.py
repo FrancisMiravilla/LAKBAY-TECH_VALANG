@@ -165,6 +165,23 @@ class TriviaQuestion(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
+class SpotReview(models.Model):
+    """A tourist's star rating (1-5) and optional comment after finishing a spot's quest."""
+    user = models.ForeignKey('accounts.CustomUser', on_delete=models.CASCADE, related_name='spot_reviews')
+    spot = models.ForeignKey(CulturalSpot, on_delete=models.CASCADE, related_name='reviews')
+    rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'spot')
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"{self.user} rated {self.spot.name} {self.rating}/5"
+
+
 class SpotBadge(models.Model):
     user = models.ForeignKey('accounts.CustomUser', on_delete=models.CASCADE, related_name='spot_badges')
     spot = models.ForeignKey(CulturalSpot, on_delete=models.CASCADE)

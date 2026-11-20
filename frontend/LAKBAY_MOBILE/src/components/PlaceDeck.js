@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '../constants/theme';
 import LucideIcon from './LucideIcon';
+import { RatingPill } from './StarRating';
 
 // "Places to Experience": a straight stacked deck. The next two places peek out
 // above the front card; swipe the front card left/right to flip, tap to open.
@@ -55,13 +56,26 @@ const PlaceCard = memo(function PlaceCard({ place }) {
 
       <View style={styles.cardBottom}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.cardTitle} numberOfLines={2}>{place.title}</Text>
-          {!!place.subtitle && (
-            <View style={styles.subRow}>
-              <LucideIcon name="pin" size={13} color="rgba(255,255,255,0.85)" />
-              <Text style={styles.subText} numberOfLines={1}>{place.subtitle}</Text>
+          {!!place.quote && (
+            <View style={styles.quote}>
+              <Text style={styles.quoteText} numberOfLines={2}>
+                “{place.quote.comment}”
+                <Text style={styles.quoteBy}>  — {place.quote.name}</Text>
+              </Text>
             </View>
           )}
+          <Text style={styles.cardTitle} numberOfLines={2}>{place.title}</Text>
+          <View style={styles.subRow}>
+            {!!place.rating && (
+              <RatingPill average={place.rating.average} count={place.rating.count} style={styles.ratingPill} />
+            )}
+            {!!place.subtitle && (
+              <>
+                <LucideIcon name="pin" size={13} color="rgba(255,255,255,0.85)" />
+                <Text style={styles.subText} numberOfLines={1}>{place.subtitle}</Text>
+              </>
+            )}
+          </View>
         </View>
         <View style={[styles.goBtn, place.locked && styles.goBtnLocked]}>
           <Ionicons
@@ -266,6 +280,14 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6,
   },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  ratingPill: { marginRight: 6 },
+  quote: {
+    alignSelf: 'flex-start', maxWidth: '100%', marginBottom: 8,
+    backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 14, borderBottomLeftRadius: 4,
+    paddingHorizontal: 10, paddingVertical: 6,
+  },
+  quoteText: { fontFamily: FONTS.medium, fontSize: 12, lineHeight: 17, color: COLORS.navy },
+  quoteBy: { fontFamily: FONTS.semiBold, fontSize: 11, color: COLORS.textMuted },
   subText: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', flexShrink: 1 },
   goBtn: {
     width: 46, height: 46, borderRadius: 23,

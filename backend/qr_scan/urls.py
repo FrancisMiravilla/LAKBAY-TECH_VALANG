@@ -10,6 +10,7 @@ from .views import (
     TriviaReviewListView, TriviaReviewActionView,
     ARTargetViewSet, MilestoneBadgeViewSet,
     DashboardStatsView, LogActivityView, MyCollectionView, PublicMapView,
+    SpotReviewView,
 )
 
 router = DefaultRouter()
@@ -28,6 +29,7 @@ urlpatterns = [
     path('my-collection/', MyCollectionView.as_view(), name='qr_my_collection'),
     
     # Spot Trivia (QR/AR)
+    path('spots/<int:pk>/reviews/', SpotReviewView.as_view(), name='spot_reviews'),
     path('spots/<int:spot_id>/trivia/', SpotTriviaView.as_view(), name='spot_trivia'),
     path('spots/<int:spot_id>/trivia/submit/', SubmitTriviaView.as_view(), name='spot_trivia_submit'),
     path('spots/<int:spot_id>/ai-trivia/', GenerateAITriviaView.as_view(), name='spot_ai_trivia'),

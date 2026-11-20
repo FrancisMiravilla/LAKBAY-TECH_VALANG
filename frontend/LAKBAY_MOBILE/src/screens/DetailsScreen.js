@@ -6,6 +6,7 @@ import {
 import { COLORS, FONTS, BG_OVERLAY, GOLD_TEXT, SHADOW } from '../constants/theme';
 import VintaCard from '../components/VintaCard';
 import LucideIcon from '../components/LucideIcon';
+import ReviewsSection from '../components/ReviewsSection';
 import { Ionicons } from '@expo/vector-icons';
 
 // Destination detail (reference/home.png, right): photo hero with floating side
@@ -78,12 +79,11 @@ export default function DetailsScreen({ route, navigation }) {
     navigation.navigate(ftCfg.route);
   };
 
-  const extraSections = [
-    { title: 'Historical Background', text: destination.historical_background },
-    { title: 'Cultural Significance', text: destination.cultural_significance },
-    { title: 'Fun Fact', text: destination.fun_fact },
-  ].filter((s) => s.text);
-  const hasMore = extraSections.length > 0 || (destination.description || '').length > 180;
+  // A spot's story (description, history, significance, fun fact) is the reward for
+  // playing its quest, so it is not shown here. Promotions keep their own description.
+  const isSponsored = !!destination.sponsored;
+  const hasMore = isSponsored && (destination.description || '').length > 180;
+  const questLabel = ftCfg.label === 'Catch' ? 'Catch & Win' : ftCfg.label;
 
   return (
     <ImageBackground source={require('../../reference/VINTA.jpeg')} style={styles.root} resizeMode="cover">
@@ -112,10 +112,12 @@ export default function DetailsScreen({ route, navigation }) {
               <TouchableOpacity style={styles.glassBtn} onPress={() => navigation.goBack()} accessibilityLabel="Back">
                 <Ionicons name="chevron-back" size={20} color="#FFF" />
               </TouchableOpacity>
-              <View style={styles.xpChip}>
-                <LucideIcon name="star" size={14} color={COLORS.gold} />
-                <Text style={styles.xpChipText}>+{xpReward} XP</Text>
-              </View>
+              {!isSponsored && (
+                <View style={styles.xpChip}>
+                  <LucideIcon name="star" size={14} color={COLORS.gold} />
+                  <Text style={styles.xpChipText}>+{xpReward} XP</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.heroBottom} pointerEvents="none">
@@ -160,14 +162,22 @@ export default function DetailsScreen({ route, navigation }) {
           <VintaCard style={styles.sheetFrame} contentStyle={styles.sheet}>
             <View style={styles.infoRow}>
               <View style={styles.chipGrid}>
-                {(featureTypes.length ? featureTypes : [primaryType]).map((ft) => {
-                  const c = FEATURE_CONFIG[ft] || FEATURE_CONFIG.qr;
-                  return <InfoChip key={ft} icon={c.lucide} label={c.label} color={c.color} />;
-                })}
-                <InfoChip icon="zap" label={`+${xpReward} XP`} color={GOLD_TEXT} />
-                <InfoChip icon={isLocked ? 'lock' : 'shield'} label={`Level ${level}`} color={isLocked ? '#EF4444' : COLORS.teal} />
-                {destination.is_featured && <InfoChip icon="star" label="Featured" color={GOLD_TEXT} />}
-                {destination.sponsored && <InfoChip icon="megaphone" label="Sponsored" color={GOLD_TEXT} />}
+                {isSponsored ? (
+                  <>
+                    <InfoChip icon="megaphone" label="Sponsored" color={GOLD_TEXT} />
+                    <InfoChip icon="pin" label={destination.is_place ? 'Place' : 'Business'} color={COLORS.accent} />
+                  </>
+                ) : (
+                  <>
+                    {(featureTypes.length ? featureTypes : [primaryType]).map((ft) => {
+                      const c = FEATURE_CONFIG[ft] || FEATURE_CONFIG.qr;
+                      return <InfoChip key={ft} icon={c.lucide} label={c.label} color={c.color} />;
+                    })}
+                    <InfoChip icon="zap" label={`+${xpReward} XP`} color={GOLD_TEXT} />
+                    <InfoChip icon={isLocked ? 'lock' : 'shield'} label={`Level ${level}`} color={isLocked ? '#EF4444' : COLORS.teal} />
+                    {destination.is_featured && <InfoChip icon="star" label="Featured" color={GOLD_TEXT} />}
+                  </>
+                )}
               </View>
 
               {slides.length > 1 && (
@@ -186,22 +196,46 @@ export default function DetailsScreen({ route, navigation }) {
 
             {/* ── About ── */}
             <View onLayout={(e) => setAboutY(e.nativeEvent.layout.y + HERO_H)}>
-              <Text style={styles.aboutTitle}>About Destination</Text>
-              <Text style={styles.aboutText} numberOfLines={expanded ? undefined : 4}>
-                {destination.description || 'Discover this amazing spot in Zamboanga City. Complete the quest to learn more!'}
-              </Text>
-              {expanded && extraSections.map((sec) => (
-                <View key={sec.title} style={{ marginTop: 12 }}>
-                  <Text style={styles.extraTitle}>{sec.title}</Text>
-                  <Text style={styles.aboutText}>{sec.text}</Text>
+              {isSponsored ? (
+                <>
+                  <Text style={styles.aboutTitle}>About This Place</Text>
+                  <Text style={styles.aboutText} numberOfLines={expanded ? undefined : 4}>
+                    {destination.description || 'A local favorite promoted by the LAKBAY community.'}
+                  </Text>
+                  {hasMore && (
+                    <TouchableOpacity onPress={() => setExpanded((v) => !v)} hitSlop={8}>
+                      <Text style={styles.readMore}>{expanded ? 'Show Less' : 'Read More'}</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              ) : (
+                <View style={styles.lockedStory}>
+                  <View style={styles.lockedIcon}>
+                    <Ionicons name="lock-closed" size={20} color={GOLD_TEXT} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.lockedTitle}>This spot&apos;s story is still hidden</Text>
+                    <Text style={styles.lockedText}>
+                      Curious about its history, cultural significance and fun facts? Play the {questLabel} quest
+                      here to unlock the full story. Explore with LAKBAY and let the adventure reveal it!
+                    </Text>
+                  </View>
                 </View>
-              ))}
-              {hasMore && (
-                <TouchableOpacity onPress={() => setExpanded((v) => !v)} hitSlop={8}>
-                  <Text style={styles.readMore}>{expanded ? 'Show Less' : 'Read More'}</Text>
-                </TouchableOpacity>
               )}
             </View>
+
+            {destination.sponsored
+              ? destination.promoId != null && (
+                <ReviewsSection
+                  kind="promotion"
+                  targetId={destination.promoId}
+                  title={destination.title}
+                  allowWrite={!destination.is_mine}
+                />
+              )
+              : destination.id != null && (
+                <ReviewsSection kind="spot" targetId={destination.id} title={destination.title} />
+              )}
           </VintaCard>
         </ScrollView>
 
@@ -306,7 +340,18 @@ const styles = StyleSheet.create({
   thumbCountText: { fontFamily: FONTS.bold, fontSize: 11, color: '#FFFFFF' },
 
   aboutTitle: { fontFamily: FONTS.bold, fontSize: 19, color: COLORS.navy, marginBottom: 6 },
-  extraTitle: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.navy, marginBottom: 3 },
+  lockedStory: {
+    flexDirection: 'row', gap: 12, alignItems: 'flex-start',
+    backgroundColor: '#FFFBEB', borderRadius: 16, padding: 14,
+    borderWidth: 1, borderColor: 'rgba(251, 191, 36, 0.55)',
+  },
+  lockedIcon: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: 'rgba(251, 191, 36, 0.7)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  lockedTitle: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.navy, marginBottom: 4 },
+  lockedText: { fontFamily: FONTS.medium, fontSize: 13, lineHeight: 19, color: COLORS.textSub },
   aboutText: { fontFamily: FONTS.medium, fontSize: 14, lineHeight: 21, color: COLORS.textMuted },
   readMore: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.accent, marginTop: 6 },
 

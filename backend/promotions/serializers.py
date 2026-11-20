@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from qr_scan.reviews import rounded_average
 from .models import Wallet, CoinBundle, UserPromotion, Transaction, AppSetting
 
 class WalletSerializer(serializers.ModelSerializer):
@@ -13,17 +14,32 @@ class CoinBundleSerializer(serializers.ModelSerializer):
 
 class UserPromotionSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField()
-    
+    rating_avg = serializers.SerializerMethodField()
+    rating_count = serializers.SerializerMethodField()
+    is_mine = serializers.SerializerMethodField()
+
     class Meta:
         model = UserPromotion
         fields = (
-            'id', 'user_name', 'spot_name', 'description', 
+            'id', 'user_name', 'spot_name', 'description',
             'image_file', 'model_3d_file', 'latitude', 'longitude',
             'is_place',
-            'status', 'rejection_reason', 'created_at', 'updated_at'
+            'status', 'rejection_reason', 'created_at', 'updated_at',
+            'rating_avg', 'rating_count', 'is_mine',
         )
         read_only_fields = ['status', 'rejection_reason']
-        
+
+    def get_rating_avg(self, obj):
+        return rounded_average(getattr(obj, 'rating_avg', None))
+
+    def get_rating_count(self, obj):
+        return getattr(obj, 'rating_count', 0) or 0
+
+    def get_is_mine(self, obj):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        return bool(user and user.is_authenticated and obj.user_id == user.id)
+
     def get_user_name(self, obj):
         full_name = f"{obj.user.first_name} {obj.user.last_name}".strip()
         if full_name:

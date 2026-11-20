@@ -20,6 +20,8 @@ import { catchXpFor, rarityXp } from '../constants/rewards';
 import GuideSpeechModal from '../components/GuideSpeechModal';
 import GuideStoryButton from '../components/GuideStoryButton';
 import { loreStorySteps } from '../constants/loreStory';
+import RatingModal from '../components/RatingModal';
+import { getReviews } from '../api/reviewService';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -118,7 +120,7 @@ function NoModel({ color = '#A855F7' }) {
 
 // ── Main Screen ──────────────────────────────────────────────────────────────
 export default function CatchDetailsScreen({ route, navigation }) {
-  const { icon, spot, isAR = false } = route.params || {};
+  const { icon, spot, isAR = false, justCaught = false } = route.params || {};
 
   // ── Derive rarity dynamically from the icon/AR target's rarity field ──────
   const rarityKey = ((icon?.rarity || spot?.rarity || 'common')).toLowerCase();
@@ -165,6 +167,30 @@ export default function CatchDetailsScreen({ route, navigation }) {
     const t = setTimeout(() => setStoryOpen(true), 900);
     return () => clearTimeout(t);
   }, [storySteps]);
+
+  // Catch & Win ends here: after the guide's story (or right away if there is
+  // none), ask once for a star rating unless the player already rated the spot.
+  const canRateSpot = justCaught && !isAR && spot?.id != null;
+  const [ratePrompt, setRatePrompt] = useState(false);
+  const rateAsked = useRef(false);
+  const askForRating = React.useCallback(() => {
+    if (!canRateSpot || rateAsked.current) return;
+    rateAsked.current = true;
+    getReviews('spot', spot.id)
+      .then((summary) => { if (!summary?.my_review) setTimeout(() => setRatePrompt(true), 400); })
+      .catch(() => {});
+  }, [canRateSpot, spot?.id]);
+
+  useEffect(() => {
+    if (!canRateSpot || storySteps.length) return undefined;
+    const t = setTimeout(askForRating, 1200);
+    return () => clearTimeout(t);
+  }, [canRateSpot, storySteps.length, askForRating]);
+
+  const closeStory = () => {
+    setStoryOpen(false);
+    askForRating();
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -447,9 +473,19 @@ export default function CatchDetailsScreen({ route, navigation }) {
       visible={storyOpen}
       steps={storySteps}
       finalLabel="Thanks, Guide!"
-      onClose={() => setStoryOpen(false)}
-      onSkip={() => setStoryOpen(false)}
+      onClose={closeStory}
+      onSkip={closeStory}
     />
+
+    {canRateSpot && (
+      <RatingModal
+        visible={ratePrompt}
+        kind="spot"
+        targetId={spot.id}
+        title={spot.name}
+        onClose={() => setRatePrompt(false)}
+      />
+    )}
   </ImageBackground>
 );
 }

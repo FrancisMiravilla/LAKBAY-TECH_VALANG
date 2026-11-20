@@ -16,6 +16,7 @@ from .views import (
     CreateBundleQRPhView,
     VerifyBundlePaymentView,
     SimulateTestBundlePaymentView,
+    PromotionReviewView,
 )
 
 router = DefaultRouter()
@@ -35,6 +36,7 @@ urlpatterns = [
     path('simulate-test-payment/', SimulateTestPaymentView.as_view(), name='simulate-test-payment'),
     path('webhook/paymongo/', PayMongoWebhookView.as_view(), name='paymongo-webhook'),
     path('published/', PublishedPromotionListView.as_view(), name='published-promotions'),
+    path('published/<int:pk>/reviews/', PromotionReviewView.as_view(), name='promotion-reviews'),
     path('promotions/<int:pk>/publish/', PublishPromotionView.as_view(), name='publish-promotion'),
     path('', include(router.urls)),
 ]

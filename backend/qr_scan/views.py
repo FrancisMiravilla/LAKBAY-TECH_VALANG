@@ -6,7 +6,7 @@ from accounts.levels import level_for_xp
 from html import escape
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseBadRequest
-from django.db.models import F
+from django.db.models import Avg, Count, F
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.views import APIView
@@ -16,8 +16,9 @@ from groq import Groq
 from .models import (
     CulturalSpot, QRMarker, QRScan, TriviaQuestion, SpotBadge,
     TriviaAttempt, CulturalIcon, ARTarget, MilestoneBadge,
-    UserActivityLog
+    UserActivityLog, SpotReview
 )
+from .reviews import ReviewView, commented_reviews_prefetch
 from .serializers import (
     PublicMapSpotSerializer, PublicMapIconSerializer,
     CulturalSpotSerializer, QRMarkerSerializer,
@@ -72,10 +73,32 @@ class CulturalSpotViewSet(viewsets.ModelViewSet):
     queryset = CulturalSpot.objects.all().order_by('name')
     serializer_class = CulturalSpotSerializer
 
+    def get_queryset(self):
+        return CulturalSpot.objects.annotate(
+            rating_avg=Avg('reviews__rating'), rating_count=Count('reviews', distinct=True),
+        ).prefetch_related(commented_reviews_prefetch(SpotReview)).order_by('name')
+
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             return [permissions.IsAuthenticated()]
         return [permissions.IsAdminUser()]
+
+
+class SpotReviewView(ReviewView):
+    """Ratings for a tourist spot; only after the player finished its quest."""
+    review_model = SpotReview
+    target_field = 'spot'
+
+    def get_target(self, pk):
+        return CulturalSpot.objects.filter(pk=pk).first()
+
+    def review_block_reason(self, user, target):
+        if QRScan.objects.filter(user=user, qr_marker__spot=target).exists():
+            return None
+        # Catch progress lives on the phone (like its XP), so Catch spots are trusted.
+        if 'catch' in (target.feature_types or []):
+            return None
+        return "Finish this spot's quest first to leave a rating."
 
 
 class PublicMapView(APIView):

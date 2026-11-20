@@ -6,12 +6,14 @@ import time
 import requests
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Avg, Count
 from rest_framework import viewsets, generics, views, status, serializers
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import action
-from .models import Wallet, CoinBundle, UserPromotion, Transaction, AppSetting
+from qr_scan.reviews import ReviewView
+from .models import Wallet, CoinBundle, UserPromotion, Transaction, AppSetting, PromotionReview
 from .serializers import WalletSerializer, CoinBundleSerializer, UserPromotionSerializer, AppSettingSerializer
 
 class WalletRetrieveView(generics.RetrieveAPIView):
@@ -663,4 +665,20 @@ class PublishedPromotionListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     
     def get_queryset(self):
-        return UserPromotion.objects.filter(status='PUBLISHED').order_by('-created_at')
+        return UserPromotion.objects.filter(status='PUBLISHED').annotate(
+            rating_avg=Avg('reviews__rating'), rating_count=Count('reviews', distinct=True),
+        ).order_by('-created_at')
+
+
+class PromotionReviewView(ReviewView):
+    """Ratings for a published promotion; owners cannot rate their own."""
+    review_model = PromotionReview
+    target_field = 'promotion'
+
+    def get_target(self, pk):
+        return UserPromotion.objects.filter(pk=pk, status='PUBLISHED').first()
+
+    def review_block_reason(self, user, target):
+        if target.user_id == user.id:
+            return "You can't rate your own promotion."
+        return None

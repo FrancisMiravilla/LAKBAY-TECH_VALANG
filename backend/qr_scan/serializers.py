@@ -4,6 +4,7 @@ from django.core.files.base import ContentFile
 from rest_framework import serializers
 from .models import CulturalSpot, QRMarker, QRScan, TriviaQuestion, TriviaAttempt, CulturalIcon, ARTarget, MilestoneBadge
 from .glb_utils import strip_incompatible_extensions
+from .reviews import rounded_average, latest_comment
 class Base64ImageField(serializers.ImageField):
     def to_internal_value(self, data):
         if isinstance(data, str) and data.startswith('data:image'):
@@ -46,10 +47,22 @@ class CulturalSpotSerializer(serializers.ModelSerializer):
     image2 = Base64ImageField(required=False, allow_null=True)
     image3 = Base64ImageField(required=False, allow_null=True)
     model_3d = Base64FileField(required=False, allow_null=True)
-    
+    rating_avg = serializers.SerializerMethodField()
+    rating_count = serializers.SerializerMethodField()
+    latest_comment = serializers.SerializerMethodField()
+
     class Meta:
         model = CulturalSpot
         fields = '__all__'
+
+    def get_rating_avg(self, obj):
+        return rounded_average(getattr(obj, 'rating_avg', None))
+
+    def get_rating_count(self, obj):
+        return getattr(obj, 'rating_count', 0) or 0
+
+    def get_latest_comment(self, obj):
+        return latest_comment(obj)
 
 
 class QRMarkerSerializer(serializers.ModelSerializer):

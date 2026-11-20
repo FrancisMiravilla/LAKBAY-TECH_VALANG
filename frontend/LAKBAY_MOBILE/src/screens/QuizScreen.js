@@ -15,6 +15,8 @@ import LucideIcon from '../components/LucideIcon';
 import { getSpotTrivia, getIconTrivia, awardSpotBadge, ORIGIN } from '../api/qrService';
 import { authService } from '../api/authService';
 import DecoratedAvatar from '../components/DecoratedAvatar';
+import RatingModal from '../components/RatingModal';
+import { getReviews } from '../api/reviewService';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -155,6 +157,22 @@ export default function QuizScreen({ navigation, route }) {
   const [wrongCount, setWrongCount]         = useState(0);
   const [floatingToast, setFloatingToast]   = useState(null); // { text, color, iconName }
   const [wrongMessage, setWrongMessage]     = useState(null); // randomly picked on wrong answer
+  const [ratePrompt, setRatePrompt]         = useState(false);
+
+  // QR Discover is finished at the quiz results: ask for a star rating once,
+  // unless the player already rated this spot.
+  useEffect(() => {
+    if (!showReward || featureType !== 'qr' || !spotId) return undefined;
+    let cancelled = false;
+    let timer;
+    getReviews('spot', spotId)
+      .then((summary) => {
+        if (cancelled || summary?.my_review) return;
+        timer = setTimeout(() => setRatePrompt(true), 900);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [showReward, featureType, spotId]);
 
   // Animations
   const introAnim      = useRef(new Animated.Value(0)).current;
@@ -390,6 +408,15 @@ export default function QuizScreen({ navigation, route }) {
 
   // ── Results: avatar, XP pill, 2×2 stat tiles ──
   if (showReward) {
+    const ratingPopup = (
+      <RatingModal
+        visible={ratePrompt}
+        kind="spot"
+        targetId={spotId}
+        title={displayName}
+        onClose={() => setRatePrompt(false)}
+      />
+    );
     const total = questions.length;
     const accuracy = total > 0 ? Math.round((total / (total + wrongCount)) * 100) : 100;
     const values = { questions: total, accuracy: `${accuracy}%`, xp: `+${sessionXP}`, streak: `${maxStreak}x` };
@@ -434,6 +461,7 @@ export default function QuizScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
         </SafeAreaView>
+        {ratingPopup}
       </Backdrop>
     );
   }

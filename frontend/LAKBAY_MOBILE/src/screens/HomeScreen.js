@@ -8,6 +8,8 @@ import { COLORS, FONTS, SHADOW, GOLD_TEXT, GUIDE_FONTS, onWhite } from '../const
 import VintaCard from '../components/VintaCard';
 import LucideIcon from '../components/LucideIcon';
 import PlaceDeck from '../components/PlaceDeck';
+import PromoBentoGrid from '../components/PromoBentoGrid';
+import { barangayName } from '../utils/barangayName';
 import GuideWelcome from '../components/GuideWelcome';
 import GuideSpeechModal from '../components/GuideSpeechModal';
 import { SPOT_TYPES } from '../constants/mapConfig';
@@ -98,6 +100,52 @@ markers.forEach(function(m){
 </html>`;
 }
 
+// A tourist spot as a Places to Experience card. The spot's story (description,
+// history, significance, fun fact) stays out of the Details screen on purpose:
+// players unlock it by playing the spot's quest.
+const SPOT_TYPE_CARD = {
+  qr:    { label: 'QR DISCOVERY',  icon: 'search', color: COLORS.teal },
+  ar:    { label: 'AR EXPERIENCE', icon: 'camera', color: '#7EA6FF' },
+  catch: { label: 'COLLECT & WIN', icon: 'trophy', color: COLORS.gold },
+};
+
+function spotToDeckPlace(d, userLevel) {
+  const primaryType = d.feature_types?.[0] || 'qr';
+  const t = SPOT_TYPE_CARD[primaryType] || SPOT_TYPE_CARD.qr;
+  const isLocked = !!d.required_level && d.required_level > userLevel;
+  const images = [d.image, d.image2, d.image3].filter(Boolean).map(formatImageUrl);
+  return {
+    key: `spot-${d.id}`,
+    title: d.name,
+    image: images[0] || null,
+    typeLabel: t.label,
+    typeIcon: t.icon,
+    color: t.color,
+    locked: isLocked,
+    subtitle: d.location_name || 'Zamboanga City',
+    rating: { average: d.rating_avg, count: d.rating_count || 0 },
+    quote: d.latest_comment || null,
+    chips: [
+      { icon: t.icon, label: (d.feature_types || [primaryType]).map((f) => f.toUpperCase()).join(' · ') },
+      { icon: 'zap', label: `+${d.xp_reward || 50} XP` },
+      ...(isLocked ? [{ icon: 'lock', label: `Lv ${d.required_level}` }] : []),
+    ],
+    destination: {
+      id: d.id,
+      title: d.name,
+      location: d.location_name,
+      image: images[0] || null,
+      images,
+      feature_types: d.feature_types || [],
+      required_level: d.required_level,
+      xp_reward: d.xp_reward,
+      is_featured: d.is_featured,
+      latitude: d.latitude,
+      longitude: d.longitude,
+    },
+  };
+}
+
 // ── Static Data ───────────────────────────────────────────────────────────────
 const GUIDE_IMAGE = require('../assets/guide_character.png');
 
@@ -132,7 +180,7 @@ const TOUR_STEPS = [
   { key: 'map', title: 'Explore Zamboanga', refKey: 'mapCardRef', scrollable: true,
     text: 'This map shows the heritage spots of Zamboanga City. Tap it to open the full map and get directions.' },
   { key: 'places', title: 'Places to experience', refKey: 'placesRef', scrollable: true,
-    text: 'Swipe through these places to choose your next stop. Tap one to read its story before you go.' },
+    text: 'Swipe through these places to choose your next stop. Tap one to see its quest, level and what other explorers rated it. Its story unlocks when you play!' },
   { key: 'tabs', title: 'Your menu', radius: TAB_BAR_HEIGHT / 2 + 8,
     text: 'Down here: Explore is home, Promote lets you feature a place, the Store sells coins, Badges shows your journey and the leaderboard, and Profile is you.',
     getRect: (insets, w, h) => {
@@ -170,25 +218,49 @@ export default function HomeScreen({ navigation, route }) {
   const [selectedCategory, setSelectedCategory] = useState('all');
 
   const categoryTabs = useMemo(() => [
-    { id: 'all', label: 'All', icon: 'sparkles', count: spots.length + promotedPlaces.length, color: COLORS.accent },
+    { id: 'all', label: 'All', icon: 'sparkles', count: spots.length, color: COLORS.accent },
     { id: 'qr', label: 'QR', icon: 'qr-code-outline', count: spots.filter(s => s.feature_types?.includes('qr')).length, color: COLORS.teal },
     { id: 'catch', label: 'Catch', icon: 'trophy-outline', count: spots.filter(s => s.feature_types?.includes('catch')).length, color: COLORS.gold },
     { id: 'ar', label: 'AR', icon: 'cube-outline', count: spots.filter(s => s.feature_types?.includes('ar')).length, color: '#A855F7' },
-    ...(promotedPlaces.length > 0 ? [{ id: 'sponsored', label: 'Sponsored', icon: 'megaphone-outline', count: promotedPlaces.length, color: '#F59E0B' }] : []),
-  ], [spots, promotedPlaces]);
+  ], [spots]);
 
   const displayedPlaces = useMemo(() => {
-    if (selectedCategory === 'sponsored') return [];
     if (selectedCategory === 'qr') return spots.filter(s => s.feature_types?.includes('qr'));
     if (selectedCategory === 'catch') return spots.filter(s => s.feature_types?.includes('catch'));
     if (selectedCategory === 'ar') return spots.filter(s => s.feature_types?.includes('ar'));
     return [...spots].sort((a, b) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0));
   }, [spots, selectedCategory]);
 
-  const displayedSponsored = useMemo(
-    () => (selectedCategory === 'all' || selectedCategory === 'sponsored' ? promotedPlaces : []),
-    [selectedCategory, promotedPlaces]
-  );
+  // Local Favorites grid: every published promotion (places and businesses).
+  const promoItems = useMemo(() => promotedPlaces.map((p) => ({
+    key: `promo-${p.id}`,
+    title: p.spot_name,
+    image: formatImageUrl(p.image_file),
+    kindLabel: p.is_place ? 'PLACE' : 'BUSINESS',
+    location: barangayName(p.latitude, p.longitude) || 'Zamboanga City',
+    ratingAvg: p.rating_avg,
+    ratingCount: p.rating_count || 0,
+    promo: p,
+  })), [promotedPlaces]);
+
+  const openPromo = useCallback((item) => {
+    const p = item.promo;
+    navigation.navigate('Details', {
+      destination: {
+        promoId: p.id,
+        is_mine: !!p.is_mine,
+        is_place: !!p.is_place,
+        title: p.spot_name,
+        location: item.location,
+        description: p.description,
+        images: item.image ? [item.image] : [],
+        latitude: p.latitude,
+        longitude: p.longitude,
+        sponsored: true,
+      },
+      userLevel,
+    });
+  }, [navigation, userLevel]);
 
   // Rebuilt only when the pins change, so the 15 s refresh doesn't reload the map.
   const miniMapHtml = useMemo(() => buildMiniMapHTML(spots, userLevel), [spots, userLevel]);
@@ -224,79 +296,11 @@ export default function HomeScreen({ navigation, route }) {
     return () => clearInterval(id);
   }, [featuredList.length, featureFade]);
 
-  // Cards for the Places to Experience deck (sponsored first, then spots).
-  const deckPlaces = useMemo(() => {
-    const TYPE = {
-      qr:    { label: 'QR DISCOVERY',  icon: 'search', color: COLORS.teal },
-      ar:    { label: 'AR EXPERIENCE', icon: 'camera', color: '#7EA6FF' },
-      catch: { label: 'COLLECT & WIN', icon: 'trophy', color: COLORS.gold },
-    };
-    const sponsored = displayedSponsored.map((p) => {
-      const image = formatImageUrl(p.image_file);
-      return {
-        key: `promo-${p.id}`,
-        title: p.spot_name,
-        image,
-        typeLabel: 'SPONSORED',
-        typeIcon: 'megaphone',
-        color: COLORS.gold,
-        locked: false,
-        subtitle: 'Promoted Place',
-        chips: [
-          { icon: 'megaphone', label: 'Sponsored' },
-          { icon: 'star', label: p.is_place ? 'Place' : 'Business' },
-        ],
-        destination: {
-          title: p.spot_name,
-          location: 'Promoted Place',
-          description: p.description,
-          images: [image],
-          latitude: p.latitude,
-          longitude: p.longitude,
-          sponsored: true,
-        },
-      };
-    });
-    const places = displayedPlaces.map((d) => {
-      const primaryType = d.feature_types?.[0] || 'qr';
-      const t = TYPE[primaryType] || TYPE.qr;
-      const isLocked = !!d.required_level && d.required_level > userLevel;
-      const images = [d.image, d.image2, d.image3].filter(Boolean).map(formatImageUrl);
-      return {
-        key: `spot-${d.id}`,
-        title: d.name,
-        image: images[0] || null,
-        typeLabel: t.label,
-        typeIcon: t.icon,
-        color: t.color,
-        locked: isLocked,
-        subtitle: d.location_name || 'Zamboanga City',
-        chips: [
-          { icon: t.icon, label: (d.feature_types || [primaryType]).map((f) => f.toUpperCase()).join(' · ') },
-          { icon: 'zap', label: `+${d.xp_reward || 50} XP` },
-          ...(isLocked ? [{ icon: 'lock', label: `Lv ${d.required_level}` }] : []),
-        ],
-        destination: {
-          id: d.id,
-          title: d.name,
-          location: d.location_name,
-          description: d.description,
-          historical_background: d.historical_background,
-          cultural_significance: d.cultural_significance,
-          fun_fact: d.fun_fact,
-          image: images[0] || null,
-          images,
-          feature_types: d.feature_types || [],
-          required_level: d.required_level,
-          xp_reward: d.xp_reward,
-          is_featured: d.is_featured,
-          latitude: d.latitude,
-          longitude: d.longitude,
-        },
-      };
-    });
-    return [...sponsored, ...places];
-  }, [displayedSponsored, displayedPlaces, userLevel]);
+  // Cards for the Places to Experience deck (tourist spots only; promotions have their own grid).
+  const deckPlaces = useMemo(
+    () => displayedPlaces.map((d) => spotToDeckPlace(d, userLevel)),
+    [displayedPlaces, userLevel]
+  );
 
   const bellRef    = useRef(null);
   const statsRef   = useRef(null);
@@ -340,7 +344,7 @@ export default function HomeScreen({ navigation, route }) {
         prevSpotCountRef.current = allSpots.length;
         const promoData = await getPublishedPromotions();
         const publishedPromos = Array.isArray(promoData) ? promoData : (promoData.results || []);
-        if (changed('promos', publishedPromos)) setPromotedPlaces(publishedPromos.filter(p => p.is_place));
+        if (changed('promos', publishedPromos)) setPromotedPlaces(publishedPromos);
 
         // Check for user promotions approved by admin
         getPromotions().then(userPromos => {
@@ -568,10 +572,7 @@ export default function HomeScreen({ navigation, route }) {
             <View style={styles.section}>
               <TouchableOpacity
                 activeOpacity={0.9}
-                onPress={() => {
-                  const place = deckPlaces.find((p) => p.key === `spot-${featuredSpot.id}`);
-                  if (place) navigation.navigate('Details', { destination: place.destination, userLevel });
-                }}
+                onPress={() => openPlace(spotToDeckPlace(featuredSpot, userLevel))}
               >
                 <VintaCard contentStyle={styles.featureCard}>
                   <Animated.View style={{ opacity: featureFade }}>
@@ -653,7 +654,7 @@ export default function HomeScreen({ navigation, route }) {
           </View>
 
           {/* ── Places to Experience (stacked card deck) ── */}
-          {(promotedPlaces.length > 0 || spots.length > 0) && (
+          {spots.length > 0 && (
             <View ref={placesRef} collapsable={false} style={styles.section}>
               <View style={styles.placesHeader}>
                 <Text style={styles.guideSectionTitle}>Places to Experience</Text>
@@ -693,6 +694,13 @@ export default function HomeScreen({ navigation, route }) {
                   onOpen={openPlace}
                 />
               )}
+            </View>
+          )}
+
+          {/* ── Local Favorites (published promotions, bento grid) ── */}
+          {promoItems.length > 0 && (
+            <View style={styles.section}>
+              <PromoBentoGrid items={promoItems} onOpen={openPromo} />
             </View>
           )}
     </ParallaxHeroLayout>
