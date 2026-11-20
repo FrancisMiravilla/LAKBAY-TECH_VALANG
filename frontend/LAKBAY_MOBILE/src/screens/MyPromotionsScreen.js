@@ -14,6 +14,8 @@ import {
   getPublishCost,
   getWallet,
   attach3DModel,
+  renewPromotion,
+  formatPromoDate,
 } from '../api/promotionService';
 import VintaStripe from '../components/VintaStripe';
 import LucideIcon from '../components/LucideIcon';
@@ -43,6 +45,7 @@ export default function MyPromotionsScreen({ navigation }) {
   const [insufficientModalVisible, setInsufficientModalVisible] = useState(false);
   const [selectedPromo, setSelectedPromo] = useState(null);
   const [uploadingModelId, setUploadingModelId] = useState(null);
+  const [renewingId, setRenewingId] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -106,6 +109,46 @@ export default function MyPromotionsScreen({ navigation }) {
     } finally {
       setPublishing(false);
     }
+  };
+
+  // Renew: pay the publish cost again for another month (also brings back an expired one).
+  const handleRenew = (promo) => {
+    const balance = wallet?.balance ?? 0;
+    if (balance < publishCost) {
+      setSelectedPromo(promo);
+      setInsufficientModalVisible(true);
+      return;
+    }
+    const expired = promo.status === 'EXPIRED';
+    showAlert(
+      expired ? 'Reactivate Promotion?' : 'Renew Promotion?',
+      expired
+        ? `Pay ${publishCost} coins to show "${promo.spot_name}" to explorers again for another month.`
+        : `Pay ${publishCost} coins to keep "${promo.spot_name}" live for another month after ${formatPromoDate(promo.expires_at)}.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: `Pay ${publishCost} Coins`,
+          onPress: async () => {
+            setRenewingId(promo.id);
+            try {
+              const updated = await renewPromotion(promo.id);
+              showAlert('Promotion Renewed!', `"${promo.spot_name}" is live until ${formatPromoDate(updated.expires_at)}.`);
+              fetchData();
+            } catch (e) {
+              if (e.response?.status === 402) {
+                setSelectedPromo(promo);
+                setInsufficientModalVisible(true);
+              } else {
+                showAlert('Error', e.response?.data?.detail || 'Failed to renew the promotion.');
+              }
+            } finally {
+              setRenewingId(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleOpenStore = () => {
@@ -196,6 +239,13 @@ export default function MyPromotionsScreen({ navigation }) {
           icon: 'alert-circle',
           step: 2,
         };
+      case 'EXPIRED':
+        return {
+          label: 'EXPIRED',
+          color: '#64748B',
+          icon: 'time-outline',
+          step: 4,
+        };
       default:
         return {
           label: status.replace(/_/g, ' '),
@@ -212,6 +262,8 @@ export default function MyPromotionsScreen({ navigation }) {
     const isPublished = item.status === 'PUBLISHED';
     const isRejected = item.status === 'REJECTED';
     const isPending = item.status === 'PENDING_REVIEW';
+    const isExpired = item.status === 'EXPIRED';
+    const renewing = renewingId === item.id;
     const balance = wallet?.balance ?? 0;
     const canAfford = balance >= publishCost;
 
@@ -355,6 +407,15 @@ export default function MyPromotionsScreen({ navigation }) {
               <Text style={styles.publishedSub}>
                 Explorers can now locate this spot, scan its markers, and earn expedition badges.
               </Text>
+              {!!item.expires_at && (
+                <View style={[styles.expiryRow, item.renewal_due && styles.expiryRowDue]}>
+                  <Ionicons name="calendar-outline" size={14} color={item.renewal_due ? '#B91C1C' : '#047857'} />
+                  <Text style={[styles.expiryText, item.renewal_due && styles.expiryTextDue]}>
+                    {item.renewal_due ? 'Expiring soon: ' : 'Live until '}
+                    {formatPromoDate(item.expires_at)} ({item.days_left === 1 ? '1 day' : `${item.days_left} days`} left)
+                  </Text>
+                </View>
+              )}
               <TouchableOpacity
                 style={styles.viewMapBtn}
                 onPress={() => navigation.navigate('Map')}
@@ -362,6 +423,46 @@ export default function MyPromotionsScreen({ navigation }) {
               >
                 <Ionicons name="map-outline" size={15} color="#FFFFFF" />
                 <Text style={styles.viewMapBtnText}>View on Interactive Map</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.renewBtn, !item.renewal_due && styles.renewBtnQuiet]}
+                onPress={() => handleRenew(item)}
+                disabled={renewing}
+                activeOpacity={0.85}
+              >
+                {renewing ? <ActivityIndicator size="small" color={item.renewal_due ? '#FFFFFF' : COLORS.navy} /> : (
+                  <>
+                    <Ionicons name="refresh" size={15} color={item.renewal_due ? '#FFFFFF' : COLORS.navy} />
+                    <Text style={[styles.renewBtnText, !item.renewal_due && styles.renewBtnTextQuiet]}>
+                      Renew for another month ({publishCost} Coins)
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {isExpired && (
+            <View style={styles.expiredBox}>
+              <View style={styles.publishedHeader}>
+                <Ionicons name="time-outline" size={16} color="#475569" />
+                <Text style={styles.expiredTitle}>Expired {formatPromoDate(item.expires_at)}</Text>
+              </View>
+              <Text style={styles.expiredSub}>
+                This promotion is no longer shown on the map or in Local Favorites. Renew it to show it to explorers again.
+              </Text>
+              <TouchableOpacity
+                style={styles.renewBtn}
+                onPress={() => handleRenew(item)}
+                disabled={renewing}
+                activeOpacity={0.85}
+              >
+                {renewing ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
+                  <>
+                    <Ionicons name="refresh" size={15} color="#FFFFFF" />
+                    <Text style={styles.renewBtnText}>Reactivate ({publishCost} Coins)</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           )}
@@ -1127,6 +1228,30 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: '#FFFFFF',
   },
+
+  // Monthly listing: expiry line, renew button, expired box
+  expiryRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(16, 185, 129, 0.10)', borderRadius: RADIUS.sm,
+    paddingHorizontal: 10, paddingVertical: 7, marginBottom: 8,
+  },
+  expiryRowDue: { backgroundColor: 'rgba(239, 68, 68, 0.10)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.35)' },
+  expiryText: { flex: 1, fontFamily: FONTS.semiBold, fontSize: 11.5, color: '#047857' },
+  expiryTextDue: { color: '#B91C1C' },
+  renewBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: '#D97706', borderWidth: 1, borderColor: '#B45309',
+    paddingVertical: 9, borderRadius: RADIUS.pill, marginTop: 8,
+  },
+  renewBtnQuiet: { backgroundColor: '#FFFFFF', borderColor: COLORS.border },
+  renewBtnText: { fontFamily: FONTS.bold, fontSize: 11.5, color: '#FFFFFF' },
+  renewBtnTextQuiet: { color: COLORS.navy },
+  expiredBox: {
+    marginTop: 10, padding: 12, borderRadius: RADIUS.md,
+    backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: 'rgba(100, 116, 139, 0.35)',
+  },
+  expiredTitle: { fontFamily: FONTS.bold, fontSize: 13, color: '#475569' },
+  expiredSub: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textSub, lineHeight: 16 },
 
   pendingBox: {
     flexDirection: 'row',

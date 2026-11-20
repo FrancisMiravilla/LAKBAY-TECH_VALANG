@@ -73,6 +73,11 @@ def _send_email(to_email, name, code, purpose='signup'):
         f"<p style=\"color:#888\">{copy['ignore']}</p>"
     )
 
+    send_email(to_email, subject, text, html)
+
+
+def send_email(to_email, subject, text, html):
+    """Send one email through Brevo when configured, else Django's EMAIL_BACKEND."""
     if settings.BREVO_API_KEY:
         response = requests.post(
             'https://api.brevo.com/v3/smtp/email',

@@ -142,7 +142,11 @@ export const HELP_SECTIONS = [
       },
       {
         q: 'How do I promote a place or business?',
-        a: 'Open Promote, add a photo, a description and the location on the map, then submit. The LAKBAY team reviews it first. Once approved, publish it from My Promotions using coins and it appears on the map for everyone.',
+        a: 'Open Promote, add 3 photos, a description and the location on the map, then submit. The LAKBAY team reviews it first. Once approved, publish it from My Promotions using coins and it appears on the map and in Local Favorites for everyone.',
+      },
+      {
+        q: 'How long does a promotion stay up?',
+        a: 'One month from the day you pay. In the last 5 days you get a reminder with the end date. Tap Renew in My Promotions to pay again and add another month. If you do not renew, it is hidden from explorers on its end date, and you can reactivate it anytime by paying again.',
       },
       {
         q: 'Why was my promotion rejected?',

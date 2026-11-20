@@ -124,6 +124,17 @@ export const publishPromotion = async (id) => {
   return response.data;
 };
 
+// Pay the publish cost again to keep a live promotion up for another month,
+// or to bring back one that expired. 402 = not enough coins.
+export const renewPromotion = async (id) => {
+  const response = await apiClient.post(`promotions/${id}/renew/`, {}, { baseURL: pBase });
+  return response.data;
+};
+
+// "Nov 26, 2026" style date for promotion expiry messages.
+export const formatPromoDate = (iso) =>
+  iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+
 // ── Coin Bundle QR Ph (Store Screen) ──
 export const createBundleQRPh = async (bundleId) => {
   const response = await apiClient.post('create-bundle-qrph/', { bundle_id: bundleId }, { baseURL: pBase });

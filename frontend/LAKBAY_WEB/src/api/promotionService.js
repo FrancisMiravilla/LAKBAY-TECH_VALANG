@@ -25,6 +25,11 @@ export const promotionService = {
     const response = await apiClient.post(`promotions/${id}/reject/`, { reason }, { baseURL: pBase });
     return response.data;
   },
+  // Manually remind the owner that a live promotion is expiring (or that it expired).
+  remindPromotion: async (id) => {
+    const response = await apiClient.post(`promotions/${id}/remind/`, {}, { baseURL: pBase });
+    return response.data;
+  },
   getSettings: async () => {
     const response = await apiClient.get('settings/', { baseURL: pBase });
     return response.data;

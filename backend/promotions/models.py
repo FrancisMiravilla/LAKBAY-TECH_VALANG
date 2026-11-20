@@ -34,6 +34,8 @@ class UserPromotion(models.Model):
         ('APPROVED_PENDING_PAYMENT', 'Approved - Pending Payment'),
         ('PUBLISHED', 'Published'),
         ('REJECTED', 'Rejected'),
+        # Paid period ended without a renewal: hidden from the app, listed in the web archive.
+        ('EXPIRED', 'Expired'),
     )
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='promotions')
@@ -53,7 +55,13 @@ class UserPromotion(models.Model):
 
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='DRAFT')
     rejection_reason = models.TextField(blank=True, null=True)
-    
+
+    # Monthly listing: set when paid (publish or renew); see promotions/lifecycle.py.
+    published_at = models.DateTimeField(blank=True, null=True)
+    expires_at = models.DateTimeField(blank=True, null=True)
+    # Last manual "your promotion is expiring" reminder sent by an admin.
+    reminder_sent_at = models.DateTimeField(blank=True, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

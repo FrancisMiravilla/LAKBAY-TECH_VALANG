@@ -22,7 +22,7 @@ import ParallaxHeroLayout from '../components/ParallaxHeroLayout';
 import { WebView } from 'react-native-webview';
 import { useApp } from '../context/AppContext';
 import { getSpots, ORIGIN } from '../api/qrService';
-import { getPublishedPromotions, getPromotions, getWallet } from '../api/promotionService';
+import { getPublishedPromotions, getPromotions, getWallet, formatPromoDate } from '../api/promotionService';
 import { authService } from '../api/authService';
 import { streakService } from '../api/streakService';
 import { levelForXp } from '../utils/levels';
@@ -317,6 +317,50 @@ export default function HomeScreen({ navigation, route }) {
   const tourSteps = TOUR_STEPS.map((s) => (s.refKey ? { ...s, targetRef: refs[s.refKey] } : s));
   const reloadRef = useRef(null);
 
+  // Monthly promotions: built-in reminders in the last days, the admin's manual
+  // reminder, and the expired notice. Each shows once per app session; the first
+  // one also opens a "renew?" prompt.
+  const [renewPrompt, setRenewPrompt] = useState(null);
+  const notifyPromotionExpiry = useCallback((list) => {
+    let prompt = null;
+    const once = (id, notif) => {
+      if (notifiedPromosRef.current.has(id)) return false;
+      notifiedPromosRef.current.add(id);
+      addNotification({ id, screen: 'MyPromotions', ...notif });
+      return true;
+    };
+    list.forEach((p) => {
+      const date = formatPromoDate(p.expires_at);
+      if (p.status === 'PUBLISHED' && p.renewal_due) {
+        const left = p.days_left === 1 ? '1 day' : `${p.days_left} days`;
+        const fresh = once(`promo-expiring-${p.id}-${p.expires_at}`, {
+          type: 'promo', icon: 'bell',
+          title: 'Promotion Expiring Soon',
+          sub: `"${p.spot_name}" expires on ${date} (${left} left). Renew now to keep it live!`,
+        });
+        if (fresh && !prompt) prompt = { title: 'Promotion Expiring Soon', message: `"${p.spot_name}" expires on ${date}. Want to renew it for another month?` };
+      }
+      if (p.status === 'EXPIRED') {
+        const fresh = once(`promo-expired-${p.id}-${p.expires_at}`, {
+          type: 'promo', icon: 'lock',
+          title: 'Promotion Expired',
+          sub: `"${p.spot_name}" expired on ${date} and is no longer shown to explorers. Renew to reactivate it.`,
+        });
+        if (fresh && !prompt) prompt = { title: 'Promotion Expired', message: `"${p.spot_name}" expired on ${date} and is hidden from explorers. Want to reactivate it?` };
+      }
+      if (p.reminder_sent_at && (p.status === 'PUBLISHED' || p.status === 'EXPIRED')) {
+        once(`promo-reminder-${p.id}-${p.reminder_sent_at}`, {
+          type: 'promo', icon: 'bell',
+          title: 'Reminder from LAKBAY',
+          sub: p.status === 'EXPIRED'
+            ? `"${p.spot_name}" expired on ${date}. Renew it to show it to explorers again.`
+            : `"${p.spot_name}" expires on ${date}. Renew it to stay on the map and in Local Favorites.`,
+        });
+      }
+    });
+    if (prompt) setRenewPrompt(prompt);
+  }, [addNotification]);
+
   useEffect(() => {
     // Polling replaces state only when the data really changed, so an idle
     // Home screen is not re-rendered (and its images re-laid out) every tick.
@@ -353,6 +397,7 @@ export default function HomeScreen({ navigation, route }) {
         // Check for user promotions approved by admin
         getPromotions().then(userPromos => {
           const list = Array.isArray(userPromos) ? userPromos : (userPromos?.results || []);
+          notifyPromotionExpiry(list);
           list.forEach(p => {
             if (p.status === 'APPROVED_PENDING_PAYMENT') {
               const notifId = `promo-approved-${p.id}`;
@@ -513,6 +558,21 @@ export default function HomeScreen({ navigation, route }) {
           onProceed={() => {
             setModalVisible(false);
             if (selectedQa) navigation.navigate(selectedQa.route);
+          }}
+        />
+
+        <CustomModal
+          visible={!!renewPrompt && !greetingVisible && !streakModalVisible}
+          title={renewPrompt?.title}
+          message={renewPrompt?.message}
+          icon="calendar"
+          color={COLORS.gold}
+          proceedLabel="Renew"
+          cancelLabel="Later"
+          onClose={() => setRenewPrompt(null)}
+          onProceed={() => {
+            setRenewPrompt(null);
+            navigation.navigate('MyPromotions');
           }}
         />
 

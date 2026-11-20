@@ -1,7 +1,31 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { promotionService } from './api/promotionService';
 import '@google/model-viewer';
-import { CheckCircle, XCircle, Clock, User, FileText, Image as ImageIcon, Box, Filter, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, User, FileText, Image as ImageIcon, Box, Filter, ChevronLeft, ChevronRight, X, Bell, Archive, CalendarClock } from 'lucide-react';
+
+const formatDate = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
+const daysSince = (iso) => (iso ? Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)) : null);
+
+const STATUS_STYLE = {
+  PENDING_REVIEW: { bg: 'rgba(245, 158, 11, 0.2)', fg: '#fbbf24' },
+  APPROVED_PENDING_PAYMENT: { bg: 'rgba(16, 185, 129, 0.2)', fg: '#34d399' },
+  PUBLISHED: { bg: 'rgba(59, 130, 246, 0.2)', fg: '#60a5fa' },
+  EXPIRED: { bg: 'rgba(100, 116, 139, 0.18)', fg: '#64748b' },
+  REJECTED: { bg: 'rgba(239, 68, 68, 0.2)', fg: '#f87171' },
+};
+const statusStyle = (status) => STATUS_STYLE[status] || STATUS_STYLE.REJECTED;
+
+// One-line expiry summary for live promotions; red once inside the reminder window.
+function ExpiryLine({ promo, compact = false }) {
+  if (promo.status !== 'PUBLISHED' || !promo.expires_at) return null;
+  const due = promo.renewal_due;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: compact ? '8px' : 0, fontSize: compact ? '11.5px' : '13px', color: due ? '#dc2626' : 'var(--text-secondary)', fontWeight: due ? 600 : 500 }}>
+      <CalendarClock size={compact ? 13 : 15} />
+      <span>Expires {formatDate(promo.expires_at)} · {promo.days_left} day{promo.days_left === 1 ? '' : 's'} left</span>
+    </div>
+  );
+}
 
 export default function PromotionModeration() {
   const [promotions, setPromotions] = useState([]);
@@ -15,6 +39,10 @@ export default function PromotionModeration() {
 
   // Modal State
   const [selectedPromo, setSelectedPromo] = useState(null);
+
+  // Queue (everything still in play) vs Archive (expired, not renewed)
+  const [view, setView] = useState('queue');
+  const [remindingId, setRemindingId] = useState(null);
 
   useEffect(() => {
     fetchPromotions();
@@ -42,6 +70,26 @@ export default function PromotionModeration() {
     }
   };
 
+  const handleRemind = async (promo) => {
+    const what = promo.status === 'EXPIRED'
+      ? `"${promo.spot_name}" expired on ${formatDate(promo.expires_at)}. Remind the owner that they can renew it?`
+      : `Remind the owner that "${promo.spot_name}" expires on ${formatDate(promo.expires_at)}?`;
+    if (!window.confirm(`${what}\n\nThey get an in-app notice and an email.`)) return;
+    setRemindingId(promo.id);
+    try {
+      const updated = await promotionService.remindPromotion(promo.id);
+      setPromotions((list) => list.map((p) => (p.id === promo.id ? { ...p, ...updated } : p)));
+      setSelectedPromo((sel) => (sel && sel.id === promo.id ? { ...sel, ...updated } : sel));
+      alert(updated.emailed
+        ? 'Reminder sent. The owner will see it in the app and by email.'
+        : 'Reminder saved. The owner will see it in the app (the email could not be sent).');
+    } catch (err) {
+      alert(err?.response?.data?.detail || 'Failed to send the reminder.');
+    } finally {
+      setRemindingId(null);
+    }
+  };
+
   const handleReject = async (id) => {
     const reason = prompt("Enter rejection reason (optional):", "Inappropriate content");
     if (reason !== null) {
@@ -56,10 +104,19 @@ export default function PromotionModeration() {
   };
 
   // ─── Filter & Paginate ────────────────────────────────────────────────
+  const queuePromotions = useMemo(() => promotions.filter(p => p.status !== 'EXPIRED'), [promotions]);
+  const archivedPromotions = useMemo(
+    () => promotions.filter(p => p.status === 'EXPIRED')
+      .sort((a, b) => new Date(b.expires_at || 0) - new Date(a.expires_at || 0)),
+    [promotions]
+  );
+  const expiringSoonCount = useMemo(() => queuePromotions.filter(p => p.status === 'PUBLISHED' && p.renewal_due).length, [queuePromotions]);
+
   const filteredPromotions = useMemo(() => {
-    if (filterStatus === 'ALL') return promotions;
-    return promotions.filter(p => p.status === filterStatus);
-  }, [promotions, filterStatus]);
+    if (filterStatus === 'ALL') return queuePromotions;
+    if (filterStatus === 'EXPIRING') return queuePromotions.filter(p => p.status === 'PUBLISHED' && p.renewal_due);
+    return queuePromotions.filter(p => p.status === filterStatus);
+  }, [queuePromotions, filterStatus]);
 
   const totalPages = Math.ceil(filteredPromotions.length / itemsPerPage);
   const paginatedPromotions = useMemo(() => {
@@ -88,11 +145,30 @@ export default function PromotionModeration() {
             Promotion Moderation Queue
           </h2>
           <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontSize: '14px' }}>
-            Review user-submitted 3D models and promotional content before they are approved for payment.
+            Review submissions, track monthly listings and remind owners before their promotion expires.
           </p>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }} role="tablist" aria-label="Promotion lists">
+            {[
+              { id: 'queue', label: 'Queue', icon: Box, count: queuePromotions.length },
+              { id: 'archive', label: 'Archive (not renewed)', icon: Archive, count: archivedPromotions.length },
+            ].map(({ id, label, icon: Icon, count }) => (
+              <button
+                key={id}
+                role="tab"
+                aria-selected={view === id}
+                className={`btn ${view === id ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setView(id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Icon size={14} /> {label}
+                <span style={{ fontSize: '11px', fontWeight: 700, opacity: 0.85 }}>({count})</span>
+              </button>
+            ))}
+          </div>
         </div>
-        
+
         {/* Filter Dropdown */}
+        {view === 'queue' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Filter size={18} color="var(--text-secondary)" />
           <select 
@@ -113,10 +189,23 @@ export default function PromotionModeration() {
             <option value="PENDING_REVIEW">Pending Review</option>
             <option value="APPROVED_PENDING_PAYMENT">Approved (Awaiting Payment)</option>
             <option value="PUBLISHED">Published</option>
+            <option value="EXPIRING">Expiring soon ({expiringSoonCount})</option>
             <option value="REJECTED">Rejected</option>
           </select>
         </div>
+        )}
       </div>
+
+      {view === 'archive' && (
+        <ArchiveList
+          promotions={archivedPromotions}
+          remindingId={remindingId}
+          onRemind={handleRemind}
+          onOpen={setSelectedPromo}
+        />
+      )}
+
+      {view === 'queue' && (<>
       
       {/* Smaller Cards Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '20px' }}>
@@ -175,24 +264,33 @@ export default function PromotionModeration() {
                 <h3 style={{ margin: '0 0 8px 0', color: 'var(--text-title)', fontSize: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{promo.spot_name}</h3>
                 
                 {/* Status Badge */}
-                <div style={{ 
+                <div style={{
                   display: 'inline-block',
-                  padding: '4px 8px', borderRadius: '12px', 
-                  backgroundColor: promo.status === 'PENDING_REVIEW' ? 'rgba(245, 158, 11, 0.2)' : 
-                                   promo.status === 'APPROVED_PENDING_PAYMENT' ? 'rgba(16, 185, 129, 0.2)' : 
-                                   promo.status === 'PUBLISHED' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                  color: promo.status === 'PENDING_REVIEW' ? '#fbbf24' : 
-                         promo.status === 'APPROVED_PENDING_PAYMENT' ? '#34d399' : 
-                         promo.status === 'PUBLISHED' ? '#60a5fa' : '#f87171',
+                  padding: '4px 8px', borderRadius: '12px',
+                  backgroundColor: statusStyle(promo.status).bg,
+                  color: statusStyle(promo.status).fg,
                   fontSize: '11px', fontWeight: 'bold', alignSelf: 'flex-start',
-                  border: `1px solid ${
-                    promo.status === 'PENDING_REVIEW' ? '#fbbf24' : 
-                    promo.status === 'APPROVED_PENDING_PAYMENT' ? '#34d399' : 
-                    promo.status === 'PUBLISHED' ? '#60a5fa' : '#f87171'
-                  }`
+                  border: `1px solid ${statusStyle(promo.status).fg}`
                 }}>
                   {promo.status.replace(/_/g, ' ')}
                 </div>
+                <ExpiryLine promo={promo} compact />
+                {promo.status === 'PUBLISHED' && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={(e) => { e.stopPropagation(); handleRemind(promo); }}
+                    disabled={remindingId === promo.id}
+                    style={{ marginTop: '10px', fontSize: '11.5px', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}
+                  >
+                    <Bell size={13} /> {remindingId === promo.id ? 'Sending…' : 'Send reminder'}
+                  </button>
+                )}
+                {promo.reminder_sent_at && (
+                  <span style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                    Reminded {formatDate(promo.reminder_sent_at)}
+                  </span>
+                )}
               </div>
             </div>
           ))
@@ -235,6 +333,7 @@ export default function PromotionModeration() {
           </button>
         </div>
       )}
+      </>)}
 
       {/* Details Modal */}
       {selectedPromo && (
@@ -308,14 +407,10 @@ export default function PromotionModeration() {
                   <User size={16} />
                   <strong style={{ color: '#111827' }}>Submitted by:</strong> {selectedPromo.user_name}
                 </div>
-                <div style={{ 
-                  padding: '4px 10px', borderRadius: '12px', 
-                  backgroundColor: selectedPromo.status === 'PENDING_REVIEW' ? 'rgba(245, 158, 11, 0.2)' : 
-                                   selectedPromo.status === 'APPROVED_PENDING_PAYMENT' ? 'rgba(16, 185, 129, 0.2)' : 
-                                   selectedPromo.status === 'PUBLISHED' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                  color: selectedPromo.status === 'PENDING_REVIEW' ? '#fbbf24' : 
-                         selectedPromo.status === 'APPROVED_PENDING_PAYMENT' ? '#34d399' : 
-                         selectedPromo.status === 'PUBLISHED' ? '#60a5fa' : '#f87171',
+                <div style={{
+                  padding: '4px 10px', borderRadius: '12px',
+                  backgroundColor: statusStyle(selectedPromo.status).bg,
+                  color: statusStyle(selectedPromo.status).fg,
                   fontSize: '12px', fontWeight: 'bold'
                 }}>
                   {selectedPromo.status.replace(/_/g, ' ')}
@@ -325,6 +420,30 @@ export default function PromotionModeration() {
               <div style={{ color: '#374151', marginBottom: '24px', fontSize: '15px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                 {selectedPromo.description}
               </div>
+
+              {(selectedPromo.status === 'PUBLISHED' || selectedPromo.status === 'EXPIRED') && (
+                <div style={{ marginBottom: '24px', padding: '14px', borderRadius: '10px', border: '1px solid var(--card-border)', backgroundColor: 'var(--subtle-bg)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', fontSize: '12.5px', color: '#4b5563' }}>
+                    <div><div style={{ fontWeight: 700, color: '#111827' }}>Published</div>{formatDate(selectedPromo.published_at)}</div>
+                    <div>
+                      <div style={{ fontWeight: 700, color: '#111827' }}>{selectedPromo.status === 'EXPIRED' ? 'Expired' : 'Expires'}</div>
+                      {formatDate(selectedPromo.expires_at)}
+                      {selectedPromo.status === 'PUBLISHED' && ` (${selectedPromo.days_left} day${selectedPromo.days_left === 1 ? '' : 's'} left)`}
+                    </div>
+                    <div><div style={{ fontWeight: 700, color: '#111827' }}>Last reminder</div>{formatDate(selectedPromo.reminder_sent_at)}</div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => handleRemind(selectedPromo)}
+                    disabled={remindingId === selectedPromo.id}
+                    style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Bell size={15} />
+                    {remindingId === selectedPromo.id ? 'Sending…' : selectedPromo.status === 'EXPIRED' ? 'Remind owner to renew' : 'Send expiry reminder'}
+                  </button>
+                </div>
+              )}
 
               {selectedPromo.rejection_reason && (
                 <div style={{ marginBottom: '24px', padding: '12px', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderLeft: '3px solid #ef4444', borderRadius: '4px' }}>
@@ -356,5 +475,57 @@ export default function PromotionModeration() {
         </div>
       )}
     </section>
+  );
+}
+
+// Promotions whose paid month ended without a renewal. They are hidden from the app.
+function ArchiveList({ promotions, remindingId, onRemind, onOpen }) {
+  if (promotions.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+        <Archive size={44} style={{ opacity: 0.5, margin: '0 auto 12px' }} />
+        <h3 style={{ margin: 0, fontSize: '17px', color: 'var(--text-secondary)' }}>No expired promotions</h3>
+        <p>Promotions that are not renewed after their month ends will be listed here.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="table-wrapper">
+      <table className="custom-table">
+        <thead>
+          <tr>
+            <th>Place / Business</th>
+            <th>Owner</th>
+            <th>Expired on</th>
+            <th>Days since</th>
+            <th>Last reminder</th>
+            <th style={{ textAlign: 'right' }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {promotions.map((p) => (
+            <tr key={p.id}>
+              <td>
+                <button type="button" onClick={() => onOpen(p)}
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-title)', fontWeight: 600, textAlign: 'left' }}>
+                  {p.spot_name}
+                </button>
+                <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>{p.is_place ? 'Place' : 'Business'}</div>
+              </td>
+              <td>{p.user_name}</td>
+              <td>{formatDate(p.expires_at)}</td>
+              <td>{daysSince(p.expires_at) ?? '—'}</td>
+              <td>{formatDate(p.reminder_sent_at)}</td>
+              <td style={{ textAlign: 'right' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => onRemind(p)} disabled={remindingId === p.id}
+                  style={{ fontSize: '12px', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <Bell size={13} /> {remindingId === p.id ? 'Sending…' : 'Remind to renew'}
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

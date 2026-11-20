@@ -12,7 +12,9 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import action
+from django.utils import timezone
 from qr_scan.reviews import ReviewView
+from . import lifecycle
 from .models import Wallet, CoinBundle, UserPromotion, Transaction, AppSetting, PromotionReview
 from .serializers import WalletSerializer, CoinBundleSerializer, UserPromotionSerializer, AppSettingSerializer
 
@@ -64,32 +66,39 @@ class UserPromotionViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
+        lifecycle.expire_overdue()
         # Admin can see all, normal user sees only theirs or published ones
         if self.request.user.is_staff:
             return UserPromotion.objects.all().order_by('-created_at')
-        
+
         # In a real scenario, you'd likely return Published ones + the user's own ones
         return UserPromotion.objects.filter(user=self.request.user).order_by('-created_at')
 
     def perform_create(self, serializer):
         use_coins = str(self.request.data.get('use_coins', '')).lower() in ['true', '1']
         if use_coins:
-            setting, _ = AppSetting.objects.get_or_create(
-                key='PROMOTION_PUBLISH_COST', 
-                defaults={'value': 50, 'description': 'Gold coins required to publish a promotion'}
-            )
-            cost = setting.value
             with transaction.atomic():
-                wallet, _ = Wallet.objects.select_for_update().get_or_create(user=self.request.user)
-                if wallet.balance < cost:
-                    raise serializers.ValidationError(
-                        {"detail": f"Not enough coins. Required: {cost}, Balance: {wallet.balance}"}
-                    )
-                wallet.balance -= cost
-                wallet.save(update_fields=['balance', 'updated_at'])
-                serializer.save(user=self.request.user, status='PUBLISHED')
+                promotion = serializer.save(user=self.request.user, status='PENDING_REVIEW')
+                try:
+                    lifecycle.charge_and_publish(promotion, self.request.user)
+                except lifecycle.NotEnoughCoins as exc:
+                    raise serializers.ValidationError({"detail": str(exc)})
         else:
             serializer.save(user=self.request.user, status='PENDING_REVIEW')
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def remind(self, request, pk=None):
+        """Admin: manually remind the owner that the promotion is expiring (or expired)."""
+        if not request.user.is_staff:
+            return Response({"detail": "Not authorized."}, status=status.HTTP_403_FORBIDDEN)
+        promotion = self.get_object()
+        if promotion.status not in ('PUBLISHED', 'EXPIRED'):
+            return Response({"detail": "Only live or expired promotions can be reminded."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        promotion.reminder_sent_at = timezone.now()
+        promotion.save(update_fields=['reminder_sent_at', 'updated_at'])
+        emailed = lifecycle.send_reminder_email(promotion)
+        return Response({**self.get_serializer(promotion).data, "emailed": emailed})
 
     def perform_update(self, serializer):
         instance = self.get_object()
@@ -148,26 +157,36 @@ class PublishPromotionView(views.APIView):
         if promotion.status != 'APPROVED_PENDING_PAYMENT':
             return Response({"detail": "Promotion is not approved for publishing yet."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Get cost from dynamic settings, default to 50 if not set
-        setting, _ = AppSetting.objects.get_or_create(
-            key='PROMOTION_PUBLISH_COST', 
-            defaults={'value': 50, 'description': 'Gold coins required to publish a promotion'}
-        )
-        cost = setting.value 
+        try:
+            lifecycle.charge_and_publish(promotion, request.user)
+        except lifecycle.NotEnoughCoins as exc:
+            return Response({"detail": "Not enough game coins.", "required": exc.cost, "balance": exc.balance},
+                            status=status.HTTP_402_PAYMENT_REQUIRED)
 
-        wallet, _ = Wallet.objects.get_or_create(user=request.user)
+        return Response({"status": "Success", "message": "Promotion published!",
+                         "expires_at": promotion.expires_at})
 
-        if wallet.balance < cost:
-            return Response({"detail": "Not enough game coins.", "required": cost, "balance": wallet.balance}, status=status.HTTP_402_PAYMENT_REQUIRED)
 
-        # Deduct coins and publish
-        wallet.balance -= cost
-        wallet.save()
+class RenewPromotionView(views.APIView):
+    """Owner pays the publish cost again to keep a promotion live for another period.
+    Works while live (extends from the current end date) or after it expired (restarts now)."""
+    permission_classes = [IsAuthenticated]
 
-        promotion.status = 'PUBLISHED'
-        promotion.save()
-
-        return Response({"status": "Success", "message": "Promotion published!"})
+    def post(self, request, pk):
+        lifecycle.expire_overdue()
+        promotion = UserPromotion.objects.filter(pk=pk, user=request.user).first()
+        if promotion is None:
+            return Response({"detail": "Promotion not found."}, status=status.HTTP_404_NOT_FOUND)
+        if promotion.status not in ('PUBLISHED', 'EXPIRED'):
+            return Response({"detail": "Only live or expired promotions can be renewed."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        try:
+            lifecycle.charge_and_publish(promotion, request.user)
+        except lifecycle.NotEnoughCoins as exc:
+            return Response({"detail": "Not enough game coins.", "required": exc.cost, "balance": exc.balance},
+                            status=status.HTTP_402_PAYMENT_REQUIRED)
+        data = UserPromotionSerializer(promotion, context={'request': request}).data
+        return Response({**data, "message": "Promotion renewed!"})
 
 
 class CreatePayMongoCheckoutView(views.APIView):
@@ -665,6 +684,7 @@ class PublishedPromotionListView(generics.ListAPIView):
     permission_classes = [AllowAny]
     
     def get_queryset(self):
+        lifecycle.expire_overdue()
         return UserPromotion.objects.filter(status='PUBLISHED').annotate(
             rating_avg=Avg('reviews__rating'), rating_count=Count('reviews', distinct=True),
         ).order_by('-created_at')

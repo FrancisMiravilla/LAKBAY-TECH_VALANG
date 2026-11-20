@@ -5,7 +5,9 @@ import VintaCard from './VintaCard';
 import { Ionicons } from '@expo/vector-icons';
 import CustomButton from './CustomButton';
 
-export default function CustomModal({ visible, title, message, icon, color, onClose, onProceed }) {
+export default function CustomModal({
+  visible, title, message, icon, color, onClose, onProceed, proceedLabel = 'Proceed', cancelLabel = 'Cancel',
+}) {
   const themeColor = color || COLORS.accent;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -23,12 +25,12 @@ export default function CustomModal({ visible, title, message, icon, color, onCl
           
           <View style={styles.btnRow}>
             <TouchableOpacity style={styles.cancelBtn} onPress={onClose} activeOpacity={0.8}>
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={styles.cancelText}>{cancelLabel}</Text>
             </TouchableOpacity>
-            
+
             <View style={styles.proceedWrapper}>
               <CustomButton
-                title="Proceed"
+                title={proceedLabel}
                 onPress={onProceed}
                 variant="primary"
                 style={{ height: 44, paddingHorizontal: 20, backgroundColor: COLORS.accent }}

@@ -17,6 +17,7 @@ from .views import (
     VerifyBundlePaymentView,
     SimulateTestBundlePaymentView,
     PromotionReviewView,
+    RenewPromotionView,
 )
 
 router = DefaultRouter()
@@ -38,5 +39,6 @@ urlpatterns = [
     path('published/', PublishedPromotionListView.as_view(), name='published-promotions'),
     path('published/<int:pk>/reviews/', PromotionReviewView.as_view(), name='promotion-reviews'),
     path('promotions/<int:pk>/publish/', PublishPromotionView.as_view(), name='publish-promotion'),
+    path('promotions/<int:pk>/renew/', RenewPromotionView.as_view(), name='renew-promotion'),
     path('', include(router.urls)),
 ]
