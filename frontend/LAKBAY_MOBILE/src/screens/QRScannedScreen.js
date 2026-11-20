@@ -16,6 +16,7 @@ import VintaStripe from '../components/VintaStripe';
 import GuideSpeechModal from '../components/GuideSpeechModal';
 import GuideStoryButton from '../components/GuideStoryButton';
 import { loreStorySteps } from '../constants/loreStory';
+import useQuizStatus from '../hooks/useQuizStatus';
 
 const bodyOf = (v) => (typeof v === 'object' && v !== null ? v.body : v);
 
@@ -79,6 +80,8 @@ function QRScannedContent({ navigation, route }) {
   const spot = route.params.spot;
   const already_scanned = route?.params?.already_scanned ?? false;
   const { addNotification } = useApp();
+  const quizStatus = useQuizStatus(spot.id);
+  const quizTaken = !!quizStatus?.taken;
 
   const combinedImages = [spot.image, spot.image2, spot.image3].filter(Boolean).map(formatImageUrl);
 
@@ -306,16 +309,22 @@ function QRScannedContent({ navigation, route }) {
             <TouchableOpacity
               style={styles.quizBtn}
               activeOpacity={0.85}
+              disabled={quizTaken}
               onPress={() => navigation.navigate('QuizScreen', { spotId: spot.id, spotName: spot.name, spotImage: combinedImages[0] || null, feature: 'qr' })}
+              accessibilityState={{ disabled: quizTaken }}
             >
               <LinearGradient
-                colors={[COLORS.accent, '#1E40AF']}
+                colors={quizTaken ? ['#059669', '#047857'] : [COLORS.accent, '#1E40AF']}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                 style={styles.quizBtnGradient}
               >
-                <Ionicons name="game-controller" size={18} color="#FFFFFF" />
-                <Text style={styles.quizBtnText}>Take Spot Trivia Quiz</Text>
-                <Ionicons name="arrow-forward" size={16} color="rgba(255,255,255,0.75)" />
+                <Ionicons name={quizTaken ? 'checkmark-circle' : 'game-controller'} size={18} color="#FFFFFF" />
+                <Text style={styles.quizBtnText}>
+                  {quizTaken
+                    ? `Quiz Completed${quizStatus.attempt?.total ? ` · ${quizStatus.attempt.score}/${quizStatus.attempt.total}` : ''}`
+                    : 'Take Spot Trivia Quiz'}
+                </Text>
+                {!quizTaken && <Ionicons name="arrow-forward" size={16} color="rgba(255,255,255,0.75)" />}
               </LinearGradient>
             </TouchableOpacity>
 

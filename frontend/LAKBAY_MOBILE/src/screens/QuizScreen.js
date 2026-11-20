@@ -12,7 +12,7 @@ import { Svg, Path } from 'react-native-svg';
 import { COLORS, FONTS, RADIUS, SHADOW, BG_OVERLAY, GOLD_TEXT } from '../constants/theme';
 import VintaCard from '../components/VintaCard';
 import LucideIcon from '../components/LucideIcon';
-import { getSpotTrivia, getIconTrivia, awardSpotBadge, ORIGIN } from '../api/qrService';
+import { getSpotTrivia, getIconTrivia, awardSpotBadge, completeQuiz, ORIGIN } from '../api/qrService';
 import { authService } from '../api/authService';
 import DecoratedAvatar from '../components/DecoratedAvatar';
 import RatingModal from '../components/RatingModal';
@@ -158,6 +158,7 @@ export default function QuizScreen({ navigation, route }) {
   const [floatingToast, setFloatingToast]   = useState(null); // { text, color, iconName }
   const [wrongMessage, setWrongMessage]     = useState(null); // randomly picked on wrong answer
   const [ratePrompt, setRatePrompt]         = useState(false);
+  const [takenAttempt, setTakenAttempt]     = useState(null); // set when this spot's quiz was already taken
 
   // QR Discover is finished at the quiz results: ask for a star rating once,
   // unless the player already rated this spot.
@@ -202,6 +203,10 @@ export default function QuizScreen({ navigation, route }) {
         if (spotId) {
           try {
             const data = await getSpotTrivia(spotId);
+            if (data.already_taken) {
+              setTakenAttempt(data.attempt || {});
+              return;
+            }
             if (data.questions?.length) {
               setQuestions(data.questions);
               return;
@@ -321,6 +326,12 @@ export default function QuizScreen({ navigation, route }) {
           // Badge endpoint is optional; the quiz result still counts.
         }
       }
+      if (spotId) {
+        // One quiz per spot: record it so it cannot be taken again for more XP.
+        const total = questions.length;
+        const score = Math.max(0, Math.min(total, total - wrongCount));
+        completeQuiz(spotId, score, total).catch(() => {});
+      }
       setShowReward(true);
     }
   };
@@ -385,6 +396,16 @@ export default function QuizScreen({ navigation, route }) {
               <ActivityIndicator size="small" color={COLORS.accent} />
               <Text style={styles.introInfo}>Preparing your questions…</Text>
             </View>
+          ) : takenAttempt ? (
+            <View style={styles.takenBox}>
+              <Ionicons name="checkmark-circle" size={20} color="#059669" />
+              <Text style={styles.takenText}>
+                You already took this quiz
+                {takenAttempt.attempted_at ? ` on ${new Date(takenAttempt.attempted_at).toLocaleDateString()}` : ''}
+                {takenAttempt.total ? ` and scored ${takenAttempt.score}/${takenAttempt.total}` : ''}.
+                Each quiz can only be taken once.
+              </Text>
+            </View>
           ) : error ? (
             <Text style={[styles.introInfo, { color: '#B91C1C' }]}>{error}</Text>
           ) : (
@@ -394,12 +415,12 @@ export default function QuizScreen({ navigation, route }) {
           )}
 
           <TouchableOpacity
-            style={[styles.primaryBtn, (loading || error) && styles.primaryBtnMuted]}
-            onPress={() => (error ? navigation.goBack() : setShowIntro(false))}
+            style={[styles.primaryBtn, (loading || error || takenAttempt) && styles.primaryBtnMuted]}
+            onPress={() => (error || takenAttempt ? navigation.goBack() : setShowIntro(false))}
             disabled={loading}
             activeOpacity={0.88}
           >
-            <Text style={styles.primaryBtnText}>{error ? 'Go Back' : 'Start Quiz'}</Text>
+            <Text style={styles.primaryBtnText}>{error || takenAttempt ? 'Go Back' : 'Start Quiz'}</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -642,6 +663,12 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.semiBold, fontSize: 16, lineHeight: 21, color: COLORS.navy,
     textAlign: 'center', marginBottom: 18, maxWidth: 300,
   },
+  takenBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8, maxWidth: 320, marginBottom: 18,
+    backgroundColor: '#ECFDF5', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(16,185,129,0.4)',
+    paddingHorizontal: 14, paddingVertical: 10,
+  },
+  takenText: { flex: 1, fontFamily: FONTS.semiBold, fontSize: 14, lineHeight: 20, color: '#065F46' },
 
   // Primary pill button (Start / Next / Claim)
   primaryBtn: {

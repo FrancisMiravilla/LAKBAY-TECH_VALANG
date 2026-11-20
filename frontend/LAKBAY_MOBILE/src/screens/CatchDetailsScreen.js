@@ -21,6 +21,7 @@ import GuideSpeechModal from '../components/GuideSpeechModal';
 import GuideStoryButton from '../components/GuideStoryButton';
 import { loreStorySteps } from '../constants/loreStory';
 import RatingModal from '../components/RatingModal';
+import useQuizStatus from '../hooks/useQuizStatus';
 import { getReviews } from '../api/reviewService';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -122,6 +123,8 @@ function NoModel({ color = '#A855F7' }) {
 // ── Main Screen ──────────────────────────────────────────────────────────────
 export default function CatchDetailsScreen({ route, navigation }) {
   const { icon, spot, isAR = false, justCaught = false } = route.params || {};
+  const quizStatus = useQuizStatus(isAR ? null : spot?.id ?? null);
+  const quizTaken = !!quizStatus?.taken;
 
   // ── Derive rarity dynamically from the icon/AR target's rarity field ──────
   const rarityKey = ((icon?.rarity || spot?.rarity || 'common')).toLowerCase();
@@ -459,8 +462,10 @@ export default function CatchDetailsScreen({ route, navigation }) {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={styles.ctaBtn}
+            style={[styles.ctaBtn, quizTaken && styles.ctaBtnDone]}
             activeOpacity={0.85}
+            disabled={quizTaken}
+            accessibilityState={{ disabled: quizTaken }}
             onPress={() => {
               navigation.navigate('QuizScreen', {
                 icon: icon ? { ...icon, color: RARITY.color } : null,
@@ -471,8 +476,12 @@ export default function CatchDetailsScreen({ route, navigation }) {
               });
             }}
           >
-            <Ionicons name="help-circle" size={20} color="#FFF" style={{ marginRight: 8 }} />
-            <Text style={styles.ctaBtnText}>Take the Quiz</Text>
+            <Ionicons name={quizTaken ? 'checkmark-circle' : 'help-circle'} size={20} color="#FFF" style={{ marginRight: 8 }} />
+            <Text style={styles.ctaBtnText}>
+              {quizTaken
+                ? `Quiz Completed${quizStatus.attempt?.total ? ` · ${quizStatus.attempt.score}/${quizStatus.attempt.total}` : ''}`
+                : 'Take the Quiz'}
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -709,6 +718,7 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 8,
   },
+  ctaBtnDone: { backgroundColor: '#059669', shadowColor: '#059669', shadowOpacity: 0.25, elevation: 2 },
   ctaBtnText: { fontFamily: FONTS.bold, fontSize: 15, color: '#FFF', letterSpacing: 0.5 },
 
   // ── No model ──

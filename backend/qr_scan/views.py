@@ -6,6 +6,7 @@ from accounts.levels import level_for_xp
 from html import escape
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseBadRequest
+from django.db import transaction
 from django.db.models import Avg, Count, F
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -255,6 +256,18 @@ class SpotTriviaView(APIView):
 
     def get(self, request, spot_id):
         spot = get_object_or_404(CulturalSpot, pk=spot_id)
+        # Each spot's quiz is taken once; after that the questions are not served again.
+        done = _quiz_attempt(request.user, spot)
+        if done:
+            return Response({
+                'spot_id': spot.id,
+                'spot_name': spot.name,
+                'questions': [],
+                'already_taken': True,
+                'attempt': _attempt_data(done),
+                'message': 'You already took this quiz.',
+            }, status=status.HTTP_200_OK)
+
         all_questions = list(TriviaQuestion.objects.filter(spot=spot, status='approved'))
 
         if not all_questions:
@@ -276,6 +289,53 @@ class SpotTriviaView(APIView):
             'spot_name': spot.name,
             'questions': serializer.data,
         }, status=status.HTTP_200_OK)
+
+
+def _quiz_attempt(user, spot):
+    return TriviaAttempt.objects.filter(user=user, spot=spot).order_by('attempted_at').first()
+
+
+def _attempt_data(attempt):
+    return {
+        'score': attempt.score,
+        'total': attempt.total,
+        'passed': attempt.passed,
+        'attempted_at': attempt.attempted_at,
+    }
+
+
+class QuizCompletionView(APIView):
+    """GET: whether the player already took this spot's quiz.
+    POST {score, total}: record the finished quiz once (the app grades and awards
+    XP per answer, like the rest of the quiz flow). A second POST is refused (409)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, spot_id):
+        spot = get_object_or_404(CulturalSpot, pk=spot_id)
+        done = _quiz_attempt(request.user, spot)
+        return Response({'taken': bool(done), 'attempt': _attempt_data(done) if done else None})
+
+    def post(self, request, spot_id):
+        spot = get_object_or_404(CulturalSpot, pk=spot_id)
+        try:
+            score = int(request.data.get('score'))
+            total = int(request.data.get('total'))
+        except (TypeError, ValueError):
+            return Response({'detail': 'score and total are required numbers.'}, status=status.HTTP_400_BAD_REQUEST)
+        if total <= 0 or not 0 <= score <= total:
+            return Response({'detail': 'score must be between 0 and total.'}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            # Lock the spot row so two quick submits cannot both record an attempt.
+            CulturalSpot.objects.select_for_update().filter(pk=spot.pk).first()
+            done = _quiz_attempt(request.user, spot)
+            if done:
+                return Response({'detail': 'You already took this quiz.', 'attempt': _attempt_data(done)},
+                                status=status.HTTP_409_CONFLICT)
+            attempt = TriviaAttempt.objects.create(
+                user=request.user, spot=spot, score=score, total=total,
+                passed=(score / total) >= PASS_THRESHOLD,
+            )
+        return Response({'taken': True, 'attempt': _attempt_data(attempt)}, status=status.HTTP_201_CREATED)
 
 
 class SubmitTriviaView(APIView):

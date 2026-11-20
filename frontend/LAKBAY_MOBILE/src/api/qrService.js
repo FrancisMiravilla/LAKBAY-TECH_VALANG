@@ -34,6 +34,14 @@ export const getMyScans = () =>
 export const getSpotTrivia = (spotId) =>
   qrClient.get(`/api/qr/spots/${spotId}/trivia/`).then((r) => r.data);
 
+// Each spot's quiz is taken once. { taken, attempt: { score, total, passed, attempted_at } | null }
+export const getQuizStatus = (spotId) =>
+  qrClient.get(`/api/qr/spots/${spotId}/trivia/complete/`).then((r) => r.data);
+
+// Record the finished quiz (409 if it was already recorded).
+export const completeQuiz = (spotId, score, total) =>
+  qrClient.post(`/api/qr/spots/${spotId}/trivia/complete/`, { score, total }).then((r) => r.data);
+
 
 
 export const awardSpotBadge = (spotId) =>
