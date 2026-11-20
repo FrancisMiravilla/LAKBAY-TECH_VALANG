@@ -1,5 +1,8 @@
 import json
 import base64
+import hashlib
+import hmac
+import time
 import requests
 from django.conf import settings
 from django.db import transaction
@@ -589,10 +592,39 @@ class SimulateTestBundlePaymentView(views.APIView):
         }, status=status.HTTP_200_OK)
 
 
+WEBHOOK_TOLERANCE_SECONDS = 300
+
+
+def verify_paymongo_signature(raw_body, header, secret, now=None):
+    """Check a Paymongo-Signature header ("t=...,te=...,li=...") against the raw request body."""
+    if not secret or not header:
+        return False
+    parts = dict(p.strip().split('=', 1) for p in header.split(',') if '=' in p)
+    timestamp = parts.get('t', '')
+    if not timestamp.isdigit():
+        return False
+    now = time.time() if now is None else now
+    if abs(now - int(timestamp)) > WEBHOOK_TOLERANCE_SECONDS:
+        return False
+    try:
+        livemode = json.loads(raw_body).get('data', {}).get('attributes', {}).get('livemode', False)
+    except (ValueError, AttributeError):
+        return False
+    received = parts.get('li' if livemode else 'te', '')
+    expected = hmac.new(secret.encode(), f'{timestamp}.'.encode() + raw_body, hashlib.sha256).hexdigest()
+    return bool(received) and hmac.compare_digest(expected, received)
+
+
 class PayMongoWebhookView(views.APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request):
+        if not verify_paymongo_signature(
+            request.body, request.headers.get('Paymongo-Signature', ''), settings.PAYMONGO_WEBHOOK_SECRET
+        ):
+            return Response({"detail": "Invalid signature."}, status=status.HTTP_401_UNAUTHORIZED)
+
         event = request.data.get('data', {})
         attributes = event.get('attributes', {})
         event_type = attributes.get('type')
@@ -602,26 +634,29 @@ class PayMongoWebhookView(views.APIView):
             data_attributes = attributes.get('data', {}).get('attributes', {})
             reference_number = data_attributes.get('reference_number')
             payment_intent_id = data_attributes.get('payment_intent_id') or data_attributes.get('id')
-            
+
             try:
-                tx = None
-                if reference_number:
-                    tx = Transaction.objects.filter(id=reference_number, status='PENDING').first()
-                if not tx and payment_intent_id:
-                    tx = Transaction.objects.filter(paymongo_payment_intent_id=payment_intent_id, status='PENDING').first()
+                with transaction.atomic():
+                    pending = Transaction.objects.select_for_update().filter(status='PENDING')
+                    tx = None
+                    if reference_number and str(reference_number).isdigit():
+                        tx = pending.filter(id=reference_number).first()
+                    if not tx and payment_intent_id:
+                        tx = pending.filter(paymongo_payment_intent_id=payment_intent_id).first()
 
-                if tx:
-                    if tx.coins_to_add > 0:
-                        wallet, _ = Wallet.objects.get_or_create(user=tx.user)
-                        wallet.balance += tx.coins_to_add
-                        wallet.save()
+                    if tx:
+                        if tx.coins_to_add > 0:
+                            wallet, _ = Wallet.objects.select_for_update().get_or_create(user=tx.user)
+                            wallet.balance += tx.coins_to_add
+                            wallet.save()
 
-                    tx.status = 'PAID'
-                    tx.save()
+                        tx.status = 'PAID'
+                        tx.save()
             except Exception as e:
                 print("Webhook processing error:", e)
 
         return Response({"status": "Webhook received"}, status=status.HTTP_200_OK)
+
 
 class PublishedPromotionListView(generics.ListAPIView):
     serializer_class = UserPromotionSerializer
