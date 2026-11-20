@@ -200,7 +200,11 @@ export default function BadgesScreen() {
   const insets = useSafeAreaInsets();
   const [profile, setProfile]                   = useState(null);
   const [scans, setScans]                       = useState([]);
-  const [totalSpots, setTotalSpots]             = useState(12);
+  // Quest totals come from what is registered now, so they grow when the admin adds more.
+  const [qrTotal, setQrTotal]                   = useState(0);
+  const [qrDone, setQrDone]                     = useState(0);
+  const [arTargetsList, setArTargetsList]       = useState([]);
+  const [catchTotal, setCatchTotal]             = useState(0);
   const [loading, setLoading]                   = useState(true);
   const [collectedModels, setCollectedModels]   = useState([]);
   const [caughtIcons, setCaughtIcons]           = useState([]);
@@ -226,7 +230,12 @@ export default function BadgesScreen() {
       if (aliveRef.current) {
         setProfile(p);
         setScans(s?.scans || []);
-        if (spotsData?.length > 0) setTotalSpots(spotsData.length);
+        const spotList = Array.isArray(spotsData) ? spotsData : (spotsData?.results || []);
+        const qrSpots = spotList.filter((sp) => (sp.feature_types || []).includes('qr')).length;
+        setQrTotal(typeof s?.total_markers === 'number' ? s.total_markers : qrSpots);
+        setQrDone(typeof s?.active_scanned === 'number' ? s.active_scanned : (s?.scans || []).length);
+        setArTargetsList(Array.isArray(arTargetsData) ? arTargetsData : (arTargetsData?.results || []));
+        setCatchTotal(spotList.filter((sp) => (sp.feature_types || []).includes('catch')).length);
         if (Array.isArray(milestonesData) && milestonesData.length > 0) {
           setMilestones(milestonesData.sort((a, b) => (a.tier || 0) - (b.tier || 0)));
         } else if (milestonesData?.results && Array.isArray(milestonesData.results)) {
@@ -344,8 +353,14 @@ export default function BadgesScreen() {
   const scansCount     = scans.length;
   const arDone         = collectedModels.length;
   const collectedCount = caughtIcons.length;
-  const pctQR          = totalSpots > 0 ? scansCount / totalSpots : 0;
-  const pctAR          = Math.min(1, arDone / 5);
+  // Progress counts only items that are still registered, capped at the total.
+  const arTotal        = arTargetsList.length;
+  const arFound        = Math.min(arTotal, collectedModels.filter((m) => arTargetsList.some(
+    (t) => String(t.id) === String(m.id) || (t.name && m.name && t.name.toLowerCase() === m.name.toLowerCase()),
+  )).length);
+  const qrFound        = Math.min(qrTotal, qrDone);
+  const catchFound     = Math.min(catchTotal, collectedCount);
+  const ratio          = (done, total) => (total > 0 ? Math.min(1, done / total) : 0);
 
   const STATS = [
     { icon: 'zap',    value: xp.toLocaleString(),               label: 'XP Earned',   color: COLORS.gold    },
@@ -355,9 +370,9 @@ export default function BadgesScreen() {
   ];
 
   const QUESTS = [
-    { icon: 'search', title: 'QR Explorer',   questLabel: 'QUEST', sub: `${scansCount} / ${totalSpots} locations scanned`,           pct: pctQR,                       color: COLORS.teal   },
-    { icon: 'camera', title: 'AR Adventurer', questLabel: 'QUEST', sub: `${arDone} / 5 museum AR experiences`,                       pct: pctAR,                       color: COLORS.accent },
-    { icon: 'trophy', title: 'Collector',     questLabel: 'QUEST', sub: `${collectedCount} / 4 cultural symbols caught`,              pct: Math.min(1, collectedCount / 4), color: COLORS.gold   },
+    { icon: 'search', title: 'QR Explorer',   questLabel: 'QUEST', sub: `${qrFound} / ${qrTotal} QR codes scanned`,                 pct: ratio(qrFound, qrTotal),       color: COLORS.teal   },
+    { icon: 'camera', title: 'AR Adventurer', questLabel: 'QUEST', sub: `${arFound} / ${arTotal} museum artworks discovered`,       pct: ratio(arFound, arTotal),       color: COLORS.accent },
+    { icon: 'trophy', title: 'Collector',     questLabel: 'QUEST', sub: `${catchFound} / ${catchTotal} cultural treasures caught`,   pct: ratio(catchFound, catchTotal), color: COLORS.gold   },
   ];
 
   if (loading) {

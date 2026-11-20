@@ -1563,8 +1563,10 @@ export default function CatchScreen({ navigation }) {
   }, [arIcon, arSpot, navigation, handleModelFound]);
 
   // ── Render ──────────────────────────────────────────────────────────────────
-  const totalCatchIcons = icons.length > 0 ? icons.length : 4;
-  const caughtCount = caughtIcons.length;
+  // One treasure per Catch spot, so the total grows when the admin adds a Catch place
+  // (same count as the Collector quest in My Journey).
+  const totalCatchIcons = catchSpots.length;
+  const caughtCount = Math.min(caughtIcons.length, totalCatchIcons);
   const progressPct = totalCatchIcons > 0 ? (caughtCount / totalCatchIcons) * 100 : 0;
 
   return (
@@ -1671,7 +1673,7 @@ export default function CatchScreen({ navigation }) {
                 </View>
                 <View style={styles.progressCountBadge}>
                   <Text style={styles.progressCaught}>{caughtCount}</Text>
-                  <Text style={styles.progressTotal}> / {totalCatchIcons} ICONS</Text>
+                  <Text style={styles.progressTotal}> / {totalCatchIcons} TREASURES</Text>
                 </View>
               </View>
               <View style={styles.progressBarBg}>
@@ -1679,9 +1681,11 @@ export default function CatchScreen({ navigation }) {
               </View>
               <View style={styles.progressFooter}>
                 <Text style={styles.progressSubText}>
-                  {caughtCount === totalCatchIcons
-                    ? 'Master Collector Trophy Achieved!'
-                    : `Collect ${totalCatchIcons - caughtCount} more icons to complete the set (+80 XP each)`}
+                  {totalCatchIcons === 0
+                    ? 'No Catch places yet. Check back soon!'
+                    : caughtCount >= totalCatchIcons
+                      ? 'Master Collector Trophy Achieved!'
+                      : `Catch ${totalCatchIcons - caughtCount} more treasure${totalCatchIcons - caughtCount === 1 ? '' : 's'} to complete the set`}
                 </Text>
               </View>
             </VintaCard>

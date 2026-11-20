@@ -248,7 +248,14 @@ class UserQRScansView(APIView):
             'unlock_type': scan.qr_marker.unlock_type,
         } for scan in scans]
 
-        return Response({'scans': data, 'total': len(data)})
+        # For "x / y QR codes scanned": y is every active QR code, so it grows
+        # when an admin adds one; x counts only scans of codes still active.
+        return Response({
+            'scans': data,
+            'total': len(data),
+            'total_markers': QRMarker.objects.filter(is_active=True).count(),
+            'active_scanned': scans.filter(qr_marker__is_active=True).count(),
+        })
 
 
 class SpotTriviaView(APIView):

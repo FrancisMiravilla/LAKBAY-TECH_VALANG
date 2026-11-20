@@ -61,3 +61,17 @@ def test_bad_completion_is_rejected(spot, player, body):
     res = _client(player).post(f'/api/qr/spots/{spot.id}/trivia/complete/', body, format='json')
     assert res.status_code == 400
     assert not TriviaAttempt.objects.exists()
+
+
+def test_my_scans_reports_registered_qr_total(spot, player):
+    from qr_scan.models import QRMarker, QRScan
+    a = QRMarker.objects.create(spot=spot, qr_code_string='A')
+    QRMarker.objects.create(spot=spot, qr_code_string='B')
+    off = QRMarker.objects.create(spot=spot, qr_code_string='C', is_active=False)
+    QRScan.objects.create(user=player, qr_marker=a)
+    QRScan.objects.create(user=player, qr_marker=off)
+
+    data = _client(player).get('/api/qr/my-scans/').data
+    assert data['total_markers'] == 2
+    assert data['active_scanned'] == 1
+    assert data['total'] == 2
