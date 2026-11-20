@@ -101,7 +101,10 @@ function buildSpotFeatures(spots) {
     type: 'FeatureCollection',
     features: spots.map((spot) => {
       const typeLabel = SPOT_TYPES[spot.primary_type].shortLabel.split(' ')[0].toUpperCase();
-      const model = spot.primary_type === 'catch' && spot.model_3d ? spot.model_3d : '';
+      // Catch spots and promotions with a 3D model use it as their pin (same as the mobile map);
+      // a promotion without one keeps its star.
+      const showsModel = spot.primary_type === 'catch' || spot.primary_type === 'promotion';
+      const model = showsModel && spot.model_3d ? spot.model_3d : '';
       return {
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [spot.longitude, spot.latitude] },
@@ -446,7 +449,7 @@ export default function LakbayMap({
     [mapSpots, activeType],
   );
   const spotShape = useMemo(() => buildSpotFeatures(filteredSpots), [filteredSpots]);
-  // Catch spots with a model get their own 3D marker, so they stay out of the clustered source.
+  // Catch spots and promotions with a model get their own 3D marker, so they stay out of the clustered source.
   const pinShape = useMemo(() => ({ type: 'FeatureCollection', features: spotShape.features.filter((f) => !f.properties.hasModel) }), [spotShape]);
   const modelFeatures = useMemo(() => spotShape.features.filter((f) => f.properties.hasModel), [spotShape]);
   const labelShape = useMemo(() => buildBarangayLabels(mapSpots), [mapSpots]);
@@ -597,7 +600,7 @@ export default function LakbayMap({
     };
   }, [rotateOn]);
 
-  // Catch spots: circle pin with the spot's own 3D model spinning inside.
+  // Catch spots and promotions with a model: circle pin with that model spinning inside.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return undefined;

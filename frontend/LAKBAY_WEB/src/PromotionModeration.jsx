@@ -285,6 +285,22 @@ export default function PromotionModeration() {
               )}
             </div>
 
+            {/* Photos (up to 3, cover first) */}
+            {(() => {
+              const photos = [selectedPromo.image_file, selectedPromo.image_file2, selectedPromo.image_file3].filter(Boolean);
+              if (photos.length === 0) return null;
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', padding: '12px 20px 0', backgroundColor: '#ffffff' }}>
+                  {photos.map((src, i) => (
+                    <a key={src} href={src} target="_blank" rel="noreferrer" title={i === 0 ? 'Cover photo' : `Photo ${i + 1}`}
+                      style={{ display: 'block', aspectRatio: '4 / 3', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--card-border)' }}>
+                      <img src={src} alt={i === 0 ? 'Cover photo' : `Photo ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </a>
+                  ))}
+                </div>
+              );
+            })()}
+
             {/* Body */}
             <div style={{ padding: '24px', flex: 1, backgroundColor: '#ffffff' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>

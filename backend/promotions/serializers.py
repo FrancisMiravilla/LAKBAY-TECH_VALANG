@@ -22,7 +22,7 @@ class UserPromotionSerializer(serializers.ModelSerializer):
         model = UserPromotion
         fields = (
             'id', 'user_name', 'spot_name', 'description',
-            'image_file', 'model_3d_file', 'latitude', 'longitude',
+            'image_file', 'image_file2', 'image_file3', 'model_3d_file', 'latitude', 'longitude',
             'is_place',
             'status', 'rejection_reason', 'created_at', 'updated_at',
             'rating_avg', 'rating_count', 'is_mine',

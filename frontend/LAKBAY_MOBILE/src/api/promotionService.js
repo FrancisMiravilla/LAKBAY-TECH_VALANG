@@ -36,7 +36,21 @@ export const getPublishedPromotions = async () => {
   return response.data;
 };
 
-export const submitPromotion = async (spotName, description, imageUri, glbUri, lat, lng, isPlace = false, useCoins = false) => {
+// Up to three photos: index 0 -> image_file (cover), 1 -> image_file2, 2 -> image_file3.
+// Already-uploaded photos (http URLs) are skipped so the server keeps them.
+const IMAGE_FIELDS = ['image_file', 'image_file2', 'image_file3'];
+const appendImages = (formData, imageUris) => {
+  const list = Array.isArray(imageUris) ? imageUris : [imageUris];
+  list.slice(0, IMAGE_FIELDS.length).forEach((uri, i) => {
+    if (!uri || uri.startsWith('http')) return;
+    const filename = uri.split('/').pop() || `photo${i + 1}.jpg`;
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : 'image/jpeg';
+    formData.append(IMAGE_FIELDS[i], { uri, name: filename, type });
+  });
+};
+
+export const submitPromotion = async (spotName, description, imageUris, glbUri, lat, lng, isPlace = false, useCoins = false) => {
   const formData = new FormData();
   formData.append('spot_name', spotName);
   formData.append('description', description);
@@ -48,12 +62,7 @@ export const submitPromotion = async (spotName, description, imageUri, glbUri, l
     formData.append('longitude', lng);
   }
 
-  if (imageUri) {
-    const filename = imageUri.split('/').pop() || 'photo.jpg';
-    const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : `image/jpeg`;
-    formData.append('image_file', { uri: imageUri, name: filename, type });
-  }
+  appendImages(formData, imageUris);
 
   if (glbUri) {
     const filename = glbUri.split('/').pop() || 'model.glb';
@@ -69,7 +78,7 @@ export const submitPromotion = async (spotName, description, imageUri, glbUri, l
   return response.data;
 };
 
-export const updatePromotion = async (id, { spotName, description, imageUri, glbUri, lat, lng, isPlace }) => {
+export const updatePromotion = async (id, { spotName, description, imageUris, glbUri, lat, lng, isPlace }) => {
   const formData = new FormData();
   if (spotName !== undefined) formData.append('spot_name', spotName);
   if (description !== undefined) formData.append('description', description);
@@ -80,12 +89,7 @@ export const updatePromotion = async (id, { spotName, description, imageUri, glb
     formData.append('longitude', lng);
   }
 
-  if (imageUri && !imageUri.startsWith('http')) {
-    const filename = imageUri.split('/').pop() || 'photo.jpg';
-    const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : `image/jpeg`;
-    formData.append('image_file', { uri: imageUri, name: filename, type });
-  }
+  appendImages(formData, imageUris);
 
   if (glbUri && !glbUri.startsWith('http')) {
     const filename = glbUri.split('/').pop() || 'model.glb';

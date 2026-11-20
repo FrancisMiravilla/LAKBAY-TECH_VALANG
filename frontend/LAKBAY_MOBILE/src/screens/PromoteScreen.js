@@ -118,6 +118,8 @@ const fStyles = StyleSheet.create({
 });
 
 // ─── Upload Box ───────────────────────────────────────────────────────────────
+const PHOTO_COUNT = 3;
+
 function UploadBox({ onPress, icon, filledIcon, label, filledLabel, filled, filledColor, children }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const onPressIn  = () => Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true }).start();
@@ -172,7 +174,14 @@ export default function PromoteScreen({ route, navigation }) {
 
   const [spotName,    setSpotName]    = useState(passedSpotName);
   const [description, setDescription] = useState(editPromotion?.description || '');
-  const [imageUri,    setImageUri]    = useState(editPromotion?.image_file || null);
+  // Three photos, cover first (image_file, image_file2, image_file3).
+  const [images, setImages] = useState(() => [
+    editPromotion?.image_file || null,
+    editPromotion?.image_file2 || null,
+    editPromotion?.image_file3 || null,
+  ]);
+  const photoCount = images.filter(Boolean).length;
+  const photosDone = photoCount === PHOTO_COUNT;
   const [glbUri,      setGlbUri]      = useState(editPromotion?.model_3d_file || null);
   const [glbName,     setGlbName]     = useState(
     editPromotion?.model_3d_file ? editPromotion.model_3d_file.split('/').pop() : null
@@ -190,14 +199,17 @@ export default function PromoteScreen({ route, navigation }) {
   const isEditable = !passedSpotName || isEditing;
 
   // Derive current step for stepper
-  const currentStep = !spotName.trim() || !description.trim() ? 1 : !location ? 2 : (!imageUri && !glbUri) ? 3 : 4;
+  const currentStep = !spotName.trim() || !description.trim() ? 1 : !location ? 2 : !photosDone ? 3 : 4;
 
-  const pickImage = async () => {
+  const pickImage = async (slot) => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true, quality: 0.8,
     });
-    if (!result.canceled) setImageUri(result.assets[0].uri);
+    if (!result.canceled) {
+      const uri = result.assets[0].uri;
+      setImages((prev) => prev.map((u, i) => (i === slot ? uri : u)));
+    }
   };
 
   const pickGlb = async () => {
@@ -226,6 +238,10 @@ export default function PromoteScreen({ route, navigation }) {
       showAlert('Missing Info', 'Please pin a location on the map.');
       return false;
     }
+    if (!photosDone) {
+      showAlert('Missing Photos', `Please add ${PHOTO_COUNT} photos of your place (${photoCount} of ${PHOTO_COUNT} added).`);
+      return false;
+    }
     return true;
   };
 
@@ -238,7 +254,7 @@ export default function PromoteScreen({ route, navigation }) {
         await updatePromotion(editPromotion.id, {
           spotName: spotName.trim(),
           description: description.trim(),
-          imageUri,
+          imageUris: images,
           glbUri,
           lat: location.lat,
           lng: location.lng,
@@ -258,7 +274,7 @@ export default function PromoteScreen({ route, navigation }) {
         await submitPromotion(
           spotName.trim(),
           description.trim(),
-          imageUri,
+          images,
           glbUri,
           location.lat,
           location.lng,
@@ -275,7 +291,7 @@ export default function PromoteScreen({ route, navigation }) {
                 if (isEditable) {
                   setSpotName('');
                   setDescription('');
-                  setImageUri(null);
+                  setImages([null, null, null]);
                   setGlbUri(null);
                   setGlbName(null);
                   setLocation(null);
@@ -290,7 +306,7 @@ export default function PromoteScreen({ route, navigation }) {
                 if (isEditable) {
                   setSpotName('');
                   setDescription('');
-                  setImageUri(null);
+                  setImages([null, null, null]);
                   setGlbUri(null);
                   setGlbName(null);
                   setLocation(null);
@@ -458,43 +474,52 @@ export default function PromoteScreen({ route, navigation }) {
           {/* ── Section: Media ── */}
           <VintaCard style={styles.sectionFrame} contentStyle={styles.sectionCard}>
             <View style={styles.sectionCardHeader}>
-              <View style={[styles.sectionNum, (imageUri || glbName) && styles.sectionNumDone]}>
-                {(imageUri || glbName)
+              <View style={[styles.sectionNum, photosDone && styles.sectionNumDone]}>
+                {photosDone
                   ? <Ionicons name="checkmark" size={14} color="#fff" />
                   : <Text style={styles.sectionNumText}>3</Text>
                 }
               </View>
               <Text style={styles.sectionCardTitle}>Expedition Media</Text>
-              <View style={styles.optionalPill}><Text style={styles.optionalPillText}>Optional</Text></View>
+              <View style={styles.optionalPill}><Text style={styles.optionalPillText}>{photoCount}/{PHOTO_COUNT} photos</Text></View>
             </View>
 
-            <Text style={styles.mediaHintText}>Attach photos or 3D models to make your landmark standout.</Text>
+            <Text style={styles.mediaHintText}>
+              Add {PHOTO_COUNT} photos of your place (the first one is the cover). A 3D model is optional: if you add one, it
+              becomes your pin on the map and appears on your page.
+            </Text>
 
-            {/* Photo Upload */}
+            {/* Photo Upload: three slots */}
             <View style={{ marginTop: 14 }}>
               <View style={styles.mediaSubLabelRow}>
                 <LucideIcon name="camera" size={15} color={COLORS.navy} />
-                <Text style={[styles.mediaSubLabel, { marginBottom: 0 }]}>Cover Photo</Text>
+                <Text style={[styles.mediaSubLabel, { marginBottom: 0 }]}>Photos (required)</Text>
               </View>
-              <UploadBox
-                onPress={pickImage}
-                icon="camera-outline"
-                filledIcon="camera"
-                label="Select a Photo"
-                filledLabel="Photo Attached"
-                filled={!!imageUri}
-                filledColor={COLORS.accent}
-              >
-                {imageUri ? (
-                  <View style={{ width: '100%', height: '100%' }}>
-                    <Image source={{ uri: imageUri }} style={styles.previewImg} />
-                    <View style={styles.imgOverlay}>
-                      <Ionicons name="pencil" size={14} color="#fff" />
-                      <Text style={styles.imgOverlayText}>Change</Text>
-                    </View>
+              <View style={styles.photoRow}>
+                {images.map((uri, i) => (
+                  <View key={i} style={styles.photoSlot}>
+                    <UploadBox
+                      onPress={() => pickImage(i)}
+                      icon="camera-outline"
+                      filledIcon="camera"
+                      label={i === 0 ? 'Cover' : `Photo ${i + 1}`}
+                      filledLabel="Added"
+                      filled={!!uri}
+                      filledColor={COLORS.accent}
+                    >
+                      {uri ? (
+                        <View style={{ width: '100%', height: '100%' }}>
+                          <Image source={{ uri }} style={styles.previewImg} />
+                          <View style={styles.imgOverlay}>
+                            <Ionicons name="pencil" size={12} color="#fff" />
+                            <Text style={styles.imgOverlayText}>{i === 0 ? 'Cover' : 'Change'}</Text>
+                          </View>
+                        </View>
+                      ) : null}
+                    </UploadBox>
                   </View>
-                ) : null}
-              </UploadBox>
+                ))}
+              </View>
             </View>
 
             {/* 3D Model Upload */}
@@ -769,6 +794,8 @@ const styles = StyleSheet.create({
     color: COLORS.navy, marginBottom: 8, lineHeight: 16,
   },
   previewImg: { width: '100%', height: '100%' },
+  photoRow: { flexDirection: 'row', gap: 8 },
+  photoSlot: { flex: 1 },
   imgOverlay: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: 'rgba(4,10,38,0.7)',

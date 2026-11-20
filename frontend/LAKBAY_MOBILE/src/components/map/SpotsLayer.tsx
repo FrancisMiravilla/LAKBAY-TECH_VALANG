@@ -47,7 +47,10 @@ export function buildSpotFeatures(
         : spot.required_level > 1
           ? `${typeLabel} · L${spot.required_level}`
           : typeLabel;
-      const model = spot.primary_type === 'catch' && spot.model_3d ? spot.model_3d : '';
+      // Catch spots and promotions with a 3D model show that model as their pin;
+      // without one they keep the regular symbol (a promotion's star).
+      const showsModel = spot.primary_type === 'catch' || spot.primary_type === 'promotion';
+      const model = showsModel && spot.model_3d ? spot.model_3d : '';
       return {
         type: 'Feature',
         id: spot.id,
@@ -174,7 +177,7 @@ function SpotsLayerBase({ shape, selectedId, onSpotPress, featurePressRef, hidde
   const { cameraRef } = useMap();
   const sourceRef = useRef<ShapeSource | null>(null);
 
-  // Catch spots with a 3D model are drawn as model pins (below) and kept out of the
+  // Catch spots and promotions with a 3D model are drawn as model pins (below) and kept out of the
   // clustered source so they never appear twice.
   const pinShape = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point, SpotFeatureProps>>(
     () => ({ type: 'FeatureCollection', features: shape.features.filter((f) => !f.properties.hasModel) }),
@@ -290,7 +293,7 @@ function SpotsLayerBase({ shape, selectedId, onSpotPress, featurePressRef, hidde
           }}
         />
       </Mapbox.ShapeSource>
-      {/* Catch spots: circle pin with the spot's own 3D model spinning inside. */}
+      {/* Catch spots and promotions with a 3D model: circle pin with that model spinning inside. */}
       {!hidden &&
         modelSpots.map((f) => (
           <CatchModelPin

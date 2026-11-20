@@ -7,6 +7,7 @@ import { COLORS, FONTS, BG_OVERLAY, GOLD_TEXT, SHADOW } from '../constants/theme
 import VintaCard from '../components/VintaCard';
 import LucideIcon from '../components/LucideIcon';
 import ReviewsSection from '../components/ReviewsSection';
+import ModelViewerCard from '../components/ModelViewerCard';
 import { Ionicons } from '@expo/vector-icons';
 
 // Destination detail (reference/home.png, right): photo hero with floating side
@@ -223,6 +224,10 @@ export default function DetailsScreen({ route, navigation }) {
                 </View>
               )}
             </View>
+
+            {isSponsored && !!destination.model3d && (
+              <ModelViewerCard modelUrl={destination.model3d} title="3D Model" />
+            )}
 
             {destination.sponsored
               ? destination.promoId != null && (

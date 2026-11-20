@@ -42,6 +42,8 @@ class UserPromotion(models.Model):
     
     # Image and 3D model files (stored in Cloudinary)
     image_file = models.ImageField(upload_to='promotions/images/', blank=True, null=True)
+    image_file2 = models.ImageField(upload_to='promotions/images/', blank=True, null=True)
+    image_file3 = models.ImageField(upload_to='promotions/images/', blank=True, null=True)
     model_3d_file = models.FileField(upload_to='promotions/3d_models/', blank=True, null=True)
 
     # Location

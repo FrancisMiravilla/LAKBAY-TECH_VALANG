@@ -54,6 +54,15 @@ export const resolveMediaUrl = (v: unknown): string | null => {
   return `${ORIGIN}${raw}`;
 };
 
+// 3D models must never get the photo resize transform: promotion GLBs live under
+// Cloudinary /image/upload/, where sizedImage would turn them into resized images.
+export const resolveModelFileUrl = (v: unknown): string | null => {
+  const raw = str(v);
+  if (!raw) return null;
+  if (raw.startsWith('http')) return raw.replace(/^http:\/\//, 'https://');
+  return `${ORIGIN}${raw}`;
+};
+
 const parseFeatureTypes = (v: unknown): SpotType[] => {
   const list = Array.isArray(v) ? v : typeof v === 'string' ? v.split(',') : [];
   return list
@@ -81,7 +90,7 @@ function normalizeSpot(raw: RawRecord): MapSpot | null {
     primary_type: featureTypes[0],
     required_level: Math.max(1, num(raw.required_level, 1)),
     xp_reward: num(raw.xp_reward, 50),
-    model_3d: resolveMediaUrl(raw.model_3d),
+    model_3d: resolveModelFileUrl(raw.model_3d),
     image: resolveMediaUrl(raw.image),
   };
 }
@@ -104,7 +113,7 @@ function normalizePromotion(raw: RawRecord): MapSpot | null {
     primary_type: 'promotion',
     required_level: 1,
     xp_reward: 50,
-    model_3d: resolveMediaUrl(raw.model_3d_file),
+    model_3d: resolveModelFileUrl(raw.model_3d_file),
     image: resolveMediaUrl(raw.image_file),
   };
 }
@@ -143,7 +152,7 @@ export function useMapSpots() {
         getCatchIcons().catch(() => []),
       ]);
       const catchIcons: CatchIconModel[] = asList(iconsData)
-        .map((i) => ({ name: str(i.name), model: resolveMediaUrl(i.model_3d) ?? '' }))
+        .map((i) => ({ name: str(i.name), model: resolveModelFileUrl(i.model_3d) ?? '' }))
         .filter((i) => i.name && i.model);
       const next = [
         ...asList(spotsData).map(normalizeSpot),
