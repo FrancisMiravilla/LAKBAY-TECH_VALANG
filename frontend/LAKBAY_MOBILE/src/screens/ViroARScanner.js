@@ -178,6 +178,30 @@ export const RARITY_THEME = {
 // =========================================================================
 // 1. STEADY 3D MODEL VIEWER (MATCHING CATCH FEATURE ARCHITECTURE)
 // =========================================================================
+// Viro turns on HDR, bloom, shadows and multisampling by default. The scene uses
+// no bloom or cast shadows, so those only cost GPU time per frame; switching them
+// off helps phones hold the camera's frame rate (ARCore usually runs at 30 FPS,
+// and Viro has no setting for a faster camera). PBR stays on for the GLB materials.
+const AR_RENDER_SETTINGS = {
+  hdrEnabled: false,
+  bloomEnabled: false,
+  shadowsEnabled: false,
+  pbrEnabled: true,
+  multisamplingEnabled: true,
+};
+
+const fpsColor = (v) => (v == null ? '#94A3B8' : v >= 28 ? '#22C55E' : v >= 20 ? '#F59E0B' : '#EF4444');
+
+function FpsLine({ label, value }) {
+  return (
+    <View style={styles.fpsLine}>
+      <View style={[styles.fpsDot, { backgroundColor: fpsColor(value) }]} />
+      <Text style={styles.fpsLabel}>{label}</Text>
+      <Text style={[styles.fpsValue, { color: fpsColor(value) }]}>{value == null ? '–' : value} FPS</Text>
+    </View>
+  );
+}
+
 const buildSteadyViewerHTML = (modelUrl) => {
   if (!modelUrl) return null;
   const safe = String(modelUrl).replace(/["'<>&]/g, c => ({ '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
@@ -231,6 +255,22 @@ const buildSteadyViewerHTML = (modelUrl) => {
     style="width: 100%; height: 100%; background: transparent; touch-action: none;"
   ></model-viewer>
   <script>
+    // Frames drawn per second by this viewer, reported to the app's FPS counter.
+    (function () {
+      var frames = 0, last = performance.now();
+      function tick(now) {
+        frames++;
+        if (now - last >= 1000) {
+          if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'fps', value: Math.round(frames * 1000 / (now - last)) }));
+          }
+          frames = 0;
+          last = now;
+        }
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    })();
     window.addEventListener('message', function(event) {
       try {
         var data = JSON.parse(event.data);
@@ -257,7 +297,8 @@ const MuseumARScene = (props) => {
   const app = props.sceneNavigator.viroAppProps;
   const detected = app.detectedSpot;
   return (
-    <ViroARScene>
+    // Camera updates are counted only while the FPS counter is shown.
+    <ViroARScene onCameraTransformUpdate={app.showFps ? app.onFrame : undefined}>
       <ViroAmbientLight color="#FFFFFF" intensity={1000} />
       <ViroDirectionalLight color="#FFFFFF" direction={[0, 0, -1]} intensity={1200} />
 
@@ -377,6 +418,33 @@ export default function ViroARScanner({ navigation }) {
     if (showHintModal) setClueBuilding(selectedBuilding || null);
   }, [showHintModal, selectedBuilding]);
   const [compassTarget, setCompassTarget] = useState(null);
+
+  // On-screen FPS counter (header "FPS" button). AR view = camera/tracking
+  // updates per second from Viro; 3D viewer = frames the floating model viewer draws.
+  const [showFps, setShowFps] = useState(false);
+  const [arFps, setArFps] = useState(null);
+  const [viewerFps, setViewerFps] = useState(null);
+  const arFrames = React.useRef(0);
+  const countArFrame = React.useCallback(() => { arFrames.current += 1; }, []);
+  React.useEffect(() => {
+    if (!showFps) { setArFps(null); setViewerFps(null); return undefined; }
+    arFrames.current = 0;
+    let last = Date.now();
+    const id = setInterval(() => {
+      const now = Date.now();
+      setArFps(Math.round((arFrames.current * 1000) / (now - last)));
+      arFrames.current = 0;
+      last = now;
+    }, 1000);
+    return () => clearInterval(id);
+  }, [showFps]);
+  const handleViewerMessage = React.useCallback((e) => {
+    if (!showFps) return;
+    try {
+      const msg = JSON.parse(e.nativeEvent.data);
+      if (msg?.type === 'fps') setViewerFps(msg.value);
+    } catch (_) { /* not an fps message */ }
+  }, [showFps]);
   const floatAnim = React.useRef(new Animated.Value(0)).current;
   const lastTargetIdRef = React.useRef(null);
   const handlingTargetRef = React.useRef(null);
@@ -702,8 +770,24 @@ export default function ViroARScanner({ navigation }) {
             <Ionicons name="bulb" size={18} color={COLORS.gold} />
             <Text style={styles.hintHeaderBtnText}>3D Clue</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowFps((v) => !v)}
+            style={[styles.fpsToggle, showFps && styles.fpsToggleOn]}
+            accessibilityLabel={showFps ? 'Hide FPS counter' : 'Show FPS counter'}
+          >
+            <Text style={[styles.fpsToggleText, showFps && styles.fpsToggleTextOn]}>FPS</Text>
+          </TouchableOpacity>
         </View>
       </View>
+
+      {showFps && (
+        <View pointerEvents="none" style={styles.fpsPanel}>
+          <FpsLine label="AR view" value={arFps} />
+          {detectedSpot && (placement === 'floating' || slowLoad) && detectedSpot.model_3d && (
+            <FpsLine label="3D viewer" value={viewerFps} />
+          )}
+        </View>
+      )}
 
       {/* 3D Guide Character Hologram Pop-out (Center of Screen) */}
       <ARGuideCenterPopup
@@ -751,9 +835,12 @@ export default function ViroARScanner({ navigation }) {
               onModelScaleChange: setModelScale,
               modelPosition: modelPosition,
               onModelPositionChange: setModelPosition,
+              showFps,
+              onFrame: countArFrame,
             }}
             style={{ flex: 1 }}
             autofocus={true}
+            {...AR_RENDER_SETTINGS}
           />
         )}
       </View>
@@ -927,6 +1014,7 @@ export default function ViroARScanner({ navigation }) {
               overScrollMode="never"
               backgroundColor="transparent"
               allowsTransparency={true}
+              onMessage={handleViewerMessage}
             />
           ) : (
             <View style={[styles.steadyModelFallback, { borderColor: (RARITY_THEME[detectedSpot.rarity?.toLowerCase()] || RARITY_THEME.common).color }]}>
@@ -1243,6 +1331,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.gold,
   },
+  fpsToggle: {
+    paddingHorizontal: 9, height: 32, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  fpsToggleOn: { backgroundColor: COLORS.gold, borderColor: COLORS.gold },
+  fpsToggleText: { fontFamily: FONTS.bold, fontSize: 11, color: '#FFFFFF', letterSpacing: 0.5 },
+  fpsToggleTextOn: { color: COLORS.navy },
+  fpsPanel: {
+    position: 'absolute', top: 118, right: 12, zIndex: 40,
+    backgroundColor: 'rgba(6,18,49,0.78)', borderRadius: 12,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 10, paddingVertical: 7, gap: 4,
+  },
+  fpsLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  fpsDot: { width: 7, height: 7, borderRadius: 4 },
+  fpsLabel: { fontFamily: FONTS.medium, fontSize: 11.5, color: 'rgba(255,255,255,0.85)', minWidth: 62 },
+  fpsValue: { fontFamily: FONTS.bold, fontSize: 13 },
   hintModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(5, 10, 24, 0.70)',
