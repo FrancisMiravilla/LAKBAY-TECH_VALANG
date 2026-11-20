@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, TouchableOpacity, Modal, Animated } from 'react
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, GOLD_TEXT, onWhite } from '../constants/theme';
 import GuideBubble from './GuideBubble';
-import { PLACARD_CLUE, hasClue } from '../constants/arClues';
+import { PLACARD_CLUE, hasClue, sortClues, mysteryPhrase } from '../constants/arClues';
 
 /**
  * Clue pop-up: the LAKBAY guide says where an artwork is, in his speech bubble,
@@ -22,7 +22,7 @@ export default function ARGuideCenterPopup({
   const [currentIndex, setCurrentIndex] = useState(0);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
-  const validTargets = arTargets.filter(hasClue);
+  const validTargets = sortClues(arTargets.filter(hasClue));
 
   // Jump to the clue that triggered the pop-up when it opens; reset when it closes.
   useEffect(() => {
@@ -49,7 +49,7 @@ export default function ARGuideCenterPopup({
   };
 
   const line = target
-    ? `Need a clue? Look for ${target.name} in Building ${target.building || 'S2'}. ${target.hint || 'Explore the gallery and aim your camera at the paintings and artifacts.'}${target.is_object ? ` ${PLACARD_CLUE}` : ''}`
+    ? `Need a clue? Look for ${mysteryPhrase(target)} in Building ${target.building || 'S2'}. ${target.hint || 'Explore the gallery and aim your camera at the paintings and artifacts.'}${target.is_object ? ` ${PLACARD_CLUE}` : ''}`
     : "I don't have any clues for this building yet. Try pointing your camera at the paintings and exhibits!";
 
   return (

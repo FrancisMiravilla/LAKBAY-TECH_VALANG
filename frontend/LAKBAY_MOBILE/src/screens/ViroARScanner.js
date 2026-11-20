@@ -39,7 +39,7 @@ import UnrecognizedArtNotice from '../components/UnrecognizedArtNotice';
 import GuideSpeechModal from '../components/GuideSpeechModal';
 import BuildingPickerModal from '../components/BuildingPickerModal';
 import { galleryTourSteps } from '../constants/museumGalleries';
-import { PLACARD_CLUE, hasClue } from '../constants/arClues';
+import { PLACARD_CLUE, hasClue, groupCluesByBuilding, mysteryLabel } from '../constants/arClues';
 import ARArtworkGuide from '../components/ARArtworkGuide';
 import { getGlbBounds } from '../utils/glbBounds';
 
@@ -93,6 +93,9 @@ const getImageAspect = (uri) => new Promise((resolve) => {
 // Returns { fit } to place the model on the artwork, or { reason } when it
 // has to use the floating viewer.
 const computeArtworkFit = async (target, localModel) => {
+  // A 3D object is found through its placard, so fitting the model to the
+  // placard would shrink it to label size: show it floating in the centre instead.
+  if (target?.is_object) return { reason: '3D object (placard scan): shown floating in the centre' };
   if (!target?.image) return { reason: 'no tracking image' };
   if (!localModel || !localModel.startsWith('file://')) return { reason: 'the model could not be downloaded to the phone' };
   const [aspect, bounds] = await Promise.all([
@@ -777,7 +780,19 @@ export default function ViroARScanner({ navigation }) {
                   <Text style={{ color: COLORS.textMuted, textAlign: 'center', fontFamily: FONTS.regular }}>No AR target exhibits registered for this spot yet.</Text>
                 </View>
               ) : (
-                arTargets.map((t, idx) => {
+                groupCluesByBuilding(arTargets).map((group) => (
+                  <View key={group.building}>
+                    <View style={styles.hintBuildingHeader}>
+                      <Ionicons name="business-outline" size={15} color={COLORS.navy} />
+                      <Text style={styles.hintBuildingTitle}>Building {group.building}</Text>
+                      {group.building === selectedBuilding && (
+                        <View style={styles.hintHereBadge}><Text style={styles.hintHereText}>You are here</Text></View>
+                      )}
+                      <Text style={styles.hintBuildingCount}>
+                        {group.targets.length} {group.targets.length === 1 ? 'piece' : 'pieces'}
+                      </Text>
+                    </View>
+                    {group.targets.map((t, idx) => {
                   const rTheme = RARITY_THEME[(t.rarity || 'common').toLowerCase()] || RARITY_THEME.common;
                   return (
                     <View key={t.id || idx} style={[styles.hintItemCard, { borderColor: rTheme.color + '44' }]}>
@@ -789,7 +804,7 @@ export default function ViroARScanner({ navigation }) {
                           <Text style={[styles.hintRarityText, { color: onWhite(rTheme.color) }]}>{rTheme.label}</Text>
                         </View>
                       </View>
-                      <Text style={styles.hintTargetName}>{t.name}</Text>
+                      <Text style={styles.hintTargetName}>{mysteryLabel(t)}</Text>
                       <View style={styles.hintQuoteBox}>
                         <Ionicons name="compass-outline" size={16} color={GOLD_TEXT} style={{ marginRight: 6, marginTop: 1 }} />
                         <Text style={styles.hintQuoteText}>{t.hint || 'Explore the room and point your camera at paintings and sculptures.'}</Text>
@@ -812,7 +827,9 @@ export default function ViroARScanner({ navigation }) {
                       )}
                     </View>
                   );
-                })
+                    })}
+                  </View>
+                ))
               )}
             </ScrollView>
           </VintaCard>
@@ -1284,6 +1301,18 @@ const styles = StyleSheet.create({
     color: COLORS.navy,
     marginBottom: 8,
   },
+  hintBuildingHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 14, marginBottom: 8, paddingBottom: 6,
+    borderBottomWidth: 1, borderBottomColor: COLORS.borderLight,
+  },
+  hintBuildingTitle: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.navy },
+  hintBuildingCount: { marginLeft: 'auto', fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMuted },
+  hintHereBadge: {
+    backgroundColor: COLORS.accentSoft, borderRadius: 10,
+    paddingHorizontal: 8, paddingVertical: 2,
+  },
+  hintHereText: { fontFamily: FONTS.bold, fontSize: 10.5, color: COLORS.accent },
   hintQuoteBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
