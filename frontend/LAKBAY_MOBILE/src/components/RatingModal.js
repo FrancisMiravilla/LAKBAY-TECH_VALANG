@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Modal, StyleSheet, View, Text, TouchableOpacity, TextInput,
-  ActivityIndicator, KeyboardAvoidingView, Platform, Image,
+  ActivityIndicator, Keyboard, Platform, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, RADIUS } from '../constants/theme';
@@ -31,6 +31,18 @@ export default function RatingModal({ visible, kind = 'spot', targetId, title, i
     setError('');
   }, [visible, initial]);
 
+  // Lift the card above the keyboard ourselves. KeyboardAvoidingView inside a
+  // Modal mis-measures on edge-to-edge Android and could shrink the card away.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    if (!visible) return undefined;
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, (e) => setKeyboardHeight(e.endCoordinates?.height || 0));
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => { show.remove(); hide.remove(); setKeyboardHeight(0); };
+  }, [visible]);
+
   const save = async () => {
     if (!rating || saving) return;
     setSaving(true);
@@ -52,8 +64,8 @@ export default function RatingModal({ visible, kind = 'spot', targetId, title, i
     : 'You finished the quest! Rate the spot and tell other explorers what you thought.';
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+      <View style={[styles.overlay, { paddingBottom: keyboardHeight }]}>
         <VintaCard style={styles.cardFrame} contentStyle={styles.card}>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={12} accessibilityLabel="Close">
             <Ionicons name="close" size={20} color={COLORS.textSub} />
@@ -100,7 +112,7 @@ export default function RatingModal({ visible, kind = 'spot', targetId, title, i
             <Text style={styles.laterText}>Maybe later</Text>
           </TouchableOpacity>
         </VintaCard>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }

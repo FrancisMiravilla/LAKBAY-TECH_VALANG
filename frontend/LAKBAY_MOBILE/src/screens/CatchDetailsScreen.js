@@ -24,6 +24,7 @@ import RatingModal from '../components/RatingModal';
 import { getReviews } from '../api/reviewService';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+const RATING_AFTER_STORY_MS = 900;
 
 // ── HTML Escape helpers ──────────────────────────────────────────────────────
 const HTML_ESCAPE = { '"': '&quot;', "'": '&#39;', '<': '&lt;', '>': '&gt;', '&': '&amp;' };
@@ -173,11 +174,20 @@ export default function CatchDetailsScreen({ route, navigation }) {
   const canRateSpot = justCaught && !isAR && spot?.id != null;
   const [ratePrompt, setRatePrompt] = useState(false);
   const rateAsked = useRef(false);
+  const rateTimer = useRef(null);
+  useEffect(() => () => clearTimeout(rateTimer.current), []);
   const askForRating = React.useCallback(() => {
     if (!canRateSpot || rateAsked.current) return;
     rateAsked.current = true;
+    const openedAt = Date.now();
     getReviews('spot', spot.id)
-      .then((summary) => { if (!summary?.my_review) setTimeout(() => setRatePrompt(true), 400); })
+      .then((summary) => {
+        if (summary?.my_review) return;
+        // Android drops a Modal that opens while another is still fading out,
+        // so wait until the guide's story pop-up is fully gone.
+        const wait = Math.max(0, RATING_AFTER_STORY_MS - (Date.now() - openedAt));
+        rateTimer.current = setTimeout(() => setRatePrompt(true), wait);
+      })
       .catch(() => {});
   }, [canRateSpot, spot?.id]);
 
