@@ -39,6 +39,7 @@ import UnrecognizedArtNotice from '../components/UnrecognizedArtNotice';
 import GuideSpeechModal from '../components/GuideSpeechModal';
 import BuildingPickerModal from '../components/BuildingPickerModal';
 import { galleryTourSteps } from '../constants/museumGalleries';
+import { PLACARD_CLUE, hasClue } from '../constants/arClues';
 import ARArtworkGuide from '../components/ARArtworkGuide';
 import { getGlbBounds } from '../utils/glbBounds';
 
@@ -344,6 +345,10 @@ export default function ViroARScanner({ navigation }) {
       text: 'Inside, point your camera at the paintings and exhibits. Artworks come in four rarities: Common, Rare, Mythical and Legendary. Stuck? Tap the 3D Clue button at the top and I will give you a hint.',
     },
     {
+      title: 'Objects? Scan the Placard!',
+      text: 'Heads up, explorer! I can only recognize flat artworks like paintings. For 3D objects such as jars, plates and boats, scan the placard beside them instead, and their 3D model will appear right there!',
+    },
+    {
       title: 'Collect the 3D Models',
       text: 'Every artwork you scan is saved to your collection with its rarity and slot number. See them anytime in My Journey. Good luck, explorer!',
     },
@@ -354,7 +359,7 @@ export default function ViroARScanner({ navigation }) {
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const galleryInProgress = showInstructionModal || showBuildingPicker || !!galleryBuilding;
   const hintedTargets = () => {
-    const withHints = arTargets.filter(t => t.hint && t.hint.trim().length > 0);
+    const withHints = arTargets.filter(hasClue);
     const inBuilding = withHints.filter(t => t.building === selectedBuilding);
     return inBuilding.length > 0 ? inBuilding : withHints;
   };
@@ -789,6 +794,12 @@ export default function ViroARScanner({ navigation }) {
                         <Ionicons name="compass-outline" size={16} color={GOLD_TEXT} style={{ marginRight: 6, marginTop: 1 }} />
                         <Text style={styles.hintQuoteText}>{t.hint || 'Explore the room and point your camera at paintings and sculptures.'}</Text>
                       </View>
+                      {!!t.is_object && (
+                        <View style={styles.hintQuoteBox}>
+                          <Ionicons name="document-text-outline" size={16} color={GOLD_TEXT} style={{ marginRight: 6, marginTop: 1 }} />
+                          <Text style={styles.hintQuoteText}>{PLACARD_CLUE}</Text>
+                        </View>
+                      )}
                       {!!t.hint && (
                         <TouchableOpacity
                           style={styles.hintGuideBtn}

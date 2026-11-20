@@ -151,7 +151,7 @@ class ARTargetSerializer(serializers.ModelSerializer):
         model = ARTarget
         fields = (
             'id', 'name', 'description', 'building', 'slot_number',
-            'rarity', 'hint', 'image', 'model_3d',
+            'rarity', 'hint', 'is_object', 'image', 'model_3d',
             'spot_id', 'spot_name', 'created_at',
         )
 

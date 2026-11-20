@@ -6,6 +6,7 @@ import { Svg, Circle, Line, Path, G, Text as SvgText } from 'react-native-svg';
 import { FONTS } from '../constants/theme';
 import { AR_LIME } from './ARGuidance';
 import { parseHintDirection, cardinalFor } from '../utils/hintDirection';
+import { PLACARD_CLUE } from '../constants/arClues';
 
 // Compass guide for finding a museum artwork from its hint ("western part of S2").
 // The dial turns with the phone so N/E/S/W always match the real world, and the
@@ -173,6 +174,9 @@ export default function HintCompass({ target, onClose }) {
 
       {!!target.hint && (
         <Text style={styles.hint} numberOfLines={2}>“{target.hint}”</Text>
+      )}
+      {!!target.is_object && (
+        <Text style={styles.hint} numberOfLines={2}>{PLACARD_CLUE}</Text>
       )}
     </View>
   );

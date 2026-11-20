@@ -664,6 +664,7 @@ function App() {
     slot_number: 1,
     rarity: 'common',
     hint: '',
+    is_object: false,
   });
   const [selectedARTarget, setSelectedARTarget] = useState(null);
   const [arBuildingFilter, setArBuildingFilter] = useState('all');
@@ -1031,6 +1032,7 @@ function App() {
       slot_number: Number(newARTarget.slot_number) || 1,
       rarity: newARTarget.rarity || 'common',
       hint: newARTarget.hint || '',
+      is_object: !!newARTarget.is_object,
       image: newARTarget.image || null,
       model_3d: newARTarget.model_3d || null,
     };
@@ -1038,7 +1040,7 @@ function App() {
     const tempId = `saving-${Date.now()}`;
 
     setArTargets(prev => [...prev, { ...payload, id: tempId, saving: true }]);
-    setNewARTarget({ name: '', description: '', image: null, model_3d: null, model_3d_preview: null, building: 'S2', slot_number: 1, rarity: 'common', hint: '' });
+    setNewARTarget({ name: '', description: '', image: null, model_3d: null, model_3d_preview: null, building: 'S2', slot_number: 1, rarity: 'common', hint: '', is_object: false });
     setIsAddARTargetModalOpen(false);
 
     qrService.createARTarget(payload)
@@ -1084,6 +1086,7 @@ function App() {
       slot_number: Number(draft.slot_number) || 1,
       rarity: draft.rarity || 'common',
       hint: draft.hint || '',
+      is_object: !!draft.is_object,
       // Only send media when the admin picked a new file (data: URL); an
       // existing URL string must be omitted so the backend keeps the file.
       ...(typeof draft.image === 'string' && draft.image.startsWith('data:') && { image: draft.image }),
@@ -3267,6 +3270,17 @@ function App() {
                         value={newARTarget.hint} onChange={e => setNewARTarget({...newARTarget, hint: e.target.value})} />
                     </div>
 
+                    <div style={{ padding: '12px 16px', border: '1px solid var(--card-border)', borderRadius: '10px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      <input type="checkbox" id="newArIsObject" style={{ width: '18px', height: '18px', marginTop: '2px', cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
+                        checked={!!newARTarget.is_object} onChange={e => setNewARTarget({...newARTarget, is_object: e.target.checked})} />
+                      <label htmlFor="newArIsObject" style={{ cursor: 'pointer', margin: 0, fontSize: '13px', color: 'var(--text-title)' }}>
+                        <span style={{ fontWeight: 600 }}>Is a 3D object</span>
+                        <span style={{ display: 'block', fontWeight: 400, color: 'var(--text-muted)', marginTop: '2px' }}>
+                          For jars, plates, boats and other objects the camera cannot recognize. Upload a photo of its placard as the image; the app's clue tells tourists to scan the placard.
+                        </span>
+                      </label>
+                    </div>
+
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label">Description / Info to Display</label>
                       <textarea className="form-textarea" required rows={3} placeholder="Provide the cultural history and story behind this artwork..."
@@ -3423,6 +3437,17 @@ function App() {
                       <label className="form-label">Location Hint <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(Pops up in mobile AR if user cannot find art)</span></label>
                       <textarea className="form-textarea" rows={2} placeholder="e.g. Go to west side and find the art near the courtyard..."
                         value={editingARTarget.hint || ''} onChange={e => setEditingARTarget({...editingARTarget, hint: e.target.value})} />
+                    </div>
+
+                    <div style={{ padding: '12px 16px', border: '1px solid var(--card-border)', borderRadius: '10px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      <input type="checkbox" id="editArIsObject" style={{ width: '18px', height: '18px', marginTop: '2px', cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
+                        checked={!!editingARTarget.is_object} onChange={e => setEditingARTarget({...editingARTarget, is_object: e.target.checked})} />
+                      <label htmlFor="editArIsObject" style={{ cursor: 'pointer', margin: 0, fontSize: '13px', color: 'var(--text-title)' }}>
+                        <span style={{ fontWeight: 600 }}>Is a 3D object</span>
+                        <span style={{ display: 'block', fontWeight: 400, color: 'var(--text-muted)', marginTop: '2px' }}>
+                          For jars, plates, boats and other objects the camera cannot recognize. Upload a photo of its placard as the image; the app's clue tells tourists to scan the placard.
+                        </span>
+                      </label>
                     </div>
 
                     <div className="form-group" style={{ margin: 0 }}>

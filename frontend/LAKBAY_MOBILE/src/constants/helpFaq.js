@@ -57,7 +57,7 @@ export const HELP_SECTIONS = [
     items: [
       {
         q: 'How does the AR exhibit work?',
-        a: 'Open the AR quest inside the National Museum and pick your building (S2, S3 or S4). The guide introduces the galleries. Point your camera at a registered artwork or object and its 3D model appears on top of it while the guide describes it.',
+        a: 'Open the AR quest inside the National Museum and pick your building (S2, S3 or S4). The guide introduces the galleries. Point your camera at a registered artwork and its 3D model appears on top of it while the guide describes it. For 3D objects such as jars, plates or boats, scan the placard beside the object instead.',
       },
       {
         q: 'How much XP do AR discoveries give?',
@@ -65,7 +65,7 @@ export const HELP_SECTIONS = [
       },
       {
         q: 'Nothing appears when I point at an artwork.',
-        a: 'Not every piece in the museum is part of LAKBAY. Each building has its own set of items. Use the clue and the compass to find them, stand a little farther back so the whole piece fits on screen, and avoid glare on the glass.',
+        a: 'Not every piece in the museum is part of LAKBAY. Each building has its own set of items. Use the clue and the compass to find them, stand a little farther back so the whole piece fits on screen, and avoid glare on the glass. If it is a 3D object, point at its placard, not the object itself.',
       },
       {
         q: 'The 3D model takes long to show.',

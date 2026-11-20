@@ -81,6 +81,10 @@ class ARTarget(models.Model):
         blank=True,
         help_text="Location hint to help users find the target (e.g. 'go to west side and find the art')"
     )
+    is_object = models.BooleanField(
+        default=False,
+        help_text="3D object (jar, boat...): ARCore cannot track it, so its placard is the tracking image"
+    )
     name = models.CharField(max_length=200)
     description = models.TextField()
     image = models.ImageField(upload_to='ar_targets/', null=True, blank=True)
