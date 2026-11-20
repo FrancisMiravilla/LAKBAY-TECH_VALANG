@@ -124,6 +124,11 @@ export const publishPromotion = async (id) => {
   return response.data;
 };
 
+// Permanently delete one of the user's own promotions (and its ratings).
+export const deletePromotion = async (id) => {
+  await apiClient.delete(`promotions/${id}/`, { baseURL: pBase });
+};
+
 // Pay the publish cost again to keep a live promotion up for another month,
 // or to bring back one that expired. 402 = not enough coins.
 export const renewPromotion = async (id) => {

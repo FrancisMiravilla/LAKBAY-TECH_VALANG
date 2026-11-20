@@ -139,3 +139,15 @@ def test_owner_cannot_change_their_own_end_date(owner):
 
     promo.refresh_from_db()
     assert promo.expires_at == end
+
+
+def test_owner_can_delete_their_promotion_but_not_someone_elses(owner):
+    other = User.objects.create_user(email='other@x.com', password='pass12345')
+    promo = _promo(owner, status='PUBLISHED', expires_at=timezone.now() + timedelta(days=10))
+
+    assert _client(other).delete(f'{BASE}promotions/{promo.id}/').status_code == 404
+    assert UserPromotion.objects.filter(pk=promo.id).exists()
+
+    assert _client(owner).delete(f'{BASE}promotions/{promo.id}/').status_code == 204
+    assert not UserPromotion.objects.filter(pk=promo.id).exists()
+    assert promo.id not in _published_ids(APIClient())

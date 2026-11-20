@@ -15,6 +15,7 @@ import {
   getWallet,
   attach3DModel,
   renewPromotion,
+  deletePromotion,
   formatPromoDate,
 } from '../api/promotionService';
 import VintaStripe from '../components/VintaStripe';
@@ -46,6 +47,7 @@ export default function MyPromotionsScreen({ navigation }) {
   const [selectedPromo, setSelectedPromo] = useState(null);
   const [uploadingModelId, setUploadingModelId] = useState(null);
   const [renewingId, setRenewingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -144,6 +146,35 @@ export default function MyPromotionsScreen({ navigation }) {
               }
             } finally {
               setRenewingId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDelete = (promo) => {
+    const live = promo.status === 'PUBLISHED';
+    showAlert(
+      'Delete Promotion?',
+      live
+        ? `"${promo.spot_name}" is live until ${formatPromoDate(promo.expires_at)}. Deleting it removes it from the map and Local Favorites right away, along with its ratings. The coins you paid are not refunded. This cannot be undone.`
+        : `"${promo.spot_name}" and its photos, 3D model and ratings will be permanently removed. This cannot be undone.`,
+      [
+        { text: 'Keep It', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingId(promo.id);
+            try {
+              await deletePromotion(promo.id);
+              setPromotions((list) => list.filter((p) => p.id !== promo.id));
+              showAlert('Promotion Deleted', `"${promo.spot_name}" was deleted.`, undefined, 'success');
+            } catch (e) {
+              showAlert('Error', e.response?.data?.detail || 'Failed to delete the promotion.');
+            } finally {
+              setDeletingId(null);
             }
           },
         },
@@ -342,6 +373,22 @@ export default function MyPromotionsScreen({ navigation }) {
             >
               <Ionicons name="pencil" size={12} color={COLORS.accent} />
               <Text style={styles.editCardBtnText}>Edit Landmark & Media</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.deleteCardBtn}
+              onPress={() => handleDelete(item)}
+              disabled={deletingId === item.id}
+              activeOpacity={0.8}
+              accessibilityLabel={`Delete ${item.spot_name}`}
+            >
+              {deletingId === item.id ? (
+                <ActivityIndicator size="small" color="#DC2626" />
+              ) : (
+                <>
+                  <Ionicons name="trash-outline" size={13} color="#DC2626" />
+                  <Text style={styles.deleteCardBtnText}>Delete</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -1081,8 +1128,28 @@ const styles = StyleSheet.create({
   cardActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
     marginTop: 4,
     marginBottom: 6,
+  },
+  deleteCardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    minWidth: 78,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: RADIUS.sm,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: 'rgba(220, 38, 38, 0.35)',
+  },
+  deleteCardBtnText: {
+    fontFamily: FONTS.bold,
+    fontSize: 12,
+    color: '#DC2626',
+    lineHeight: 15,
   },
   editCardBtn: {
     flexDirection: 'row',
