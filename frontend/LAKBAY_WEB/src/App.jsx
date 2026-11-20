@@ -59,7 +59,7 @@ import ErrorModal from './ErrorModal';
 import PromotionModeration from './PromotionModeration';
 import LakbayMap from './map/LakbayMap';
 import { barangayAt } from './map/barangays';
-import PromotionSettings from './PromotionSettings';
+import AdminSettings from './AdminSettings';
 import CoinBundleManagement from './CoinBundleManagement';
 import LandingPage from './LandingPage';
 import DashboardLeaderboard from './DashboardLeaderboard';
@@ -75,10 +75,15 @@ const QRCodeCanvas = ({ value }) => {
 
   useEffect(() => {
     if (!canvasRef.current || !value) return;
-    QRCodeLib.toCanvas(canvasRef.current, value, {
+    const canvas = canvasRef.current;
+    QRCodeLib.toCanvas(canvas, value, {
       width: 200,
       margin: 2,
       color: { dark: '#000000', light: '#ffffff' },
+    }, () => {
+      // toCanvas writes a fixed 200px inline size; let the card's box size it instead.
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
     });
   }, [value]);
 
@@ -88,7 +93,7 @@ const QRCodeCanvas = ({ value }) => {
     </div>
   );
 
-  return <canvas ref={canvasRef} style={{ width: '100%', height: '100%', borderRadius: '4px' }} />;
+  return <canvas ref={canvasRef} style={{ width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%', display: 'block', borderRadius: '4px' }} />;
 };
 
 // ── Feature-type constants ─────────────────────────────────────────────────
@@ -276,7 +281,8 @@ const normalizeSpot = (s) => ({
   trivia: s.fun_fact,
   status: PIN_TYPE_CONFIG[(s.feature_types && s.feature_types[0]) || 'qr']?.label || 'QR Scan',
   category: 'cultural',
-  rating: 5.0,
+  rating: s.rating_avg ?? null,
+  ratingCount: s.rating_count || 0,
   visits: 0,
   experience: '',
   bestTime: '',
@@ -1649,7 +1655,7 @@ function App() {
                 {activeTab === 'reports' && 'Export records and review monthly performance summaries'}
                 {activeTab === 'promotions' && 'Review and approve submitted user promotions and 3D models'}
                 {activeTab === 'coin_bundles' && 'Manage coin bundles available for purchase'}
-                {activeTab === 'settings' && 'Configure system variables like dynamic pricing'}
+                {activeTab === 'settings' && 'Manage your account, appearance and system variables'}
               </span>
             </div>
             {/* Context Add Button */}
@@ -1751,8 +1757,9 @@ function App() {
                         const pctHeight = Math.max(8, (spot.visits / maxVisits) * 100);
                         return (
                           <div key={spot.id} className={`chart-bar-item ${idx === 0 ? 'is-top' : ''}`}>
-                            <div className="chart-tooltip">{spot.visits.toLocaleString()} scans</div>
-                            <div className="chart-bar" style={{height: `${pctHeight}%`}}></div>
+                            <div className="chart-bar" style={{height: `${pctHeight}%`}}>
+                              <div className="chart-tooltip">{spot.visits.toLocaleString()} scans</div>
+                            </div>
                             <span className="chart-bar-label" title={spot.name}>{spot.name.split(' ')[0]}</span>
                           </div>
                         );
@@ -1927,9 +1934,9 @@ function App() {
                         </div>
                         <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                           {spotDetails && (
-                            <span className="qr-card-rating">
+                            <span className="qr-card-rating" title={spotDetails.ratingCount ? `${spotDetails.ratingCount} rating${spotDetails.ratingCount === 1 ? '' : 's'} from tourists` : 'No ratings yet'}>
                               <Star size={12} fill="currentColor" style={{ color: 'var(--accent-gold)', marginRight: '2px' }} />
-                              {spotDetails.rating || '5.0'}
+                              {spotDetails.rating != null ? Number(spotDetails.rating).toFixed(1) : '—'}
                             </span>
                           )}
                           <button 
@@ -1971,18 +1978,17 @@ function App() {
                       </div>
 
                       <div className="qr-actions">
-                        <button 
-                          className="btn btn-secondary"
-                          style={{flex: 1, padding: '8px 12px', fontSize: '11px'}}
+                        <button
+                          className="btn btn-secondary qr-action-download"
                           onClick={() => downloadQR(qr.qr_code_string, qr.exhibitName)}
                         >
                           <Download size={12} style={{marginRight: '4px'}} />
                           Download PDF
                         </button>
-                        
-                        <button 
-                          className={`btn ${qr.status === 'Active' ? 'btn-secondary' : 'btn-primary'}`}
-                          style={{flex: 1, padding: '8px 12px', fontSize: '11px', color: qr.status === 'Active' ? '#EF4444' : 'white', borderColor: qr.status === 'Active' ? 'rgba(239, 68, 68, 0.2)' : 'transparent'}}
+
+                        <button
+                          className={`btn ${qr.status === 'Active' ? 'btn-secondary' : 'btn-primary'} qr-action-toggle`}
+                          style={{color: qr.status === 'Active' ? '#EF4444' : 'white', borderColor: qr.status === 'Active' ? 'rgba(239, 68, 68, 0.2)' : 'transparent'}}
                           onClick={() => toggleQrStatus(qr.id)}
                         >
                           <Power size={12} style={{marginRight: '4px'}} />
@@ -1990,10 +1996,9 @@ function App() {
                         </button>
 
                         <button
-                          className="icon-action-btn delete"
+                          className="icon-action-btn delete qr-action-delete"
                           title="Delete QR Code"
                           onClick={() => handleDeleteQr(qr)}
-                          style={{ padding: '8px', flexShrink: 0 }}
                         >
                           <Trash2 size={14} />
                         </button>
@@ -3049,7 +3054,13 @@ function App() {
           )}
 
           {activeTab === 'settings' && (
-            <PromotionSettings />
+            <AdminSettings
+              currentUser={currentUser}
+              onUserUpdated={setCurrentUser}
+              theme={theme}
+              onThemeChange={setTheme}
+              onLogout={handleLogout}
+            />
           )}
           
           {activeTab === 'coin_bundles' && (

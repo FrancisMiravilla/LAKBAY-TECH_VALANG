@@ -8,7 +8,7 @@ from .views import (
     UserListView, ToggleUserStatusView,
     AdjustUserXPView, LeaderboardView, CosmeticsView,
     VerifyEmailView, ResendVerificationCodeView,
-    ForgotPasswordView, ResetPasswordView, ChangePasswordView,
+    ForgotPasswordView, ResetPasswordView, ChangePasswordView, ChangeEmailView,
 )
 
 urlpatterns = [
@@ -27,6 +27,7 @@ urlpatterns = [
     path('password/forgot/', ForgotPasswordView.as_view(), name='password_forgot'),
     path('password/reset/', ResetPasswordView.as_view(), name='password_reset'),
     path('password/change/', ChangePasswordView.as_view(), name='password_change'),
+    path('email/change/', ChangeEmailView.as_view(), name='email_change'),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('character-setup/', CharacterSetupView.as_view(), name='character_setup'),
     path("test-auth/", test_auth),

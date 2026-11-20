@@ -5,6 +5,8 @@ from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import validate_email
 from django.conf import settings
 from google.oauth2 import id_token
 from google.auth.transport import requests
@@ -260,6 +262,40 @@ class ChangePasswordView(APIView):
             'refresh': str(refresh),
             'access': str(refresh.access_token),
         })
+
+
+class ChangeEmailView(APIView):
+    """POST {current_password, new_email}: staff (admin / tour guide) change their sign-in email.
+
+    Tourists verify their address by code at sign-up, so this is limited to staff accounts.
+    """
+    permission_classes = (permissions.IsAdminUser,)
+
+    def post(self, request):
+        user = request.user
+        current = str(request.data.get('current_password', ''))
+        new_email = str(request.data.get('new_email', '')).strip().lower()
+        if not current or not new_email:
+            return Response({'detail': 'Enter your current password and a new email.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not user.check_password(current):
+            return Response(
+                {'detail': 'Your current password is not correct.', 'field': 'current_password'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            validate_email(new_email)
+        except DjangoValidationError:
+            return Response({'detail': 'Enter a valid email address.', 'field': 'new_email'}, status=status.HTTP_400_BAD_REQUEST)
+        if new_email == user.email.lower():
+            return Response({'detail': 'That is already your email.', 'field': 'new_email'}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(email__iexact=new_email).exclude(pk=user.pk).exists():
+            return Response(
+                {'detail': 'Another account already uses that email.', 'field': 'new_email'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user.email = new_email
+        user.save(update_fields=['email'])
+        return Response({'detail': 'Your email was changed.', 'email': user.email})
 
 
 class CharacterSetupView(generics.UpdateAPIView):
