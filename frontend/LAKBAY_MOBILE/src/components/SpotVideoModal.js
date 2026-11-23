@@ -5,15 +5,18 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS } from '../constants/theme';
 import VintaStripe from './VintaStripe';
 
-// After a QR scan, a spot's video presentation (AI-made or real) plays in a
-// card about 3/4 of the screen: first a short "video presentation" intro, then
-// the player. Skip / Continue / back all call onDone.
+// After a QR scan, a spot's video presentation (AI-made or real) plays: first a
+// short "video presentation" intro card, then the video floating at about 3/4 of
+// the screen (no border) over a dimmed backdrop, with a glass bar below it
+// holding the "why it matters" note and Skip. Skip / Continue / back all call onDone.
 
 const INTRO_SECONDS = 3;
 const SPROCKETS = 14;
+const GLASS_SPACE = 84; // room under the floating video for the glass note bar
 
 // Cloudinary uploads get the H.264 MP4 rendition made at upload time (see
 // VideoUploadSignatureView), which every Android WebView can play.
@@ -134,6 +137,73 @@ export default function SpotVideoModal({ visible, videoUrl, spotName, onDone }) 
     </Animated.View>
   );
 
+  if (phase === 'player') {
+    return (
+      <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onDone}>
+        <View style={styles.backdrop}>
+          <Animated.View
+            style={{
+              width: cardW,
+              opacity: playerIn,
+              transform: [{ scale: playerIn.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1] }) }],
+            }}
+          >
+          <View style={[styles.videoFloat, { height: cardH - GLASS_SPACE }]}>
+          {failed ? (
+            <View style={styles.center}>
+              <Ionicons name="cloud-offline-outline" size={38} color="rgba(255,255,255,0.7)" />
+              <Text style={styles.errorText}>{"The video couldn't load. Check your connection, or continue to the story."}</Text>
+            </View>
+          ) : (
+            <WebView
+              source={source}
+              style={styles.webview}
+              originWhitelist={['*']}
+              javaScriptEnabled
+              allowsInlineMediaPlayback
+              mediaPlaybackRequiresUserAction={false}
+              allowsFullscreenVideo
+              onMessage={onMessage}
+              key={playUrl}
+              onError={fail}
+            />
+          )}
+          {status === 'loading' && (
+            <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.center]}>
+              <ActivityIndicator color={COLORS.gold} size="large" />
+            </View>
+          )}
+          </View>
+
+          <View style={styles.glass}>
+            <LinearGradient
+              pointerEvents="none"
+              colors={['rgba(255,255,255,0.26)', 'rgba(255,255,255,0.08)']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <Ionicons name="information-circle" size={18} color={COLORS.gold} />
+            <Text style={styles.glassText}>
+              This video is important: it is connected to {spotName} and shows what makes this place special.
+            </Text>
+            {ended || failed ? (
+              <TouchableOpacity style={styles.continueBtn} onPress={onDone} activeOpacity={0.85}>
+                <Text style={styles.continueText}>Continue</Text>
+                <Ionicons name="arrow-forward" size={14} color={COLORS.navy} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.skipBtn} onPress={onDone} activeOpacity={0.8}>
+                <Text style={styles.skipText}>Skip video</Text>
+                <Ionicons name="play-skip-forward" size={13} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+          </View>
+          </Animated.View>
+        </View>
+      </Modal>
+    );
+  }
+
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onDone}>
       <View style={styles.backdrop}>
@@ -146,113 +216,49 @@ export default function SpotVideoModal({ visible, videoUrl, spotName, onDone }) 
           }]}
         >
           <VintaStripe height={4} />
+          <View style={styles.intro}>
+            {sprocketRow(styles.sprocketsTop)}
+            {sprocketRow(styles.sprocketsBottom)}
+            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.flash, { opacity: flash }]} />
 
-          {phase === 'intro' ? (
-            <View style={styles.intro}>
-              {sprocketRow(styles.sprocketsTop)}
-              {sprocketRow(styles.sprocketsBottom)}
-              <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.flash, { opacity: flash }]} />
-
-              <View style={styles.slate}>
-                <Animated.View
-                  style={[styles.slateStick, {
-                    transform: [{ rotate: clap.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-28deg'] }) }],
-                  }]}
-                >
-                  {[0, 1, 2, 3].map((i) => <View key={i} style={styles.stripe} />)}
-                </Animated.View>
-                <View style={styles.slateBody}>
-                  <Ionicons name="videocam" size={30} color={COLORS.gold} />
-                </View>
-              </View>
-
+            <View style={styles.slate}>
               <Animated.View
-                style={{
-                  alignItems: 'center',
-                  opacity: textIn,
-                  transform: [{ translateY: textIn.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
-                }}
+                style={[styles.slateStick, {
+                  transform: [{ rotate: clap.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-28deg'] }) }],
+                }]}
               >
-                <Text style={styles.kicker}>VIDEO PRESENTATION</Text>
-                <Text style={styles.introTitle} numberOfLines={2}>{spotName}</Text>
-                <Text style={styles.introSub}>A short film about this place is about to play.</Text>
+                {[0, 1, 2, 3].map((i) => <View key={i} style={styles.stripe} />)}
               </Animated.View>
-
-              <View style={styles.countWrap}>
-                <Text style={styles.countText}>{count > 0 ? `Starting in ${count}` : 'Starting…'}</Text>
-                <View style={styles.bar}>
-                  <Animated.View
-                    style={[styles.barFill, { width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]}
-                  />
-                </View>
-                <TouchableOpacity onPress={() => setPhase('player')} style={styles.playNow} activeOpacity={0.8}>
-                  <Ionicons name="play" size={14} color={COLORS.navy} />
-                  <Text style={styles.playNowText}>Play now</Text>
-                </TouchableOpacity>
+              <View style={styles.slateBody}>
+                <Ionicons name="videocam" size={30} color={COLORS.gold} />
               </View>
             </View>
-          ) : (
-            <Animated.View style={[styles.player, { opacity: playerIn }]}>
-              <View style={styles.header}>
-                <View style={styles.headerIcon}>
-                  <Ionicons name="film" size={16} color={COLORS.gold} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.headerKicker}>VIDEO PRESENTATION</Text>
-                  <Text style={styles.headerTitle} numberOfLines={1}>{spotName}</Text>
-                </View>
-              </View>
 
-              <View style={styles.videoBox}>
-                {failed ? (
-                  <View style={styles.center}>
-                    <Ionicons name="cloud-offline-outline" size={34} color="rgba(255,255,255,0.7)" />
-                    <Text style={styles.errorText}>{"The video couldn't load. Check your connection, or continue to the story."}</Text>
-                  </View>
-                ) : (
-                  <WebView
-                    source={source}
-                    style={styles.webview}
-                    originWhitelist={['*']}
-                    javaScriptEnabled
-                    allowsInlineMediaPlayback
-                    mediaPlaybackRequiresUserAction={false}
-                    allowsFullscreenVideo
-                    onMessage={onMessage}
-                    key={playUrl}
-                    onError={fail}
-                  />
-                )}
-                {status === 'loading' && (
-                  <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.center]}>
-                    <ActivityIndicator color={COLORS.gold} size="large" />
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.note}>
-                <Ionicons name="information-circle" size={16} color={COLORS.gold} style={{ marginTop: 1 }} />
-                <Text style={styles.noteText}>
-                  This video is important: it is connected to {spotName} and shows what makes this place special.
-                </Text>
-              </View>
-
-              <View style={styles.actions}>
-                {!ended && (
-                  <TouchableOpacity style={styles.skipBtn} onPress={onDone} activeOpacity={0.8}>
-                    <Text style={styles.skipText}>Skip video</Text>
-                    <Ionicons name="play-skip-forward" size={14} color="rgba(255,255,255,0.85)" />
-                  </TouchableOpacity>
-                )}
-                {(ended || failed) && (
-                  <TouchableOpacity style={styles.continueBtn} onPress={onDone} activeOpacity={0.85}>
-                    <Text style={styles.continueText}>Continue to the story</Text>
-                    <Ionicons name="arrow-forward" size={15} color={COLORS.navy} />
-                  </TouchableOpacity>
-                )}
-              </View>
+            <Animated.View
+              style={{
+                alignItems: 'center',
+                opacity: textIn,
+                transform: [{ translateY: textIn.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
+              }}
+            >
+              <Text style={styles.kicker}>VIDEO PRESENTATION</Text>
+              <Text style={styles.introTitle} numberOfLines={2}>{spotName}</Text>
+              <Text style={styles.introSub}>A short film about this place is about to play.</Text>
             </Animated.View>
-          )}
+
+            <View style={styles.countWrap}>
+              <Text style={styles.countText}>{count > 0 ? `Starting in ${count}` : 'Starting…'}</Text>
+              <View style={styles.bar}>
+                <Animated.View
+                  style={[styles.barFill, { width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]}
+                />
+              </View>
+              <TouchableOpacity onPress={() => setPhase('player')} style={styles.playNow} activeOpacity={0.8}>
+                <Ionicons name="play" size={14} color={COLORS.navy} />
+                <Text style={styles.playNowText}>Play now</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </Animated.View>
       </View>
     </Modal>
@@ -265,7 +271,6 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: COLORS.navy, borderRadius: 22, overflow: 'hidden',
-    borderWidth: 1, borderColor: 'rgba(251,191,36,0.35)',
     shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.45, shadowRadius: 20, elevation: 14,
   },
 
@@ -301,35 +306,29 @@ const styles = StyleSheet.create({
   },
   playNowText: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.navy },
 
-  player: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
-  headerIcon: {
-    width: 32, height: 32, borderRadius: 16, marginRight: 10,
-    backgroundColor: 'rgba(251,191,36,0.15)', alignItems: 'center', justifyContent: 'center',
+  videoFloat: {
+    borderRadius: 20, overflow: 'hidden', backgroundColor: '#000',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.5, shadowRadius: 24, elevation: 16,
   },
-  headerKicker: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 2, color: COLORS.gold },
-  headerTitle: { fontFamily: FONTS.bold, fontSize: 16, color: '#FFFFFF', marginTop: 1 },
-
-  videoBox: { flex: 1, backgroundColor: '#000' },
   webview: { flex: 1, backgroundColor: '#000' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  errorText: { fontFamily: FONTS.regular, fontSize: 13, color: 'rgba(255,255,255,0.8)', textAlign: 'center', marginTop: 10 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
+  errorText: { fontFamily: FONTS.regular, fontSize: 14, color: 'rgba(255,255,255,0.8)', textAlign: 'center', marginTop: 12 },
 
-  note: {
-    flexDirection: 'row', gap: 8, marginHorizontal: 14, marginTop: 12, padding: 10, borderRadius: 12,
-    backgroundColor: 'rgba(251,191,36,0.10)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)',
+  glass: {
+    marginTop: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 10, paddingLeft: 14, paddingRight: 8, borderRadius: 18, overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.10)',
   },
-  noteText: { flex: 1, fontFamily: FONTS.medium, fontSize: 12, lineHeight: 17, color: 'rgba(255,255,255,0.9)' },
-
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, padding: 14 },
+  glassText: { flex: 1, fontFamily: FONTS.medium, fontSize: 12, lineHeight: 17, color: '#FFFFFF' },
   skipBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 16,
-    borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
+    flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 8, paddingHorizontal: 12,
+    borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.22)',
   },
-  skipText: { fontFamily: FONTS.semiBold, fontSize: 13, color: 'rgba(255,255,255,0.9)' },
+  skipText: { fontFamily: FONTS.semiBold, fontSize: 12, color: '#FFFFFF' },
   continueBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 18,
-    borderRadius: 22, backgroundColor: COLORS.gold,
+    flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 8, paddingHorizontal: 14,
+    borderRadius: 20, backgroundColor: COLORS.gold,
   },
   continueText: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.navy },
 });
