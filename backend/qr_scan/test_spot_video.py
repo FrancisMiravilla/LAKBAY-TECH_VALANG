@@ -40,9 +40,10 @@ def test_admin_saves_and_clears_video(admin):
     assert res.status_code == 200 and res.data['video_url'] == ''
 
 
-def test_video_link_must_be_web_address(admin):
+@pytest.mark.parametrize('bad', ['ftp://x/v.mp4', 'https://x/v.mp4</script><script>alert(1)</script>', 'https://x/a b.mp4'])
+def test_video_link_must_be_safe_web_address(admin, bad):
     spot = _spot()
-    res = _client(admin).patch(f'/api/qr/spots/{spot.id}/', {'video_url': 'ftp://x/v.mp4'}, format='json')
+    res = _client(admin).patch(f'/api/qr/spots/{spot.id}/', {'video_url': bad}, format='json')
     assert res.status_code == 400
 
 

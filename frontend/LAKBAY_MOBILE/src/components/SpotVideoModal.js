@@ -32,7 +32,7 @@ video{width:100%;height:100%;object-fit:contain;background:#000}</style></head>
 var v=document.getElementById('v');
 function send(t){window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(t);}
 ['playing','waiting','ended','error'].forEach(function(e){v.addEventListener(e,function(){send(e);});});
-v.src=${JSON.stringify(url)};
+v.src=${JSON.stringify(url).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')};
 v.play().catch(function(){send('paused');});
 </script></body></html>`;
 

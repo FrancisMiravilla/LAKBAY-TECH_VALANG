@@ -68,6 +68,8 @@ class CulturalSpotSerializer(serializers.ModelSerializer):
         value = (value or '').strip()
         if value and not value.lower().startswith(('https://', 'http://')):
             raise serializers.ValidationError("The video link must start with https://")
+        if any(ch in value for ch in '<>"\'`\\') or any(ch.isspace() for ch in value):
+            raise serializers.ValidationError("The video link contains characters that are not allowed.")
         return value
 
 
