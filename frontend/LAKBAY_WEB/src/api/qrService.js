@@ -22,6 +22,7 @@ const qrService = {
   createSpot:   (data)     => adminClient.post('/api/qr/spots/', data),
   updateSpot:   (id, data) => adminClient.patch(`/api/qr/spots/${id}/`, data),
   deleteSpot:   (id)       => adminClient.delete(`/api/qr/spots/${id}/`),
+  getVideoUploadSignature: () => adminClient.post('/api/qr/video-upload-signature/'),
 
   getMarkers:   ()              => adminClient.get('/api/qr/markers/'),
   createMarker: (data)          => adminClient.post('/api/qr/markers/', data),

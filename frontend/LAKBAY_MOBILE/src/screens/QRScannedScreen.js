@@ -15,6 +15,7 @@ import { useApp } from '../context/AppContext';
 import VintaStripe from '../components/VintaStripe';
 import GuideSpeechModal from '../components/GuideSpeechModal';
 import GuideStoryButton from '../components/GuideStoryButton';
+import SpotVideoModal from '../components/SpotVideoModal';
 import { loreStorySteps } from '../constants/loreStory';
 import useQuizStatus from '../hooks/useQuizStatus';
 
@@ -107,11 +108,27 @@ function QRScannedContent({ navigation, route }) {
   }), [spot]);
   const [storyOpen, setStoryOpen] = useState(false);
 
+  // A spot with a video presentation plays it first; the guide's story follows
+  // once it ends or is skipped. Without a video the story opens on its own.
+  const videoUrl = spot.video_url || null;
+  const [videoOpen, setVideoOpen] = useState(false);
+  const storyAfterVideo = useRef(true);
+
   useEffect(() => {
+    if (videoUrl) {
+      const t = setTimeout(() => setVideoOpen(true), 900);
+      return () => clearTimeout(t);
+    }
     if (!storySteps.length) return undefined;
     const t = setTimeout(() => setStoryOpen(true), 1100);
     return () => clearTimeout(t);
-  }, [storySteps]);
+  }, [storySteps, videoUrl]);
+
+  const closeVideo = () => {
+    setVideoOpen(false);
+    if (storyAfterVideo.current && storySteps.length) setTimeout(() => setStoryOpen(true), 450);
+    storyAfterVideo.current = false;
+  };
 
   useEffect(() => {
     const xpReward = spot.xp_reward || 50;
@@ -282,6 +299,22 @@ function QRScannedContent({ navigation, route }) {
 
           {/* ── Lore Info Cards ── */}
           <Animated.View style={{ transform: [{ translateY: contentY }], opacity: contentOpacity }}>
+            {videoUrl && (
+              <TouchableOpacity
+                style={styles.videoBtn}
+                onPress={() => setVideoOpen(true)}
+                activeOpacity={0.85}
+                accessibilityLabel="Watch the video presentation"
+              >
+                <View style={styles.videoBtnIcon}>
+                  <Ionicons name="film" size={18} color={COLORS.gold} />
+                </View>
+                <Text style={styles.videoBtnLabel}>Watch the video presentation</Text>
+                <View style={styles.videoBtnPlay}>
+                  <Ionicons name="play" size={13} color="#FFFFFF" />
+                </View>
+              </TouchableOpacity>
+            )}
             {storySteps.length > 0 && (
               <GuideStoryButton style={styles.storyBtn} onPress={() => setStoryOpen(true)} />
             )}
@@ -338,6 +371,15 @@ function QRScannedContent({ navigation, route }) {
           </Animated.View>
         </ScrollView>
       </SafeAreaView>
+
+      {videoUrl && (
+        <SpotVideoModal
+          visible={videoOpen}
+          videoUrl={videoUrl}
+          spotName={spot.name}
+          onDone={closeVideo}
+        />
+      )}
 
       <GuideSpeechModal
         visible={storyOpen}
@@ -561,6 +603,20 @@ const styles = StyleSheet.create({
 
   // ── Info Cards ──
   storyBtn: { marginBottom: 14 },
+  videoBtn: {
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', marginBottom: 10,
+    backgroundColor: COLORS.navy, borderRadius: 28, paddingVertical: 6, paddingLeft: 6, paddingRight: 8,
+    borderWidth: 1, borderColor: 'rgba(251,191,36,0.45)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4,
+  },
+  videoBtnIcon: {
+    width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(251,191,36,0.15)', borderWidth: 2, borderColor: COLORS.gold,
+  },
+  videoBtnLabel: { flex: 1, marginLeft: 12, fontFamily: FONTS.bold, fontSize: 14, color: '#FFFFFF' },
+  videoBtnPlay: {
+    width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.gold, alignItems: 'center', justifyContent: 'center',
+  },
   infoFrame: {
     marginBottom: 12,
   },

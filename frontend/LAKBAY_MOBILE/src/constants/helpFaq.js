@@ -37,6 +37,10 @@ export const HELP_SECTIONS = [
         a: 'On Explore, choose the QR quest and point your camera at a LAKBAY QR code posted at a cultural spot. Hold the phone steady until it reads the code. The place story then opens and the guide tells it to you.',
       },
       {
+        q: 'A video started after I scanned. What is it?',
+        a: 'Some places have a short video presentation about them. It plays first, then the guide tells the story. You can tap Skip video to go straight to the story, and watch it later with the Watch the video presentation button on the place page. Turn up your media volume to hear it.',
+      },
+      {
         q: 'How much XP do I get for scanning?',
         a: 'Each place gives its own XP reward, shown on the place. You get it the first time you scan that place. Scanning it again lets you read the story again but gives no more XP.',
       },

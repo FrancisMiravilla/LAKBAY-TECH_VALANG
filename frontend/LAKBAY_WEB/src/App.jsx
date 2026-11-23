@@ -66,6 +66,7 @@ import DashboardLeaderboard from './DashboardLeaderboard';
 import ReportsPage from './reports/ReportsPage';
 import { makeArSafeGlb } from './utils/arSafeGlb';
 import { downloadQrPoster } from './qr/qrPoster';
+import SpotVideoField from './video/SpotVideoField';
 
 const generateNotificationId = () => Date.now();
 
@@ -273,6 +274,7 @@ const normalizeSpot = (s) => ({
   required_level: s.required_level || 1,
   xp_reward: s.xp_reward || 50,
   catch_xp_reward: s.catch_xp_reward ?? 150,
+  video_url: s.video_url || '',
   images: [s.image, s.image2, s.image3].filter(img => img).map(img => {
     if (img.startsWith('/media')) return `http://localhost:8000${img}`;
     return img;
@@ -344,8 +346,10 @@ function App() {
     required_level: 1,
     xp_reward: 50,
     catch_xp_reward: 150,
+    video_url: '',
     is_featured: false,
   });
+  const [videoUploading, setVideoUploading] = useState(false);
 
   const [isEditSpotModalOpen, setIsEditSpotModalOpen] = useState(false);
   const [editingSpot, setEditingSpot] = useState(null);
@@ -807,7 +811,7 @@ function App() {
   // upload (images, 3D model) runs in the background, and a failure restores the form.
   const handleAddSpot = (e) => {
     e.preventDefault();
-    if (!newSpot.name || !newSpot.location_name) return;
+    if (videoUploading || !newSpot.name || !newSpot.location_name) return;
     const payload = {
       name: newSpot.name,
       location_name: newSpot.location_name,
@@ -826,6 +830,7 @@ function App() {
       required_level: parseInt(newSpot.required_level) || 1,
       xp_reward: parseInt(newSpot.xp_reward) || 50,
       catch_xp_reward: parseInt(newSpot.catch_xp_reward) || 150,
+      video_url: newSpot.featureTypes?.includes('qr') ? (newSpot.video_url || '') : '',
       is_featured: newSpot.is_featured,
     };
     const draft = newSpot;
@@ -833,7 +838,7 @@ function App() {
 
     setSpots(prev => [...prev, { ...normalizeSpot({ ...payload, id: tempId }), saving: true }]);
     setIsAddSpotModalOpen(false);
-    setNewSpot({ name: '', location_name: '', latitude: '', longitude: '', description: '', historical_background: '', cultural_significance: '', fun_fact: '', hook: '', featureTypes: ['qr'], images: ['', '', ''], model_3d: null, required_level: 1, xp_reward: 50, catch_xp_reward: 150, is_featured: false });
+    setNewSpot({ name: '', location_name: '', latitude: '', longitude: '', description: '', historical_background: '', cultural_significance: '', fun_fact: '', hook: '', featureTypes: ['qr'], images: ['', '', ''], model_3d: null, required_level: 1, xp_reward: 50, catch_xp_reward: 150, video_url: '', is_featured: false });
 
     qrService.createSpot(payload)
       .then(({ data }) => {
@@ -851,7 +856,7 @@ function App() {
 
   const handleEditSpotSubmit = (e) => {
     e.preventDefault();
-    if (!editingSpot.name || !editingSpot.location) return;
+    if (videoUploading || !editingSpot.name || !editingSpot.location) return;
     const draft = editingSpot;
     const original = spots.find(s => s.id === draft.id);
     const payload = {
@@ -868,6 +873,7 @@ function App() {
       required_level: parseInt(draft.required_level) || 1,
       xp_reward: parseInt(draft.xp_reward) || 50,
       catch_xp_reward: parseInt(draft.catch_xp_reward) || 150,
+      video_url: (draft.feature_types || []).includes('qr') ? (draft.video_url || '') : '',
       ...(draft.images?.[0]?.startsWith('data:') && { image: draft.images[0] }),
       ...(draft.images?.[1]?.startsWith('data:') && { image2: draft.images[1] }),
       ...(draft.images?.[2]?.startsWith('data:') && { image3: draft.images[2] }),
@@ -3843,6 +3849,15 @@ function App() {
                     </div>
                   )}
 
+                  {newSpot.featureTypes?.includes('qr') && (
+                    <SpotVideoField
+                      accent={PIN_TYPE_CONFIG.qr.color}
+                      value={newSpot.video_url || ''}
+                      onChange={(url) => setNewSpot(prev => ({ ...prev, video_url: url }))}
+                      onUploadingChange={setVideoUploading}
+                    />
+                  )}
+
                   {newSpot.featureTypes?.includes('catch') && (
                     <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                       <label className="form-label" style={{ color: '#D97706' }}>Catch XP Reward <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(Awarded when the model is caught)</span></label>
@@ -3872,7 +3887,7 @@ function App() {
 
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setIsAddSpotModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Save Spot</button>
+                <button type="submit" className="btn btn-primary" disabled={videoUploading}>{videoUploading ? 'Uploading video…' : 'Save Spot'}</button>
               </div>
             </form>
           </div>
@@ -4080,6 +4095,15 @@ function App() {
                     </div>
                   )}
 
+                  {editingSpot.feature_types?.includes('qr') && (
+                    <SpotVideoField
+                      accent={PIN_TYPE_CONFIG.qr.color}
+                      value={editingSpot.video_url || ''}
+                      onChange={(url) => setEditingSpot(prev => ({ ...prev, video_url: url }))}
+                      onUploadingChange={setVideoUploading}
+                    />
+                  )}
+
                   {editingSpot.feature_types?.includes('catch') && (
                     <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                       <label className="form-label" style={{ color: '#D97706' }}>Catch XP Reward <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(Awarded when the model is caught)</span></label>
@@ -4112,7 +4136,7 @@ function App() {
                   onClick={() => { setIsEditSpotModalOpen(false); setEditingSpot(null); }}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">Save Changes</button>
+                <button type="submit" className="btn btn-primary" disabled={videoUploading}>{videoUploading ? 'Uploading video…' : 'Save Changes'}</button>
               </div>
             </form>
           </div>

@@ -10,7 +10,7 @@ from .views import (
     TriviaReviewListView, TriviaReviewActionView,
     ARTargetViewSet, MilestoneBadgeViewSet,
     DashboardStatsView, LogActivityView, MyCollectionView, PublicMapView,
-    SpotReviewView, QuizCompletionView,
+    SpotReviewView, QuizCompletionView, VideoUploadSignatureView,
 )
 
 router = DefaultRouter()
@@ -25,6 +25,7 @@ urlpatterns = [
     path('', include(router.urls)),
     path('public-map/', PublicMapView.as_view(), name='qr_public_map'),
     path('validate/', ValidateQRView.as_view(), name='qr_validate'),
+    path('video-upload-signature/', VideoUploadSignatureView.as_view(), name='qr_video_upload_signature'),
     path('my-scans/', UserQRScansView.as_view(), name='qr_my_scans'),
     path('my-collection/', MyCollectionView.as_view(), name='qr_my_collection'),
     

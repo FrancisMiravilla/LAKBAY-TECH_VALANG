@@ -64,6 +64,12 @@ class CulturalSpotSerializer(serializers.ModelSerializer):
     def get_latest_comment(self, obj):
         return latest_comment(obj)
 
+    def validate_video_url(self, value):
+        value = (value or '').strip()
+        if value and not value.lower().startswith(('https://', 'http://')):
+            raise serializers.ValidationError("The video link must start with https://")
+        return value
+
 
 class QRMarkerSerializer(serializers.ModelSerializer):
     spot = CulturalSpotSerializer(read_only=True)

@@ -24,6 +24,10 @@ class CulturalSpot(models.Model):
         max_length=500,
         null=True, blank=True,
     )
+    video_url = models.URLField(
+        max_length=500, blank=True, default='',
+        help_text="Optional video presentation (AI-made or real) shown after a QR scan",
+    )
     is_featured = models.BooleanField(default=False)
     required_level = models.PositiveIntegerField(default=1, help_text="Minimum explorer level required to unlock/scan this spot")
     xp_reward = models.PositiveIntegerField(default=50, help_text="XP awarded to user upon scanning this spot")

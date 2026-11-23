@@ -230,6 +230,7 @@ class ValidateQRView(APIView):
                     'body': spot.fun_fact,
                 },
                 'location': spot.location_name,
+                'video_url': spot.video_url or None,
             }
         }, status=status.HTTP_200_OK)
 
@@ -1205,3 +1206,35 @@ class DashboardStatsView(APIView):
             'recent_activity': activity,
         })
 
+
+
+VIDEO_FOLDER = 'lakbay/videos'
+VIDEO_EAGER = 'f_mp4,q_auto,vc_h264'
+
+
+class VideoUploadSignatureView(APIView):
+    """Signs a direct browser-to-Cloudinary video upload so large files never pass through this server."""
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        import time
+        import cloudinary
+        from cloudinary.utils import api_sign_request
+
+        cfg = cloudinary.config()
+        if not (cfg.cloud_name and cfg.api_key and cfg.api_secret):
+            return Response({'error': 'Video uploads are not configured on the server.'},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        params = {
+            'timestamp': int(time.time()),
+            'folder': VIDEO_FOLDER,
+            'eager': VIDEO_EAGER,
+            'eager_async': 'true',
+        }
+        return Response({
+            **params,
+            'signature': api_sign_request(params, cfg.api_secret),
+            'api_key': cfg.api_key,
+            'cloud_name': cfg.cloud_name,
+            'upload_url': f'https://api.cloudinary.com/v1_1/{cfg.cloud_name}/video/upload',
+        })
